@@ -1,0 +1,153 @@
+# ============================================
+#  NODE.JS (Backend, Bot, Server)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-store/
+
+# ============================================
+#  ENV / SECRET FILES
+# ============================================
+.env
+.env.*        # .env.local .env.prod .env.development
+*.env.backup
+.envrc
+
+# ============================================
+#  LOGS
+# ============================================
+logs/
+*.log
+*.log.*
+debug.log
+log.txt
+
+# PM2 logs
+.pids
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+#  BUILD ARTIFACTS
+# ============================================
+dist/
+build/
+out/
+public/build/
+cache/
+.temp/
+.tmp/
+.temp_cache/
+.cache/
+.vite/
+.next/
+.nuxt/
+.svelte-kit/
+storybook-static/
+
+# ============================================
+#  FRONTEND (React / Vue / Vite)
+# ============================================
+# React
+*.DS_Store
+*.pem
+*.crt
+*.key
+
+# Vite cache
+node_modules/.vite
+
+# Vue
+.idea/
+
+# ============================================
+#  TESTING
+# ============================================
+coverage/
+cypress/videos/
+cypress/screenshots/
+test-results/
+.vitest/
+karma.conf.js
+
+# ============================================
+#  OS SYSTEM FILES
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================
+#  EDITOR / IDE
+# ============================================
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# ============================================
+#  TEMP / MISC
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+
+# ============================================
+#  UPLOADS / GENERATED FILES
+# ============================================
+uploads/
+uploads/**
+static/uploads/
+public/uploads/
+
+# ============================================
+#  DEBUG FILES YOU GENERUJESZ (HLTV etc)
+# ============================================
+debug_*.html
+playoffs_debug_*.html
+hltv_debug_*.json
+scraper_output_*.html
+
+# ============================================
+#  EXCEL & EXPORTS (Pick'em)
+# ============================================
+exports/
+exports/**
+*.xlsx
+*.xls
+*.csv
+
+# ============================================
+#  BUILD KEYS / SSL
+# ============================================
+*.pem
+*.key
+*.crt
+
+# ============================================
+#  DOCKER
+# ============================================
+docker-compose.override.yml
+docker-data/
+
