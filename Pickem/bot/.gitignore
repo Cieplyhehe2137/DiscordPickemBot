@@ -1,0 +1,138 @@
+# =========================
+# Node & general
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-store/
+
+# =========================
+# Env / secrets
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+*.log.*
+debug.log
+npm-debug.log
+yarn-error.log
+/tmp/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Winston / pino / custom
+*.json.log
+*.info.log
+*.error.log
+
+# =========================
+# Discord Bot temp & cache
+# =========================
+cache/
+temp/
+.tmp/
+.DS_Store
+
+# Puppeteer Chromium cache
+.puppeteer/
+.puppeteer-chromium/
+chrome-data/
+chromium-data/
+
+# Debug HTML from Puppeteer
+debug_*.html
+playoffs_debug_*.html
+swiss_debug_*.html
+debug_playoffs_*.html
+events_debug_*.html
+
+# =========================
+# Exports (Excel / CSV)
+# =========================
+exports/
+*.xlsx
+*.xls
+*.csv
+
+# =========================
+# Uploads temp
+# =========================
+uploads/
+uploads_temp/
+uploads-dev/
+*.zip
+
+# =========================
+# Backend Express build
+# =========================
+dist/
+build/
+server_build/
+
+# =========================
+# Frontend (React / Vue) build
+# =========================
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+
+# Vue
+*.local
+.idea/
+.vscode/
+
+# =========================
+# IDE / Editor folders
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# System
+# =========================
+Thumbs.db
+.DS_Store
+*.bak
+*.tmp
+*.orig
+
+# =========================
+# MySQL dumps / dev files
+# =========================
+*.sql
+*.sqlite
+*.db
+
+# =========================
+# Extra for your Pick'em Bot
+# =========================
+data/hltv/
+data/cache/
+data/temp/
+results_debug/
+scraper_cache/
+
+# ExcelJS temp files
+~$*.xlsx
+
+# =========================
+# Build artifacts
+# =========================
+coverage/
+out/
+bin/
+lib/
