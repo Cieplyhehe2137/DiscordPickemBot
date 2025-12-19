@@ -65,7 +65,6 @@ fs.readdirSync(path.join(__dirname, 'commands'))
 // 📥 Mapy interakcji
 const maps = {
   buttonMap: require('./maps/buttonMap'),
-  modalMap: require('./maps/modalMap'),
   selectMap: require('./maps/selectMap'),
   dropdownMap: require('./maps/dropdownMap')
 };
