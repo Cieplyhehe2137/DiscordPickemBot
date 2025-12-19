@@ -8,6 +8,9 @@ const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
 
+console.log("DEPLOY MARKER:", "v-" + Date.now());
+
+
 // 🌍 Debugowanie zmiennych środowiskowych
 console.log('==================== 🌍 DEBUG ENV ====================');
 [
