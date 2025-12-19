@@ -8,7 +8,28 @@ const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
 
-console.log("DEPLOY MARKER:", "v-" + Date.now());
+function getGitCommit() {
+  try {
+    const headPath = path.join(process.cwd(), ".git", "HEAD");
+    const head = fs.readFileSync(headPath, "utf8").trim();
+
+    if (head.startsWith("ref:")) {
+      const ref = head.split(" ")[1].trim();
+      const refPath = path.join(process.cwd(), ".git", ref);
+      return fs.readFileSync(refPath, "utf8").trim();
+    }
+    return head;
+  } catch (e) {
+    return "no-git";
+  }
+}
+
+console.log("=== DEPLOY DEBUG ===");
+console.log("CWD:", process.cwd());
+console.log("ENTRY __dirname:", __dirname);
+console.log("GIT COMMIT:", getGitCommit());
+console.log("DEPLOY TS:", new Date().toISOString());
+console.log("====================");
 
 
 // 🌍 Debugowanie zmiennych środowiskowych
