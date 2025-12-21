@@ -9,6 +9,6 @@ coverage/
 .DS_Store
 
 # runtime / uploads / backups (jeśli masz)
-archiwum/
-backups/
+
+
 tmp/
