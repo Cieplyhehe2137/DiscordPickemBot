@@ -110,7 +110,7 @@ module.exports = async (interaction) => {
     const message = await interaction.channel.send({
       embeds: [embed],
       components: [componentRow],
-      content: '@everyone',
+      // content: '@everyone',
       allowedMentions: { parse: ['everyone'] }
     });
 
