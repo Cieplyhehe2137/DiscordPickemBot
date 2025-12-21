@@ -5,7 +5,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (err) {}
+  } catch (err) { }
   return String(val)
     .replace(/[\[\]"]+/g, '')
     .split(/[;,]+/)
@@ -62,7 +62,7 @@ module.exports = async function calculateScores() {
           let score = 0;
           pick30.forEach(t => { if (correct30.includes(t)) score += 4; });
           pick03.forEach(t => { if (correct03.includes(t)) score += 4; });
-          adv.forEach(t  => { if (correctAdv.includes(t)) score += 2; });
+          adv.forEach(t => { if (correctAdv.includes(t)) score += 2; });
           console.log(`🎯 Punkty dla ${displayname}: ${score}`);
           console.log('-----------------------------');
 
@@ -104,18 +104,18 @@ module.exports = async function calculateScores() {
           displayname = nameRow[0]?.displayname || user_id;
         }
 
-        const semis  = cleanList(pred.semifinalists);
+        const semis = cleanList(pred.semifinalists);
         const finals = cleanList(pred.finalists);
         const winner = pred.winner;
-        const third  = pred.third_place_winner;
+        const third = pred.third_place_winner;
 
-        const correctSemis  = cleanList(correctPlayoffs.correct_semifinalists);
+        const correctSemis = cleanList(correctPlayoffs.correct_semifinalists);
         const correctFinals = cleanList(correctPlayoffs.correct_finalists);
         const correctWinner = correctPlayoffs.correct_winner;
-        const correctThird  = correctPlayoffs.correct_third_place_winner;
+        const correctThird = correctPlayoffs.correct_third_place_winner;
 
         let score = 0;
-        semis.forEach(t  => { if (correctSemis.includes(t))  score += 1; });
+        semis.forEach(t => { if (correctSemis.includes(t)) score += 1; });
         finals.forEach(t => { if (correctFinals.includes(t)) score += 2; });
         if (winner === correctWinner) score += 3;
         if (third && third === correctThird) score += 2;
@@ -133,19 +133,19 @@ module.exports = async function calculateScores() {
   }
 
   // === DOUBLE ELIMINATION ===
- // === DOUBLE ELIMINATION ===
-try {
-  console.log('📦 Przeliczam fazę DOUBLE ELIM...');
-  const [doubleResultsRows] = await pool.query(
-    `SELECT * FROM doubleelim_results WHERE active = 1 ORDER BY id DESC LIMIT 1`
-  );
-  const correctDouble = doubleResultsRows[0];
-  if (!correctDouble) {
-    console.warn('⚠️ Brak aktywnych oficjalnych wyników Double Elim');
-  } else {
-    // ⬇️ Weź ostatnie typy per user (bez 'active')
-    const [doublePredictions] = await pool.query(
-      `
+  // === DOUBLE ELIMINATION ===
+  try {
+    console.log('📦 Przeliczam fazę DOUBLE ELIM...');
+    const [doubleResultsRows] = await pool.query(
+      `SELECT * FROM doubleelim_results WHERE active = 1 ORDER BY id DESC LIMIT 1`
+    );
+    const correctDouble = doubleResultsRows[0];
+    if (!correctDouble) {
+      console.warn('⚠️ Brak aktywnych oficjalnych wyników Double Elim');
+    } else {
+      // ⬇️ Weź ostatnie typy per user (bez 'active')
+      const [doublePredictions] = await pool.query(
+        `
       SELECT p.*
       FROM doubleelim_predictions p
       JOIN (
@@ -154,46 +154,46 @@ try {
         GROUP BY user_id
       ) last ON last.user_id = p.user_id AND last.ms = p.submitted_at
       `
-    );
+      );
 
-    for (const pred of doublePredictions) {
-      const user_id = pred.user_id;
-      let displayname = pred.displayname;
-      if (!displayname || displayname === user_id) {
-        const [nameRow] = await pool.query(
-          `SELECT displayname FROM doubleelim_predictions WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1`,
-          [user_id]
-        );
-        displayname = nameRow[0]?.displayname || user_id;
-      }
+      for (const pred of doublePredictions) {
+        const user_id = pred.user_id;
+        let displayname = pred.displayname;
+        if (!displayname || displayname === user_id) {
+          const [nameRow] = await pool.query(
+            `SELECT displayname FROM doubleelim_predictions WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 1`,
+            [user_id]
+          );
+          displayname = nameRow[0]?.displayname || user_id;
+        }
 
-      const ua = cleanList(pred.upper_final_a);
-      const la = cleanList(pred.lower_final_a);
-      const ub = cleanList(pred.upper_final_b);
-      const lb = cleanList(pred.lower_final_b);
+        const ua = cleanList(pred.upper_final_a);
+        const la = cleanList(pred.lower_final_a);
+        const ub = cleanList(pred.upper_final_b);
+        const lb = cleanList(pred.lower_final_b);
 
-      const correctUA = cleanList(correctDouble.upper_final_a);
-      const correctLA = cleanList(correctDouble.lower_final_a);
-      const correctUB = cleanList(correctDouble.upper_final_b);
-      const correctLB = cleanList(correctDouble.lower_final_b);
+        const correctUA = cleanList(correctDouble.upper_final_a);
+        const correctLA = cleanList(correctDouble.lower_final_a);
+        const correctUB = cleanList(correctDouble.upper_final_b);
+        const correctLB = cleanList(correctDouble.lower_final_b);
 
-      let score = 0;
-      ua.forEach(t => { if (correctUA.includes(t)) score += 1; });
-      la.forEach(t => { if (correctLA.includes(t)) score += 1; });
-      ub.forEach(t => { if (correctUB.includes(t)) score += 1; });
-      lb.forEach(t => { if (correctLB.includes(t)) score += 1; });
+        let score = 0;
+        ua.forEach(t => { if (correctUA.includes(t)) score += 1; });
+        la.forEach(t => { if (correctLA.includes(t)) score += 1; });
+        ub.forEach(t => { if (correctUB.includes(t)) score += 1; });
+        lb.forEach(t => { if (correctLB.includes(t)) score += 1; });
 
-      await pool.query(
-        `INSERT INTO doubleelim_scores (user_id, displayname, points)
+        await pool.query(
+          `INSERT INTO doubleelim_scores (user_id, displayname, points)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE displayname = VALUES(displayname), points = ?`,
-        [user_id, displayname, score, score]
-      );
+          [user_id, displayname, score, score]
+        );
+      }
     }
+  } catch (err) {
+    console.error('❌ Błąd w fazie DOUBLE ELIM:', err);
   }
-} catch (err) {
-  console.error('❌ Błąd w fazie DOUBLE ELIM:', err);
-}
 
   // === PLAY-IN ===
   try {
@@ -235,6 +235,50 @@ try {
     }
   } catch (err) {
     console.error('❌ Błąd w fazie PLAY-IN:', err);
+  }
+
+  // === MATCHES (wyniki meczów) ===
+  try {
+    console.log('📦 Przeliczam punkty za WYNIKI MECZÓW...');
+
+    // wszystkie mecze, które mają ustawiony oficjalny wynik
+    const [matchesWithResults] = await pool.query(`
+      SELECT m.id, m.team_a, m.team_b, m.phase, r.res_a, r.res_b
+      FROM matches m
+      JOIN match_results r ON r.match_id = m.id
+      ORDER BY m.id ASC
+      `);
+
+    let totalComputed = 0;
+
+    for (const m of matchesWithResults) {
+      const [preds] = await pool.query(
+        `SELECT user_id, pred_a, pred_b FROM match_predictions WHER match_id = ?`,
+        [m.id]
+      );
+
+      for (const p of preds) {
+        const pts = computePoints({
+          predA: p.pred_a,
+          predB: p.pred_b,
+          resA: m.res_a,
+          resB: m.res_b
+        });
+
+        await pool.query(
+          `INSERT INTO match_points (match_id, user_id, points)
+           VALUES (?, ?, ?)
+           ON DUPLICATE KEY UPDATE points = VALUES(points), computed_at = CURRENT_TIMESTAMP`,
+          [m.id, p.user_id, pts]
+        );
+
+        totalComputed++;
+      }
+    }
+
+    console.log(`✅ Mecze przeliczone. Zaktualizowana wpisów match_points: ${totalComputed}`);
+  } catch (err) {
+    console.error('❌ Błąd w fazie MATCHES:', err);
   }
 
   console.log('✅ Przeliczanie zakończone.');
