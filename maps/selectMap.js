@@ -24,6 +24,9 @@ module.exports = {
   'match_add_team_b_select': 'matchAddTeamBSelect',
 
   'match_clear_phase_select': 'clearMatchesPhaseSelect',
+  'match_admin_match_select': 'matchAdminMatchSelect',
+  'match_admin_result_select': 'matchAdminResultSelect',
+
 
 
 };

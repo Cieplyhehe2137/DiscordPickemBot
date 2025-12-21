@@ -10,9 +10,9 @@ module.exports = {
   'swiss_3_0_stage3': 'submitSwissDropdown',
   'swiss_0_3_stage3': 'submitSwissDropdown',
   'swiss_advancing_stage3': 'submitSwissDropdown',
-    'confirm_stage1': 'submitSwissDropdown',
-'confirm_stage2': 'submitSwissDropdown',
-'confirm_stage3': 'submitSwissDropdown',
+  'confirm_stage1': 'submitSwissDropdown',
+  'confirm_stage2': 'submitSwissDropdown',
+  'confirm_stage3': 'submitSwissDropdown',
 
   // Playoffs prediction
   'playoffs_semifinalists': 'submitPlayoffsDropdown',
@@ -37,9 +37,9 @@ module.exports = {
 
   // Playoffs results
   'results_playoffs_semifinalists': 'submitPlayoffsResultsDropdown',
-'results_playoffs_finalists': 'submitPlayoffsResultsDropdown',
-'results_playoffs_winner': 'submitPlayoffsResultsDropdown',
-'results_playoffs_third_place_winner': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_finalists': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_winner': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_third_place_winner': 'submitPlayoffsResultsDropdown',
 
   // Double Elim prediction
   'doubleelim_upper_final_a': 'submitDoubleElimDropdown',
@@ -55,12 +55,18 @@ module.exports = {
   'official_doubleelim_lower_final_b': 'submitDoubleElimResultsDropdown',
   'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
   'open_doubleelim_results': 'openDoubleElimResultsDropdown',
-  
+
 
   // Play-In
   'playin_qualified': 'submitPlayinDropdown',
   'confirm_playin': 'submitPlayinDropdown',
   'official_playin_teams': 'submitPlayinResultsDropdown',
   'confirm_playin_results': 'submitPlayinResultsDropdown',
-  'archive_file_select': 'submitArchiveDropdown'
+  'archive_file_select': 'submitArchiveDropdown',
+
+  // MATCHES
+'match_admin_phase_select': 'matchAdminPhaseSelect',
+'match_admin_match_select': 'matchAdminMatchSelect',
+'match_admin_result_select': 'matchAdminResultSelect',
+
 };
