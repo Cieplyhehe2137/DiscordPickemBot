@@ -7,6 +7,7 @@ module.exports = async (interaction) => {
   const raw = interaction.values[0]; // np. swiss_stage_1
   const stage = raw.replace('swiss_stage_', 'stage'); // stage1
   const phase = 'swiss';
+  const matchPhaseKey = `swiss_${stage}`; // np. swiss_stage1
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (${stage.toUpperCase()})`)
@@ -18,7 +19,12 @@ module.exports = async (interaction) => {
     new ButtonBuilder()
       .setCustomId(`start_${stage}`)
       .setLabel(`Typuj Swiss ${stage.replace('stage', '')}`)
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId(`match_pick:${matchPhaseKey}`)
+      .setLabel('🎯 Typuj wyniki meczów')
+      .setStyle(ButtonStyle.Success)
   );
 
   try {

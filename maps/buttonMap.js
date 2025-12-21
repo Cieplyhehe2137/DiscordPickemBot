@@ -1,5 +1,9 @@
 // maps/buttonMap.js
 module.exports = {
+  // MATCHES
+  'match_pick:': 'openMatchPick',
+  'open_results_matches': 'openMatchResults',
+
   'open_swiss_results_modal_stage1': 'openSwissResultsDropdown',
   'open_swiss_results_modal_stage2': 'openSwissResultsDropdown',
   'open_swiss_results_modal_stage3': 'openSwissResultsDropdown',

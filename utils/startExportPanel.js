@@ -112,9 +112,19 @@ module.exports = async (client) => {
         .setStyle(ButtonStyle.Danger)
     );
 
+    // =======================
+    // RZĄD 4 – mecze (wyniki)
+    // =======================
+    const row4 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('open_results_matches')
+        .setLabel('🎯 Wyniki meczów')
+        .setStyle(ButtonStyle.Primary)
+    );
+
     await channel.send({
       embeds: [embed],
-      components: [row1, row2, row3]
+      components: [row1, row2, row3, row4]
     });
 
     logger.info("interaction", "Export panel sent", {

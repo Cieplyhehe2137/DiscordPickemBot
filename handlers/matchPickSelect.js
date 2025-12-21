@@ -1,0 +1,68 @@
+const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const pool = require('../db');
+const logger = require('../utils/logger');
+const { scoreOptionsForBo } = require('../utils/scoreOptions');
+const { sendMatchList } = require('./openMatchPick');
+
+module.exports = async function matchPickSelect(interaction) {
+    try {
+        const mode = interaction.customId === 'match_pick_select_res' ? 'res' : 'pred';
+        const picked = interaction.values?.[0];
+        if (!picked) return interaction.update({ content: '❌ Nie wybrano opcji', components: [] });
+
+        const [type, phaseKey, third] = picked.split('|');
+
+        if (type === 'NEXT') {
+            const nextPage = Number(third || 0);
+            return sendMatchList({ interaction, phaseKey, mode, page: nextPage, isUpdate: true });
+        }
+
+        if (type !== 'MATCH') {
+            return interaction.update({ content: '❌ Nieznana opcja', components: [] });
+        }
+
+        const matchId = Number(third);
+
+        const [[match]] = await pool.query(
+            `SELECT id, team_a, team_b, best_of, is_locked
+            FROM matches
+            WHERE id=? AND phase=?
+            LIMIT 1`,
+            [matchId, phaseKey]
+        );
+
+        if (!match) {
+            return interaction.update({ content: '❌ Nie znaleziono meczu.', components: [] });
+        }
+        if (mode === 'pred' && match.is_locked) {
+            return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
+        }
+
+        const options = scoreOptionsForBo(match.best_of, match.team_a, match.team_b);
+        if (!options.length) {
+            return interaction.update({ content: '❌ Nieobsługiwany format BO w tym meczu', components: [] });
+        }
+
+        // value: MATCHID|A:B
+        const scoreOptions = options.map(o => ({ label: o.label, value: `${match.id}|${o.value}` }));
+
+        const scoreCustomId = mode === 'res' ? 'match_score_select_res' : 'match_score_select_pred';
+
+        const row = new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(scoreCustomId)
+                .setPlaceHolder(mode === 'res' ? 'Wybierz oficjalny wynik...' : 'Wybierz swój typ...')
+                .addOptions(scoreOptions)
+        );
+
+        return interaction.update({
+            content: mode === 'res'
+                ? `🧾 Ustaw oficjalny wynik: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`
+                : `🎯 Typujesz mecz: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`,
+            components: [row]
+        });
+    } catch (err) {
+        logger.error('matches', 'matchPickSelect failed', { message: err.message, stack: err.stack });
+        return interaction.update({ content: '❌ Błąd w wyborze meczu.', components: [] }).catch(() => { });
+    }
+}

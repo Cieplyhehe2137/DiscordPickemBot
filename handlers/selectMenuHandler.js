@@ -99,17 +99,20 @@ module.exports = async (interaction) => {
       new ButtonBuilder()
         .setCustomId(config.buttonId)
         .setLabel(config.buttonLabel)
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`match_pick:${selected}`)
+        .setLabel('🎯 Typuj wyniki meczów')
+        .setStyle(ButtonStyle.Success)
     );
 
     // Wyślij wiadomość z pingiem @everyone
     const message = await interaction.channel.send({
-  embeds: [embed],
-  components: [componentRow],
-  content: '@everyone',
-  allowedMentions: { parse: ['everyone'] }
-   // upewnia się, że mass-mention jest dozwolony
-});
+      embeds: [embed],
+      components: [componentRow],
+      content: '@everyone',
+      allowedMentions: { parse: ['everyone'] }
+    });
 
     await pool.query(`
       INSERT INTO active_panels (phase, channel_id, message_id)
