@@ -44,7 +44,7 @@ module.exports = {
   'set_results_swiss_stage3': 'openSwissResultsDropdown',
   'confirm_playoffs': 'submitPlayoffsDropdown',
   'open_playoffs_dropdown': 'openPlayoffsDropdown',
- 'open_results_playoffs': 'openPlayoffsResultsDropdown',
+  'open_results_playoffs': 'openPlayoffsResultsDropdown',
   'confirm_playoffs_results': 'submitPlayoffsResultsDropdown',
   'set_results_double': 'openDoubleElimResultsDropdown',
   'open_doubleelim_modal': 'openDoubleElimDropdown',
@@ -58,12 +58,17 @@ module.exports = {
   'start_stage3': 'openSwissDropdown',
   'ranking_prev': 'rankingPagination',
   'ranking_next': 'rankingPagination',
-    'confirm_stage1': 'submitSwissDropdown',
+  'confirm_stage1': 'submitSwissDropdown',
   'confirm_stage2': 'submitSwissDropdown',
   'confirm_stage3': 'submitSwissDropdown',
   'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
   'open_restore_dropdown': 'openRestoreDropdown',
-   'confirm_restore_backup': 'confirmRestoreBackup',
-  'cancel_restore_backup': 'confirmRestoreBackup'
+  'confirm_restore_backup': 'confirmRestoreBackup',
+  'cancel_restore_backup': 'confirmRestoreBackup',
+  'add_match': 'openAddMatch',
+  'clear_matches': 'openClearMatches',
+  'match_add_cancel': 'matchAddCancel',
+  'match_add_again': 'matchAddAgain',
+
 
 };

@@ -49,7 +49,7 @@ module.exports = async (client) => {
         .setCustomId('backup_database')
         .setLabel('💾 Backup bazy')
         .setStyle(ButtonStyle.Secondary),
-       
+
       new ButtonBuilder()
         .setCustomId('restore_backup')
         .setLabel('♻️ Przywróć bazę')
@@ -59,7 +59,7 @@ module.exports = async (client) => {
         .setCustomId('set_results_playin')
         .setLabel('📄 Wyniki Play-In')
         .setStyle(ButtonStyle.Primary),
- 
+
     );
 
     // =======================
@@ -119,7 +119,18 @@ module.exports = async (client) => {
       new ButtonBuilder()
         .setCustomId('open_results_matches')
         .setLabel('🎯 Wyniki meczów')
-        .setStyle(ButtonStyle.Primary)
+        .setStyle(ButtonStyle.Primary),
+
+      new ButtonBuilder()
+        .setCustomId('add_match')
+        .setLabel('➕ Dodaj mecz')
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId('clear_matches')
+        .setLabel('🧹 Wyczyść mecze fazy')
+        .setStyle(ButtonStyle.Danger)
+
     );
 
     await channel.send({
