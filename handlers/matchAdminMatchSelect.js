@@ -2,6 +2,9 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const pool = require('../db');
 
+
+console.log('[matchAdminMatchSelect] fired', interaction.customId, interaction.values);
+
 function safeLabel(str) {
   const s = String(str || 'opcja');
   return s.length > 100 ? s.slice(0, 97) + '…' : s;
