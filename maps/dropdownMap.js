@@ -69,4 +69,5 @@ module.exports = {
 'match_admin_match_select': 'matchAdminMatchSelect',
 'match_admin_result_select': 'matchAdminResultSelect',
 
+
 };
