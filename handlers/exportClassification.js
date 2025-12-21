@@ -54,6 +54,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   const sheetPlayoffs = workbook.addWorksheet('Playoffs');
   const sheetDouble = workbook.addWorksheet('Double Elim');
   const sheetPlayIn = workbook.addWorksheet('Play-In');
+  const sheetMatches = workbook.addWorksheet('Mecze');
 
   const users = {};
 
@@ -156,6 +157,26 @@ module.exports = async function exportClassification(interaction = null, outputP
     users[id].picks.playin = parseList(row.teams);
   }
 
+  // === MATCHES: suma punktów za wyniki meczów ===
+try {
+  const [matchPointRows] = await pool.query(`
+    SELECT user_id, SUM(points) AS points
+    FROM match_points
+    GROUP BY user_id
+  `);
+
+  for (const row of matchPointRows) {
+    const id = row.user_id;
+    if (!users[id]) {
+      users[id] = { displayname: id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+    }
+    users[id].matches = Number(row.points || 0);
+  }
+} catch (e) {
+  console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
+}
+
+
   // === Klasyfikacja ogólna
   sheetMain.columns = [
     { header: 'User ID', key: 'user_id' },
@@ -166,6 +187,7 @@ module.exports = async function exportClassification(interaction = null, outputP
     { header: 'Swiss 3', key: 'swiss3' },
     { header: 'Playoffs', key: 'playoffs' },
     { header: 'Double Elim', key: 'double' },
+    { header: 'Mecze', key: 'matches' },
     { header: 'Suma', key: 'total' }
   ];
 
@@ -173,8 +195,9 @@ module.exports = async function exportClassification(interaction = null, outputP
     const swiss1 = u.swiss['swiss_stage_1'] || 0;
     const swiss2 = u.swiss['swiss_stage_2'] || 0;
     const swiss3 = u.swiss['swiss_stage_3'] || 0;
-    const total = swiss1 + swiss2 + swiss3 + u.playoffs + u.double + u.playin;
-    return { user_id, displayname: u.displayname, playin: u.playin, swiss1, swiss2, swiss3, playoffs: u.playoffs, double: u.double, total };
+    const matches = u.matches || 0;
+    const total = swiss1 + swiss2 + swiss3 + u.playoffs + u.double + u.playin + matches;
+    return { user_id, displayname: u.displayname, playin: u.playin, swiss1, swiss2, swiss3, playoffs: u.playoffs, double: u.double, matches, total };
   });
 
   summary.sort((a, b) => b.total - a.total);
@@ -457,6 +480,81 @@ try {
   console.error('❌ Błąd Play-In official block:', e);
 }
 
+
+// === Arkusz: Mecze (typy + wyniki + punkty) ===
+try {
+  sheetMatches.columns = [
+    { header: 'Faza', key: 'phase' },
+    { header: 'Match No', key: 'match_no' },
+    { header: 'Match ID', key: 'match_id' },
+    { header: 'Team A', key: 'team_a' },
+    { header: 'Team B', key: 'team_b' },
+    { header: 'BO', key: 'best_of' },
+    { header: 'Wynik oficjalny', key: 'official' },
+    { header: 'User ID', key: 'user_id' },
+    { header: 'Nick', key: 'displayname' },
+    { header: 'Typ', key: 'pred' },
+    { header: 'Punkty', key: 'points' }
+  ];
+
+  const [matchRows] = await pool.query(`
+    SELECT
+      m.id AS match_id,
+      m.phase,
+      m.match_no,
+      m.team_a,
+      m.team_b,
+      m.best_of,
+      r.res_a,
+      r.res_b,
+      p.user_id,
+      p.pred_a,
+      p.pred_b,
+      mp.points
+    FROM matches m
+    LEFT JOIN match_results r ON r.match_id = m.id
+    JOIN match_predictions p ON p.match_id = m.id
+    LEFT JOIN match_points mp ON mp.match_id = m.id AND mp.user_id = p.user_id
+    ORDER BY
+      m.phase ASC,
+      COALESCE(m.match_no, 999999) ASC,
+      m.id ASC,
+      p.user_id ASC
+  `);
+
+  for (const r of matchRows) {
+    const official = (r.res_a === null || r.res_b === null) ? '—' : `${r.res_a}:${r.res_b}`;
+    const pred = `${r.pred_a}:${r.pred_b}`;
+    const nick = users?.[r.user_id]?.displayname || r.user_id;
+
+    sheetMatches.addRow({
+      phase: r.phase,
+      match_no: r.match_no ?? '',
+      match_id: r.match_id,
+      team_a: r.team_a,
+      team_b: r.team_b,
+      best_of: r.best_of,
+      official,
+      user_id: r.user_id,
+      displayname: nick,
+      pred,
+      points: (r.points ?? '')
+    });
+  }
+
+  // autosize
+  sheetMatches.columns.forEach(col => {
+    let maxLength = col.header.length;
+    col.eachCell({ includeEmpty: true }, cell => {
+      const val = cell.value;
+      const len = val ? String(val).length : 0;
+      if (len > maxLength) maxLength = len;
+    });
+    col.width = Math.min(maxLength + 2, 60);
+  });
+} catch (e) {
+  console.log('⚠️ MATCHES: nie udało się wygenerować arkusza "Mecze" (pomijam):', e?.message || e);
+}
 
 
 
