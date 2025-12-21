@@ -47,7 +47,7 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
 
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
-        .setCustomId(`match_admin_match_select:${phase}`) // phase w customId, żeby nie zgubić kontekstu
+        .setCustomId('match_admin_match_select')
         .setPlaceholder('Wybierz mecz do ustawienia wyniku…')
         .addOptions(options)
     );
