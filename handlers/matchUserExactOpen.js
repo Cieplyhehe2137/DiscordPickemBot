@@ -13,7 +13,7 @@ module.exports = async function matchUserExactOpen(interaction) {
             });
         }
 
-        const [[match]] = await pool.quer(
+        const [[match]] = await pool.query(
             `SELECT id, is_locked, team_a, team_b FROM matches WHERE id=? LIMIT 1`,
             [ctx.matchId]
         );
