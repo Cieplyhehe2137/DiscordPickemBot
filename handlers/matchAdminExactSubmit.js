@@ -23,7 +23,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         `
         INSERT INTO match_results (match_id, exact_a, exact_b)
         VALUES (?, ?, ?)
-        ON DUPLIACE KEY UPDATE exact_a = VALUES(exact_a), exact_b = VALUES(exact_b)
+        ON DUPLICATE KEY UPDATE exact_a = VALUES(exact_a), exact_b = VALUES(exact_b)
         `,
         [ctx.matchId, exactA, exactB]
     );
