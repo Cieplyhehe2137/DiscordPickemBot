@@ -31,7 +31,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     logger?.info?.('matches', 'Exact map score saved', { matchId: ctx.matchId, exactA, exactB, by: interaction.user.id });
 
     return interaction.reply({
-        content: `✅ Zapisano **dokładny wynik mapy**: **${ctx.teamA} ${exactA}:${exactB} ${teamB}**`,
+        content: `✅ Zapisano **dokładny wynik mapy**: **${ctx.teamA} ${exactA}:${exactB} ${ctx.teamB}**`,
         ephemeral: true
     });
 };
