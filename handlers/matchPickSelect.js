@@ -51,7 +51,7 @@ module.exports = async function matchPickSelect(interaction) {
         const row = new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId(scoreCustomId)
-                .setPlaceHolder(mode === 'res' ? 'Wybierz oficjalny wynik...' : 'Wybierz swój typ...')
+                .setPlaceholder(mode === 'res' ? 'Wybierz oficjalny wynik...' : 'Wybierz swój typ...')
                 .addOptions(scoreOptions)
         );
 

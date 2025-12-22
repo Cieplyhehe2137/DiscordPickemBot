@@ -16,12 +16,12 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
         [phaseKey, PAGE_SIZE + 1, offset]
     );
 
-    if (!rows.lenght) {
-        const payLoad = { content: `Brak meczów dla fazy **${phaseKey}**.`, component: [], ephemeral: true };
+    if (!rows.length) {
+        const payLoad = { content: `Brak meczów dla fazy **${phaseKey}**.`, components: [], ephemeral: true };
         return isUpdate ? interaction.update(payLoad) : interaction.reply(payLoad);
     }
 
-    const hasNext = rows.lenght > PAGE_SIZE;
+    const hasNext = rows.length > PAGE_SIZE;
     const slice = rows.slice(0, PAGE_SIZE);
 
     const options = slice.map((m) => ({
