@@ -1,4 +1,5 @@
 // handlers/matchUserExactSubmit.js
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
@@ -10,14 +11,58 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
+async function getDefaults(matchId, userId, maxMaps, mapNo) {
+  if (maxMaps === 1) {
+    const [[p]] = await pool.query(
+      `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
+      [matchId, userId]
+    );
+    return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+  }
+
+  const [[p]] = await pool.query(
+    `SELECT pred_exact_a, pred_exact_b
+     FROM match_map_predictions
+     WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
+    [matchId, userId, mapNo]
+  );
+  return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+}
+
+function buildModal(match, maxMaps, mapNo, defaults) {
+  const modal = new ModalBuilder()
+    .setCustomId('match_user_exact_submit')
+    .setTitle(maxMaps === 1 ? `Dokładny wynik` : `Dokładny wynik — mapa #${mapNo}`);
+
+  const inA = new TextInputBuilder()
+    .setCustomId('exact_a')
+    .setLabel(`${match.team_a} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 13')
+    .setValue(defaults.a === '' ? '' : String(defaults.a));
+
+  const inB = new TextInputBuilder()
+    .setCustomId('exact_b')
+    .setLabel(`${match.team_b} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 8')
+    .setValue(defaults.b === '' ? '' : String(defaults.b));
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(inA),
+    new ActionRowBuilder().addComponents(inB)
+  );
+
+  return modal;
+}
+
 module.exports = async function matchUserExactSubmit(interaction) {
   try {
     const ctx = userState.get(interaction.user.id);
     if (!ctx?.matchId) {
-      return interaction.reply({
-        content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz (Typuj wyniki meczów).',
-        ephemeral: true
-      });
+      return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
     }
 
     const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
@@ -34,24 +79,20 @@ module.exports = async function matchUserExactSubmit(interaction) {
 
     if (!match) {
       userState.clear(interaction.user.id);
-      return interaction.reply({ content: '❌ Ten mecz nie istnieje już w bazie.', ephemeral: true });
+      return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
     if (match.is_locked) {
-      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', ephemeral: true });
+      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany.', ephemeral: true });
     }
 
     const maxMaps = maxMapsFromBo(match.best_of);
-    const mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 0);
 
-    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
-      return interaction.reply({
-        content: '❌ Nie wybrano mapy. Kliknij 🧮 Wpisz dokładny wynik i wybierz mapę.',
-        ephemeral: true
-      });
-    }
+    // Aktualna mapa (dla BO1 zawsze 1)
+    let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 1);
+    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) mapNo = 1;
 
+    // ZAPIS
     if (maxMaps === 1) {
-      // BO1 -> trzymamy w match_predictions (kompatybilność)
       await pool.query(
         `INSERT INTO match_predictions (match_id, user_id, pred_exact_a, pred_exact_b)
          VALUES (?, ?, ?, ?)
@@ -62,7 +103,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
         [match.id, interaction.user.id, exactA, exactB]
       );
     } else {
-      // BO3/BO5 -> per mapa
       await pool.query(
         `INSERT INTO match_map_predictions (match_id, user_id, map_no, pred_exact_a, pred_exact_b)
          VALUES (?, ?, ?, ?, ?)
@@ -74,19 +114,28 @@ module.exports = async function matchUserExactSubmit(interaction) {
       );
     }
 
-    logger?.info?.('matches', 'User exact saved', {
-      userId: interaction.user.id,
-      matchId: match.id,
-      mapNo,
-      exactA,
-      exactB
-    });
+    // Jeśli BO3/BO5 i są kolejne mapy -> od razu modal kolejnej mapy
+    if (maxMaps > 1 && mapNo < maxMaps) {
+      const nextMapNo = mapNo + 1;
+      userState.set(interaction.user.id, { ...ctx, mapNo: nextMapNo });
+
+      const defaults = await getDefaults(match.id, interaction.user.id, maxMaps, nextMapNo);
+      const modal = buildModal(match, maxMaps, nextMapNo, defaults);
+
+      return interaction.showModal(modal);
+    }
+
+    // Koniec flow (ostatnia mapa / BO1)
+    if (maxMaps > 1) {
+      // możesz zostawić mapNo (żeby łatwo edytować), ale zwykle lepiej wyczyścić:
+      userState.set(interaction.user.id, { ...ctx, mapNo: 1 }); // albo: userState.clear(...) jeśli wolisz
+    }
 
     return interaction.reply({
       content:
         maxMaps === 1
           ? `✅ Zapisano dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`
-          : `✅ Zapisano dokładny wynik (mapa #${mapNo}): **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`,
+          : `✅ Zapisano dokładne wyniki dla BO${match.best_of} (mapy 1–${maxMaps}).`,
       ephemeral: true
     });
   } catch (err) {

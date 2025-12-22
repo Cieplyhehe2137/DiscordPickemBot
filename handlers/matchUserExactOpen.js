@@ -1,12 +1,5 @@
 // handlers/matchUserExactOpen.js
-const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  StringSelectMenuBuilder
-} = require('discord.js');
-
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
@@ -15,7 +8,64 @@ function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
   if (bo === 1) return 1;
   if (bo === 3) return 3;
-  return 5; // BO5 default
+  return 5;
+}
+
+async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
+  if (maxMaps === 1) {
+    const [[p]] = await pool.query(
+      `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
+      [matchId, userId]
+    );
+    return {
+      a: p?.pred_exact_a ?? '',
+      b: p?.pred_exact_b ?? ''
+    };
+  }
+
+  const [[p]] = await pool.query(
+    `SELECT pred_exact_a, pred_exact_b
+     FROM match_map_predictions
+     WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
+    [matchId, userId, mapNo]
+  );
+  return {
+    a: p?.pred_exact_a ?? '',
+    b: p?.pred_exact_b ?? ''
+  };
+}
+
+function buildModal({ match, maxMaps, mapNo, defaults }) {
+  const modal = new ModalBuilder()
+    .setCustomId('match_user_exact_submit')
+    .setTitle(
+      maxMaps === 1
+        ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
+        : `Dokładny wynik — mapa #${mapNo}`
+    );
+
+  const inA = new TextInputBuilder()
+    .setCustomId('exact_a')
+    .setLabel(`${match.team_a} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 13')
+    .setValue(defaults.a === '' ? '' : String(defaults.a));
+
+  const inB = new TextInputBuilder()
+    .setCustomId('exact_b')
+    .setLabel(`${match.team_b} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 8')
+    .setValue(defaults.b === '' ? '' : String(defaults.b));
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(inA),
+    new ActionRowBuilder().addComponents(inB)
+  );
+
+  return modal;
 }
 
 module.exports = async function matchUserExactOpen(interaction) {
@@ -23,7 +73,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     const ctx = userState.get(interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz (Typuj wyniki meczów).',
+        content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
         ephemeral: true
       });
     }
@@ -35,95 +85,25 @@ module.exports = async function matchUserExactOpen(interaction) {
 
     if (!match) {
       userState.clear(interaction.user.id);
-      return interaction.reply({ content: '❌ Ten mecz nie istnieje już w bazie.', ephemeral: true });
+      return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
-
     if (match.is_locked) {
-      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', ephemeral: true });
+      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany.', ephemeral: true });
     }
 
     const maxMaps = maxMapsFromBo(match.best_of);
 
-    // === BO3/BO5: jeśli nie ma mapNo -> pokaż select mapy
-    const mapNo = Number(ctx.mapNo || 0);
+    // Startujemy od mapy 1, jeśli BO3/BO5 i nie ustawiono mapy w state
+    let mapNo = Number(ctx.mapNo || 0);
     if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
-      const opts = Array.from({ length: maxMaps }, (_, i) => ({
-        label: `Mapa #${i + 1}`,
-        value: String(i + 1)
-      }));
-
-      const row = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('match_user_map_select') // MUSI być w selectMap -> matchUserMapSelect
-          .setPlaceholder('Wybierz mapę…')
-          .addOptions(opts)
-      );
-
-      return interaction.reply({
-        content: `🗺️ Ten mecz jest **BO${match.best_of}**. Wybierz mapę, dla której chcesz wpisać dokładny wynik:`,
-        components: [row],
-        ephemeral: true
-      });
+      mapNo = 1;
+      userState.set(interaction.user.id, { ...ctx, mapNo });
     }
 
     const effectiveMapNo = maxMaps === 1 ? 1 : mapNo;
+    const defaults = await getUserDefaults(match.id, interaction.user.id, maxMaps, effectiveMapNo);
 
-    // defaults (ostatni zapis) zależnie od BO
-    let defaults = { a: '', b: '' };
-
-    if (maxMaps === 1) {
-      const [[p]] = await pool.query(
-        `SELECT pred_exact_a, pred_exact_b
-         FROM match_predictions
-         WHERE match_id=? AND user_id=? LIMIT 1`,
-        [match.id, interaction.user.id]
-      );
-      if (p) {
-        defaults.a = p.pred_exact_a === null || p.pred_exact_a === undefined ? '' : String(p.pred_exact_a);
-        defaults.b = p.pred_exact_b === null || p.pred_exact_b === undefined ? '' : String(p.pred_exact_b);
-      }
-    } else {
-      const [[p]] = await pool.query(
-        `SELECT pred_exact_a, pred_exact_b
-         FROM match_map_predictions
-         WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
-        [match.id, interaction.user.id, effectiveMapNo]
-      );
-      if (p) {
-        defaults.a = p.pred_exact_a === null || p.pred_exact_a === undefined ? '' : String(p.pred_exact_a);
-        defaults.b = p.pred_exact_b === null || p.pred_exact_b === undefined ? '' : String(p.pred_exact_b);
-      }
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId('match_user_exact_submit')
-      .setTitle(
-        maxMaps === 1
-          ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-          : `Dokładny wynik (mapa #${effectiveMapNo})`
-      );
-
-    const inA = new TextInputBuilder()
-      .setCustomId('exact_a')
-      .setLabel(`${match.team_a} — wynik`)
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setPlaceholder('np. 13')
-      .setValue(defaults.a);
-
-    const inB = new TextInputBuilder()
-      .setCustomId('exact_b')
-      .setLabel(`${match.team_b} — wynik`)
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true)
-      .setPlaceholder('np. 8')
-      .setValue(defaults.b);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(inA),
-      new ActionRowBuilder().addComponents(inB)
-    );
-
+    const modal = buildModal({ match, maxMaps, mapNo: effectiveMapNo, defaults });
     return interaction.showModal(modal);
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactOpen failed', { message: err.message, stack: err.stack });

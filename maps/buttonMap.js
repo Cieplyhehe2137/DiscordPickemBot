@@ -70,7 +70,11 @@ module.exports = {
   'match_add_cancel': 'matchAddCancel',
   'match_add_again': 'matchAddAgain',
   'match_admin_exact_open': 'matchAdminExactOpen',
-  'match_user_exact_open': 'matchUserExactOpen'
+  'match_user_exact_open': 'matchUserExactOpen',
+  'match_admin_exact_open_next': 'matchAdminExactOpenNext',
+  'match_user_exact_open_next': 'matchUserExactOpenNext',
+
+
 
 
 };

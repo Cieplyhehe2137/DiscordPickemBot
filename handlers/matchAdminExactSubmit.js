@@ -1,7 +1,8 @@
 // handlers/matchAdminExactSubmit.js
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
-const adminState = require('../utils/matchAdminState'); // jeśli nie masz - zrób kopię matchUserState.js
+const adminState = require('../utils/matchAdminState');
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -10,19 +11,60 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
+async function getDefaults(matchId, maxMaps, mapNo) {
+  if (maxMaps === 1) {
+    const [[r]] = await pool.query(
+      `SELECT exact_a, exact_b FROM match_results WHERE match_id=? LIMIT 1`,
+      [matchId]
+    );
+    return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+  }
+
+  const [[r]] = await pool.query(
+    `SELECT exact_a, exact_b
+     FROM match_map_results
+     WHERE match_id=? AND map_no=? LIMIT 1`,
+    [matchId, mapNo]
+  );
+  return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+}
+
+function buildModal(match, maxMaps, mapNo, defaults) {
+  const modal = new ModalBuilder()
+    .setCustomId('match_admin_exact_submit')
+    .setTitle(maxMaps === 1 ? `Oficjalny wynik` : `Oficjalny wynik — mapa #${mapNo}`);
+
+  const inA = new TextInputBuilder()
+    .setCustomId('exact_a')
+    .setLabel(`${match.team_a} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 13')
+    .setValue(defaults.a === '' ? '' : String(defaults.a));
+
+  const inB = new TextInputBuilder()
+    .setCustomId('exact_b')
+    .setLabel(`${match.team_b} — wynik`)
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder('np. 8')
+    .setValue(defaults.b === '' ? '' : String(defaults.b));
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(inA),
+    new ActionRowBuilder().addComponents(inB)
+  );
+
+  return modal;
+}
+
 module.exports = async function matchAdminExactSubmit(interaction) {
   try {
     const ctx = adminState.get(interaction.user.id);
-    if (!ctx?.matchId) {
-      return interaction.reply({
-        content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz w panelu admina.',
-        ephemeral: true
-      });
-    }
+    if (!ctx?.matchId) return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
 
     const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
     const exactB = Number(interaction.fields.getTextInputValue('exact_b'));
-
     if (!Number.isFinite(exactA) || !Number.isFinite(exactB) || exactA < 0 || exactB < 0) {
       return interaction.reply({ content: '❌ Wynik musi być liczbą >= 0.', ephemeral: true });
     }
@@ -31,25 +73,15 @@ module.exports = async function matchAdminExactSubmit(interaction) {
       `SELECT id, team_a, team_b, best_of FROM matches WHERE id=? LIMIT 1`,
       [ctx.matchId]
     );
-
-    if (!match) {
-      adminState.clear(interaction.user.id);
-      return interaction.reply({ content: '❌ Ten mecz nie istnieje już w bazie.', ephemeral: true });
-    }
+    if (!match) return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
 
     const maxMaps = maxMapsFromBo(match.best_of);
-    const mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 0);
 
-    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
-      return interaction.reply({
-        content: '❌ Nie wybrano mapy. Wybierz mapę i spróbuj ponownie.',
-        ephemeral: true
-      });
-    }
+    let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 1);
+    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) mapNo = 1;
 
     if (maxMaps === 1) {
-      // BO1 -> match_results.exact_a/b
-      // UWAGA: jeśli masz res_a/res_b NOT NULL bez defaultu, to muszą być NULL-owalne (jak wcześniej ustaliliśmy).
+      // BO1 – zapis do match_results
       await pool.query(
         `INSERT INTO match_results (match_id, res_a, res_b, exact_a, exact_b)
          VALUES (?, NULL, NULL, ?, ?)
@@ -57,7 +89,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         [match.id, exactA, exactB]
       );
     } else {
-      // BO3/BO5 -> per mapa
+      // BO3/BO5 – zapis per mapa
       await pool.query(
         `INSERT INTO match_map_results (match_id, map_no, exact_a, exact_b)
          VALUES (?, ?, ?, ?)
@@ -66,23 +98,49 @@ module.exports = async function matchAdminExactSubmit(interaction) {
       );
     }
 
-    logger?.info?.('matches', 'Admin exact saved', {
-      adminId: interaction.user.id,
-      matchId: match.id,
-      mapNo,
-      exactA,
-      exactB
-    });
+    // Następna mapa -> od razu modal
+    // Następna mapa -> próbuj od razu modal (fallback: przycisk "Dalej")
+    if (maxMaps > 1 && mapNo < maxMaps) {
+      const nextMapNo = mapNo + 1;
+      adminState.set(interaction.user.id, { ...ctx, mapNo: nextMapNo });
+
+      const defaults = await getDefaults(match.id, maxMaps, nextMapNo);
+      const modal = buildModal(match, maxMaps, nextMapNo, defaults);
+
+      try {
+        return await interaction.showModal(modal);
+      } catch (e) {
+        // fallback: jak Discord nie pozwoli otworzyć kolejnego modala po submit, daj 1 klik
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+        return interaction.reply({
+          content: `✅ Zapisano mapę #${mapNo}. Kliknij, aby wpisać **mapę #${nextMapNo}**:`,
+          ephemeral: true,
+          components: [
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId('match_admin_exact_open_next') // musisz mieć handler
+                .setLabel(`➡️ Mapa #${nextMapNo}`)
+                .setStyle(ButtonStyle.Primary)
+            )
+          ]
+        });
+      }
+    }
+
+
+    // Koniec
+    if (maxMaps > 1) adminState.set(interaction.user.id, { ...ctx, mapNo: 1 });
 
     return interaction.reply({
       content:
         maxMaps === 1
           ? `✅ Zapisano oficjalny dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`
-          : `✅ Zapisano oficjalny dokładny wynik (mapa #${mapNo}): **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`,
+          : `✅ Zapisano oficjalne dokładne wyniki dla BO${match.best_of} (mapy 1–${maxMaps}).`,
       ephemeral: true
     });
   } catch (err) {
     logger?.error?.('matches', 'matchAdminExactSubmit failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się zapisać wyniku.', ephemeral: true }).catch(() => {});
+    return interaction.reply({ content: '❌ Nie udało się zapisać.', ephemeral: true }).catch(() => { });
   }
 };
