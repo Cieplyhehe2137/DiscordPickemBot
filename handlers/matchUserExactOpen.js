@@ -36,28 +36,28 @@ module.exports = async function matchUserExactOpen(interaction) {
                 defaults.a = (p.pred_exact_a ?? '') === null ? '' : String(p.pred_exact_a ?? '');
                 defaults.b = (p.pred_exact_b ?? '') === null ? '' : String(p.pred_exact_b ?? '');
             }
-        } catch (_) {}
+        } catch (_) { }
 
         const modal = new ModalBuilder()
-           .setCustomId('match_user_exact_submit')
-           .setTitle(`Dokładny wynik:  ${match.team_a} vs ${match.team_b}`);
+            .setCustomId('match_user_exact_submit')
+            .setTitle(`Dokładny wynik:  ${match.team_a} vs ${match.team_b}`);
 
         const inA = new TextInputBuilder()
-           .setCustomId('exact_a')
-           .setLabel(`${match.team_a} - wynik`)
-           .setStyle(TextInputStyle.Short)
-           .setRequired(true)
-           .setPlaceholder(`np. 13`)
-           .setValue(defaults.a);
+            .setCustomId('exact_a')
+            .setLabel(`${match.team_a} - wynik`)
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder(`np. 13`)
+            .setValue(defaults.a);
 
         const inB = new TextInputBuilder()
-           .setCustomId('exact_b')
-           .setLabel(`${match.team_b}- wynik`)
-           .setStyle(TextInputStyle.Short)
-           .setRequired(true)
-           .setPlaceholder('np. 8')
-           .setValue(defaults.b);
-        
+            .setCustomId('exact_b')
+            .setLabel(`${match.team_b}- wynik`)
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setPlaceholder('np. 8')
+            .setValue(defaults.b);
+
         modal.addComponents(
             new ActionRowBuilder().addComponents(inA),
             new ActionRowBuilder().addComponents(inB)
@@ -66,6 +66,6 @@ module.exports = async function matchUserExactOpen(interaction) {
         return interaction.showModal(modal);
     } catch (err) {
         logger?.error?.('matches', 'matchUserExactOpen failed', { message: err.message, stack: err.stack });
-        return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => {});
+        return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => { });
     }
 };
