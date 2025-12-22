@@ -1,7 +1,9 @@
 // handlers/matchScoreSelect.js
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { validateScore, computePoints } = require('../utils/matchScoring');
+const { validateScore, computeTotalPoints } = require('../utils/matchScoring');
+const userState = require('../utils/matchUserState');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = async function matchScoreSelect(interaction) {
   try {
@@ -42,9 +44,25 @@ module.exports = async function matchScoreSelect(interaction) {
         [matchId, interaction.user.id, a, b]
       );
 
+      // zostawiamy od razu przycisk do wpisania dokładnego wyniku
+      userState.set(interaction.user.id, {
+        matchId: match.id,
+        teamA: match.team_a,
+        teamB: match.team_b,
+        bestOf: match.best_of,
+        phase: match.phase
+      });
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('match_user_exact_open')
+          .setLabel('🧮 Wpisz dokładny wynik')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
       return interaction.update({
-        content: `✅ Zapisano typ: **${match.team_a} ${a}:${b} ${match.team_b}**`,
-        components: []
+        content: `✅ Zapisano typ serii: **${match.team_a} ${a}:${b} ${match.team_b}**\nJeśli chcesz, wpisz też dokładny wynik (np. 13:8):`,
+        components: [row]
       });
     }
 
@@ -57,15 +75,46 @@ module.exports = async function matchScoreSelect(interaction) {
     );
 
     // przeliczenie punktów dla wszystkich typów
-    const [preds] = await pool.query(
-      `SELECT user_id, pred_a, pred_b
-       FROM match_predictions
-       WHERE match_id=?`,
+    // pobierz też typ dokładny (pred_exact_a/pred_exact_b) jeśli istnieje
+    let preds = [];
+    try {
+      const [rows] = await pool.query(
+        `SELECT user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
+         FROM match_predictions
+         WHERE match_id=?`,
+        [matchId]
+      );
+      preds = rows;
+    } catch (e) {
+      // kompatybilność wstecz, jeśli nie ma jeszcze kolumn pred_exact_a/b
+      const [rows] = await pool.query(
+        `SELECT user_id, pred_a, pred_b
+         FROM match_predictions
+         WHERE match_id=?`,
+        [matchId]
+      );
+      preds = rows.map(r => ({ ...r, pred_exact_a: null, pred_exact_b: null }));
+    }
+
+    // official exact (np. 13:8) może zostać ustawiony później
+    const [[ex]] = await pool.query(
+      `SELECT exact_a, exact_b FROM match_results WHERE match_id=? LIMIT 1`,
       [matchId]
     );
+    const exactA = ex?.exact_a ?? null;
+    const exactB = ex?.exact_b ?? null;
 
     for (const p of preds) {
-      const pts = computePoints({ predA: p.pred_a, predB: p.pred_b, resA: a, resB: b });
+      const pts = computeTotalPoints({
+        predA: p.pred_a,
+        predB: p.pred_b,
+        resA: a,
+        resB: b,
+        predExactA: p.pred_exact_a,
+        predExactB: p.pred_exact_b,
+        exactA,
+        exactB
+      });
       await pool.query(
         `INSERT INTO match_points (match_id, user_id, points)
          VALUES (?, ?, ?)

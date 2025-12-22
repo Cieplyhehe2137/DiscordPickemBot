@@ -1,8 +1,9 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { scoreOptionsForBo } = require('../utils/scoreOptions');
 const { sendMatchList } = require('./openMatchPick');
+const userState = require('../utils/matchUserState');
 
 module.exports = async function matchPickSelect(interaction) {
     try {
@@ -55,11 +56,32 @@ module.exports = async function matchPickSelect(interaction) {
                 .addOptions(scoreOptions)
         );
 
+        // dla userów: dodatkowy przycisk do wpisania dokładnego wyniku (np. 13:8)
+        let extraRows = [];
+        if (mode === 'pred') {
+            userState.set(interaction.user.id, {
+                matchId: match.id,
+                teamA: match.team_a,
+                teamB: match.team_b,
+                bestOf: match.best_of,
+                phase: phaseKey
+            });
+
+            extraRows = [
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('match_user_exact_open')
+                        .setLabel('🧮 Wpisz dokładny wynik')
+                        .setStyle(ButtonStyle.Secondary)
+                )
+            ];
+        }
+
         return interaction.update({
             content: mode === 'res'
                 ? `🧾 Ustaw oficjalny wynik: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`
                 : `🎯 Typujesz mecz: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`,
-            components: [row]
+            components: [row, ...extraRows]
         });
     } catch (err) {
         logger.error('matches', 'matchPickSelect failed', { message: err.message, stack: err.stack });

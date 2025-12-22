@@ -19,6 +19,37 @@ function computePoints({ predA, predB, resA, resB }) {
 }
 
 /**
+ * Bonus za dokładny wynik (np. 13:8).
+ * 1 pkt - trafione exact_a/exact_b
+ * 0 pkt - inaczej
+ */
+function computeExactPoints({ predExactA, predExactB, exactA, exactB }) {
+    if (
+        predExactA === null || predExactA === undefined ||
+        predExactB === null || predExactB === undefined ||
+        exactA === null || exactA === undefined ||
+        exactB === null || exactB === undefined
+    ) return 0;
+
+    const pa = Number(predExactA);
+    const pb = Number(predExactB);
+    const ea = Number(exactA);
+    const eb = Number(exactB);
+
+    if (!Number.isFinite(pa) || !Number.isFinite(pb) || !Number.isFinite(ea) || !Number.isFinite(eb)) return 0;
+    return (pa === ea && pb === eb) ? 1 : 0;
+}
+
+/**
+ * Łączne punkty: seria (computePoints) + bonus za dokładny wynik.
+ */
+function computeTotalPoints({ predA, predB, resA, resB, predExactA, predExactB, exactA, exactB }) {
+    const base = computePoints({ predA, predB, resA, resB });
+    const bonus = computeExactPoints({ predExactA, predExactB, exactA, exactB });
+    return base + bonus;
+}
+
+/**
  * - BO1: 1:0 / 0:1
  * - BO3: 2:x lub x:2, gdzie x={0 lub 1}
  * - BO5: 3:x lub x:3, gdzie x={0, 1 lub 2}
@@ -53,5 +84,7 @@ return { ok: false, reason: `Nieobsługiwany format best_of=${bo}.` };
 
 module.exports = {
     computePoints,
+    computeExactPoints,
+    computeTotalPoints,
     validateScore
 }
