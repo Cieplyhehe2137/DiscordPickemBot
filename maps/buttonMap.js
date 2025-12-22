@@ -69,6 +69,7 @@ module.exports = {
   'clear_matches': 'openClearMatches',
   'match_add_cancel': 'matchAddCancel',
   'match_add_again': 'matchAddAgain',
+  'match_admin_exact_open': 'matchAdminExactOpen'
 
 
 };

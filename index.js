@@ -7,6 +7,7 @@ const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
+const modalMap = require('./maps/modalMap');
 
 function getGitCommit() {
   try {
@@ -90,7 +91,8 @@ fs.readdirSync(path.join(__dirname, 'commands'))
 const maps = {
   buttonMap: require('./maps/buttonMap'),
   selectMap: require('./maps/selectMap'),
-  dropdownMap: require('./maps/dropdownMap')
+  dropdownMap: require('./maps/dropdownMap'),
+  modalMap: require('./maps/modalMap')
 };
 
 // 🚀 Eventy (diag)
