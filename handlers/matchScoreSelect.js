@@ -134,6 +134,6 @@ module.exports = async function matchScoreSelect(interaction) {
     });
   } catch (err) {
     logger.error('matches', 'matchScoreSelect failed', { message: err.message, stack: err.stack });
-    return interaction.update({ content: '❌ Błąd przy zapisie.', components: [] }).catch(() => {});
+    return interaction.update({ content: '❌ Błąd przy zapisie.', components: [] }).catch(() => { });
   }
 };

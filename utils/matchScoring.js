@@ -74,12 +74,12 @@ function validateScore({ a, b, bestOf }) {
         return ok ? { ok: true } : { ok: false, reason: 'BO3 dopuszcza tylko 2:0 / 2:1 / 0:2 / 1:2' };
     }
 
-    if (bo === 5 ) {
+    if (bo === 5) {
         const ok = (na === 3 && (nb === 0 || nb === 1 || nb === 2)) || (nb === 3 && (na === 0 || na === 1 || na === 2));
         return ok ? { ok: true } : { ok: false, reason: 'BO5 dopuszcza tylko 3:0 / 3:1 / 3:2 / 0:3 / 1:3 / 2:3.' };
     }
 
-return { ok: false, reason: `Nieobsługiwany format best_of=${bo}.` };
+    return { ok: false, reason: `Nieobsługiwany format best_of=${bo}.` };
 }
 
 module.exports = {
