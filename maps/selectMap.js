@@ -26,7 +26,10 @@ module.exports = {
   'match_clear_phase_select': 'clearMatchesPhaseSelect',
   'match_admin_match_select': 'matchAdminMatchSelect',
   'match_admin_result_select': 'matchAdminResultSelect',
-  
+
+  'match_user_map_select': 'matchUserMapSelect',
+  'match_admin_map_select': 'matchAdminMapSelect',
+
 
 
 
