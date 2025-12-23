@@ -33,13 +33,13 @@ module.exports = async (interaction) => {
       .permissionsIn(interaction.channel)
       .has(PermissionFlagsBits.MentionEveryone);
 
-    const pingText = canMentionEveryone ? '@everyone ' : '';
+    // const pingText = canMentionEveryone ? '@everyone ' : ''; 
     
     const sentMessage = await interaction.channel.send({
       content: `${pingText}🔔 Nowy panel typowania Swiss (${stage.toUpperCase()})`,
       embeds: [embed],
       components: [row],
-      allowedMentions: { parse: canMentionEveryone ? ['everyone'] : [] }
+      // allowedMentions: { parse: canMentionEveryone ? ['everyone'] : [] } 
     });
 
     await pool.query(
