@@ -1,12 +1,5 @@
 // handlers/matchUserExactSubmit.js
-const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-} = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
@@ -16,53 +9,6 @@ function maxMapsFromBo(bestOf) {
   if (bo === 1) return 1;
   if (bo === 3) return 3;
   return 5;
-}
-
-async function getDefaults(matchId, userId, maxMaps, mapNo) {
-  if (maxMaps === 1) {
-    const [[p]] = await pool.query(
-      `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
-      [matchId, userId]
-    );
-    return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
-  }
-
-  const [[p]] = await pool.query(
-    `SELECT pred_exact_a, pred_exact_b
-     FROM match_map_predictions
-     WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
-    [matchId, userId, mapNo]
-  );
-  return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
-}
-
-function buildModal(match, maxMaps, mapNo, defaults) {
-  const modal = new ModalBuilder()
-    .setCustomId('match_user_exact_submit')
-    .setTitle(maxMaps === 1 ? `Dokładny wynik` : `Dokładny wynik — mapa #${mapNo}`);
-
-  const inA = new TextInputBuilder()
-    .setCustomId('exact_a')
-    .setLabel(`${match.team_a} — wynik`)
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('np. 13')
-    .setValue(defaults.a === '' ? '' : String(defaults.a));
-
-  const inB = new TextInputBuilder()
-    .setCustomId('exact_b')
-    .setLabel(`${match.team_b} — wynik`)
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('np. 8')
-    .setValue(defaults.b === '' ? '' : String(defaults.b));
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(inA),
-    new ActionRowBuilder().addComponents(inB)
-  );
-
-  return modal;
 }
 
 module.exports = async function matchUserExactSubmit(interaction) {
@@ -77,6 +23,10 @@ module.exports = async function matchUserExactSubmit(interaction) {
 
     if (!Number.isFinite(exactA) || !Number.isFinite(exactB) || exactA < 0 || exactB < 0) {
       return interaction.reply({ content: '❌ Wynik musi być liczbą >= 0.', ephemeral: true });
+    }
+
+    if (exactA === exactB) {
+      return interaction.reply({ content: '❌ Na mapie nie może być remisu.', ephemeral: true });
     }
 
     const [[match]] = await pool.query(
@@ -97,7 +47,44 @@ module.exports = async function matchUserExactSubmit(interaction) {
     const maxMaps = maxMapsFromBo(match.best_of);
     const mapNo = Number(ctx.mapNo || 1);
 
-    // zapis do DB
+    // ====== Wybrany wynik serii (opcjonalny, ale jeśli jest to walidujemy) ======
+    const targetWinsA = Number.isFinite(Number(ctx.targetWinsA)) ? Number(ctx.targetWinsA) : null;
+    const targetWinsB = Number.isFinite(Number(ctx.targetWinsB)) ? Number(ctx.targetWinsB) : null;
+    const hasTarget = targetWinsA !== null && targetWinsB !== null;
+
+    // ile map user ma wpisać (główna kontrola 2-0 => 2 mapy)
+    const requiredMaps = Math.min(Number(ctx.requiredMaps || maxMaps), maxMaps);
+
+    // aktualne liczniki
+    const prevWinsA = Number(ctx.mapWinsA || 0);
+    const prevWinsB = Number(ctx.mapWinsB || 0);
+
+    const mapWinner = exactA > exactB ? 'A' : 'B';
+
+    const nextWinsA = prevWinsA + (mapWinner === 'A' ? 1 : 0);
+    const nextWinsB = prevWinsB + (mapWinner === 'B' ? 1 : 0);
+
+    // ---- WALIDACJA SPÓJNOŚCI Z WYBRANYM WYNIKIEM SERII ----
+    if (hasTarget) {
+      // 1) nie można przekroczyć docelowych wygranych map
+      if (nextWinsA > targetWinsA || nextWinsB > targetWinsB) {
+        return interaction.reply({
+          content: `❌ Ten wynik mapy nie pasuje do wybranego wyniku serii (**${targetWinsA}-${targetWinsB}**).\nPopraw mapę **#${mapNo}**.`,
+          ephemeral: true,
+        });
+      }
+
+      // 2) jeśli to ostatnia wpisywana mapa, wynik MUSI się zgadzać co do mapWon
+      const isLastMapByPlan = mapNo >= requiredMaps;
+      if (isLastMapByPlan && (nextWinsA !== targetWinsA || nextWinsB !== targetWinsB)) {
+        return interaction.reply({
+          content: `❌ Po ostatniej mapie wynik serii musi wyjść **${targetWinsA}-${targetWinsB}**.\nTeraz wychodzi **${nextWinsA}-${nextWinsB}** — popraw mapę **#${mapNo}**.`,
+          ephemeral: true,
+        });
+      }
+    }
+
+    // === ZAPIS DO DB ===
     if (maxMaps === 1) {
       await pool.query(
         `INSERT INTO match_predictions (match_id, user_id, pred_exact_a, pred_exact_b)
@@ -120,85 +107,54 @@ module.exports = async function matchUserExactSubmit(interaction) {
       );
     }
 
-
-
-    // ====== STOP WARUNEK: nie każ użytkownikowi wpisywać map, których nie przewiduje ======
-    // ctx.requiredMaps musi być ustawione wcześniej (np. po wyborze wyniku serii 2-0 / 2-1 / 3-1 itd.)
-    const requiredMaps = Math.min(Number(ctx.requiredMaps || maxMaps), maxMaps);
-
-    // wylicz kto wygrał tę mapę (remis blokujemy)
-    if (exactA === exactB) {
-      return interaction.reply({ content: '❌ Na mapie nie może być remisu.', ephemeral: true });
-    }
-
-    let mapWinsA = Number(ctx.mapWinsA || 0);
-    let mapWinsB = Number(ctx.mapWinsB || 0);
-
-    if (exactA > exactB) mapWinsA += 1;
-    else mapWinsB += 1;
-
-    // ile wygranych map konczy serię (BO3 => 2, BO5 => 3)
+    // BO3 => 2, BO5 => 3 (bezpiecznik, nawet jak requiredMaps źle ustawione)
     const winsNeeded = maxMaps === 1 ? 1 : (maxMaps === 3 ? 2 : 3);
 
-    // zapisz zaktualizowany stan (zwycięstwa map)
+    // zapisujemy stan po tej mapie
     userState.set(interaction.user.id, {
       ...ctx,
       matchId: match.id,
       mapNo,
       requiredMaps,
-      mapWinsA,
-      mapWinsB
+      mapWinsA: nextWinsA,
+      mapWinsB: nextWinsB,
     });
 
-    // kończymy jeśli:
-    // - user doszedł do limitu map, które przewiduje (np. 2 mapy dla 2-0)
-    // - albo już "ktoś wygrał serię" (bezpiecznik)
-    const shouldFinish = 
+    const cur = userState.get(interaction.user.id) || ctx;
+
+    const shouldFinish =
       (mapNo >= requiredMaps) ||
-      (mapWinsA >= winsNeeded) ||
-      (mapWinsB >= winsNeeded);
+      (nextWinsA >= winsNeeded) ||
+      (nextWinsB >= winsNeeded);
 
     if (!shouldFinish) {
-      const nextMapNo = mapNo + 1;
+      const nextMapNo2 = mapNo + 1;
 
       userState.set(interaction.user.id, {
-        ...ctx,
+        ...cur,
         matchId: match.id,
-        mapNo: nextMapNo,
+        mapNo: nextMapNo2,
         requiredMaps,
-        mapWinsA,
-        mapWinsB
+        mapWinsA: nextWinsA,
+        mapWinsB: nextWinsB,
       });
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId(`match_exact_open:${match.id}:${nextMapNo}`)
-          .setLabel(`Wpisz mapę #${nextMapNo}`)
+          .setCustomId(`match_exact_open:${match.id}:${nextMapNo2}`)
+          .setLabel(`Wpisz mapę #${nextMapNo2}`)
           .setStyle(ButtonStyle.Primary)
       );
 
       return interaction.reply({
-        content: `✅ Zapisano wynik mapy **#${mapNo}**.\nKliknij poniżej, aby wpisać mapę **#${nextMapNo}**.`,
+        content: `✅ Zapisano wynik mapy **#${mapNo}**.\nKliknij poniżej, aby wpisać mapę **#${nextMapNo2}**.`,
         components: [row],
         ephemeral: true,
       });
     }
 
-
-    // Koniec flow
-    // Koniec flow – wyczyść stan map, żeby nie mieszało przy następnym typowaniu
-if (maxMaps > 1) {
-  userState.set(interaction.user.id, {
-    ...ctx,
-    mapNo: 1,
-    requiredMaps: undefined,
-    mapWinsA: 0,
-    mapWinsB: 0,
-    targetWinsA: undefined,
-    targetWinsB: undefined,
-  });
-  // alternatywnie (często lepsze): userState.clear(interaction.user.id);
-}
+    // KONIEC FLOW
+    userState.clear(interaction.user.id);
 
     return interaction.reply({
       content:
@@ -209,6 +165,6 @@ if (maxMaps > 1) {
     });
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactSubmit failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się zapisać wyniku.', ephemeral: true }).catch(() => { });
+    return interaction.reply({ content: '❌ Nie udało się zapisać wyniku.', ephemeral: true }).catch(() => {});
   }
 };

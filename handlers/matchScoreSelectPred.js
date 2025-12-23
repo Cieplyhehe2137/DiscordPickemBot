@@ -1,0 +1,76 @@
+// handlers/matchScoreSelectPred.js
+const pool = require('../db');
+const logger = require('../utils/logger');
+const userState = require('../utils/matchUserState');
+
+function maxMapsFromBo(bestOf) {
+  const bo = Number(bestOf);
+  if (bo === 1) return 1;
+  if (bo === 3) return 3;
+  return 5;
+}
+
+module.exports = async function matchScoreSelectPred(interaction) {
+  try {
+    const picked = interaction.values?.[0]; // value: `${match.id}|${o.value}`
+    if (!picked) return interaction.update({ content: '❌ Nie wybrano typu.', components: [] });
+
+    const [matchIdRaw, scoreRaw] = picked.split('|'); // scoreRaw np. "2:0"
+    const matchId = Number(matchIdRaw);
+
+    const [winAraw, winBraw] = String(scoreRaw || '').split(':');
+    const winA = Number(winAraw);
+    const winB = Number(winBraw);
+
+    if (!Number.isFinite(matchId) || matchId <= 0 || !Number.isFinite(winA) || !Number.isFinite(winB)) {
+      return interaction.update({ content: '❌ Niepoprawna wartość typu.', components: [] });
+    }
+
+    const [[match]] = await pool.query(
+      `SELECT id, team_a, team_b, best_of, is_locked, phase
+       FROM matches
+       WHERE id=?
+       LIMIT 1`,
+      [matchId]
+    );
+
+    if (!match) {
+      return interaction.update({ content: '❌ Nie znaleziono meczu.', components: [] });
+    }
+    if (match.is_locked) {
+      return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
+    }
+
+    const maxMaps = maxMapsFromBo(match.best_of);
+
+    // requiredMaps: 2-0 => 2, 2-1 => 3, 3-1 => 4 itd.
+    const requiredMaps = Math.min(winA + winB, maxMaps);
+
+    // zapis do state (to jest to, czego potrzebuje matchUserExactSubmit)
+    const prev = userState.get(interaction.user.id) || {};
+    userState.set(interaction.user.id, {
+      ...prev,
+      matchId: match.id,
+      teamA: match.team_a,
+      teamB: match.team_b,
+      bestOf: match.best_of,
+      phase: match.phase,
+      mapNo: 1,
+      requiredMaps,
+      targetWinsA: winA,
+      targetWinsB: winB,
+      mapWinsA: 0,
+      mapWinsB: 0,
+    });
+
+    // Nie musimy zmieniać UI – wystarczy potwierdzenie.
+    // Zostawiamy components jak były, tylko dopisujemy info w content.
+    return interaction.update({
+      content: `🎯 Typujesz: **${match.team_a} ${winA}:${winB} ${match.team_b}** (Bo${match.best_of})\nMożesz teraz kliknąć **🧮 Wpisz dokładny wynik** i wpiszesz tylko potrzebne mapy.`,
+      components: interaction.message.components,
+    });
+  } catch (err) {
+    logger.error('matches', 'matchScoreSelectPred failed', { message: err.message, stack: err.stack });
+    return interaction.update({ content: '❌ Błąd przy wyborze typu.', components: [] }).catch(() => {});
+  }
+};

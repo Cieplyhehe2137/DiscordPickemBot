@@ -75,19 +75,19 @@ function buildSeriesSelect(match, maxMaps) {
   const options =
     maxMaps === 3
       ? [
-          { label: `${a} 2-0`, value: `2|0` },
-          { label: `${a} 2-1`, value: `2|1` },
-          { label: `${b} 2-1`, value: `1|2` },
-          { label: `${b} 2-0`, value: `0|2` },
-        ]
+        { label: `${a} 2-0`, value: `2|0` },
+        { label: `${a} 2-1`, value: `2|1` },
+        { label: `${b} 2-1`, value: `1|2` },
+        { label: `${b} 2-0`, value: `0|2` },
+      ]
       : [
-          { label: `${a} 3-0`, value: `3|0` },
-          { label: `${a} 3-1`, value: `3|1` },
-          { label: `${a} 3-2`, value: `3|2` },
-          { label: `${b} 3-2`, value: `2|3` },
-          { label: `${b} 3-1`, value: `1|3` },
-          { label: `${b} 3-0`, value: `0|3` },
-        ];
+        { label: `${a} 3-0`, value: `3|0` },
+        { label: `${a} 3-1`, value: `3|1` },
+        { label: `${a} 3-2`, value: `3|2` },
+        { label: `${b} 3-2`, value: `2|3` },
+        { label: `${b} 3-1`, value: `1|3` },
+        { label: `${b} 3-0`, value: `0|3` },
+      ];
 
   const select = new StringSelectMenuBuilder()
     .setCustomId('match_series_select')
@@ -133,13 +133,12 @@ module.exports = async function matchUserExactOpen(interaction) {
 
     // === NOWE: jeśli BO3/BO5 i jesteśmy na mapie #1 i nie ma requiredMaps -> pokaż wybór wyniku serii
     if (maxMaps > 1 && effectiveMapNo === 1 && !ctx?.requiredMaps) {
-      const row = buildSeriesSelect(match, maxMaps);
       return interaction.reply({
-        content: '🎯 Zanim wpiszesz mapy, wybierz wynik serii (np. 2-0 / 2-1).',
-        components: [row],
+        content: '🎯 Najpierw wybierz wynik serii w dropdownie **„Wybierz swój typ…”** (nad przyciskiem).',
         ephemeral: true,
       });
     }
+
 
     // reset liczników na starcie (żeby nie mieszało między próbami)
     if (maxMaps > 1 && effectiveMapNo === 1) {
@@ -159,6 +158,6 @@ module.exports = async function matchUserExactOpen(interaction) {
     return interaction.showModal(modal);
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactOpen failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => {});
+    return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => { });
   }
 };
