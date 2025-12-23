@@ -36,7 +36,7 @@ module.exports = async (interaction) => {
     // const pingText = canMentionEveryone ? '@everyone ' : ''; 
     
     const sentMessage = await interaction.channel.send({
-      content: `${pingText}🔔 Nowy panel typowania Swiss (${stage.toUpperCase()})`,
+      // content: `${pingText}🔔 Nowy panel typowania Swiss (${stage.toUpperCase()})`,
       embeds: [embed],
       components: [row],
       // allowedMentions: { parse: canMentionEveryone ? ['everyone'] : [] } 
