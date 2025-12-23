@@ -86,24 +86,20 @@ module.exports = async function matchUserExactSubmit(interaction) {
 
     // === ZAPIS DO DB ===
     if (maxMaps === 1) {
+      // BO1: pred_a/pred_b to "mapy" (1-0 albo 0-1) wynikające ze zwycięzcy
+      const predA = exactA > exactB ? 1 : 0;
+      const predB = exactB > exactA ? 1 : 0;
+
       await pool.query(
-        `INSERT INTO match_predictions (match_id, user_id, pred_exact_a, pred_exact_b)
-         VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           pred_exact_a=VALUES(pred_exact_a),
-           pred_exact_b=VALUES(pred_exact_b),
-           updated_at=CURRENT_TIMESTAMP`,
-        [match.id, interaction.user.id, exactA, exactB]
-      );
-    } else {
-      await pool.query(
-        `INSERT INTO match_map_predictions (match_id, user_id, map_no, pred_exact_a, pred_exact_b)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           pred_exact_a=VALUES(pred_exact_a),
-           pred_exact_b=VALUES(pred_exact_b),
-           updated_at=CURRENT_TIMESTAMP`,
-        [match.id, interaction.user.id, mapNo, exactA, exactB]
+        `INSERT INTO match_predictions (match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       pred_a=VALUES(pred_a),
+       pred_b=VALUES(pred_b),
+       pred_exact_a=VALUES(pred_exact_a),
+       pred_exact_b=VALUES(pred_exact_b),
+       updated_at=CURRENT_TIMESTAMP`,
+        [match.id, interaction.user.id, predA, predB, exactA, exactB]
       );
     }
 
@@ -165,6 +161,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
     });
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactSubmit failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się zapisać wyniku.', ephemeral: true }).catch(() => {});
+    return interaction.reply({ content: '❌ Nie udało się zapisać wyniku.', ephemeral: true }).catch(() => { });
   }
 };
