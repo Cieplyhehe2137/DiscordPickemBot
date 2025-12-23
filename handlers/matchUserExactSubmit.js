@@ -1,5 +1,12 @@
 // handlers/matchUserExactSubmit.js
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
@@ -81,17 +88,16 @@ module.exports = async function matchUserExactSubmit(interaction) {
       userState.clear(interaction.user.id);
       return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
+
     if (match.is_locked) {
-      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany.', ephemeral: true });
+      userState.clear(interaction.user.id);
+      return interaction.reply({ content: '🔒 Typowanie tego meczu jest już zamknięte.', ephemeral: true });
     }
 
     const maxMaps = maxMapsFromBo(match.best_of);
+    const mapNo = Number(ctx.mapNo || 1);
 
-    // Aktualna mapa (dla BO1 zawsze 1)
-    let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 1);
-    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) mapNo = 1;
-
-    // ZAPIS
+    // zapis do DB
     if (maxMaps === 1) {
       await pool.query(
         `INSERT INTO match_predictions (match_id, user_id, pred_exact_a, pred_exact_b)
@@ -114,21 +120,29 @@ module.exports = async function matchUserExactSubmit(interaction) {
       );
     }
 
-    // Jeśli BO3/BO5 i są kolejne mapy -> od razu modal kolejnej mapy
+    // ✅ NIE OTWIERAMY KOLEJNEGO MODALA Z MODAL SUBMIT (bo showModal tu nie istnieje)
+    // Zamiast tego: ephemeral + button -> button otworzy kolejny modal
     if (maxMaps > 1 && mapNo < maxMaps) {
       const nextMapNo = mapNo + 1;
       userState.set(interaction.user.id, { ...ctx, mapNo: nextMapNo });
 
-      const defaults = await getDefaults(match.id, interaction.user.id, maxMaps, nextMapNo);
-      const modal = buildModal(match, maxMaps, nextMapNo, defaults);
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`match_exact_open:${match.id}:${nextMapNo}`)
+          .setLabel(`Wpisz mapę #${nextMapNo}`)
+          .setStyle(ButtonStyle.Primary)
+      );
 
-      return interaction.showModal(modal);
+      return interaction.reply({
+        content: `✅ Zapisano wynik mapy **#${mapNo}**.\nKliknij poniżej, aby wpisać mapę **#${nextMapNo}**.`,
+        components: [row],
+        ephemeral: true,
+      });
     }
 
-    // Koniec flow (ostatnia mapa / BO1)
+    // Koniec flow
     if (maxMaps > 1) {
-      // możesz zostawić mapNo (żeby łatwo edytować), ale zwykle lepiej wyczyścić:
-      userState.set(interaction.user.id, { ...ctx, mapNo: 1 }); // albo: userState.clear(...) jeśli wolisz
+      userState.set(interaction.user.id, { ...ctx, mapNo: 1 }); // albo: userState.clear(...)
     }
 
     return interaction.reply({
@@ -136,7 +150,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
         maxMaps === 1
           ? `✅ Zapisano dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`
           : `✅ Zapisano dokładne wyniki dla BO${match.best_of} (mapy 1–${maxMaps}).`,
-      ephemeral: true
+      ephemeral: true,
     });
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactSubmit failed', { message: err.message, stack: err.stack });
