@@ -29,6 +29,7 @@ module.exports = {
 
   'match_user_map_select': 'matchUserMapSelect',
   'match_admin_map_select': 'matchAdminMapSelect',
+  'match_series_select': 'matchUserSeriesSelect'
 
 
 

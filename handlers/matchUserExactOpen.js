@@ -1,5 +1,11 @@
 // handlers/matchUserExactOpen.js
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+} = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
@@ -17,10 +23,7 @@ async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
       `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
       [matchId, userId]
     );
-    return {
-      a: p?.pred_exact_a ?? '',
-      b: p?.pred_exact_b ?? ''
-    };
+    return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
   }
 
   const [[p]] = await pool.query(
@@ -29,10 +32,7 @@ async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
      WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
     [matchId, userId, mapNo]
   );
-  return {
-    a: p?.pred_exact_a ?? '',
-    b: p?.pred_exact_b ?? ''
-  };
+  return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
 }
 
 function buildModal({ match, maxMaps, mapNo, defaults }) {
@@ -68,13 +68,42 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
   return modal;
 }
 
+function buildSeriesSelect(match, maxMaps) {
+  const a = match.team_a;
+  const b = match.team_b;
+
+  const options =
+    maxMaps === 3
+      ? [
+          { label: `${a} 2-0`, value: `2|0` },
+          { label: `${a} 2-1`, value: `2|1` },
+          { label: `${b} 2-1`, value: `1|2` },
+          { label: `${b} 2-0`, value: `0|2` },
+        ]
+      : [
+          { label: `${a} 3-0`, value: `3|0` },
+          { label: `${a} 3-1`, value: `3|1` },
+          { label: `${a} 3-2`, value: `3|2` },
+          { label: `${b} 3-2`, value: `2|3` },
+          { label: `${b} 3-1`, value: `1|3` },
+          { label: `${b} 3-0`, value: `0|3` },
+        ];
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('match_series_select')
+    .setPlaceholder('Wybierz wynik serii (żeby wiedzieć ile map wpisać)')
+    .addOptions(options);
+
+  return new ActionRowBuilder().addComponents(select);
+}
+
 module.exports = async function matchUserExactOpen(interaction) {
   try {
     const ctx = userState.get(interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
         content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
-        ephemeral: true
+        ephemeral: true,
       });
     }
 
@@ -93,7 +122,7 @@ module.exports = async function matchUserExactOpen(interaction) {
 
     const maxMaps = maxMapsFromBo(match.best_of);
 
-    // Startujemy od mapy 1, jeśli BO3/BO5 i nie ustawiono mapy w state
+    // ustal mapNo (z ctx)
     let mapNo = Number(ctx.mapNo || 0);
     if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
       mapNo = 1;
@@ -101,9 +130,32 @@ module.exports = async function matchUserExactOpen(interaction) {
     }
 
     const effectiveMapNo = maxMaps === 1 ? 1 : mapNo;
-    const defaults = await getUserDefaults(match.id, interaction.user.id, maxMaps, effectiveMapNo);
 
+    // === NOWE: jeśli BO3/BO5 i jesteśmy na mapie #1 i nie ma requiredMaps -> pokaż wybór wyniku serii
+    if (maxMaps > 1 && effectiveMapNo === 1 && !ctx?.requiredMaps) {
+      const row = buildSeriesSelect(match, maxMaps);
+      return interaction.reply({
+        content: '🎯 Zanim wpiszesz mapy, wybierz wynik serii (np. 2-0 / 2-1).',
+        components: [row],
+        ephemeral: true,
+      });
+    }
+
+    // reset liczników na starcie (żeby nie mieszało między próbami)
+    if (maxMaps > 1 && effectiveMapNo === 1) {
+      userState.set(interaction.user.id, {
+        ...ctx,
+        matchId: match.id,
+        mapNo: 1,
+        mapWinsA: 0,
+        mapWinsB: 0,
+        // requiredMaps zostaje (jeśli już ustawione)
+      });
+    }
+
+    const defaults = await getUserDefaults(match.id, interaction.user.id, maxMaps, effectiveMapNo);
     const modal = buildModal({ match, maxMaps, mapNo: effectiveMapNo, defaults });
+
     return interaction.showModal(modal);
   } catch (err) {
     logger?.error?.('matches', 'matchUserExactOpen failed', { message: err.message, stack: err.stack });
