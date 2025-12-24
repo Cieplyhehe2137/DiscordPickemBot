@@ -253,7 +253,7 @@ module.exports = async function calculateScores() {
 
     for (const m of matchesWithResults) {
       const [preds] = await pool.query(
-        `SELECT user_id, pred_a, pred_b FROM match_predictions WHER match_id = ?`,
+        `SELECT user_id, pred_a, pred_b FROM match_predictions WHERE match_id = ?`,
         [m.id]
       );
 
