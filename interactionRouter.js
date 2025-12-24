@@ -146,12 +146,12 @@ module.exports = async function handleInteraction(interaction, client, handlers,
       // 1) selectMap (exact)
       if (selectMap?.[customId]) {
         const handlerName = selectMap[customId];
-        if (handlers?.[handlerName]) return handlers[handlerName](interaction, client);
+        if (handlers?.[handlerName]) return handlers[handlerName](interaction, client, handlers, maps);
 
         // jeśli w mapie jest nazwa pliku
         try {
           const fn = require(`./handlers/${handlerName}`);
-          return fn(interaction, client);
+          return fn(interaction, client, handlers, maps);
         } catch (_) {
           logger.error('interaction', 'Select handler not found', { customId, handlerName });
           await safeDeferUpdate(interaction);

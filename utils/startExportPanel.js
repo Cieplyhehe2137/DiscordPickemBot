@@ -5,17 +5,81 @@ const {
   ButtonBuilder,
   ButtonStyle
 } = require('discord.js');
-const logger = require('./logger'); // jeśli plik jest w root
+
+const logger = require('../logger'); // jeśli plik jest w root
+
+const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
+
+// Bezpieczne pobranie ostatnich wiadomości i znalezienie panelu do edycji
+async function findExistingPanelMessage(channel, clientUserId) {
+  try {
+    // pobierz ostatnie 50 wiadomości
+    const messages = await channel.messages.fetch({ limit: 50 });
+
+    // znajdź NAJNOWSZĄ wiadomość bota, która ma embed z naszym tytułem
+    const found = messages
+      .filter(m => m.author?.id === clientUserId)
+      .find(m => {
+        const e = m.embeds?.[0];
+        return e && e.title === PANEL_TITLE;
+      });
+
+    return found || null;
+  } catch (err) {
+    logger.error("interaction", "Failed to fetch messages for panel lookup", {
+      message: err.message,
+      stack: err.stack
+    });
+    return null;
+  }
+}
+
+function buildPanelPayload() {
+  const embed = new EmbedBuilder()
+    .setColor(0x2f3136)
+    .setTitle(PANEL_TITLE)
+    .setDescription(
+      '➔ Tutaj możesz:\n' +
+      '• Wprowadzać oficjalne wyniki (Swiss / Playoffs / Double / Play-In)\n' +
+      '• Zarządzać meczami\n' +
+      '• Wykonać backup / przywrócić bazę\n' +
+      '• Wyczyścić dane / zrobić reset\n\n' +
+      '⚠️ **Dostęp tylko dla Administracji serwera**'
+    );
+
+  // 1 rząd, 4 przyciski → reszta w dropdownach po kliknięciu
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('panel:open:results')
+      .setLabel('📥 Wyniki / Eksport')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('panel:open:matches')
+      .setLabel('🎮 Mecze')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('panel:open:db')
+      .setLabel('💾 Baza danych')
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId('panel:open:danger')
+      .setLabel('🧨 Czyszczenie / Reset')
+      .setStyle(ButtonStyle.Danger),
+  );
+
+  return { embeds: [embed], components: [row] };
+}
 
 module.exports = async (client) => {
   try {
-    const channelId = '1387140988954476654';
+    const channelId = process.env.EXPORT_CHANNEL_ID || '1387140988954476654';
     const channel = await client.channels.fetch(channelId);
 
     if (!channel) {
-      logger.error("interaction", "Export panel channel not found", {
-        channelId
-      });
+      logger.error("interaction", "Export panel channel not found", { channelId });
       return;
     }
 
@@ -24,122 +88,27 @@ module.exports = async (client) => {
       channelId
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2f3136)
-      .setTitle('📊 Panel eksportowy Pick\'Em')
-      .setDescription(
-        '➔ Tutaj możesz:\n' +
-        '• Eksportować wyniki\n' +
-        '• Wykonać backup bazy danych\n' +
-        '• Wprowadzić oficjalne wyniki (Swiss / Playoffs / Double)\n' +
-        '• Zarządzać danymi turnieju\n\n' +
-        '⚠️ **Dostęp tylko dla Administracji serwera**'
-      );
+    const payload = buildPanelPayload();
 
-    // =======================
-    // RZĄD 1 – eksport + backup
-    // =======================
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('export_ranking')
-        .setLabel('📁 Eksport klasyfikacji')
-        .setStyle(ButtonStyle.Primary),
+    // spróbuj znaleźć istniejący panel i go zaktualizować
+    const existing = await findExistingPanelMessage(channel, client.user.id);
 
-      new ButtonBuilder()
-        .setCustomId('backup_database')
-        .setLabel('💾 Backup bazy')
-        .setStyle(ButtonStyle.Secondary),
+    if (existing) {
+      await existing.edit(payload);
 
-      new ButtonBuilder()
-        .setCustomId('restore_backup')
-        .setLabel('♻️ Przywróć bazę')
-        .setStyle(ButtonStyle.Primary),
+      logger.info("interaction", "Export panel updated (edited existing message)", {
+        channel: channel.name,
+        messageId: existing.id
+      });
+      return;
+    }
 
-      new ButtonBuilder()
-        .setCustomId('set_results_playin')
-        .setLabel('📄 Wyniki Play-In')
-        .setStyle(ButtonStyle.Primary),
+    // jeśli nie ma, wyślij nowy
+    const sent = await channel.send(payload);
 
-    );
-
-    // =======================
-    // RZĄD 2 – oficjalne wyniki
-    // =======================
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('set_results_swiss_stage1')
-        .setLabel('📑 Swiss — Stage 1')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('set_results_swiss_stage2')
-        .setLabel('📑 Swiss — Stage 2')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('set_results_swiss_stage3')
-        .setLabel('📑 Swiss — Stage 3')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('open_results_playoffs')
-        .setLabel('📑 Wyniki Playoffs')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('set_results_double')
-        .setLabel('📑 Wyniki Double Elim')
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    // =======================
-    // RZĄD 3 – czyszczenie
-    // =======================
-    const row3 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('clear_user_picks')
-        .setLabel('✏️ Wyczyść typy userów')
-        .setStyle(ButtonStyle.Danger),
-
-      new ButtonBuilder()
-        .setCustomId('full_reset')
-        .setLabel('🗑 Pełny reset (łącznie z wynikami)')
-        .setStyle(ButtonStyle.Danger),
-
-      new ButtonBuilder()
-        .setCustomId('clear_official_results')
-        .setLabel('🗑 Wyczyść tylko oficjalne wyniki')
-        .setStyle(ButtonStyle.Danger)
-    );
-
-    // =======================
-    // RZĄD 4 – mecze (wyniki)
-    // =======================
-    const row4 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('open_results_matches')
-        .setLabel('🎯 Wyniki meczów')
-        .setStyle(ButtonStyle.Primary),
-
-      new ButtonBuilder()
-        .setCustomId('add_match')
-        .setLabel('➕ Dodaj mecz')
-        .setStyle(ButtonStyle.Success),
-
-      new ButtonBuilder()
-        .setCustomId('clear_matches')
-        .setLabel('🧹 Wyczyść mecze fazy')
-        .setStyle(ButtonStyle.Danger)
-
-    );
-
-    await channel.send({
-      embeds: [embed],
-      components: [row1, row2, row3, row4]
-    });
-
-    logger.info("interaction", "Export panel sent", {
-      channel: channel.name
+    logger.info("interaction", "Export panel sent (new message)", {
+      channel: channel.name,
+      messageId: sent.id
     });
 
   } catch (err) {

@@ -74,6 +74,13 @@ module.exports = {
   'match_admin_exact_open_next': 'matchAdminExactOpenNext',
   'match_user_exact_open_next': 'matchUserExactOpenNext',
   'match_exact_open': 'matchUserExactOpen',
+
+    // ===== ADMIN PANEL (UPROSZCZONY) =====
+  'panel:open:results': 'panelOpenMenu',
+  'panel:open:matches': 'panelOpenMenu',
+  'panel:open:db': 'panelOpenMenu',
+  'panel:open:danger': 'panelOpenMenu',
+
   
 
 

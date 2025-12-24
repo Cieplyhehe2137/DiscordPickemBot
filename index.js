@@ -129,11 +129,11 @@ console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
   }
 });
 
-
+const handlers = loadHandlers('handlers');
 
 client.on('interactionCreate', (interaction) => {
   try {
-    handleInteraction(interaction, client, loadHandlers('handlers'), maps, logger);
+    handleInteraction(interaction, client, handlers, maps);
   } catch (e) {
     console.error('❌ interactionCreate error:', e);
   }

@@ -15,5 +15,5 @@ module.exports = async function onReady(client) {
   startDeadlineReminder(client);
 
   require('./utils/startPresence')(client);
-  require('./utils/startExportPanel')(client);
+  require('./startExportPanel')(client);
 };
