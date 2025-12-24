@@ -75,7 +75,7 @@ function buildPanelPayload() {
 
 module.exports = async (client) => {
   try {
-    const channelId = process.env.EXPORT_CHANNEL_ID || '1387140988954476654';
+    const channelId = process.env.EXPORT_PANEL_CHANNEL_ID || '1387140988954476654';
     const channel = await client.channels.fetch(channelId);
 
     if (!channel) {
