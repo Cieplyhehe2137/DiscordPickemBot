@@ -34,7 +34,7 @@ console.log("====================");
 // 🌍 Debugowanie zmiennych środowiskowych
 console.log('==================== 🌍 DEBUG ENV ====================');
 [
-  'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_CHANNEL_ID', 'LOG_CHANNEL_ID',
+  'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
   'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT'
 ].forEach((key) => {
   const val = process.env[key];
