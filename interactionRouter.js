@@ -1,6 +1,5 @@
 const fs = require('fs/promises');
 const path = require('path');
-const pool = require('../db');
 const logger = require('../utils/logger');
 
 // re-użyj helperów z opener'a, żeby mieć spójne UI
