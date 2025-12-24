@@ -11,7 +11,6 @@ module.exports = {
 
   // MATCHES (user prediction)
   'match_pick_select_pred': 'matchPickSelect',
-  'match_score_select_pred': 'matchScoreSelect',
 
   // MATCHES (admin results)
   'match_admin_phase_select': 'matchAdminPhaseSelect',

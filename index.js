@@ -2,12 +2,10 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const logger = require('./logger');
 const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
-const modalMap = require('./maps/modalMap');
 
 function getGitCommit() {
   try {
@@ -98,7 +96,6 @@ const maps = {
 // 🚀 Eventy (diag)
 client.on('error', (e) => console.error('💥 client error:', e));
 client.on('warn',  (w) => console.warn('⚠️ client warn:', w));
-client.on('shardError', (e) => console.error('💥 shard error:', e));
 
 // Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
 client.once('ready', async () => {
