@@ -1,4 +1,5 @@
 // handlers/panelSelectAction.js
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const logger = require('../utils/logger');
 
 const VALUE_TO_TARGET_CUSTOM_ID = {
@@ -20,7 +21,7 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'db:backup': 'backup_database',
   'db:restore': 'restore_backup',
 
-  // DANGER -> Twoje “confirm” customId (żeby zawsze było potwierdzenie)
+  // DANGER -> stare customId (klikane dopiero w potwierdzeniu)
   'danger:clearPicks': 'clear_db_confirm',
   'danger:clearOfficial': 'clear_only_results_confirm',
   'danger:fullReset': 'clear_db_with_results',
@@ -28,15 +29,11 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
 
 function resolveHandlerName(buttonMap, customId) {
   if (buttonMap?.[customId]) return buttonMap[customId];
-
   const key = Object.keys(buttonMap || {}).find(k => customId.startsWith(k));
-  if (key) return buttonMap[key];
-
-  return null;
+  return key ? buttonMap[key] : null;
 }
 
-function makeInteractionProxyWithCustomId(interaction, forcedCustomId) {
-  // Proxy: customId zwraca forcedCustomId, metody bindowane do oryginału
+function proxyCustomId(interaction, forcedCustomId) {
   return new Proxy(interaction, {
     get(target, prop) {
       if (prop === 'customId') return forcedCustomId;
@@ -44,6 +41,19 @@ function makeInteractionProxyWithCustomId(interaction, forcedCustomId) {
       return typeof v === 'function' ? v.bind(target) : v;
     }
   });
+}
+
+function buildConfirmRow(targetCustomId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(targetCustomId) // <-- klucz: tu idzie STARE customId jako button
+      .setLabel('✅ Potwierdzam')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('panel:danger:cancel')
+      .setLabel('❌ Anuluj')
+      .setStyle(ButtonStyle.Secondary),
+  );
 }
 
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
@@ -55,20 +65,24 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       return interaction.reply({ content: '❌ Nieznana akcja.', ephemeral: true });
     }
 
+    // === DANGER: pokazujemy potwierdzenie zamiast wykonywać od razu ===
+    if (value.startsWith('danger:')) {
+      return interaction.update({
+        content: '⚠️ Potwierdź operację (nieodwracalne):',
+        components: [buildConfirmRow(targetCustomId)]
+      });
+    }
+
+    // === NORMAL: odpalamy stary handler (jakby to był button) ===
     const handlerName = resolveHandlerName(maps?.buttonMap, targetCustomId);
     if (!handlerName || !handlers?.[handlerName]) {
       logger.warn('interaction', 'panelSelectAction missing handler', { value, targetCustomId, handlerName });
       return interaction.reply({ content: '❌ Brak handlera dla tej akcji.', ephemeral: true });
     }
 
-    const proxy = makeInteractionProxyWithCustomId(interaction, targetCustomId);
+    const proxied = proxyCustomId(interaction, targetCustomId);
+    await handlers[handlerName](proxied, client);
 
-    // UWAGA: nie robimy interaction.update(), bo część Twoich handlerów odpala modale
-    await handlers[handlerName](proxy, client);
-
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '✅ OK.', ephemeral: true });
-    }
   } catch (err) {
     logger.error('interaction', 'panelSelectAction failed', { message: err.message, stack: err.stack });
     if (!interaction.replied && !interaction.deferred) {

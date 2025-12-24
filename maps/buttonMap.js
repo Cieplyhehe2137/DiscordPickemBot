@@ -80,6 +80,7 @@ module.exports = {
   'panel:open:matches': 'panelOpenMenu',
   'panel:open:db': 'panelOpenMenu',
   'panel:open:danger': 'panelOpenMenu',
+  'panel:danger:cancel': 'panelDangerCancel'
 
   
 
