@@ -24,7 +24,9 @@ module.exports = async (interaction) => {
     if (!interaction.replied && !interaction.deferred) {
       await interaction.deferUpdate();
     }
-  } catch (_) {}
+  } catch (_) {
+    // ignore
+  }
 
   const aliasMap = {
     clear_user_picks: 'clear_db_confirm',
@@ -48,13 +50,23 @@ module.exports = async (interaction) => {
     }
   }
 
-  // === CONFIRMY ===
+  // =========================
+  // CONFIRMY
+  // =========================
+
+  // (1) Wyczyść tylko typy userów
   if (action === 'clear_db_confirm') {
     logger.warn("clear", "Clear DB confirm requested", userMeta);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('clear_db_yes').setLabel('✅ Tak, wyczyść').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('clear_db_no').setLabel('❌ Nie, anuluj').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('clear_db_yes')
+        .setLabel('✅ Tak, wyczyść')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId('clear_db_no')
+        .setLabel('❌ Nie, anuluj')
+        .setStyle(ButtonStyle.Secondary),
     );
 
     return safeFollowUp({
@@ -68,7 +80,63 @@ module.exports = async (interaction) => {
     });
   }
 
-  // === AKCJE KASUJĄCE ===
+  // (2) PEŁNY RESET: typy + wyniki + score
+  if (action === 'clear_db_with_results') {
+    logger.warn("clear", "FULL RESET confirm requested", userMeta);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('clear_all_yes')
+        .setLabel('✅ Tak, pełny reset')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId('clear_all_no')
+        .setLabel('❌ Nie, anuluj')
+        .setStyle(ButtonStyle.Secondary),
+    );
+
+    return safeFollowUp({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('💣 PEŁNY RESET — na pewno?')
+          .setDescription('Ta operacja usunie **typy użytkowników + oficjalne wyniki + score**.')
+          .setColor(0xff0000)
+      ],
+      components: [row]
+    });
+  }
+
+  // (3) Usuń tylko oficjalne wyniki + score
+  if (action === 'clear_only_results_confirm') {
+    logger.warn("clear", "OFFICIAL RESULTS confirm requested", userMeta);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('clear_only_results_yes')
+        .setLabel('✅ Tak, usuń wyniki')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId('clear_only_results_no')
+        .setLabel('❌ Nie, anuluj')
+        .setStyle(ButtonStyle.Secondary),
+    );
+
+    return safeFollowUp({
+      embeds: [
+        new EmbedBuilder()
+          .setTitle('🗑 Usunąć tylko oficjalne wyniki?')
+          .setDescription('Usunie **wyniki + score**, ale **zostawi typy użytkowników**.')
+          .setColor(0xffcc00)
+      ],
+      components: [row]
+    });
+  }
+
+  // =========================
+  // AKCJE KASUJĄCE
+  // =========================
+
+  // (A) Wyczyść typy userów
   if (action === 'clear_db_yes') {
     logger.warn("clear", "Executing USER PICKS cleanup", userMeta);
 
@@ -104,6 +172,7 @@ module.exports = async (interaction) => {
     return;
   }
 
+  // (B) PEŁNY RESET: typy + wyniki + score + active_panels
   if (action === 'clear_all_yes') {
     logger.warn("clear", "Executing FULL DATABASE RESET", userMeta);
 
@@ -144,6 +213,7 @@ module.exports = async (interaction) => {
     return;
   }
 
+  // (C) Usuń tylko oficjalne wyniki + score
   if (action === 'clear_only_results_yes') {
     logger.warn("clear", "Executing OFFICIAL RESULTS cleanup", userMeta);
 
@@ -179,10 +249,17 @@ module.exports = async (interaction) => {
     return;
   }
 
+  // =========================
+  // ANULOWANIE
+  // =========================
   if (action === 'clear_db_no' || action === 'clear_all_no' || action === 'clear_only_results_no') {
     logger.info("clear", "Clear database action cancelled", userMeta);
     return safeFollowUp({ content: '✅ Anulowano.' });
   }
 
-  return;
+  // =========================
+  // FALLBACK (żeby nie było ciszy)
+  // =========================
+  logger.warn("clear", "Unknown clear action (no matching case)", { ...userMeta, action });
+  return safeFollowUp({ content: `❌ Nieznana akcja: ${action}` });
 };
