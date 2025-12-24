@@ -44,16 +44,29 @@ async function getCurrentPlayoffs() {
 
   return {
     semifinalists: toArr(row.correct_semifinalists),
-    finalists:     toArr(row.correct_finalists),
-    winner:        toArr(row.correct_winner),
-    third:         toArr(row.correct_third_place_winner)
+    finalists: toArr(row.correct_finalists),
+    winner: toArr(row.correct_winner),
+    third: toArr(row.correct_third_place_winner)
   };
 }
 
 // działanie JAK W SWISS – dokładamy partiami
+// działanie JAK W SWISS – dokładamy partiami
+// ✅ wyjątek: cap=1 => ZASTĄP (winner/3rd) zamiast dopisywać
 function pickOrKeep(baseArr, addArr, cap) {
   baseArr = baseArr || [];
 
+  // ✅ cap=1 zawsze podmienia na ostatni wybór z dropdowna
+  if (cap === 1) {
+    const add = Array.isArray(addArr) ? addArr : [];
+    const picked = add.length
+      ? String(add[add.length - 1]).trim()
+      : String(baseArr[0] || "").trim();
+
+    return { ok: true, merged: picked ? [picked] : [] };
+  }
+
+  // reszta jak było (dopisywanie)
   if (addArr && addArr.length) {
     const merged = cleanList([...baseArr, ...addArr]);
     if (merged.length > cap) {
@@ -64,6 +77,7 @@ function pickOrKeep(baseArr, addArr, cap) {
 
   return { ok: true, merged: cleanList(baseArr) };
 }
+
 
 module.exports = async (interaction) => {
   const userId = interaction.user.id;
@@ -92,7 +106,7 @@ module.exports = async (interaction) => {
     const picks = cache[userId] || {};
     const current = await getCurrentPlayoffs();
 
-    const mSemi  = pickOrKeep(current.semifinalists, picks.semifinalists, 4);
+    const mSemi = pickOrKeep(current.semifinalists, picks.semifinalists, 4);
     if (!mSemi.ok) return interaction.editReply(`⚠️ Półfinaliści: ${mSemi.err}`);
 
     const mFinal = pickOrKeep(current.finalists, picks.finalists, 2);
