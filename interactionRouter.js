@@ -146,18 +146,41 @@ module.exports = async function handleInteraction(interaction, client, handlers,
       // 1) selectMap (exact)
       if (selectMap?.[customId]) {
         const handlerName = selectMap[customId];
-        if (handlers?.[handlerName]) return handlers[handlerName](interaction, client, handlers, maps);
 
-        // jeśli w mapie jest nazwa pliku
-        try {
-          const fn = require(`./handlers/${handlerName}`);
-          return fn(interaction, client, handlers, maps);
-        } catch (_) {
-          logger.error('interaction', 'Select handler not found', { customId, handlerName });
+        // najpierw spróbuj z loadera
+        let fn = handlers?.[handlerName];
+
+        // jeśli loader zwrócił obiekt zamiast funkcji, spróbuj wyciągnąć callable
+        if (fn && typeof fn === 'object') {
+          fn = fn[handlerName] || fn.execute || fn.run || fn.handler || fn.default;
+        }
+
+        // jeśli nadal nie funkcja, spróbuj require pliku
+        if (typeof fn !== 'function') {
+          try {
+            const mod = require(`./handlers/${handlerName}`);
+            fn =
+              (typeof mod === 'function' && mod) ||
+              (mod && typeof mod === 'object' && (mod[handlerName] || mod.execute || mod.run || mod.handler || mod.default)) ||
+              null;
+          } catch (_) {
+            fn = null;
+          }
+        }
+
+        if (typeof fn !== 'function') {
+          logger.error('interaction', 'Select handler is not a function', {
+            customId,
+            handlerName,
+            resolvedType: typeof handlers?.[handlerName],
+          });
           await safeDeferUpdate(interaction);
           return;
         }
+
+        return fn(interaction, client, handlers, maps);
       }
+
 
       // 2) dropdownMap (TU JEST FIX NA _p0/_p1)
       const baseId = customId.replace(/_p\d+$/i, ''); // official_swiss_3_0_stage1_p0 -> official_swiss_3_0_stage1
