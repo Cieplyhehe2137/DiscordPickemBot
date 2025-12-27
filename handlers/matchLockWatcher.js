@@ -11,8 +11,8 @@ function startMatchLockWatcher() {
             const lockBeforeSec = getLockBeforeSec();
 
             const whereTime = lockBeforeSec > 0
-              ? 'start_time_utc <= DATE_ADD(UTC_TIMESTAMP(), INTEVAL ? SECOND'
-              : 'start_time_utc <= UTC_TIMESTAMP()';
+                ? 'start_time_utc <= DATE_ADD(UTC_TIMESTAMP(), INTEVAL ? SECOND'
+                : 'start_time_utc <= UTC_TIMESTAMP()';
 
             const params = lockBeforeSec > 0 ? [lockBeforeSec] : [];
 
