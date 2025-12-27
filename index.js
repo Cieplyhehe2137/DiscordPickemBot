@@ -55,25 +55,24 @@ const client = new Client({
 
 
 
-// logi websocketu
-client.ws.on('debug', (msg) => {
-  console.log("🌐 [WS DEBUG]", msg);
-});
-
-// log po błędach podczas łączenia
-client.on('shardError', err => {
-  console.error("💥 [SHARD ERROR]", err);
-});
-
-// log gdy sesja zostaje utracona
 client.on('shardDisconnect', (event, id) => {
-  console.warn(`⚠️ [SHARD DISCONNECT] shard ${id} —`, event);
+  const code = event?.code ?? event?.closeCode ?? 'unknown';
+  const reason = event?.reason ?? event?.closeReason ?? 'unknown';
+  const clean = event?.wasClean ?? 'unknown';
+
+  console.warn(
+    `⚠️ [SHARD DISCONNECT] shard ${id} code=${code} clean=${clean} reason=${reason}`
+  );
 });
 
-// log przy próbach reconnectu
-client.on('shardReconnecting', id => {
-  console.warn(`🔄 [SHARD RECONNECTING] shard ${id}`);
+client.on('shardResume', (id, replayed) => {
+  console.log(`✅ [SHARD RESUME] shard ${id} replayed=${replayed}`);
 });
+
+client.on('invalidated', () => {
+  console.warn('🚫 [INVALIDATED] sesja unieważniona (często: druga instancja bota albo problem z tokenem)');
+});
+
 
 
 // 📦 Ładowanie komend
