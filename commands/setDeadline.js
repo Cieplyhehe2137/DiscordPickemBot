@@ -1,0 +1,136 @@
+// commands/setDeadline.js
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { DateTime } = require('luxon');
+const pool = require('../db');
+
+// ⏱️ helper do formatowania „ile zostało”
+function formatTimeLeft(deadlineUTCDate) {
+  const now = DateTime.utc();
+  const dl = DateTime.fromJSDate(deadlineUTCDate); // w UTC
+  const diff = dl.diff(now, ['days', 'hours', 'minutes']).toObject();
+
+  let d = Math.max(0, Math.floor(diff.days || 0));
+  let h = Math.max(0, Math.floor(diff.hours || 0));
+  let m = Math.max(0, Math.ceil(diff.minutes || 0)); // zaokrąglij w górę
+
+  const parts = [];
+  if (d) parts.push(`${d} d`);
+  if (h) parts.push(`${h} h`);
+  parts.push(`${Math.max(1, m)} min`);
+  return parts.join(' ');
+}
+
+// ✅ normalizacja nazwy etapu do formy z bazy (stage1/stage2/stage3)
+function normalizeStage(phase, rawStage) {
+  if (!rawStage) return null;
+  if (phase !== 'swiss') return rawStage; // inne fazy nie mają stage
+  const s = String(rawStage).toLowerCase().trim();
+  // akceptujemy: "swiss_stage_1", "stage1", "1"
+  const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
+  const num = m ? (m[1] || m[2]) : null;
+  return num ? `stage${num}` : rawStage;
+}
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('set_deadline')
+    .setDescription('Ustawia deadline dla danej fazy i (opcjonalnie) etapu')
+    .addStringOption(option =>
+      option.setName('phase')
+        .setDescription('Faza turnieju')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Swiss', value: 'swiss' },
+          { name: 'Playoffs', value: 'playoffs' },
+          { name: 'Double Elimination', value: 'doubleelim' },
+          { name: 'Play-In', value: 'playin' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('data')
+        .setDescription('Deadline w formacie YYYY-MM-DD HH:mm (czas PL)')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('stage')
+        .setDescription('np. swiss_stage_1 / stage1 / 1 (puste dla faz bez etapów)')
+        .setRequired(false)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator),
+
+  async execute(interaction) {
+    const phase = interaction.options.getString('phase');
+    const inputStage = interaction.options.getString('stage') || null;
+    const stage = normalizeStage(phase, inputStage);
+    const rawInput = interaction.options.getString('data');
+    const channel = interaction.channel;
+
+    const deadlineDate = DateTime.fromFormat(rawInput, 'yyyy-MM-dd HH:mm', { zone: 'Europe/Warsaw' });
+    if (!deadlineDate.isValid) {
+      return interaction.reply({
+        ephemeral: true,
+        content: '❌ Zły format daty. Użyj `YYYY-MM-DD HH:mm`, np. `2025-07-25 11:30`.'
+      });
+    }
+    const deadlineUTC = deadlineDate.toUTC().toJSDate();
+
+    // 🔎 znajdź panel w tym kanale dla fazy(+etapu)
+    const [rows] = await pool.query(
+      `SELECT message_id FROM active_panels WHERE phase = ? AND channel_id = ? AND stage <=> ?`,
+      [phase, channel.id, stage]
+    );
+    const messageId = rows?.[0]?.message_id || null;
+    if (!messageId) {
+      return interaction.reply({
+        ephemeral: true,
+        content: '❌ Nie znaleziono wiadomości panelu. Użyj najpierw `/start_pickem` (i wybierz etap dla Swiss).'
+      });
+    }
+
+    let message;
+    try {
+      message = await channel.messages.fetch(messageId);
+    } catch (e) {
+      return interaction.reply({ ephemeral: true, content: `❌ Nie mogę pobrać wiadomości panelu (${messageId}).` });
+    }
+
+    // 📝 UPSERT: zapisz deadline
+    await pool.query(
+      `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed)
+       VALUES (?, ?, ?, ?, ?, 0, 0)
+       ON DUPLICATE KEY UPDATE deadline = VALUES(deadline), reminded = 0, closed = 0, message_id = VALUES(message_id)`,
+      [phase, stage, channel.id, message.id, deadlineUTC]
+    );
+
+    // 🕒 ustaw/odśwież footer z czasem do deadline
+    const timeLeft = formatTimeLeft(deadlineUTC);
+    const baseEmbed = message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder();
+    const updatedEmbed = baseEmbed.setFooter({ text: `🕒 Deadline za ${timeLeft}` });
+    await message.edit({ embeds: [updatedEmbed] });
+
+    // ⏱️ jeśli deadline już minął → natychmiast zamknij panel (edge case)
+    if (DateTime.utc().toJSDate() >= deadlineUTC) {
+      const disabledRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('disabled_button')
+          .setLabel('Typowanie zamknięte')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(true)
+      );
+      const closedEmbed = (message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder())
+        .setFooter({ text: '🔒 Typowanie zamknięte – deadline minął' });
+      await message.edit({ embeds: [closedEmbed], components: [disabledRow] });
+      await pool.query(`UPDATE active_panels SET closed = 1 WHERE phase = ? AND channel_id = ? AND stage <=> ?`, [phase, channel.id, stage]);
+      return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });
+    }
+
+    // ✅ potwierdzenie
+    await interaction.reply({
+      ephemeral: true,
+      content:
+        `✅ Ustawiono deadline dla \`${phase}\`${stage ? ` (${stage})` : ''}:\n` +
+        `📅 **${deadlineDate.toFormat('yyyy-LL-dd HH:mm')} (Warszawa)**\n` +
+        `🕒 Zapisany jako UTC: \`${deadlineUTC.toISOString()}\``
+    });
+  }
+};
