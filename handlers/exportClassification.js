@@ -9,7 +9,7 @@ function parseList(input) {
   try {
     const parsed = JSON.parse(input);
     if (Array.isArray(parsed)) return parsed;
-  } catch (err) {}
+  } catch (err) { }
   return String(input)
     .replace(/[[\]"']/g, '')
     .split(/[;,]+/)
@@ -26,7 +26,7 @@ function putOfficialBlock(sheet, startCol, startRow, title, rows) {
   rows.forEach((r, i) => {
     const [label, value] = r;
     sheet.getCell(startRow + 1 + i, startCol).value = label;
-    sheet.getCell(startRow + 1 + i,startCol + 1).value = value;
+    sheet.getCell(startRow + 1 + i, startCol + 1).value = value;
   });
 
   [startCol, startCol + 1].forEach(c => {
@@ -158,23 +158,23 @@ module.exports = async function exportClassification(interaction = null, outputP
   }
 
   // === MATCHES: suma punktów za wyniki meczów ===
-try {
-  const [matchPointRows] = await pool.query(`
+  try {
+    const [matchPointRows] = await pool.query(`
     SELECT user_id, SUM(points) AS points
     FROM match_points
     GROUP BY user_id
   `);
 
-  for (const row of matchPointRows) {
-    const id = row.user_id;
-    if (!users[id]) {
-      users[id] = { displayname: id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+    for (const row of matchPointRows) {
+      const id = row.user_id;
+      if (!users[id]) {
+        users[id] = { displayname: id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+      }
+      users[id].matches = Number(row.points || 0);
     }
-    users[id].matches = Number(row.points || 0);
+  } catch (e) {
+    console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
   }
-} catch (e) {
-  console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
-}
 
 
   // === Klasyfikacja ogólna
@@ -241,77 +241,77 @@ try {
   exportSwiss(sheetSwiss3, 3);
 
   // === Oficjalne wyniki dla Swiss 1/2/3 ===
-{
-  const [s1] = await pool.query(`
+  {
+    const [s1] = await pool.query(`
     SELECT correct_3_0, correct_0_3, correct_advancing
     FROM swiss_results
     WHERE active=1 AND stage='stage1'
     ORDER BY id DESC LIMIT 1
   `);
-  if (s1.length) {
-    const col = sheetSwiss1.columnCount + 2;
-    putOfficialBlock(sheetSwiss1, col, 1, 'Oficjalne — Swiss 1', [
-      ['3-0', joinOrDash(parseList(s1[0].correct_3_0))],
-      ['0-3', joinOrDash(parseList(s1[0].correct_0_3))],
-      ['Awans', joinOrDash(parseList(s1[0].correct_advancing))],
-    ]);
-  }
+    if (s1.length) {
+      const col = sheetSwiss1.columnCount + 2;
+      putOfficialBlock(sheetSwiss1, col, 1, 'Oficjalne — Swiss 1', [
+        ['3-0', joinOrDash(parseList(s1[0].correct_3_0))],
+        ['0-3', joinOrDash(parseList(s1[0].correct_0_3))],
+        ['Awans', joinOrDash(parseList(s1[0].correct_advancing))],
+      ]);
+    }
 
-  const [s2] = await pool.query(`
+    const [s2] = await pool.query(`
     SELECT correct_3_0, correct_0_3, correct_advancing
     FROM swiss_results
     WHERE active=1 AND stage='stage2'
     ORDER BY id DESC LIMIT 1
   `);
-  if (s2.length) {
-    const col = sheetSwiss2.columnCount + 2;
-    putOfficialBlock(sheetSwiss2, col, 1, 'Oficjalne — Swiss 2', [
-      ['3-0', joinOrDash(parseList(s2[0].correct_3_0))],
-      ['0-3', joinOrDash(parseList(s2[0].correct_0_3))],
-      ['Awans', joinOrDash(parseList(s2[0].correct_advancing))],
-    ]);
-  }
+    if (s2.length) {
+      const col = sheetSwiss2.columnCount + 2;
+      putOfficialBlock(sheetSwiss2, col, 1, 'Oficjalne — Swiss 2', [
+        ['3-0', joinOrDash(parseList(s2[0].correct_3_0))],
+        ['0-3', joinOrDash(parseList(s2[0].correct_0_3))],
+        ['Awans', joinOrDash(parseList(s2[0].correct_advancing))],
+      ]);
+    }
 
-  const [s3] = await pool.query(`
+    const [s3] = await pool.query(`
     SELECT correct_3_0, correct_0_3, correct_advancing
     FROM swiss_results
     WHERE active=1 AND stage='stage3'
     ORDER BY id DESC LIMIT 1
   `);
-  if (s3.length) {
-    const col = sheetSwiss3.columnCount + 2;
-    putOfficialBlock(sheetSwiss3, col, 1, 'Oficjalne — Swiss 3', [
-      ['3-0', joinOrDash(parseList(s3[0].correct_3_0))],
-      ['0-3', joinOrDash(parseList(s3[0].correct_0_3))],
-      ['Awans', joinOrDash(parseList(s3[0].correct_advancing))],
-    ]);
+    if (s3.length) {
+      const col = sheetSwiss3.columnCount + 2;
+      putOfficialBlock(sheetSwiss3, col, 1, 'Oficjalne — Swiss 3', [
+        ['3-0', joinOrDash(parseList(s3[0].correct_3_0))],
+        ['0-3', joinOrDash(parseList(s3[0].correct_0_3))],
+        ['Awans', joinOrDash(parseList(s3[0].correct_advancing))],
+      ]);
+    }
   }
-}
 
 
 
-    
-    
-   const rowsPlayoffs = Object.entries(users)
-  .filter(([, u]) => u.picks.playoffs)
-  .map(([id, u]) => {
-    const p = u.picks.playoffs;
-    return [
-      id,
-      u.displayname,
-      parseList(p.semifinalists).join(', '),
-      parseList(p.finalists).join(', '),
-      p.winner || '',
-      p.third_place_winner || '',
-      u.playoffs || 0
-    ];
-  }).sort((a, b) => b[6] - a[6]);
 
-addSheet(sheetPlayoffs, ['User ID', 'Nick', 'Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce', 'Punkty'], rowsPlayoffs);
 
-// === Oficjalne wyniki na arkuszu Playoffs ===
-try {
-  const [po] = await pool.query(`
+  const rowsPlayoffs = Object.entries(users)
+    .filter(([, u]) => u.picks.playoffs)
+    .map(([id, u]) => {
+      const p = u.picks.playoffs;
+      return [
+        id,
+        u.displayname,
+        parseList(p.semifinalists).join(', '),
+        parseList(p.finalists).join(', '),
+        p.winner || '',
+        p.third_place_winner || '',
+        u.playoffs || 0
+      ];
+    }).sort((a, b) => b[6] - a[6]);
+
+  addSheet(sheetPlayoffs, ['User ID', 'Nick', 'Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce', 'Punkty'], rowsPlayoffs);
+
+  // === Oficjalne wyniki na arkuszu Playoffs ===
+  try {
+    const [po] = await pool.query(`
     SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
     FROM playoffs_results
     WHERE active = 1
@@ -319,242 +319,260 @@ try {
     LIMIT 1
   `);
 
-  const parseList = (val) => {
-    if (!val) return [];
-    try {
-      const j = JSON.parse(val);
-      if (Array.isArray(j)) return j;
-    } catch {}
-    return String(val)
-      .replace(/[[\]"']/g, '')
-      .split(/[;,]+/)
-      .map(s => s.trim())
-      .filter(Boolean);
-  };
+    const parseList = (val) => {
+      if (!val) return [];
+      try {
+        const j = JSON.parse(val);
+        if (Array.isArray(j)) return j;
+      } catch { }
+      return String(val)
+        .replace(/[[\]"']/g, '')
+        .split(/[;,]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    };
 
-  if (po && po.length) {
-    const row = po[0];
+    if (po && po.length) {
+      const row = po[0];
 
-    const semifinalists = parseList(row.correct_semifinalists);
-    const finalists     = parseList(row.correct_finalists);
-    const winner        = row.correct_winner || '—';
-    const thirdPlace    = row.correct_third_place_winner || '—';
+      const semifinalists = parseList(row.correct_semifinalists);
+      const finalists = parseList(row.correct_finalists);
+      const winner = row.correct_winner || '—';
+      const thirdPlace = row.correct_third_place_winner || '—';
 
-    const usedCols = Math.max(
-      sheetPlayoffs.actualColumnCount || 0,
-      sheetPlayoffs.columnCount || 0,
-      7 // kolumny z danymi użytkowników
-    );
-    const startCol = usedCols + 2; // odstęp 1 kolumny
-    const startRow = 1;
+      const usedCols = Math.max(
+        sheetPlayoffs.actualColumnCount || 0,
+        sheetPlayoffs.columnCount || 0,
+        7 // kolumny z danymi użytkowników
+      );
+      const startCol = usedCols + 2; // odstęp 1 kolumny
+      const startRow = 1;
 
-    putOfficialBlock(sheetPlayoffs, startCol, startRow, 'Oficjalne — Playoffs', [
-      ['Półfinaliści', semifinalists.length ? semifinalists.join(', ') : '—'],
-      ['Finaliści',   finalists.length     ? finalists.join(', ')     : '—'],
-      ['Zwycięzca',   winner],
-      ['3. miejsce',  thirdPlace],
-    ]);
+      putOfficialBlock(sheetPlayoffs, startCol, startRow, 'Oficjalne — Playoffs', [
+        ['Półfinaliści', semifinalists.length ? semifinalists.join(', ') : '—'],
+        ['Finaliści', finalists.length ? finalists.join(', ') : '—'],
+        ['Zwycięzca', winner],
+        ['3. miejsce', thirdPlace],
+      ]);
 
-    console.log('📘 Oficjalne Playoffs dodane do arkusza (kolumna)', startCol);
-  } else {
-    console.log('⚠️ Brak aktywnych oficjalnych wyników Playoffs');
+      console.log('📘 Oficjalne Playoffs dodane do arkusza (kolumna)', startCol);
+    } else {
+      console.log('⚠️ Brak aktywnych oficjalnych wyników Playoffs');
+    }
+  } catch (e) {
+    console.error('❌ Błąd Playoffs official block:', e);
   }
-} catch (e) {
-  console.error('❌ Błąd Playoffs official block:', e);
-}
-    
-    
-// === Wiersze z typami użytkowników: Double Elim ===
-const rowsDouble = Object.entries(users)
-  .filter(([, u]) => u.picks.double)
-  .map(([id, u]) => {
-    const p = u.picks.double;
-    const ufa = parseList(p.upper_final_a).join(', ');
-    const lfa = parseList(p.lower_final_a).join(', ');
-    const ufb = parseList(p.upper_final_b).join(', ');
-    const lfb = parseList(p.lower_final_b).join(', ');
-    return [id, u.displayname, ufa || '—', lfa || '—', ufb || '—', lfb || '—', u.double || 0];
-  })
-  .sort((a, b) => b[6] - a[6]);
 
-addSheet(sheetDouble,
-  ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
-  rowsDouble
-);
 
-// === Oficjalne wyniki na arkuszu Double Elim ===
-try {
-  const [de] = await pool.query(`
+  // === Wiersze z typami użytkowników: Double Elim ===
+  const rowsDouble = Object.entries(users)
+    .filter(([, u]) => u.picks.double)
+    .map(([id, u]) => {
+      const p = u.picks.double;
+      const ufa = parseList(p.upper_final_a).join(', ');
+      const lfa = parseList(p.lower_final_a).join(', ');
+      const ufb = parseList(p.upper_final_b).join(', ');
+      const lfb = parseList(p.lower_final_b).join(', ');
+      return [id, u.displayname, ufa || '—', lfa || '—', ufb || '—', lfb || '—', u.double || 0];
+    })
+    .sort((a, b) => b[6] - a[6]);
+
+  addSheet(sheetDouble,
+    ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
+    rowsDouble
+  );
+
+  // === Oficjalne wyniki na arkuszu Double Elim ===
+  try {
+    const [de] = await pool.query(`
     SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
     FROM doubleelim_results
     WHERE active=1 ORDER BY id DESC LIMIT 1
   `);
-  if (de.length) {
-    const col = sheetDouble.columnCount + 2;
-    putOfficialBlock(sheetDouble, col, 1, 'Oficjalne — Double Elim', [
-      ['Upper Final A', joinOrDash(parseList(de[0].upper_final_a))],
-      ['Lower Final A', joinOrDash(parseList(de[0].lower_final_a))],
-      ['Upper Final B', joinOrDash(parseList(de[0].upper_final_b))],
-      ['Lower Final B', joinOrDash(parseList(de[0].lower_final_b))],
-    ]);
-  }
-} catch (e) {}
+    if (de.length) {
+      const col = sheetDouble.columnCount + 2;
+      putOfficialBlock(sheetDouble, col, 1, 'Oficjalne — Double Elim', [
+        ['Upper Final A', joinOrDash(parseList(de[0].upper_final_a))],
+        ['Lower Final A', joinOrDash(parseList(de[0].lower_final_a))],
+        ['Upper Final B', joinOrDash(parseList(de[0].upper_final_b))],
+        ['Lower Final B', joinOrDash(parseList(de[0].lower_final_b))],
+      ]);
+    }
+  } catch (e) { }
 
 
-const rowsPlayIn = Object.entries(users)
-  .filter(([, u]) => u.picks.playin)
-  .map(([id, u]) => {
-    const picks = parseList(u.picks.playin);
-    return [id, u.displayname, picks.join(', '), u.playin || 0];
-  }).sort((a, b) => b[3] - a[3]);
+  const rowsPlayIn = Object.entries(users)
+    .filter(([, u]) => u.picks.playin)
+    .map(([id, u]) => {
+      const picks = parseList(u.picks.playin);
+      return [id, u.displayname, picks.join(', '), u.playin || 0];
+    }).sort((a, b) => b[3] - a[3]);
 
-addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
+  addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
 
-// === Oficjalne wyniki na arkuszu Play-In ===
-// === Oficjalne wyniki na arkuszu Play-In ===
-try {
-  // jeśli masz kolumnę active – użyj pierwszego SELECT-a, w przeciwnym razie fallback
-  let po;
+  // === Oficjalne wyniki na arkuszu Play-In ===
+  // === Oficjalne wyniki na arkuszu Play-In ===
   try {
-    [po] = await pool.query(`
+    // jeśli masz kolumnę active – użyj pierwszego SELECT-a, w przeciwnym razie fallback
+    let po;
+    try {
+      [po] = await pool.query(`
       SELECT *
       FROM playin_results
       WHERE active = 1
       ORDER BY id DESC
       LIMIT 1
     `);
-  } catch (_) {
-    [po] = await pool.query(`
+    } catch (_) {
+      [po] = await pool.query(`
       SELECT *
       FROM playin_results
       ORDER BY id DESC
       LIMIT 1
     `);
+    }
+
+    // parser list kompatybilny z JSON i CSV
+    const parseList = (val) => {
+      if (!val) return [];
+      try {
+        const j = JSON.parse(val);
+        if (Array.isArray(j)) return j;
+      } catch { }
+      return String(val)
+        .replace(/[[\]"']/g, '')
+        .split(/[;,]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+    };
+    const joinOrDash = arr => (Array.isArray(arr) && arr.length ? arr.join(', ') : '—');
+
+    if (po && po.length) {
+      const row = po[0];
+
+      // akceptuj różne nazwy kolumn (u Ciebie standard to correct_teams)
+      const teamsRaw =
+        row.correct_teams ??
+        row.official_playin_teams ??
+        row.teams ??
+        null;
+
+      const qualified = parseList(teamsRaw);
+
+      // ustal bezpieczny start kolumny (po danych użytkowników)
+      const usedCols = Math.max(
+        sheetPlayIn?.actualColumnCount || 0,
+        sheetPlayIn?.columnCount || 0,
+        3 // domyślnie: [User ID, Nick, Drużyny, Punkty] — dopasuj jeśli masz więcej
+      );
+      const startCol = usedCols + 2; // jedna kolumna odstępu
+      const startRow = 1;
+
+      putOfficialBlock(sheetPlayIn, startCol, startRow, 'Oficjalne — Play-In', [
+        ['Zakwalifikowane', joinOrDash(qualified)],
+      ]);
+
+      console.log('📘 Oficjalne Play-In dodane do arkusza (kolumna)', startCol);
+    } else {
+      console.log('⚠️ Brak aktywnych oficjalnych wyników Play-In');
+    }
+  } catch (e) {
+    console.error('❌ Błąd Play-In official block:', e);
   }
 
-  // parser list kompatybilny z JSON i CSV
-  const parseList = (val) => {
-    if (!val) return [];
-    try {
-      const j = JSON.parse(val);
-      if (Array.isArray(j)) return j;
-    } catch {}
-    return String(val)
-      .replace(/[[\]"']/g, '')
-      .split(/[;,]+/)
-      .map(s => s.trim())
-      .filter(Boolean);
-  };
-  const joinOrDash = arr => (Array.isArray(arr) && arr.length ? arr.join(', ') : '—');
 
-  if (po && po.length) {
-    const row = po[0];
+  // === Arkusz: Mecze (typy + wyniki + punkty) ===
+  try {
+    sheetMatches.columns = [
+      { header: 'Faza', key: 'phase' },
+      { header: 'Match No', key: 'match_no' },
+      { header: 'Match ID', key: 'match_id' },
+      { header: 'Team A', key: 'team_a' },
+      { header: 'Team B', key: 'team_b' },
+      { header: 'BO', key: 'best_of' },
+      { header: 'Wynik oficjalny', key: 'official' },
+      { header: 'User ID', key: 'user_id' },
+      { header: 'Nick', key: 'displayname' },
+      { header: 'Typ', key: 'pred' },
+      { header: 'Punkty', key: 'points' }
+    ];
 
-    // akceptuj różne nazwy kolumn (u Ciebie standard to correct_teams)
-    const teamsRaw =
-      row.correct_teams ??
-      row.official_playin_teams ??
-      row.teams ??
-      null;
+    const [matchRows] = await pool.query(`
+  SELECT
+    m.id AS match_id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
 
-    const qualified = parseList(teamsRaw);
+    -- oficjalny: preferuj exact_* (bo to masz w tabeli)
+    COALESCE(r.exact_a, r.res_a) AS off_a,
+    COALESCE(r.exact_b, r.res_b) AS off_b,
 
-    // ustal bezpieczny start kolumny (po danych użytkowników)
-    const usedCols = Math.max(
-      sheetPlayIn?.actualColumnCount || 0,
-      sheetPlayIn?.columnCount || 0,
-      3 // domyślnie: [User ID, Nick, Drużyny, Punkty] — dopasuj jeśli masz więcej
-    );
-    const startCol = usedCols + 2; // jedna kolumna odstępu
-    const startRow = 1;
+    p.user_id,
 
-    putOfficialBlock(sheetPlayIn, startCol, startRow, 'Oficjalne — Play-In', [
-      ['Zakwalifikowane', joinOrDash(qualified)],
-    ]);
+    -- typ: preferuj pred_exact_* jeśli jest
+    p.pred_a,
+    p.pred_b,
+    p.pred_exact_a,
+    p.pred_exact_b,
 
-    console.log('📘 Oficjalne Play-In dodane do arkusza (kolumna)', startCol);
-  } else {
-    console.log('⚠️ Brak aktywnych oficjalnych wyników Play-In');
-  }
-} catch (e) {
-  console.error('❌ Błąd Play-In official block:', e);
-}
+    -- punkty: ZSUMOWANE (żeby nie dublowało)
+    mp.points
+  FROM matches m
+  LEFT JOIN match_results r ON r.match_id = m.id
+  JOIN match_predictions p ON p.match_id = m.id
+  LEFT JOIN (
+    SELECT match_id, user_id, SUM(points) AS points
+    FROM match_points
+    GROUP BY match_id, user_id
+  ) mp ON mp.match_id = m.id AND mp.user_id = p.user_id
+  ORDER BY
+    m.phase ASC,
+    COALESCE(m.match_no, 999999) ASC,
+    m.id ASC,
+    p.user_id ASC
+`);
+
+    for (const r of matchRows) {
+      const official = (r.off_a === null || r.off_b === null) ? '—' : `${r.off_a}:${r.off_b}`;
+
+      const prA = (r.pred_exact_a ?? r.pred_a);
+      const prB = (r.pred_exact_b ?? r.pred_b);
+      const pred = (prA === null || prB === null) ? '—' : `${prA}:${prB}`;
+
+      const nick = users?.[r.user_id]?.displayname || r.user_id;
+
+      sheetMatches.addRow({
+        phase: r.phase,
+        match_no: r.match_no ?? '',
+        match_id: r.match_id,
+        team_a: r.team_a,
+        team_b: r.team_b,
+        best_of: r.best_of,
+        official,
+        user_id: r.user_id,
+        displayname: nick,
+        pred,
+        points: (r.points ?? 0)
+      });
+    }
 
 
-// === Arkusz: Mecze (typy + wyniki + punkty) ===
-try {
-  sheetMatches.columns = [
-    { header: 'Faza', key: 'phase' },
-    { header: 'Match No', key: 'match_no' },
-    { header: 'Match ID', key: 'match_id' },
-    { header: 'Team A', key: 'team_a' },
-    { header: 'Team B', key: 'team_b' },
-    { header: 'BO', key: 'best_of' },
-    { header: 'Wynik oficjalny', key: 'official' },
-    { header: 'User ID', key: 'user_id' },
-    { header: 'Nick', key: 'displayname' },
-    { header: 'Typ', key: 'pred' },
-    { header: 'Punkty', key: 'points' }
-  ];
-
-  const [matchRows] = await pool.query(`
-    SELECT
-      m.id AS match_id,
-      m.phase,
-      m.match_no,
-      m.team_a,
-      m.team_b,
-      m.best_of,
-      r.res_a,
-      r.res_b,
-      p.user_id,
-      p.pred_a,
-      p.pred_b,
-      mp.points
-    FROM matches m
-    LEFT JOIN match_results r ON r.match_id = m.id
-    JOIN match_predictions p ON p.match_id = m.id
-    LEFT JOIN match_points mp ON mp.match_id = m.id AND mp.user_id = p.user_id
-    ORDER BY
-      m.phase ASC,
-      COALESCE(m.match_no, 999999) ASC,
-      m.id ASC,
-      p.user_id ASC
-  `);
-
-  for (const r of matchRows) {
-    const official = (r.res_a === null || r.res_b === null) ? '—' : `${r.res_a}:${r.res_b}`;
-    const pred = `${r.pred_a}:${r.pred_b}`;
-    const nick = users?.[r.user_id]?.displayname || r.user_id;
-
-    sheetMatches.addRow({
-      phase: r.phase,
-      match_no: r.match_no ?? '',
-      match_id: r.match_id,
-      team_a: r.team_a,
-      team_b: r.team_b,
-      best_of: r.best_of,
-      official,
-      user_id: r.user_id,
-      displayname: nick,
-      pred,
-      points: (r.points ?? '')
+    // autosize
+    sheetMatches.columns.forEach(col => {
+      let maxLength = col.header.length;
+      col.eachCell({ includeEmpty: true }, cell => {
+        const val = cell.value;
+        const len = val ? String(val).length : 0;
+        if (len > maxLength) maxLength = len;
+      });
+      col.width = Math.min(maxLength + 2, 60);
     });
+  } catch (e) {
+    console.log('⚠️ MATCHES: nie udało się wygenerować arkusza "Mecze" (pomijam):', e?.message || e);
   }
-
-  // autosize
-  sheetMatches.columns.forEach(col => {
-    let maxLength = col.header.length;
-    col.eachCell({ includeEmpty: true }, cell => {
-      const val = cell.value;
-      const len = val ? String(val).length : 0;
-      if (len > maxLength) maxLength = len;
-    });
-    col.width = Math.min(maxLength + 2, 60);
-  });
-} catch (e) {
-  console.log('⚠️ MATCHES: nie udało się wygenerować arkusza "Mecze" (pomijam):', e?.message || e);
-}
 
 
 
@@ -562,13 +580,13 @@ try {
   const buffer = await workbook.xlsx.writeBuffer();
 
   if (outputPath && typeof outputPath === 'string') {
-  await fs.promises.writeFile(outputPath, buffer);
-  console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
-} else {
-  const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
-  await fs.promises.writeFile(filePath, buffer);
-  console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
-}
+    await fs.promises.writeFile(outputPath, buffer);
+    console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
+  } else {
+    const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
+    await fs.promises.writeFile(filePath, buffer);
+    console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
+  }
 
   if (interaction?.followUp) {
     try {
