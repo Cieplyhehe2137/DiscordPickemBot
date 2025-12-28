@@ -2,6 +2,7 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
+const { isMatchLocked } = require('../utils/matchLock')
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -27,7 +28,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
     }
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of, is_locked, phase
+      `SELECT id, team_a, team_b, best_of, is_locked, start_time_utc, phase
        FROM matches
        WHERE id=?
        LIMIT 1`,
@@ -37,7 +38,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
     if (!match) {
       return interaction.update({ content: '❌ Nie znaleziono meczu.', components: [] });
     }
-    if (match.is_locked) {
+    if (isMatchLocked(match)) {
       return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
     }
 

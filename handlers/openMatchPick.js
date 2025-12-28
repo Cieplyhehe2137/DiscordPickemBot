@@ -1,7 +1,7 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
-
+const { isMatchLocked } = require('../utils/matchLock');
 const PAGE_SIZE = 24; // +1 opcja na "Następna strona"
 
 // helper: bezpieczna odpowiedź zależnie od typu interakcji
@@ -30,7 +30,7 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
   const offset = page * PAGE_SIZE;
 
   const [rows] = await pool.query(
-    `SELECT id, match_no, team_a, team_b, best_of, is_locked
+    `SELECT id, match_no, team_a, team_b, best_of, is_locked, start_time_utc
      FROM matches
      WHERE phase=?
      ORDER BY COALESCE(match_no, 999999), id
@@ -46,10 +46,12 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
   const hasNext = rows.length > PAGE_SIZE;
   const slice = rows.slice(0, PAGE_SIZE);
 
-  const options = slice.map((m) => ({
-    label: `${m.match_no ? `#${m.match_no} ` : ''}${m.team_a} vs ${m.team_b} (Bo${m.best_of})${m.is_locked ? ' 🔒' : ''}`,
-    value: `MATCH|${phaseKey}|${m.id}`
-  }));
+  const options = slice.map((m) => {
+    const locked = isMatchLocked(m);
+    return {
+      label: `${match_no ? `#${m.match_no}` : ''}${m.team_a} vs ${m.team_b} (Bo${m.best_of})${locked} ? ' 🔒' : ''`
+    }
+  })
 
   if (hasNext) {
     options.push({ label: '➡️ Następna strona', value: `NEXT|${phaseKey}|${page + 1}` });

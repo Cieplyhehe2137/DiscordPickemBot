@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { scoreOptionsForBo } = require('../utils/scoreOptions');
 const { sendMatchList } = require('./openMatchPick');
 const userState = require('../utils/matchUserState');
+const { isMatchLocked } = require('../utils/matchLock')
 
 module.exports = async function matchPickSelect(interaction) {
     try {
@@ -25,7 +26,7 @@ module.exports = async function matchPickSelect(interaction) {
         const matchId = Number(third);
 
         const [[match]] = await pool.query(
-            `SELECT id, team_a, team_b, best_of, is_locked
+            `SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
             FROM matches
             WHERE id=? AND phase=?
             LIMIT 1`,
@@ -35,7 +36,7 @@ module.exports = async function matchPickSelect(interaction) {
         if (!match) {
             return interaction.update({ content: '❌ Nie znaleziono meczu.', components: [] });
         }
-        if (mode === 'pred' && match.is_locked) {
+        if (mode === 'pred' && isMatchLocked(match)) {
             return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
         }
 

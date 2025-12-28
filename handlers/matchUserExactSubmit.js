@@ -3,6 +3,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
+const { isMatchLocked } = require('../utils/matchLock')
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
