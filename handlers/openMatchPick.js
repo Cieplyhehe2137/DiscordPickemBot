@@ -49,7 +49,7 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
   const options = slice.map((m) => {
     const locked = isMatchLocked(m);
     return {
-      label: `${match_no ? `#${m.match_no}` : ''}${m.team_a} vs ${m.team_b} (Bo${m.best_of})${locked} ? ' 🔒' : ''`
+      label: `${m.match_no ? `#${m.match_no}` : ''}${m.team_a} vs ${m.team_b} (Bo${m.best_of})${locked} ? ' 🔒' : ''`
     }
   })
 
