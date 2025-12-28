@@ -31,7 +31,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
     }
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of, is_locked FROM matches WHERE id=? LIMIT 1`,
+      `SELECT id, team_a, team_b, best_of, is_locked, start_time_utc FROM matches WHERE id=? LIMIT 1`,
       [ctx.matchId]
     );
 
@@ -40,7 +40,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
       return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
 
-    if (match.is_locked) {
+    if (isMatchLocked(match)) {
       userState.clear(interaction.user.id);
       return interaction.reply({ content: '🔒 Typowanie tego meczu jest już zamknięte.', ephemeral: true });
     }
