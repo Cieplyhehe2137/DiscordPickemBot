@@ -39,6 +39,44 @@ function putOfficialBlock(sheet, startCol, startRow, title, rows) {
   });
 }
 
+async function fetchDisplayNamesFromDiscord(interaction, userIds) {
+  const map = new Map();
+  if (!interaction?.guild) return map;
+
+  const unique = [...new Set(userIds)].filter(Boolean);
+
+  // prosta kontrola "równoległości", żeby nie zabić rate limitów
+  const CONCURRENCY = 10;
+  let i = 0;
+
+  async function worker() {
+    while (i < unique.length) {
+      const id = unique[i++];
+      try {
+        const cached = interaction.guild.members.cache.get(id);
+        if (cached?.displayName) {
+          map.set(id, cached.displayName);
+          continue;
+        }
+
+        const member = await interaction.guild.members.fetch(id);
+        if (member?.displayName) map.set(id, member.displayName);
+        else if (member?.user?.username) map.set(id, member.user.username);
+      } catch (_) {
+        // fallback: czasem user nie jest na serwerze / brak uprawnień
+        try {
+          const u = await interaction.client.users.fetch(id);
+          if (u?.username) map.set(id, u.username);
+        } catch (_) { }
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  return map;
+}
+
+
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
   if (interaction?.deferReply) {
     await interaction.deferReply({ ephemeral: true });
@@ -481,7 +519,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   }
 
 
-  // === Arkusz: Mecze (typy + wyniki + punkty) ===
+  // === Arkusz: Mecze (typy + wyniki + punkty + mapy) ===
   try {
     sheetMatches.columns = [
       { header: 'Faza', key: 'phase' },
@@ -490,63 +528,126 @@ module.exports = async function exportClassification(interaction = null, outputP
       { header: 'Team A', key: 'team_a' },
       { header: 'Team B', key: 'team_b' },
       { header: 'BO', key: 'best_of' },
-      { header: 'Wynik oficjalny', key: 'official' },
+      { header: 'Wynik oficjalny (seria)', key: 'official_series' },
       { header: 'User ID', key: 'user_id' },
       { header: 'Nick', key: 'displayname' },
-      { header: 'Typ', key: 'pred' },
-      { header: 'Punkty', key: 'points' }
+      { header: 'Typ (seria)', key: 'pred_series' },
+      { header: 'Punkty', key: 'points' },
+
+      { header: 'Mapa 1 OFF', key: 'm1_off' },
+      { header: 'Mapa 1 TYP', key: 'm1_pred' },
+      { header: 'Mapa 2 OFF', key: 'm2_off' },
+      { header: 'Mapa 2 TYP', key: 'm2_pred' },
+      { header: 'Mapa 3 OFF', key: 'm3_off' },
+      { header: 'Mapa 3 TYP', key: 'm3_pred' },
+      { header: 'Mapa 4 OFF', key: 'm4_off' },
+      { header: 'Mapa 4 TYP', key: 'm4_pred' },
+      { header: 'Mapa 5 OFF', key: 'm5_off' },
+      { header: 'Mapa 5 TYP', key: 'm5_pred' },
     ];
 
     const [matchRows] = await pool.query(`
-  SELECT
-    m.id AS match_id,
-    m.phase,
-    m.match_no,
-    m.team_a,
-    m.team_b,
-    m.best_of,
+    SELECT
+      m.id AS match_id,
+      m.phase,
+      m.match_no,
+      m.team_a,
+      m.team_b,
+      m.best_of,
 
-    -- oficjalny: preferuj exact_* (u Ciebie istnieje)
-    COALESCE(r.exact_a, r.res_a) AS off_a,
-    COALESCE(r.exact_b, r.res_b) AS off_b,
+      -- seria OFF (ustawiana dropdownem admina -> match_results.res_a/res_b)
+      r.res_a,
+      r.res_b,
 
-    p.user_id,
-    p.pred_a,
-    p.pred_b,
-    p.pred_exact_a,
-    p.pred_exact_b,
+      -- BO1 dokładny wynik OFF i TYP (trzymasz w match_results.exact_* i match_predictions.pred_exact_*)
+      r.exact_a AS off_bo1_a,
+      r.exact_b AS off_bo1_b,
 
-    mp.points
-  FROM matches m
-  LEFT JOIN match_results r ON r.match_id = m.id
+      p.user_id,
+      p.pred_a,
+      p.pred_b,
+      p.pred_exact_a,
+      p.pred_exact_b,
 
-  -- KLUCZ: LEFT JOIN zamiast JOIN, żeby nie wycinało wszystkiego
-  LEFT JOIN match_predictions p ON p.match_id = m.id
+      pts.points,
 
-  -- punkty zsumowane, żeby nie dublowało
-  LEFT JOIN (
-    SELECT match_id, user_id, SUM(points) AS points
-    FROM match_points
-    GROUP BY match_id, user_id
-  ) mp ON mp.match_id = m.id AND mp.user_id = p.user_id
+      mr.off_m1, mr.off_m2, mr.off_m3, mr.off_m4, mr.off_m5,
+      mpred.pred_m1, mpred.pred_m2, mpred.pred_m3, mpred.pred_m4, mpred.pred_m5
 
-  ORDER BY
-    m.phase ASC,
-    COALESCE(m.match_no, 999999) ASC,
-    m.id ASC,
-    p.user_id ASC
-`);
+    FROM matches m
+    LEFT JOIN match_results r ON r.match_id = m.id
+
+    -- ważne: LEFT JOIN, żeby mecz był nawet bez typu
+    LEFT JOIN match_predictions p ON p.match_id = m.id
+
+    LEFT JOIN (
+      SELECT match_id, user_id, SUM(points) AS points
+      FROM match_points
+      GROUP BY match_id, user_id
+    ) pts ON pts.match_id = m.id AND pts.user_id = p.user_id
+
+    LEFT JOIN (
+      SELECT
+        match_id,
+        MAX(CASE WHEN map_no=1 THEN CONCAT(exact_a, ':', exact_b) END) AS off_m1,
+        MAX(CASE WHEN map_no=2 THEN CONCAT(exact_a, ':', exact_b) END) AS off_m2,
+        MAX(CASE WHEN map_no=3 THEN CONCAT(exact_a, ':', exact_b) END) AS off_m3,
+        MAX(CASE WHEN map_no=4 THEN CONCAT(exact_a, ':', exact_b) END) AS off_m4,
+        MAX(CASE WHEN map_no=5 THEN CONCAT(exact_a, ':', exact_b) END) AS off_m5
+      FROM match_map_results
+      GROUP BY match_id
+    ) mr ON mr.match_id = m.id
+
+    LEFT JOIN (
+      SELECT
+        match_id,
+        user_id,
+        MAX(CASE WHEN map_no=1 THEN CONCAT(pred_exact_a, ':', pred_exact_b) END) AS pred_m1,
+        MAX(CASE WHEN map_no=2 THEN CONCAT(pred_exact_a, ':', pred_exact_b) END) AS pred_m2,
+        MAX(CASE WHEN map_no=3 THEN CONCAT(pred_exact_a, ':', pred_exact_b) END) AS pred_m3,
+        MAX(CASE WHEN map_no=4 THEN CONCAT(pred_exact_a, ':', pred_exact_b) END) AS pred_m4,
+        MAX(CASE WHEN map_no=5 THEN CONCAT(pred_exact_a, ':', pred_exact_b) END) AS pred_m5
+      FROM match_map_predictions
+      GROUP BY match_id, user_id
+    ) mpred ON mpred.match_id = m.id AND mpred.user_id = p.user_id
+
+    ORDER BY
+      m.phase ASC,
+      COALESCE(m.match_no, 999999) ASC,
+      m.id ASC,
+      p.user_id ASC
+  `);
+
+    // dociągnij displayname z Discorda tylko dla tych userów, którzy mają puste/ID w users mapie
+    const matchUserIds = matchRows.map(r => r.user_id).filter(Boolean);
+    const discordNames = await fetchDisplayNamesFromDiscord(interaction, matchUserIds);
 
     for (const r of matchRows) {
-      const official =
-        (r.off_a === null || r.off_b === null) ? '—' : `${r.off_a}:${r.off_b}`;
+      // jeśli wiersz bez usera (brak typów), pokażemy go, ale bez nicka/typu
+      const officialSeries =
+        (r.res_a === null || r.res_b === null) ? '—' : `${r.res_a}:${r.res_b}`;
 
-      const prA = (r.pred_exact_a ?? r.pred_a);
-      const prB = (r.pred_exact_b ?? r.pred_b);
-      const pred =
-        (r.user_id && prA !== null && prB !== null) ? `${prA}:${prB}` : '—';
+      const predSeries =
+        (r.user_id && r.pred_a !== null && r.pred_b !== null) ? `${r.pred_a}:${r.pred_b}` : '—';
 
-      const nick = r.user_id ? (users?.[r.user_id]?.displayname || r.user_id) : '—';
+      // Nick: preferuj z DB (users map), ale jeśli jest ID -> weź z Discorda
+      const fromUsers = users?.[r.user_id]?.displayname;
+      const fromDiscord = r.user_id ? discordNames.get(r.user_id) : null;
+      const nick =
+        (!r.user_id) ? '—'
+          : (fromUsers && fromUsers !== r.user_id) ? fromUsers
+            : (fromDiscord || r.user_id);
+
+      // Mapy: BO1 bierzemy z match_results.exact_* i match_predictions.pred_exact_* jako "Mapa 1"
+      const isBo1 = Number(r.best_of) === 1;
+
+      const m1_off = isBo1
+        ? ((r.off_bo1_a === null || r.off_bo1_b === null) ? '—' : `${r.off_bo1_a}:${r.off_bo1_b}`)
+        : (r.off_m1 || '—');
+
+      const m1_pred = isBo1
+        ? ((r.user_id && r.pred_exact_a !== null && r.pred_exact_b !== null) ? `${r.pred_exact_a}:${r.pred_exact_b}` : '—')
+        : (r.user_id ? (r.pred_m1 || '—') : '—');
 
       sheetMatches.addRow({
         phase: r.phase,
@@ -555,15 +656,25 @@ module.exports = async function exportClassification(interaction = null, outputP
         team_a: r.team_a,
         team_b: r.team_b,
         best_of: r.best_of,
-        official,
+
+        official_series: officialSeries,
         user_id: r.user_id ?? '—',
         displayname: nick,
-        pred,
-        points: (r.points ?? '')
+        pred_series: predSeries,
+        points: (r.points ?? ''),
+
+        m1_off,
+        m1_pred,
+        m2_off: isBo1 ? '—' : (r.off_m2 || '—'),
+        m2_pred: isBo1 ? '—' : (r.user_id ? (r.pred_m2 || '—') : '—'),
+        m3_off: isBo1 ? '—' : (r.off_m3 || '—'),
+        m3_pred: isBo1 ? '—' : (r.user_id ? (r.pred_m3 || '—') : '—'),
+        m4_off: isBo1 ? '—' : (r.off_m4 || '—'),
+        m4_pred: isBo1 ? '—' : (r.user_id ? (r.pred_m4 || '—') : '—'),
+        m5_off: isBo1 ? '—' : (r.off_m5 || '—'),
+        m5_pred: isBo1 ? '—' : (r.user_id ? (r.pred_m5 || '—') : '—'),
       });
     }
-
-
 
     // autosize
     sheetMatches.columns.forEach(col => {
@@ -575,6 +686,7 @@ module.exports = async function exportClassification(interaction = null, outputP
       });
       col.width = Math.min(maxLength + 2, 60);
     });
+
   } catch (e) {
     console.log('⚠️ MATCHES: nie udało się wygenerować arkusza "Mecze" (pomijam):', e?.message || e);
   }
