@@ -78,6 +78,15 @@ function buildAgainRow() {
   );
 }
 
+function buildSetStartRow(matchId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`match_admin_start_open:${matchId}`)
+      .setLabel('🕒 Ustaw start (opcjonalnie)')
+      .setStyle(ButtonStyle.Secondary)
+  )
+}
+
 // === SELECT: faza ===
 async function onPhaseSelect(interaction) {
   if (!hasAdminPerms(interaction)) {

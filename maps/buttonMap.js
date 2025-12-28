@@ -77,7 +77,10 @@ module.exports = {
   'panel:open:matches': 'panelOpenMenu',
   'panel:open:db': 'panelOpenMenu',
   'panel:open:danger': 'panelOpenMenu',
-  'panel:danger:cancel': 'panelDangerCancel'
+  'panel:danger:cancel': 'panelDangerCancel',
+
+  'match_admin_start_open:': 'matchAdminStartOpen',
+  'match_admin_lock_toggle:': 'matchAdminLockToggle'
 
   
 
