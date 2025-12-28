@@ -16,7 +16,7 @@ module.exports = async function onReady(client) {
 
 
   startDeadlineReminder(client);
-  startMatchLockWatcher();
+  startMatchLockWatcher(client);
 
   require('./utils/startPresence')(client);
   require('./utils/startExportPanel')(client);

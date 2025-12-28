@@ -254,11 +254,13 @@ async function onTeamBSelect(interaction) {
   const matchNo = Number(next?.nextNo || 1);
 
   try {
-    await pool.query(
+    const [res] = await pool.query(
       `INSERT INTO matches (phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
-       VALUES (?, ?, ?, ?, ?, NULL, 0)`,
+     VALUES (?, ?, ?, ?, ?, NULL, 0)`,
       [st.phase, matchNo, st.teamA, teamB, st.bestOf]
     );
+
+    const matchId = res.insertId;
 
     logger.info('matches', 'Match added', {
       phase: st.phase, matchNo, teamA: st.teamA, teamB, bestOf: st.bestOf, by: interaction.user.id
@@ -266,18 +268,21 @@ async function onTeamBSelect(interaction) {
 
     return interaction.update({
       content: `✅ Dodano mecz: **${st.teamA} vs ${teamB}** (BO${st.bestOf})\nFaza: **${st.phase}**, match_no: **#${matchNo}**`,
-      components: [buildAgainRow()]
+      components: [
+        buildAgainRow(),
+        buildSetStartRow(matchId)
+      ]
     });
   } catch (e) {
     logger.error('matches', 'Match insert failed', { message: e.message, stack: e.stack });
 
-    // Jeśli poleci na UNIQUE (duplicate), pokaż sensowny komunikat
     const msg = (e.code === 'ER_DUP_ENTRY')
       ? '❌ Taki mecz już istnieje (duplikat).'
       : '❌ Nie udało się dodać meczu (błąd DB).';
 
     return interaction.update({ content: msg, components: [buildAgainRow()] });
   }
+
 }
 
 // === BUTTON: cancel / again ===
