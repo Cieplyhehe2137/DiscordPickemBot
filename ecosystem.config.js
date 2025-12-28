@@ -4,7 +4,7 @@ module.exports = {
     {
       name: "pickembot-hyperland",
       cwd: "/home/container",
-      script: "start.js",
+      script: "index.js",
       env: {
         NODE_ENV: "production",
         ENV_FILE: "config/hyperland.env",
@@ -16,7 +16,7 @@ module.exports = {
     {
       name: "pickembot-luffastream",
       cwd: "/home/container",
-      script: "start.js",
+      script: "index.js",
       env: {
         NODE_ENV: "production",
         ENV_FILE: "config/luffastream.env",
