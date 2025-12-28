@@ -459,8 +459,8 @@ module.exports = async function exportClassification(interaction = null, outputP
     }
 
     // parser list kompatybilny z JSON i CSV
-    
-    
+
+
 
     if (po && po.length) {
       const row = po[0];
@@ -519,6 +519,9 @@ module.exports = async function exportClassification(interaction = null, outputP
       { header: 'Faza', key: 'phase', width: 12 },
       { header: 'Match No', key: 'match_no', width: 9 },
       { header: 'Match ID', key: 'match_id', width: 9 },
+      { header: 'Team A', key: 'team_a', width: 22 },
+      { header: 'Team B', key: 'team_b', width: 22 },
+      { header: 'BO', key: 'best_of', width: 5 },
       { header: 'Nick', key: 'displayname', width: 18 },
       { header: 'User ID', key: 'user_id', width: 20 },
       { header: 'Mapa', key: 'map_no', width: 6 },
@@ -597,13 +600,16 @@ module.exports = async function exportClassification(interaction = null, outputP
     try {
       const [rows] = await pool.query(`
       SELECT
-        m.phase,
-        m.match_no,
-        m.id AS match_id,
-        p.user_id,
-        mr.map_no,
-        CONCAT(mr.exact_a, ':', mr.exact_b) AS off_score,
-        CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
+  m.phase,
+  m.match_no,
+  m.id AS match_id,
+  m.team_a,
+  m.team_b,
+  m.best_of,
+  p.user_id,
+  mr.map_no,
+  CONCAT(mr.exact_a, ':', mr.exact_b) AS off_score,
+  CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
       FROM matches m
       JOIN match_predictions p ON p.match_id = m.id
       JOIN match_map_results mr ON mr.match_id = m.id
@@ -629,12 +635,17 @@ module.exports = async function exportClassification(interaction = null, outputP
         phase: r.phase,
         match_no: r.match_no ?? '',
         match_id: r.match_id,
+        team_a: r.team_a ?? '—',
+        team_b: r.team_b ?? '—',
+        best_of: r.best_of ?? '—',
         displayname: nick,
         user_id: r.user_id,
         map_no: r.map_no,
         off: r.off_score ?? '—',
         pred: r.pred_score ?? '—',
       });
+
+
     }
 
     // --- Format: zamrożenie nagłówka + filtry + pogrubiony header
