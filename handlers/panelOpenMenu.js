@@ -51,6 +51,7 @@ function buildMenu(customId) {
         { label: 'Wyczyść typy userów', value: 'danger:clearPicks', emoji: '✏️' },
         { label: 'Wyczyść tylko oficjalne wyniki', value: 'danger:clearOfficial', emoji: '🗑️' },
         { label: 'Pełny reset (łącznie z wynikami)', value: 'danger:fullReset', emoji: '💣' },
+        { label: 'Usuń ustawione mecze (wybór fazy)', value :'danger:clearMatches', emoji: '🧹' }
       );
   }
 

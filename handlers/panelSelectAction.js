@@ -25,6 +25,7 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'danger:clearPicks': 'clear_db_confirm',
   'danger:clearOfficial': 'clear_only_results_confirm',
   'danger:fullReset': 'clear_db_with_results',
+  'danger:clearMatches': 'clear_matches'
 };
 
 function resolveHandlerName(buttonMap, customId) {
