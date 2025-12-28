@@ -111,7 +111,7 @@ module.exports = async (interaction) => {
       embeds: [embed],
       components: [componentRow],
       // content: '@everyone',
-      allowedMentions: { parse: ['everyone'] }
+      // allowedMentions: { parse: ['everyone'] }
     });
 
     await pool.query(`
