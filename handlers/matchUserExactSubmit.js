@@ -65,6 +65,25 @@ module.exports = async function matchUserExactSubmit(interaction) {
     const nextWinsA = prevWinsA + (mapWinner === 'A' ? 1 : 0);
     const nextWinsB = prevWinsB + (mapWinner === 'B' ? 1 : 0);
 
+    // === ZAPIS DOKŁADNEGO WYNIKU MAPY (BO3/BO5) ===
+    // Wcześniej nic nie zapisywało się do DB dla BO3/BO5, więc export / staty wyglądały na puste.
+    if (maxMaps > 1) {
+      try {
+        await pool.query(
+          `INSERT INTO match_map_predictions (match_id, user_id, map_no, pred_exact_a, pred_exact_b)
+         VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+           pred_exact_a=VALUES(pred_exact_a),
+           pred_exact_b=VALUES(pred_exact_b),
+           updated_at=CURRENT_TIMESTAMP`,
+          [match.id, interaction.user.id, mapNo, exactA, exactB]
+        );
+      } catch (e) {
+        // Jeśli ktoś nie ma tej tabeli w DB, nie ubijamy całego flow.
+        logger?.warn?.('matches', 'match_map_predictions table missing or insert failed', { message: e.message });
+      }
+    }
+
     // ---- WALIDACJA SPÓJNOŚCI Z WYBRANYM WYNIKIEM SERII ----
     if (hasTarget) {
       // 1) nie można przekroczyć docelowych wygranych map

@@ -47,6 +47,21 @@ module.exports = async function matchScoreSelectPred(interaction) {
     // requiredMaps: 2-0 => 2, 2-1 => 3, 3-1 => 4 itd.
     const requiredMaps = Math.min(winA + winB, maxMaps);
 
+    // === KLUCZOWE: ZAPISZ TYP SERII DO DB ===
+    // Bez tego match_predictions zostaje puste, więc export i rankingi "nic nie widzą".
+    // Dodatkowo: jeśli user zmieni serię, czyścimy pred_exact_* (żeby nie trzymać niespójnych danych).
+    await pool.query(
+      `INSERT INTO match_predictions (match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+   VALUES (?, ?, ?, ?, NULL, NULL)
+   ON DUPLICATE KEY UPDATE
+     pred_a=VALUES(pred_a),
+     pred_b=VALUES(pred_b),
+     pred_exact_a=NULL,
+     pred_exact_b=NULL,
+     updated_at=CURRENT_TIMESTAMP`,
+      [match.id, interaction.user.id, winA, winB]
+    );
+
     // zapis do state (to jest to, czego potrzebuje matchUserExactSubmit)
     const prev = userState.get(interaction.user.id) || {};
     userState.set(interaction.user.id, {
@@ -72,6 +87,6 @@ module.exports = async function matchScoreSelectPred(interaction) {
     });
   } catch (err) {
     logger.error('matches', 'matchScoreSelectPred failed', { message: err.message, stack: err.stack });
-    return interaction.update({ content: '❌ Błąd przy wyborze typu.', components: [] }).catch(() => {});
+    return interaction.update({ content: '❌ Błąd przy wyborze typu.', components: [] }).catch(() => { });
   }
 };

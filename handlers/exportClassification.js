@@ -506,28 +506,30 @@ module.exports = async function exportClassification(interaction = null, outputP
     m.team_b,
     m.best_of,
 
-    -- oficjalny: preferuj exact_* (bo to masz w tabeli)
+    -- oficjalny: preferuj exact_* (u Ciebie istnieje)
     COALESCE(r.exact_a, r.res_a) AS off_a,
     COALESCE(r.exact_b, r.res_b) AS off_b,
 
     p.user_id,
-
-    -- typ: preferuj pred_exact_* jeśli jest
     p.pred_a,
     p.pred_b,
     p.pred_exact_a,
     p.pred_exact_b,
 
-    -- punkty: ZSUMOWANE (żeby nie dublowało)
     mp.points
   FROM matches m
   LEFT JOIN match_results r ON r.match_id = m.id
-  JOIN match_predictions p ON p.match_id = m.id
+
+  -- KLUCZ: LEFT JOIN zamiast JOIN, żeby nie wycinało wszystkiego
+  LEFT JOIN match_predictions p ON p.match_id = m.id
+
+  -- punkty zsumowane, żeby nie dublowało
   LEFT JOIN (
     SELECT match_id, user_id, SUM(points) AS points
     FROM match_points
     GROUP BY match_id, user_id
   ) mp ON mp.match_id = m.id AND mp.user_id = p.user_id
+
   ORDER BY
     m.phase ASC,
     COALESCE(m.match_no, 999999) ASC,
@@ -536,13 +538,15 @@ module.exports = async function exportClassification(interaction = null, outputP
 `);
 
     for (const r of matchRows) {
-      const official = (r.off_a === null || r.off_b === null) ? '—' : `${r.off_a}:${r.off_b}`;
+      const official =
+        (r.off_a === null || r.off_b === null) ? '—' : `${r.off_a}:${r.off_b}`;
 
       const prA = (r.pred_exact_a ?? r.pred_a);
       const prB = (r.pred_exact_b ?? r.pred_b);
-      const pred = (prA === null || prB === null) ? '—' : `${prA}:${prB}`;
+      const pred =
+        (r.user_id && prA !== null && prB !== null) ? `${prA}:${prB}` : '—';
 
-      const nick = users?.[r.user_id]?.displayname || r.user_id;
+      const nick = r.user_id ? (users?.[r.user_id]?.displayname || r.user_id) : '—';
 
       sheetMatches.addRow({
         phase: r.phase,
@@ -552,12 +556,13 @@ module.exports = async function exportClassification(interaction = null, outputP
         team_b: r.team_b,
         best_of: r.best_of,
         official,
-        user_id: r.user_id,
+        user_id: r.user_id ?? '—',
         displayname: nick,
         pred,
-        points: (r.points ?? 0)
+        points: (r.points ?? '')
       });
     }
+
 
 
     // autosize
