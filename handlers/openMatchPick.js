@@ -1,25 +1,33 @@
+// handlers/openMatchPick.js
 const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const { isMatchLocked } = require('../utils/matchLock');
-const PAGE_SIZE = 24; // +1 opcja na "Następna strona"
+
+const PAGE_SIZE = 24; // 24 + 1 = Next/Prev w 25 limicie
+
+function safeLabel(s) {
+  const str = String(s ?? '');
+  if (!str) return 'mecz';
+  return str.length > 100 ? str.slice(0, 97) + '…' : str;
+}
+
+function safeValue(s) {
+  const str = String(s ?? '');
+  return str.length > 100 ? str.slice(0, 100) : str;
+}
 
 // helper: bezpieczna odpowiedź zależnie od typu interakcji
 async function respond(interaction, payload, isUpdate) {
   try {
-    if (isUpdate) {
-      return await interaction.update(payload);
-    }
+    if (isUpdate) return await interaction.update(payload);
 
-    // jeśli już defer/reply poszło, edytujemy
     if (interaction.deferred || interaction.replied) {
       return await interaction.editReply(payload);
     }
 
-    // jeśli jeszcze nie potwierdzone — normalny reply
     return await interaction.reply(payload);
-  } catch (e) {
-    // na wszelki wypadek: followUp (np. jeśli update się nie da)
+  } catch (_) {
     try {
       return await interaction.followUp({ ...payload, ephemeral: true });
     } catch (_) {}
@@ -39,25 +47,35 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
   );
 
   if (!rows.length) {
-    const payLoad = { content: `Brak meczów dla fazy **${phaseKey}**.`, components: [] };
-    return respond(interaction, payLoad, isUpdate);
+    const payload = { content: `Brak meczów dla fazy **${phaseKey}**.`, components: [] };
+    return respond(interaction, payload, isUpdate);
   }
 
   const hasNext = rows.length > PAGE_SIZE;
   const slice = rows.slice(0, PAGE_SIZE);
 
+  const customId = mode === 'res' ? 'match_pick_select_res' : 'match_pick_select_pred';
+
   const options = slice.map((m) => {
     const locked = isMatchLocked(m);
+    const rawLabel =
+      `${m.match_no ? `#${m.match_no} ` : ''}` +
+      `${m.team_a} vs ${m.team_b} (Bo${m.best_of})` +
+      `${locked ? ' 🔒' : ''}`;
+
     return {
-      label: `${m.match_no ? `#${m.match_no}` : ''}${m.team_a} vs ${m.team_b} (Bo${m.best_of})${locked} ? ' 🔒' : ''`
-    }
-  })
+      label: safeLabel(rawLabel),
+      value: safeValue(`MATCH|${phaseKey}|${m.id}`), // ✅ wymagane!
+    };
+  });
 
   if (hasNext) {
-    options.push({ label: '➡️ Następna strona', value: `NEXT|${phaseKey}|${page + 1}` });
+    options.push({
+      label: safeLabel('➡️ Następna strona'),
+      value: safeValue(`NEXT|${phaseKey}|${page + 1}`),
+    });
   }
 
-  const customId = mode === 'res' ? 'match_pick_select_res' : 'match_pick_select_pred';
   const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId(customId)
@@ -65,14 +83,15 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
       .addOptions(options)
   );
 
-  const payLoad = {
-    content: mode === 'res'
-      ? `🧾 Wybierz mecz, aby **wprowadzić oficjalny wynik** (faza: **${phaseKey}**)`
-      : `🎯 Wybierz mecz do **wytypowania wyniku** (faza **${phaseKey}**)`,
-    components: [row]
+  const payload = {
+    content:
+      mode === 'res'
+        ? `🧾 Wybierz mecz, aby **wprowadzić oficjalny wynik** (faza: **${phaseKey}**)`
+        : `🎯 Wybierz mecz do **wytypowania wyniku** (faza: **${phaseKey}**)`,
+    components: [row],
   };
 
-  return respond(interaction, payLoad, isUpdate);
+  return respond(interaction, payload, isUpdate);
 }
 
 module.exports = async function openMatchPick(interaction) {
@@ -82,19 +101,17 @@ module.exports = async function openMatchPick(interaction) {
     const phaseKey = customId.split(':')[1];
 
     if (!phaseKey) {
-      // tu też zabezpieczamy — defer + editReply
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true }).catch(() => {});
       }
       return interaction.editReply({ content: '❌ Brak phaseKey w CustomId', components: [] }).catch(() => {});
     }
 
-    // NAJWAŻNIEJSZE: potwierdź interakcję od razu, żeby nie było 10062
+    // potwierdź interakcję od razu, żeby nie było 10062
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ ephemeral: true }).catch(() => {});
     }
 
-    // teraz już bezpiecznie ładujemy listę i robimy editReply
     await sendMatchList({ interaction, phaseKey, mode: 'pred', page: 0, isUpdate: false });
   } catch (err) {
     logger.error('matches', 'openMatchPick failed', { message: err.message, stack: err.stack });
