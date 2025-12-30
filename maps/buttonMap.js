@@ -67,6 +67,22 @@ module.exports = {
   'panel:open:db': 'panelOpenMenu',
   'panel:open:danger': 'panelOpenMenu',
   'panel:danger:cancel': 'panelDangerCancel',
+  'match_admin_start_open:': 'matchAdminStartOpen',
+  'match_admin_lock_toggle:': 'matchAdminLockToggle',
+
+   // ===== TEAMS MANAGER =====
+  'teams:refresh': 'openTeamsManager',
+  'teams:page_prev': 'teamsPageNav',
+  'teams:page_next': 'teamsPageNav',
+  'teams:add': 'teamsAddOpen',
+  'teams:rename': 'teamsRenameOpen',
+  'teams:toggle': 'teamsToggle',
+  'teams:delete': 'teamsDeleteConfirmOpen',
+  'teams:delete_yes': 'teamsDeleteConfirm',
+  'teams:delete_no': 'openTeamsManager',
+  'teams:export': 'teamsExport',
+  'teams:import': 'teamsImportOpen',
+  'teams:seed_from_file': 'teamsSeedFromFile',
 
   'match_admin_start_open:': 'matchAdminStartOpen',
   'match_admin_lock_toggle:': 'matchAdminLockToggle'

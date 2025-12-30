@@ -68,6 +68,11 @@ function buildPanelPayload() {
       .setCustomId('panel:open:danger')
       .setLabel('🧨 Czyszczenie / Reset')
       .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId('panel:open:teams')
+      .setLabel('👥 Drużyny')
+      .setStyle(ButtonStyle.Secondary),
   );
 
   return { embeds: [embed], components: [row] };
