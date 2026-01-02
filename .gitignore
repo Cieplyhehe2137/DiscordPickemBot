@@ -9,7 +9,8 @@ coverage/
 .DS_Store
 config/
 .md
-
+config/*.env
+*.env
 # runtime / uploads / backups (jeśli masz)
 
 
