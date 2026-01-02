@@ -2,6 +2,7 @@
 const path = require("path");
 const fs = require("fs");
 const dotenv = require("dotenv");
+const validateConfig = require("./validateConfig");
 
 // 1) Wybór pliku env
 const envFile = process.env.ENV_FILE || ".env";
@@ -22,4 +23,7 @@ if (fs.existsSync(envPath)) {
 }
 
 // 3) Start bota (podmień jeśli entrypoint masz inny)
+if (process.env.VALIDATE_CONFIG === 'true') {
+  validateConfig();
+}
 require("./index.js");

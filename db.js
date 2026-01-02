@@ -6,6 +6,7 @@ const { getGuildConfig } = require('./utils/guildRegistry');
 
 const pools = new Map();
 let defaultPool = null;
+let closing = false;
 
 function buildPoolFromCfg(cfg) {
   return mysql.createPool({
@@ -97,6 +98,25 @@ function getAdminConnection() {
   });
 }
 
+async function closeAllPools() {
+  if (closing) return;
+  closing = true;
+
+  const tasks = [];
+  for (const pool of pools.values()) {
+    tasks.push(pool.end().catch(() => {}));
+  }
+  pools.clear();
+
+  if (defaultPool) {
+    tasks.push(defaultPool.end().catch(() => {}));
+    defaultPool = null;
+  }
+
+  await Promise.all(tasks);
+  closing = false;
+}
+
 const proxy = new Proxy({}, {
   get(_t, prop) {
     const pool = getPoolFromContext();
@@ -107,5 +127,6 @@ const proxy = new Proxy({}, {
 
 proxy.getPoolForGuild = getPoolForGuild;
 proxy.getAdminConnection = getAdminConnection;
+proxy.closeAllPools = closeAllPools;
 
 module.exports = proxy;

@@ -6,6 +6,7 @@ const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
+const db = require('./db');
 
 function getGitCommit() {
   try {
@@ -23,24 +24,33 @@ function getGitCommit() {
   }
 }
 
-console.log("=== DEPLOY DEBUG ===");
-console.log("CWD:", process.cwd());
-console.log("ENTRY __dirname:", __dirname);
-console.log("GIT COMMIT:", getGitCommit());
-console.log("DEPLOY TS:", new Date().toISOString());
-console.log("====================");
+const debugLogs =
+  process.env.DEBUG_LOGS === 'true' ||
+  process.env.LOG_LEVEL === 'debug' ||
+  process.env.LOG_LEVEL === 'trace';
+
+if (debugLogs) {
+  console.log("=== DEPLOY DEBUG ===");
+  console.log("CWD:", process.cwd());
+  console.log("ENTRY __dirname:", __dirname);
+  console.log("GIT COMMIT:", getGitCommit());
+  console.log("DEPLOY TS:", new Date().toISOString());
+  console.log("====================");
+}
 
 
 // 🌍 Debugowanie zmiennych środowiskowych
-console.log('==================== 🌍 DEBUG ENV ====================');
-[
-  'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
-  'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT'
-].forEach((key) => {
-  const val = process.env[key];
-  console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
-});
-console.log('=====================================================');
+if (debugLogs) {
+  console.log('==================== 🌍 DEBUG ENV ====================');
+  [
+    'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
+    'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT'
+  ].forEach((key) => {
+    const val = process.env[key];
+    console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
+  });
+  console.log('=====================================================');
+}
 
 // 🔧 Konfiguracja klienta Discord
 const client = new Client({
@@ -124,6 +134,30 @@ client.once('ready', async () => {
     console.error('❌ Błąd w ready-handlerze:', e);
   }
 });
+
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.warn(`⚠️ [SHUTDOWN] Received ${signal}, shutting down...`);
+
+  try {
+    await db.closeAllPools();
+  } catch (e) {
+    console.error('❌ [SHUTDOWN] Failed to close DB pools:', e);
+  }
+
+  try {
+    await client.destroy();
+  } catch (e) {
+    console.error('❌ [SHUTDOWN] Failed to destroy Discord client:', e);
+  }
+
+  process.exit(0);
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 const handlers = loadHandlers('handlers');
 
