@@ -7,8 +7,8 @@ const logger = require('../utils/logger');
 // jeśli masz opener helpers, podepnij; jeśli nie – usuń te 2 linie i odświeżanie embedów
 const { buildPlayoffsComponents, getCurrentPlayoffs } = require('./openPlayoffsResultsDropdown');
 
-// local cache wyborów (z dropdownów) per user
-// key: `${userId}` -> { semifinalists:[], finalists:[], winner:[], third_place_winner:[] }
+// local cache wyborów (z dropdownów) per guild + user
+// key: `${guildId}:${userId}` -> { semifinalists:[], finalists:[], winner:[], third_place_winner:[] }
 const userSelections = new Map();
 
 async function loadTeams() {
@@ -61,6 +61,8 @@ function mergeWithCapOrReplace(baseArr, addArr, cap) {
 module.exports = async (interaction) => {
   const userId = interaction.user.id;
   const username = interaction.user.username;
+  const guildId = interaction.guildId || 'dm';
+  const key = `${guildId}:${userId}`; // ✅ KLUCZ PER GUILD
 
   // ===== SELECTS: zapis do cache (lokalnie) =====
   if (interaction.isStringSelectMenu()) {
@@ -68,7 +70,7 @@ module.exports = async (interaction) => {
 
     const cid = interaction.customId;
 
-    const cur = userSelections.get(userId) || {
+    const cur = userSelections.get(key) || {
       semifinalists: [],
       finalists: [],
       winner: [],
@@ -80,20 +82,17 @@ module.exports = async (interaction) => {
     // official_playoffs_finalists_p0
     // official_playoffs_winner_p0
     // official_playoffs_third_place_winner_p0
-    // (router już ucina _p0, ale tu i tak łapiemy startsWith)
     if (cid.startsWith('official_playoffs_semifinalists')) cur.semifinalists = interaction.values;
     else if (cid.startsWith('official_playoffs_finalists')) cur.finalists = interaction.values;
     else if (cid.startsWith('official_playoffs_winner')) cur.winner = interaction.values;
     else if (cid.startsWith('official_playoffs_third_place_winner')) cur.third_place_winner = interaction.values;
     else {
-      // nie nasz select
-      logger.warn('playoffs_results', 'Unhandled playoffs select', { cid });
+      logger.warn('playoffs_results', 'Unhandled playoffs select', { cid, guildId, userId });
       return;
     }
 
-    userSelections.set(userId, cur);
+    userSelections.set(key, cur);
 
-    // info zwrotne (tak jak na screenie)
     const label =
       cid.includes('semifinalists') ? 'semifinalists' :
       cid.includes('finalists') ? 'finalists' :
@@ -109,14 +108,13 @@ module.exports = async (interaction) => {
 
   // ===== BUTTON: zapis do DB =====
   if (interaction.isButton() && interaction.customId === 'confirm_playoffs_results') {
-    const sel = userSelections.get(userId) || {
+    const sel = userSelections.get(key) || {
       semifinalists: [],
       finalists: [],
       winner: [],
       third_place_winner: [],
     };
 
-    // jeśli nic nie wybrano – stop
     const any =
       (sel.semifinalists?.length || 0) +
       (sel.finalists?.length || 0) +
@@ -131,26 +129,20 @@ module.exports = async (interaction) => {
     }
 
     const teams = await loadTeams();
-
-    // aktualny stan z DB (żeby “dopisywać” semifinalists/finalists)
-    // Jeśli nie masz getCurrentPlayoffs w openerze — podmień na SELECT z DB.
     const current = await getCurrentPlayoffs();
 
-    // limity:
     const mSemi = mergeWithCapOrReplace(current.semifinalists, sel.semifinalists, 4);
     if (!mSemi.ok) return interaction.reply({ ephemeral: true, content: `⚠️ Półfinaliści: ${mSemi.err}` });
 
     const mFin = mergeWithCapOrReplace(current.finalists, sel.finalists, 2);
     if (!mFin.ok) return interaction.reply({ ephemeral: true, content: `⚠️ Finaliści: ${mFin.err}` });
 
-    // ✅ winner i 3. miejsce zawsze REPLACE
     const mWin = mergeWithCapOrReplace(current.winner, sel.winner, 1);
     if (!mWin.ok) return interaction.reply({ ephemeral: true, content: `⚠️ Zwycięzca: ${mWin.err}` });
 
     const mThird = mergeWithCapOrReplace(current.third_place_winner, sel.third_place_winner, 1);
     if (!mThird.ok) return interaction.reply({ ephemeral: true, content: `⚠️ 3. miejsce: ${mThird.err}` });
 
-    // walidacja drużyn
     const all = [...mSemi.merged, ...mFin.merged, ...mWin.merged, ...mThird.merged].filter(Boolean);
     const invalid = all.filter(t => !teams.includes(t));
     if (invalid.length) {
@@ -160,8 +152,6 @@ module.exports = async (interaction) => {
       });
     }
 
-    // (opcjonalnie) możesz wymusić logikę bracketu:
-    // - winner musi być w finalists
     const winnerTeam = mWin.merged[0];
     if (winnerTeam && mFin.merged.length > 0 && !mFin.merged.map(x => x.toLowerCase()).includes(winnerTeam.toLowerCase())) {
       return interaction.reply({
@@ -171,7 +161,6 @@ module.exports = async (interaction) => {
     }
 
     try {
-      // u Ciebie zazwyczaj jest "active". Zakładam 1 wiersz aktywny.
       await pool.query(`UPDATE playoffs_results SET active=0 WHERE active=1`);
 
       await pool.query(
@@ -191,7 +180,7 @@ module.exports = async (interaction) => {
         ]
       );
 
-      userSelections.delete(userId);
+      userSelections.delete(key); // ✅ ZMIANA (BYŁO delete(userId))
 
       // odśwież panel (jeśli masz opener builder)
       try {
@@ -204,14 +193,18 @@ module.exports = async (interaction) => {
         const { embed, components } = buildPlayoffsComponents(teams, fresh);
         await interaction.update({ embeds: [embed], components });
       } catch (e) {
-        // jeśli nie masz buildera, to po prostu potwierdź i nie crashuj
         await interaction.reply({ ephemeral: true, content: '✅ Zapisano wyniki w bazie.' });
         return;
       }
 
       return interaction.followUp({ ephemeral: true, content: '✅ Zapisano wyniki w bazie.' });
     } catch (err) {
-      logger.error('playoffs_results', 'DB save failed', { message: err?.message, stack: err?.stack });
+      logger.error('playoffs_results', 'DB save failed', {
+        guildId,
+        userId,
+        message: err?.message,
+        stack: err?.stack
+      });
       return interaction.reply({ ephemeral: true, content: '❌ Błąd podczas zapisu wyników.' });
     }
   }

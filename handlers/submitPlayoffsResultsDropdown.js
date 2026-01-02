@@ -4,11 +4,12 @@ const path = require("path");
 const pool = require("../db");
 const logger = require("../logger");
 
-// GLOBAL CACHE
+// GLOBAL CACHE per guild + user
 if (!global._resultsPlayoffsCache) global._resultsPlayoffsCache = {};
 const cache = global._resultsPlayoffsCache;
 
 async function loadTeams() {
+  // jeśli u Ciebie teams.json jest w /data/teams.json, zostawiam to jak było:
   const filePath = path.join(process.cwd(), "data", "teams.json");
   const raw = await fs.readFile(filePath, "utf8");
   return JSON.parse(raw);
@@ -50,13 +51,10 @@ async function getCurrentPlayoffs() {
   };
 }
 
-// działanie JAK W SWISS – dokładamy partiami
-// działanie JAK W SWISS – dokładamy partiami
-// ✅ wyjątek: cap=1 => ZASTĄP (winner/3rd) zamiast dopisywać
+// ✅ cap=1 => ZASTĄP (winner/3rd), reszta dopisuj z cap
 function pickOrKeep(baseArr, addArr, cap) {
   baseArr = baseArr || [];
 
-  // ✅ cap=1 zawsze podmienia na ostatni wybór z dropdowna
   if (cap === 1) {
     const add = Array.isArray(addArr) ? addArr : [];
     const picked = add.length
@@ -66,7 +64,6 @@ function pickOrKeep(baseArr, addArr, cap) {
     return { ok: true, merged: picked ? [picked] : [] };
   }
 
-  // reszta jak było (dopisywanie)
   if (addArr && addArr.length) {
     const merged = cleanList([...baseArr, ...addArr]);
     if (merged.length > cap) {
@@ -78,19 +75,22 @@ function pickOrKeep(baseArr, addArr, cap) {
   return { ok: true, merged: cleanList(baseArr) };
 }
 
-
 module.exports = async (interaction) => {
   const userId = interaction.user.id;
   const username = interaction.user.username;
+  const guildId = interaction.guildId || "dm";
+
+  // helper: upewnij się że struktura cache istnieje
+  if (!cache[guildId]) cache[guildId] = {};
+  if (!cache[guildId][userId]) cache[guildId][userId] = {};
 
   // DROPDOWN HANDLING
   if (interaction.isStringSelectMenu() && interaction.customId.startsWith("results_playoffs_")) {
     const type = interaction.customId.replace("results_playoffs_", "");
 
-    if (!cache[userId]) cache[userId] = {};
-    cache[userId][type] = interaction.values;
+    cache[guildId][userId][type] = interaction.values;
 
-    logger.info(`[Playoffs Results] ${username} wybrał dla ${type}: ${interaction.values.join(", ")}`);
+    logger.info(`[Playoffs Results] ${username} (${userId}) [${guildId}] wybrał dla ${type}: ${interaction.values.join(", ")}`);
 
     await interaction.deferUpdate();
     return interaction.followUp({
@@ -103,7 +103,7 @@ module.exports = async (interaction) => {
   if (interaction.isButton() && interaction.customId === "confirm_playoffs_results") {
     await interaction.deferReply({ ephemeral: true });
 
-    const picks = cache[userId] || {};
+    const picks = cache[guildId]?.[userId] || {};
     const current = await getCurrentPlayoffs();
 
     const mSemi = pickOrKeep(current.semifinalists, picks.semifinalists, 4);
@@ -167,7 +167,9 @@ module.exports = async (interaction) => {
         ]
       );
 
-      delete cache[userId];
+      // wyczyść cache tylko dla tego usera na tym guildzie
+      delete cache[guildId][userId];
+      if (Object.keys(cache[guildId]).length === 0) delete cache[guildId];
 
       return interaction.editReply(
         `✅ Zapisano wyniki Playoffs!\n` +

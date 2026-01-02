@@ -6,17 +6,17 @@ const {
   ButtonStyle
 } = require('discord.js');
 
-const logger = require('../logger'); // jeśli plik jest w root
+const logger = require('../logger'); // jak masz logger w root, zostaw
+
+const { getGuildConfig } = require('../utils/guildRegistry'); // ✅ per-guild config
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
 
 // Bezpieczne pobranie ostatnich wiadomości i znalezienie panelu do edycji
 async function findExistingPanelMessage(channel, clientUserId) {
   try {
-    // pobierz ostatnie 50 wiadomości
     const messages = await channel.messages.fetch({ limit: 50 });
 
-    // znajdź NAJNOWSZĄ wiadomość bota, która ma embed z naszym tytułem
     const found = messages
       .filter(m => m.author?.id === clientUserId)
       .find(m => {
@@ -47,7 +47,7 @@ function buildPanelPayload() {
       '⚠️ **Dostęp tylko dla Administracji serwera**'
     );
 
-  // 1 rząd, 4 przyciski → reszta w dropdownach po kliknięciu
+  // 1 rząd, max 5 przycisków (tu jest 5 i to jest OK)
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('panel:open:results')
@@ -78,17 +78,36 @@ function buildPanelPayload() {
   return { embeds: [embed], components: [row] };
 }
 
-module.exports = async (client) => {
+// ✅ TERAZ: per guild
+module.exports = async (client, guildId) => {
   try {
-    const channelId = process.env.EXPORT_PANEL_CHANNEL_ID || '1387140988954476654';
-    const channel = await client.channels.fetch(channelId);
+    const cfg = getGuildConfig(guildId);
+    const channelId = cfg?.EXPORT_PANEL_CHANNEL_ID;
+
+    if (!channelId) {
+      logger.warn("interaction", "EXPORT_PANEL_CHANNEL_ID missing for guild", { guildId });
+      return;
+    }
+
+    const channel = await client.channels.fetch(channelId).catch(() => null);
 
     if (!channel) {
-      logger.error("interaction", "Export panel channel not found", { channelId });
+      logger.error("interaction", "Export panel channel not found", { guildId, channelId });
+      return;
+    }
+
+    // ✅ Guard: kanał musi należeć do tego guilda (chroni przed pomyłką w env)
+    if (channel.guildId && channel.guildId !== guildId) {
+      logger.error("interaction", "Export panel channel belongs to different guild (misconfigured)", {
+        guildId,
+        channelId,
+        channelGuildId: channel.guildId
+      });
       return;
     }
 
     logger.info("interaction", "Export panel channel fetched", {
+      guildId,
       channel: channel.name,
       channelId
     });
@@ -102,6 +121,7 @@ module.exports = async (client) => {
       await existing.edit(payload);
 
       logger.info("interaction", "Export panel updated (edited existing message)", {
+        guildId,
         channel: channel.name,
         messageId: existing.id
       });
@@ -112,12 +132,14 @@ module.exports = async (client) => {
     const sent = await channel.send(payload);
 
     logger.info("interaction", "Export panel sent (new message)", {
+      guildId,
       channel: channel.name,
       messageId: sent.id
     });
 
   } catch (err) {
     logger.error("interaction", "startExportPanel failed", {
+      guildId,
       message: err.message,
       stack: err.stack
     });

@@ -6,7 +6,9 @@ const pool = require('../db');
 const logger = require('../utils/logger');
 
 const PAGE_SIZE = 24; // 24 + 1 = Next/Prev w 25 limit
-const state = new Map(); // key: userId -> { phase, bestOf, teamA }
+const state = new Map(); // key: `${guildId}:${userId}` -> { phase, bestOf, teamA }
+
+const stateKey = (interaction) => `${interaction.guildId || 'dm'}:${interaction.user.id}`;
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -84,7 +86,7 @@ function buildSetStartRow(matchId) {
       .setCustomId(`match_admin_start_open:${matchId}`)
       .setLabel('🕒 Ustaw start (opcjonalnie)')
       .setStyle(ButtonStyle.Secondary)
-  )
+  );
 }
 
 // === SELECT: faza ===
@@ -96,7 +98,8 @@ async function onPhaseSelect(interaction) {
   const phase = interaction.values?.[0];
   if (!phase) return interaction.update({ content: '❌ Nie wybrano fazy.', components: [] });
 
-  state.set(interaction.user.id, { phase, bestOf: null, teamA: null });
+  const key = stateKey(interaction);
+  state.set(key, { phase, bestOf: null, teamA: null });
 
   const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
@@ -124,12 +127,13 @@ async function onBoSelect(interaction) {
   const bo = Number(interaction.values?.[0]);
   if (![1, 3, 5].includes(bo)) return interaction.update({ content: '❌ Niepoprawne BO.', components: [] });
 
-  const st = state.get(interaction.user.id);
+  const key = stateKey(interaction);
+  const st = state.get(key);
   if (!st?.phase) return interaction.update({ content: '❌ Sesja wygasła. Kliknij jeszcze raz ➕ Dodaj mecz.', components: [] });
 
   st.bestOf = bo;
   st.teamA = null;
-  state.set(interaction.user.id, st);
+  state.set(key, st);
 
   const teams = loadTeams();
   if (!teams.length) {
@@ -156,7 +160,8 @@ async function onTeamASelect(interaction) {
     return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
   }
 
-  const st = state.get(interaction.user.id);
+  const key = stateKey(interaction);
+  const st = state.get(key);
   if (!st?.phase || !st?.bestOf) {
     return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
   }
@@ -187,7 +192,7 @@ async function onTeamASelect(interaction) {
   if (type !== 'TEAM') return interaction.update({ content: '❌ Nieznana opcja.', components: [] });
 
   st.teamA = payload;
-  state.set(interaction.user.id, st);
+  state.set(key, st);
 
   // Team B = wszystkie oprócz Team A
   const teamsB = teamsAll.filter(t => t !== st.teamA);
@@ -211,7 +216,8 @@ async function onTeamBSelect(interaction) {
     return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
   }
 
-  const st = state.get(interaction.user.id);
+  const key = stateKey(interaction);
+  const st = state.get(key);
   if (!st?.phase || !st?.bestOf || !st?.teamA) {
     return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
   }
@@ -256,14 +262,20 @@ async function onTeamBSelect(interaction) {
   try {
     const [res] = await pool.query(
       `INSERT INTO matches (phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
-     VALUES (?, ?, ?, ?, ?, NULL, 0)`,
+       VALUES (?, ?, ?, ?, ?, NULL, 0)`,
       [st.phase, matchNo, st.teamA, teamB, st.bestOf]
     );
 
     const matchId = res.insertId;
 
     logger.info('matches', 'Match added', {
-      phase: st.phase, matchNo, teamA: st.teamA, teamB, bestOf: st.bestOf, by: interaction.user.id
+      guildId: interaction.guildId,
+      phase: st.phase,
+      matchNo,
+      teamA: st.teamA,
+      teamB,
+      bestOf: st.bestOf,
+      by: interaction.user.id
     });
 
     return interaction.update({
@@ -282,12 +294,12 @@ async function onTeamBSelect(interaction) {
 
     return interaction.update({ content: msg, components: [buildAgainRow()] });
   }
-
 }
 
 // === BUTTON: cancel / again ===
 async function onCancel(interaction) {
-  state.delete(interaction.user.id);
+  const key = stateKey(interaction);
+  state.delete(key);
   return interaction.update({ content: '✅ Anulowano dodawanie meczu.', components: [] });
 }
 
@@ -296,13 +308,14 @@ async function onAgain(interaction) {
     return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
   }
 
-  const st = state.get(interaction.user.id);
+  const key = stateKey(interaction);
+  const st = state.get(key);
   if (!st?.phase || !st?.bestOf) {
     return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
   }
 
   st.teamA = null;
-  state.set(interaction.user.id, st);
+  state.set(key, st);
 
   const teams = loadTeams();
   if (!teams.length) return interaction.update({ content: '❌ Brak teamów w teams.json.', components: [] });

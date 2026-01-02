@@ -1,30 +1,39 @@
+// utils/sendArchivePanel.js
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-const ARCHIVE_CHANNEL_ID = process.env.ARCHIVE_CHANNEL_ID || '1395135703108550708';
-const ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum');
+const logger = require('../logger'); // jeśli logger w root (tak jak u Ciebie)
+const { getGuildConfig } = require('./guildRegistry'); // ✅ konfiguracja per guild
+
+const PANEL_TITLE = "📂 Archiwum Pick'Em";
+const BASE_ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum'); // baza, a nie wspólny folder z plikami
 
 function safeLabel(str) {
-  // Discord limit: 1–100 chars
   if (!str) return 'plik';
-  return str.length > 100 ? str.slice(0, 97) + '…' : str;
+  const s = String(str);
+  return s.length > 100 ? s.slice(0, 97) + '…' : s;
 }
 
-// 🧩 Zbuduj embed + dropdown
-function buildArchiveMessage() {
+// 🧩 Zbuduj embed + dropdown (dla konkretnego folderu guild)
+function buildArchiveMessage(archiveDir) {
   let files = [];
-  if (fs.existsSync(ARCHIVE_DIR)) {
-    // tylko .xlsx, posortowane od najnowszych
-    files = fs.readdirSync(ARCHIVE_DIR)
+
+  // upewnij się, że folder istnieje (bez crasha)
+  try {
+    fs.mkdirSync(archiveDir, { recursive: true });
+  } catch (_) {}
+
+  if (fs.existsSync(archiveDir)) {
+    files = fs.readdirSync(archiveDir)
       .filter(n => n.toLowerCase().endsWith('.xlsx'))
-      .map(name => ({ name, mtime: fs.statSync(path.join(ARCHIVE_DIR, name)).mtimeMs }))
+      .map(name => ({ name, mtime: fs.statSync(path.join(archiveDir, name)).mtimeMs }))
       .sort((a, b) => b.mtime - a.mtime)
       .map(x => x.name);
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('📂 Archiwum Pick\'Em')
+    .setTitle(PANEL_TITLE)
     .setDescription(
       files.length
         ? 'Wybierz jeden z zakończonych turniejów, aby pobrać plik z wynikami.'
@@ -33,7 +42,6 @@ function buildArchiveMessage() {
     .setColor(0x5865F2)
     .setTimestamp(new Date());
 
-  // Musi być 1–25 opcji. Gdy brak plików – dodajemy „martwą” opcję i wyłączamy select.
   const hasFiles = files.length > 0;
   const options = hasFiles
     ? files.slice(0, 25).map(name => ({
@@ -57,16 +65,38 @@ function buildArchiveMessage() {
   return { embed, components: [row] };
 }
 
-// 📤 Utwórz/edytuj pojedynczy panel
-module.exports = async function sendArchivePanel(client) {
-  const channel = await client.channels.fetch(ARCHIVE_CHANNEL_ID);
-  if (!channel || !channel.isTextBased?.()) {
-    throw new Error(`Kanał o ID ${ARCHIVE_CHANNEL_ID} nie jest tekstowy lub nie istnieje.`);
+// 📤 Utwórz/edytuj pojedynczy panel (PER GUILD)
+module.exports = async function sendArchivePanel(client, guildId) {
+  const cfg = getGuildConfig(guildId);
+  const channelId = cfg?.ARCHIVE_CHANNEL_ID;
+
+  if (!channelId) {
+    logger.warn('archive', 'ARCHIVE_CHANNEL_ID missing for guild', { guildId });
+    return;
   }
 
-  const { embed, components } = buildArchiveMessage();
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel || !channel.isTextBased?.()) {
+    logger.error('archive', 'Archive channel missing or not text-based', { guildId, channelId });
+    return;
+  }
 
-  // Znajdź istniejący panel (ostatnia wiadomość bota z tytułem Archiwum Pick'Em)
+  // ✅ Guard: kanał musi należeć do tego guilda (chroni przed złym env)
+  if (channel.guildId && channel.guildId !== guildId) {
+    logger.error('archive', 'Archive channel belongs to different guild (misconfigured)', {
+      guildId,
+      channelId,
+      channelGuildId: channel.guildId
+    });
+    return;
+  }
+
+  // ✅ Folder archiwum per guild
+  const archiveDir = path.join(BASE_ARCHIVE_DIR, String(guildId));
+
+  const { embed, components } = buildArchiveMessage(archiveDir);
+
+  // Znajdź istniejący panel (ostatnia wiadomość bota z naszym tytułem)
   const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
   let panelMessage = null;
 
@@ -74,16 +104,14 @@ module.exports = async function sendArchivePanel(client) {
     const botId = client.user.id;
     panelMessage = messages
       .filter(m => m.author?.id === botId && m.embeds?.length)
-      .find(m => (m.embeds[0].title || '').includes('Archiwum Pick\'Em')) || null;
+      .find(m => (m.embeds[0].title || '') === PANEL_TITLE) || null;
   }
 
   if (panelMessage) {
     await panelMessage.edit({ embeds: [embed], components });
-    console.log('✅ Zaktualizowano panel archiwum.');
+    logger.info('archive', 'Archive panel updated', { guildId, channelId, messageId: panelMessage.id });
   } else {
     const newMsg = await channel.send({ embeds: [embed], components });
-    console.log('🆕 Utworzono panel archiwum.');
-    // opcjonalnie:
-    // await newMsg.pin().catch(() => {});
+    logger.info('archive', 'Archive panel sent', { guildId, channelId, messageId: newMsg.id });
   }
 };

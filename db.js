@@ -1,26 +1,56 @@
-require('dotenv').config();
-const mysql = require('mysql2/promise');
+// db.js
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,     // np. 'localhost' lub adres serwera MySQL
-  user: process.env.DB_USER,     // nazwa użytkownika bazy
-  password: process.env.DB_PASS, // hasło do bazy
-  database: process.env.DB_NAME, // nazwa bazy danych
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 200,
-  queueLimit: 0,
-  multipleStatements: true
+const mysql = require('mysql2/promise');
+const { getCurrentGuildId } = require('./utils/guildContext');
+const { getAllGuildConfigs } = require('./utils/guildRegistry');
+
+const poolsByGuild = {};
+let defaultGuildId = null;
+
+function initPoolsOnce() {
+  const configs = getAllGuildConfigs();
+  const guildIds = Object.keys(configs);
+
+  if (!guildIds.length) throw new Error('Brak konfiguracji guild do inicjalizacji DB pooli');
+
+  defaultGuildId = guildIds[0];
+
+  for (const gid of guildIds) {
+    const cfg = configs[gid];
+    poolsByGuild[gid] = mysql.createPool({
+      host: cfg.DB_HOST,
+      port: Number(cfg.DB_PORT || 3306),
+      user: cfg.DB_USER,
+      password: cfg.DB_PASS,
+      database: cfg.DB_NAME,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+
+    poolsByGuild[gid].getConnection()
+      .then(conn => conn.query('SELECT 1').finally(() => conn.release()))
+      .catch(err => console.error(`❌ Nie udało się połączyć z bazą dla guild ${gid}:`, err.message));
+  }
+}
+
+initPoolsOnce();
+
+function pickPool() {
+  const gid = getCurrentGuildId();
+  if (gid && poolsByGuild[gid]) return poolsByGuild[gid];
+  return poolsByGuild[defaultGuildId];
+}
+
+const poolProxy = new Proxy({}, {
+  get(_target, prop) {
+    const pool = pickPool();
+    const value = pool[prop];
+    return typeof value === 'function' ? value.bind(pool) : value;
+  },
 });
 
-// Test połączenia i log
-(async () => {
-  try {
-    const [rows] = await pool.query('SELECT 1');
-    console.log('✅ Połączono z bazą MySQL! Test zapytania SELECT 1 wykonany:', rows);
-  } catch (err) {
-    console.error('❌ Błąd połączenia z MySQL:', err);
-  }
-})();
+poolProxy.getPool = (guildId) => poolsByGuild[String(guildId)];
+poolProxy.poolsByGuild = poolsByGuild
 
-module.exports = pool;
+module.exports = poolProxy

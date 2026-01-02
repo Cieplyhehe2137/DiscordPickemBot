@@ -7,8 +7,8 @@ const logger = require('../utils/logger');
 // re-użyj helperów z opener'a, żeby mieć spójne UI
 const { buildSwissComponents, getCurrentSwiss } = require('./openSwissResultsDropdown');
 
-// lokalny cache wyborów „tymczasowych” (z dropdownów) per user/stage
-const userSelections = new Map(); // key: `${userId}_${stage}` -> { add3:[], add0:[], addA:[] }
+// lokalny cache wyborów „tymczasowych” (z dropdownów) per guild/user/stage
+const userSelections = new Map(); // key: `${guildId}:${userId}:${stage}` -> { add3:[], add0:[], addA:[] }
 
 async function loadTeams() {
   const filePath = path.join(__dirname, '..', 'teams.json');
@@ -54,6 +54,7 @@ function stageFromCustomId(customId) {
 module.exports = async (interaction) => {
   const userId = interaction.user.id;
   const username = interaction.user.username;
+  const guildId = interaction.guildId || 'dm'; // ✅ NOWE
 
   // === SELECT MENUS: odkładamy wybory do cache (bez DB) ===
   if (interaction.isStringSelectMenu()) {
@@ -64,7 +65,7 @@ module.exports = async (interaction) => {
       return interaction.followUp({ content: '❌ Nie rozpoznano etapu Swiss.', ephemeral: true });
     }
 
-    const key = `${userId}_${stage}`;
+    const key = `${guildId}:${userId}:${stage}`; // ✅ ZMIANA (BYŁO `${userId}_${stage}`)
     const tmp = userSelections.get(key) || { add3: [], add0: [], addA: [] };
 
     if (interaction.customId.startsWith('official_swiss_3_0_')) {
@@ -76,7 +77,7 @@ module.exports = async (interaction) => {
     }
 
     userSelections.set(key, tmp);
-    logger.info(`[Swiss Results] ${username} (${userId}) wybrał w ${stage}: ${JSON.stringify(tmp)}`);
+    logger.info(`[Swiss Results] ${username} (${userId}) [${guildId}] wybrał w ${stage}: ${JSON.stringify(tmp)}`);
 
     return interaction.followUp({
       content: '📝 Zapisano wybór lokalnie. Kliknij **Zatwierdź** aby zapisać w bazie.',
@@ -87,7 +88,7 @@ module.exports = async (interaction) => {
   // === BUTTON: zapis do DB ===
   if (interaction.isButton() && interaction.customId.startsWith('confirm_swiss_results_')) {
     const stage = interaction.customId.replace('confirm_swiss_results_', '');
-    const key = `${userId}_${stage}`;
+    const key = `${guildId}:${userId}:${stage}`; // ✅ ZMIANA (BYŁO `${userId}_${stage}`)
     const sel = userSelections.get(key) || { add3: [], add0: [], addA: [] };
 
     // jeśli nic nie wybrano w dropdownach, to nie rób pustego INSERT-a
@@ -163,7 +164,7 @@ module.exports = async (interaction) => {
       });
 
     } catch (error) {
-      logger.error(`[Swiss Results] Błąd zapisu (${stage}):`, error);
+      logger.error(`[Swiss Results] Błąd zapisu (${stage}) [${guildId}]:`, error);
       return interaction.reply({
         ephemeral: true,
         content: '❌ Błąd podczas zapisu wyników.'

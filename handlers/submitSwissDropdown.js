@@ -5,7 +5,7 @@ const logger = require('../utils/logger.js');
 const fs = require('fs');
 const path = require('path');
 
-// cache: klucz = `${userId}:${stage}`, wartość = { '3': [...], '0': [...], 'advancing': [...] }
+// cache: klucz = `${guildId}:${userId}:${stage}`, wartość = { '3': [...], '0': [...], 'advancing': [...] }
 const cache = new Map();
 
 function loadTeams() {
@@ -38,10 +38,12 @@ function loadTeams() {
 module.exports = async (interaction) => {
   const customId = interaction.customId;
   const userId = interaction.user.id;
+  const guildId = interaction.guildId || 'dm'; // <-- NOWE
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
 
   logger.debug("submit", "Interaction received", {
+    guildId, // <-- NOWE
     userId,
     username,
     customId
@@ -53,6 +55,7 @@ module.exports = async (interaction) => {
 
   if (!stage) {
     logger.warn("submit", "Stage not recognized", {
+      guildId, // <-- NOWE
       userId,
       customId
     });
@@ -63,7 +66,7 @@ module.exports = async (interaction) => {
     });
   }
 
-  const cacheKey = `${userId}:${stage}`;
+  const cacheKey = `${guildId}:${userId}:${stage}`; // <-- ZMIANA (BYŁO `${userId}:${stage}`)
 
   // ==================================================
   // 1) DROPDOWN — zapamiętywanie wyborów
@@ -81,6 +84,7 @@ module.exports = async (interaction) => {
     else if (typeRaw === 'advancing') type = 'advancing';
     else {
       logger.warn("submit", "Unknown dropdown type", {
+        guildId, // <-- NOWE
         userId,
         stage,
         customId
@@ -98,6 +102,7 @@ module.exports = async (interaction) => {
     data[type] = interaction.values;
 
     logger.debug("submit", "Dropdown updated", {
+      guildId, // <-- NOWE
       userId,
       stage,
       type,
@@ -122,6 +127,7 @@ module.exports = async (interaction) => {
   await interaction.deferReply({ ephemeral: true });
 
   logger.info("submit", "Submit started", {
+    guildId, // <-- NOWE
     userId,
     username,
     stage
@@ -131,6 +137,7 @@ module.exports = async (interaction) => {
 
   if (!data['3'] || !data['0'] || !data['advancing']) {
     logger.warn("submit", "Submit blocked – incomplete selections", {
+      guildId, // <-- NOWE
       userId,
       stage
     });
@@ -146,6 +153,7 @@ module.exports = async (interaction) => {
 
   if (len3 !== 2 || len0 !== 2 || lenAdv !== 6) {
     logger.warn("submit", "Invalid picks count", {
+      guildId, // <-- NOWE
       userId,
       stage,
       "3-0": len3,
@@ -166,6 +174,7 @@ module.exports = async (interaction) => {
 
   if (allTeams.length !== uniqueTeams.size) {
     logger.warn("submit", "Duplicate teams detected", {
+      guildId, // <-- NOWE
       userId,
       stage
     });
@@ -180,6 +189,7 @@ module.exports = async (interaction) => {
 
   if (invalidTeams.length > 0) {
     logger.warn("submit", "Invalid team names detected", {
+      guildId, // <-- NOWE
       userId,
       stage,
       invalidTeams
@@ -195,6 +205,7 @@ module.exports = async (interaction) => {
   // ==================================================
   try {
     logger.info("submit", "Saving picks to database", {
+      guildId, // <-- NOWE
       userId,
       stage
     });
@@ -221,6 +232,7 @@ module.exports = async (interaction) => {
     cache.delete(cacheKey);
 
     logger.info("submit", "Submit successful", {
+      guildId, // <-- NOWE
       userId,
       username,
       stage,
@@ -237,6 +249,7 @@ module.exports = async (interaction) => {
     );
   } catch (err) {
     logger.error("submit", "Submit failed", {
+      guildId, // <-- NOWE
       userId,
       username,
       stage,

@@ -16,13 +16,17 @@ function loadTeams() {
 
 function uniq(arr) { return Array.from(new Set(arr)); }
 
-const cache = new Map(); // userId -> { upper_final_a:[], lower_final_a:[], upper_final_b:[], lower_final_b:[] }
+// cache: `${guildId}:${userId}` -> { upper_final_a:[], lower_final_a:[], upper_final_b:[], lower_final_b:[] }
+const cache = new Map();
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
 
   const { user, customId } = interaction;
   const userId = user.id;
+  const guildId = interaction.guildId || 'dm';
+  const cacheKey = `${guildId}:${userId}`;
+
   const username = user.username;
   const displayName = interaction.member?.displayName || username;
 
@@ -43,12 +47,12 @@ module.exports = async (interaction) => {
       return;
     }
 
-    if (!cache.has(userId)) cache.set(userId, {});
-    const data = cache.get(userId);
+    if (!cache.has(cacheKey)) cache.set(cacheKey, {});
+    const data = cache.get(cacheKey);
     data[key] = uniq(values).slice(0, 2);
-    cache.set(userId, data);
+    cache.set(cacheKey, data);
 
-    logger.info(`[Double Elim] ${username} (${userId}) wybrał ${key}: ${data[key].join(', ')}`);
+    logger.info(`[Double Elim] ${username} (${userId}) [${guildId}] wybrał ${key}: ${data[key].join(', ')}`);
     await interaction.deferUpdate();
     return;
   }
@@ -56,7 +60,7 @@ module.exports = async (interaction) => {
   // Zatwierdzenie zapisuje JSON-em
   if (interaction.isButton() && customId === 'confirm_doubleelim') {
     const teams = loadTeams();
-    const picks = cache.get(userId) || {};
+    const picks = cache.get(cacheKey) || {};
 
     const required = ['upper_final_a', 'lower_final_a', 'upper_final_b', 'lower_final_b'];
     const missing = required.filter(k => !Array.isArray(picks[k]) || picks[k].length !== 2);
@@ -113,11 +117,11 @@ module.exports = async (interaction) => {
         ]
       );
 
-      cache.delete(userId);
-      logger.info(`[Double Elim] Zapisano typy (2/slot) ${username} (${userId}).`);
+      cache.delete(cacheKey);
+      logger.info(`[Double Elim] Zapisano typy (2/slot) ${username} (${userId}) [${guildId}].`);
       return interaction.reply({ content: '✅ Twoje typy zostały zapisane!', ephemeral: true });
     } catch (err) {
-      logger.error(`[Double Elim] Błąd zapisu typów dla ${username} (${userId}):`, err);
+      logger.error(`[Double Elim] Błąd zapisu typów dla ${username} (${userId}) [${guildId}]:`, err);
       return interaction.reply({ content: '❌ Wystąpił błąd podczas zapisu typów. Spróbuj ponownie.', ephemeral: true });
     }
   }

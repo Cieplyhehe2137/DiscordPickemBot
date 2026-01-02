@@ -15,7 +15,8 @@ function loadTeams() {
   return [];
 }
 
-const adminCache = new Map(); // adminId -> { upper_final_a:[], lower_final_a:[], upper_final_b:[], lower_final_b:[] }
+// cache per guild + admin
+const adminCache = new Map(); // key: `${guildId}:${adminId}` -> { upper_final_a:[], lower_final_a:[], upper_final_b:[], lower_final_b:[] }
 
 const ID_MAP = {
   official_doubleelim_upper_final_a: 'upper_final_a',
@@ -30,16 +31,18 @@ module.exports = async (interaction) => {
 
     const adminId = interaction.user.id;
     const username = interaction.user.username;
+    const guildId = interaction.guildId || 'dm';
+    const cacheKey = `${guildId}:${adminId}`;
 
-    if (!adminCache.has(adminId)) {
-      adminCache.set(adminId, {
+    if (!adminCache.has(cacheKey)) {
+      adminCache.set(cacheKey, {
         upper_final_a: [],
         lower_final_a: [],
         upper_final_b: [],
         lower_final_b: [],
       });
     }
-    const selection = adminCache.get(adminId);
+    const selection = adminCache.get(cacheKey);
 
     // ======== OBSŁUGA DROPDOWNÓW ========
     if (interaction.isStringSelectMenu() && ID_MAP[interaction.customId]) {
@@ -49,8 +52,8 @@ module.exports = async (interaction) => {
       const vals = Array.isArray(interaction.values) ? interaction.values : [];
       selection[key] = Array.from(new Set(vals)); // unikalne wartości
 
-      adminCache.set(adminId, selection);
-      logger.info(`[Double Elim Results] ${username} (${adminId}) wybrał ${key}: ${selection[key].join(', ')}`);
+      adminCache.set(cacheKey, selection);
+      logger.info(`[Double Elim Results] ${username} (${adminId}) [${guildId}] wybrał ${key}: ${selection[key].join(', ')}`);
       return;
     }
 
@@ -106,9 +109,13 @@ module.exports = async (interaction) => {
         );
 
         await conn.commit();
-        logger.info('[Double Elim Results] ✔ Zapisano oficjalne wyniki, id =', res.insertId);
+        logger.info('[Double Elim Results] ✔ Zapisano oficjalne wyniki', {
+          guildId,
+          adminId,
+          insertId: res.insertId
+        });
 
-        adminCache.delete(adminId);
+        adminCache.delete(cacheKey);
 
         const mk = (arr) => (arr && arr.length ? arr.join(', ') : '—');
         const full =
@@ -128,7 +135,12 @@ module.exports = async (interaction) => {
         return;
       } catch (e) {
         await conn.rollback();
-        logger.error('[Double Elim Results] ❌ DB error:', e);
+        logger.error('[Double Elim Results] ❌ DB error:', {
+          guildId,
+          adminId,
+          message: e?.sqlMessage || e?.message,
+          stack: e?.stack
+        });
         await interaction.editReply(`❌ Błąd zapisu wyników: ${e.sqlMessage || e.message}`);
         return;
       } finally {
