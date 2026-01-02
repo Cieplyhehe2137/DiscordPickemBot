@@ -18,6 +18,6 @@ config/*.env
 # ===== Optional: runtime configs (jeśli generowane) =====
 config/*.local*
 config/*.env
-=======
-tmp/
+!config/*.env.example
+
 
