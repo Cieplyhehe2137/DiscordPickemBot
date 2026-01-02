@@ -3,11 +3,10 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('dis
 const fs = require('fs');
 const path = require('path');
 
-const logger = require('../logger'); // jeśli logger w root (tak jak u Ciebie)
-const { getGuildConfig } = require('./guildRegistry'); // ✅ konfiguracja per guild
+const logger = require('./logger'); // ✅ wrapper loggera (scope, msg, data)
+const { getGuildConfig, getGuildPaths, ensureGuildDirs } = require('./guildRegistry');
 
 const PANEL_TITLE = "📂 Archiwum Pick'Em";
-const BASE_ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum'); // baza, a nie wspólny folder z plikami
 
 function safeLabel(str) {
   if (!str) return 'plik';
@@ -15,14 +14,9 @@ function safeLabel(str) {
   return s.length > 100 ? s.slice(0, 97) + '…' : s;
 }
 
-// 🧩 Zbuduj embed + dropdown (dla konkretnego folderu guild)
+// 🧩 Zbuduj embed + dropdown dla konkretnego guildId
 function buildArchiveMessage(archiveDir) {
   let files = [];
-
-  // upewnij się, że folder istnieje (bez crasha)
-  try {
-    fs.mkdirSync(archiveDir, { recursive: true });
-  } catch (_) {}
 
   if (fs.existsSync(archiveDir)) {
     files = fs.readdirSync(archiveDir)
@@ -43,10 +37,12 @@ function buildArchiveMessage(archiveDir) {
     .setTimestamp(new Date());
 
   const hasFiles = files.length > 0;
+
+  // Discord: max 25 opcji w select
   const options = hasFiles
     ? files.slice(0, 25).map(name => ({
         label: safeLabel(name),
-        value: name,
+        value: name, // UWAGA: value też ma limit 100 znaków – nazwy plików trzymaj krótkie
       }))
     : [{
         label: 'Brak plików archiwum',
@@ -65,53 +61,85 @@ function buildArchiveMessage(archiveDir) {
   return { embed, components: [row] };
 }
 
-// 📤 Utwórz/edytuj pojedynczy panel (PER GUILD)
-module.exports = async function sendArchivePanel(client, guildId) {
-  const cfg = getGuildConfig(guildId);
-  const channelId = cfg?.ARCHIVE_CHANNEL_ID;
+async function findExistingPanelMessage(channel, clientUserId) {
+  try {
+    const messages = await channel.messages.fetch({ limit: 50 });
 
-  if (!channelId) {
-    logger.warn('archive', 'ARCHIVE_CHANNEL_ID missing for guild', { guildId });
-    return;
-  }
+    const found = messages
+      .filter(m => m.author?.id === clientUserId)
+      .find(m => {
+        const e = m.embeds?.[0];
+        return e && e.title === PANEL_TITLE;
+      });
 
-  const channel = await client.channels.fetch(channelId).catch(() => null);
-  if (!channel || !channel.isTextBased?.()) {
-    logger.error('archive', 'Archive channel missing or not text-based', { guildId, channelId });
-    return;
-  }
-
-  // ✅ Guard: kanał musi należeć do tego guilda (chroni przed złym env)
-  if (channel.guildId && channel.guildId !== guildId) {
-    logger.error('archive', 'Archive channel belongs to different guild (misconfigured)', {
-      guildId,
-      channelId,
-      channelGuildId: channel.guildId
+    return found || null;
+  } catch (err) {
+    logger.error('archive', 'Failed to fetch messages for archive panel lookup', {
+      message: err.message,
+      stack: err.stack,
     });
+    return null;
+  }
+}
+
+// 📤 Utwórz/edytuj panel archiwum per guild
+module.exports = async function sendArchivePanel(client, guildId) {
+  const gid = guildId || process.env.GUILD_ID;
+  if (!gid) {
+    logger.error('archive', 'sendArchivePanel called without guildId', {});
     return;
   }
 
-  // ✅ Folder archiwum per guild
-  const archiveDir = path.join(BASE_ARCHIVE_DIR, String(guildId));
-
-  const { embed, components } = buildArchiveMessage(archiveDir);
-
-  // Znajdź istniejący panel (ostatnia wiadomość bota z naszym tytułem)
-  const messages = await channel.messages.fetch({ limit: 50 }).catch(() => null);
-  let panelMessage = null;
-
-  if (messages) {
-    const botId = client.user.id;
-    panelMessage = messages
-      .filter(m => m.author?.id === botId && m.embeds?.length)
-      .find(m => (m.embeds[0].title || '') === PANEL_TITLE) || null;
+  const cfg = getGuildConfig(gid);
+  if (!cfg) {
+    logger.error('archive', 'Missing guild config for sendArchivePanel', { guildId: gid });
+    return;
   }
 
-  if (panelMessage) {
-    await panelMessage.edit({ embeds: [embed], components });
-    logger.info('archive', 'Archive panel updated', { guildId, channelId, messageId: panelMessage.id });
-  } else {
-    const newMsg = await channel.send({ embeds: [embed], components });
-    logger.info('archive', 'Archive panel sent', { guildId, channelId, messageId: newMsg.id });
+  const channelId = String(cfg.ARCHIVE_CHANNEL_ID || '').trim();
+  if (!channelId) {
+    logger.error('archive', 'Missing ARCHIVE_CHANNEL_ID in guild config', { guildId: gid });
+    return;
+  }
+
+  try {
+    ensureGuildDirs(gid);
+    const { archiveDir } = getGuildPaths(gid);
+
+    const channel = await client.channels.fetch(channelId);
+
+    if (!channel || !channel.isTextBased?.()) {
+      logger.error('archive', 'Archive channel not found or not text-based', { guildId: gid, channelId });
+      return;
+    }
+
+    // ✅ Guard: kanał musi należeć do tego guilda
+    if (channel.guildId && String(channel.guildId) !== String(gid)) {
+      logger.error('archive', 'ARCHIVE_CHANNEL_ID points to a channel in another guild', {
+        guildId: gid,
+        channelId,
+        channelGuildId: channel.guildId,
+      });
+      return;
+    }
+
+    const { embed, components } = buildArchiveMessage(archiveDir);
+    const existing = await findExistingPanelMessage(channel, client.user.id);
+
+    if (existing) {
+      await existing.edit({ embeds: [embed], components });
+      logger.info('archive', 'Archive panel updated', { guildId: gid, channelId, messageId: existing.id });
+      return;
+    }
+
+    const sent = await channel.send({ embeds: [embed], components });
+    logger.info('archive', 'Archive panel sent', { guildId: gid, channelId, messageId: sent.id });
+  } catch (err) {
+    logger.error('archive', 'sendArchivePanel failed', {
+      guildId: gid,
+      channelId,
+      message: err.message,
+      stack: err.stack,
+    });
   }
 };

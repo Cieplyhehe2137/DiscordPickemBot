@@ -1,18 +1,16 @@
-// utils/guildContenxt.js
-
+// utils/guildContext.js
 const { AsyncLocalStorage } = require('node:async_hooks');
 
 const als = new AsyncLocalStorage();
 
 function withGuild(guildId, fn) {
-    return als.run({ guildId: guildId ? String(guildId) : null }, fn);
+  const gid = guildId ? String(guildId) : null;
+  return als.run({ guildId: gid }, fn);
 }
 
-function getCurrentGuildId() {
-    return als.getStore()?.guildId || null;
+function getGuildId() {
+  const store = als.getStore();
+  return store?.guildId || null;
 }
 
-module.exports = {
-    withGuild,
-    getCurrentGuildId,
-}
+module.exports = { withGuild, getGuildId };
