@@ -39,8 +39,20 @@ function clampInt(n, min, max) {
   return Math.min(max, Math.max(min, parseInt(n, 10) || min));
 }
 
+function isValidPhase(phase) {
+  return PHASES.some(p => p.value === phase);
+}
+
+function requireValidPhase(phase) {
+  if (!isValidPhase(phase)) {
+    throw new Error(`Invalid phase: ${phase}`);
+  }
+  return phase;
+}
+
 // Zwraca SQL budujący zestaw "user_id, displayname, total_points" dla danej fazy
 function totalsSqlForPhase(conn, phase) {
+  requireValidPhase(phase);
   if (phase === 'global') {
     return `
       SELECT user_id, COALESCE(MAX(displayname), user_id) AS displayname, SUM(points) AS total_points
@@ -85,6 +97,7 @@ function totalsSqlForPhase(conn, phase) {
 
 // Liczba uczestników dla fazy
 async function countParticipants(phase) {
+  requireValidPhase(phase);
   const conn = pool;
   if (phase === 'global') {
     const [rows] = await conn.query(`
@@ -119,6 +132,7 @@ async function countParticipants(phase) {
 
 // Pobranie strony rankingu + moja pozycja/punkty
 async function getPage(phase, page, pageSize, requesterId) {
+  requireValidPhase(phase);
   const offset = (page - 1) * pageSize;
   const conn = pool;
 
@@ -353,6 +367,9 @@ module.exports = {
       if (interaction.isButton() && interaction.customId.startsWith('ranking:nav:')) {
         await interaction.deferUpdate();
         const [, , phase, pageStr, pageSizeStr, dir] = interaction.customId.split(':');
+        if (!isValidPhase(phase)) {
+          return interaction.editReply({ content: 'Nieprawidłowa faza rankingu.', components: [] });
+        }
         const pageSize = clampInt(+pageSizeStr || DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
         const totalCount = await countParticipants(phase);
         const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -391,6 +408,9 @@ module.exports = {
         await interaction.deferUpdate();
         const [, , pageStr, pageSizeStr] = interaction.customId.split(':');
         const phase = interaction.values?.[0] || 'global';
+        if (!isValidPhase(phase)) {
+          return interaction.editReply({ content: 'Nieprawidłowa faza rankingu.', components: [] });
+        }
         const pageSize = clampInt(+pageSizeStr || DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE);
 
         const totalCount = await countParticipants(phase);

@@ -1,6 +1,6 @@
 // utils/restoreBackup.js
 const fs = require('fs');
-const pool = require('../db');
+const db = require('../db');
 
 module.exports = async function restoreBackup(sqlFilePath) {
   if (!fs.existsSync(sqlFilePath)) {
@@ -12,7 +12,7 @@ module.exports = async function restoreBackup(sqlFilePath) {
     throw new Error('Plik backupu jest pusty');
   }
 
-  const connection = await pool.getConnection();
+  const connection = await db.getAdminConnection();
 
   try {
     console.log('[RESTORE] start');
@@ -45,6 +45,6 @@ module.exports = async function restoreBackup(sqlFilePath) {
     console.error('[RESTORE] ROLLBACK', err);
     throw err;
   } finally {
-    connection.release();
+    await connection.end();
   }
 };

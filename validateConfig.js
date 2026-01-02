@@ -10,11 +10,14 @@ module.exports = function validateConfig() {
     'GUILD_ID',
     'DB_HOST',
     'DB_USER',
-    'DB_PASSWORD',
     'DB_NAME',
+    'DB_PORT',
   ];
 
   const missing = requiredVars.filter(v => !process.env[v]);
+  if (!process.env.DB_PASS && !process.env.DB_PASSWORD) {
+    missing.push('DB_PASS/DB_PASSWORD');
+  }
 
   if (missing.length > 0) {
     console.error(`❌ Brakujące zmienne środowiskowe: ${missing.join(', ')}`);

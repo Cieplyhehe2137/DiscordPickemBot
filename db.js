@@ -12,14 +12,13 @@ function buildPoolFromCfg(cfg) {
     host: cfg.DB_HOST,
     port: Number(cfg.DB_PORT || 3306),
     user: cfg.DB_USER,
-    password: cfg.DB_PASS,
+    password: cfg.DB_PASS || cfg.DB_PASSWORD,
     database: cfg.DB_NAME,
     waitForConnections: true,
     connectionLimit: Number(cfg.DB_POOL_LIMIT || 10),
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    multipleStatements: true,
   });
 }
 
@@ -31,10 +30,31 @@ function buildPoolFromEnv() {
     DB_HOST: process.env.DB_HOST,
     DB_PORT: process.env.DB_PORT || '3306',
     DB_USER: process.env.DB_USER,
-    DB_PASS: process.env.DB_PASS,
+    DB_PASS: process.env.DB_PASS || process.env.DB_PASSWORD,
     DB_NAME: process.env.DB_NAME,
     DB_POOL_LIMIT: process.env.DB_POOL_LIMIT || 10,
   });
+}
+
+function resolveConfigFromContext() {
+  const gid = getGuildId();
+  if (gid) {
+    const cfg = getGuildConfig(gid);
+    if (cfg) return cfg;
+  }
+
+  if (!process.env.DB_HOST || !process.env.DB_NAME) {
+    throw new Error('Brak DB_* w root .env i brak config/*.env — nie mam jak zbudować połączenia');
+  }
+
+  return {
+    DB_HOST: process.env.DB_HOST,
+    DB_PORT: process.env.DB_PORT || '3306',
+    DB_USER: process.env.DB_USER,
+    DB_PASS: process.env.DB_PASS || process.env.DB_PASSWORD,
+    DB_NAME: process.env.DB_NAME,
+    DB_POOL_LIMIT: process.env.DB_POOL_LIMIT || 10,
+  };
 }
 
 function getPoolForGuild(guildId) {
@@ -65,6 +85,18 @@ function getPoolFromContext() {
   return defaultPool;
 }
 
+function getAdminConnection() {
+  const cfg = resolveConfigFromContext();
+  return mysql.createConnection({
+    host: cfg.DB_HOST,
+    port: Number(cfg.DB_PORT || 3306),
+    user: cfg.DB_USER,
+    password: cfg.DB_PASS || cfg.DB_PASSWORD,
+    database: cfg.DB_NAME,
+    multipleStatements: true,
+  });
+}
+
 const proxy = new Proxy({}, {
   get(_t, prop) {
     const pool = getPoolFromContext();
@@ -74,5 +106,6 @@ const proxy = new Proxy({}, {
 });
 
 proxy.getPoolForGuild = getPoolForGuild;
+proxy.getAdminConnection = getAdminConnection;
 
 module.exports = proxy;

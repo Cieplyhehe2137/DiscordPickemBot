@@ -1,7 +1,7 @@
 // utils/validateConfig.js
 const fs = require('fs');
 const path = require('path');
-const pool = require('./db'); // mysql2/promise pool
+const pool = require('../db'); // mysql2/promise pool
 const { DateTime } = require('luxon');
 
 const REQUIRED_ENV = [
@@ -209,6 +209,9 @@ module.exports = async function runValidator(client) {
 
   // 2) .env – wymagane klucze
   const missingEnv = REQUIRED_ENV.filter(k => !process.env[k] || String(process.env[k]).trim() === '');
+  if (!process.env.DB_PASS && !process.env.DB_PASSWORD) {
+    missingEnv.push('DB_PASS/DB_PASSWORD');
+  }
   if (missingEnv.length) {
     fail.push(`.env: brak zmiennych → ${missingEnv.join(', ')}`);
   } else {
