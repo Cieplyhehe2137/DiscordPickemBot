@@ -56,3 +56,4 @@ pids/
 
 # ===== Optional: runtime configs (jeśli generowane) =====
 config/*.local*
+config/*.env
