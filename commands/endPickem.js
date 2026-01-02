@@ -9,6 +9,7 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 const pool = require('../db');
+const { withGuild } = require('../utils/guildContext');
 
 const ALLOWED_ROLES = ['1164253439417659456', '1301530484479758407', '1386396019339825363'];
 const ADMIN_USER_ID = process.env.PICKEM_ADMIN_ID || null;
@@ -68,11 +69,20 @@ module.exports = {
       });
 
       collector.on('collect', async (i) => {
-        try {
-          await i.deferUpdate();
-          const phase = String(i.customId).replace('close_phase_', '');
+        const guildId = i.guildId;
+        if (!guildId) {
+          return i.followUp({
+            content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
+            ephemeral: true
+          });
+        }
 
-          const [rows] = await pool.query(
+        return withGuild(guildId, async () => {
+          try {
+            await i.deferUpdate();
+            const phase = String(i.customId).replace('close_phase_', '');
+
+            const [rows] = await pool.query(
             `SELECT message_id, channel_id FROM active_panels WHERE phase = ? AND closed = 0 ORDER BY id DESC LIMIT 1`,
             [phase]
           );
@@ -179,16 +189,17 @@ module.exports = {
             [phase]
           );
 
-          await i.followUp({
-            ephemeral: true,
-            content: editOk
-              ? `✅ Faza \`${phase}\` została zamknięta i przyciski typowania dezaktywowane.`
-              : `✅ Faza \`${phase}\` została zamknięta. (Nie znaleziono przycisków do dezaktywacji lub brak uprawnień do wiadomości).`,
-          });
-        } catch (err) {
-          console.error('[end_pickem] Błąd w collect handler:', err);
-          await i.followUp({ ephemeral: true, content: '❌ Błąd podczas zamykania fazy Pick\'Em.' });
-        }
+            await i.followUp({
+              ephemeral: true,
+              content: editOk
+                ? `✅ Faza \`${phase}\` została zamknięta i przyciski typowania dezaktywowane.`
+                : `✅ Faza \`${phase}\` została zamknięta. (Nie znaleziono przycisków do dezaktywacji lub brak uprawnień do wiadomości).`,
+            });
+          } catch (err) {
+            console.error('[end_pickem] Błąd w collect handler:', err);
+            await i.followUp({ ephemeral: true, content: '❌ Błąd podczas zamykania fazy Pick\'Em.' });
+          }
+        });
       });
     } catch (err) {
       console.error('[end_pickem] Błąd główny:', err);

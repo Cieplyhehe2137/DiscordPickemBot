@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const pool = require('../db.js');
 const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
+const { withGuild } = require('../utils/guildContext');
 
 // Helpery
 function parseList(input) {
@@ -44,12 +45,21 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const userId = interaction.user.id;
-    const manualPhase = interaction.options.getString('faza'); // użytkownik wybrał ręcznie?
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.reply({
+        content: '❌ Ta komenda działa tylko na serwerze (nie w DM).',
+        ephemeral: true
+      });
+    }
 
-    await interaction.deferReply({ ephemeral: true });
+    return withGuild(guildId, async () => {
+      const userId = interaction.user.id;
+      const manualPhase = interaction.options.getString('faza'); // użytkownik wybrał ręcznie?
 
-    try {
+      await interaction.deferReply({ ephemeral: true });
+
+      try {
       // ============================================================
       // 🔍 AUTO-DETEKCJA FAZY
       // ============================================================
@@ -259,11 +269,12 @@ module.exports = {
         embeds: [embed.setDescription('Nieobsługiwana faza.')]
       });
 
-    } catch (err) {
-      console.error('[moje_typy] Error:', err);
-      return interaction.editReply({
-        content: '⚠️ Wystąpił błąd podczas pobierania typów.'
-      });
-    }
+      } catch (err) {
+        console.error('[moje_typy] Error:', err);
+        return interaction.editReply({
+          content: '⚠️ Wystąpił błąd podczas pobierania typów.'
+        });
+      }
+    });
   },
 };

@@ -70,19 +70,27 @@ async function disableAllButtons(message, baseEmbed) {
     }
 }
 
-function startDeadlineReminder(client) {
+function startDeadlineReminder(client, guildId) {
+    if (!guildId) {
+        logger.error('deadline', 'startDeadlineReminder called without guildId');
+        return;
+    }
+
+    const { withGuild } = require('../utils/guildContext');
     let counter = 0;
 
     setInterval(async () => {
         counter++;
         try {
-            const [panels] = await pool.query(
-                `SELECT phase, stage, channel_id, message_id, deadline, reminded, closed 
-         FROM active_panels`
-            );
+            // ✅ Użyj withGuild aby zapewnić właściwy kontekst bazy danych
+            await withGuild(guildId, async () => {
+                const [panels] = await pool.query(
+                    `SELECT phase, stage, channel_id, message_id, deadline, reminded, closed 
+             FROM active_panels`
+                );
 
-            for (const panel of panels) {
-                const { phase, stage, channel_id, message_id, deadline, reminded = 0, closed = 0 } = panel;
+                for (const panel of panels) {
+                    const { phase, stage, channel_id, message_id, deadline, reminded = 0, closed = 0 } = panel;
 
                 if (!deadline) continue;
 
@@ -172,9 +180,14 @@ function startDeadlineReminder(client) {
                         [phase, channel_id, stage ?? null]
                     );
                 }
-            }
+                }
+            });
         } catch (err) {
-            logger.error('❌ Błąd w watcherze deadline:', err);
+            logger.error('deadline', 'Deadline reminder error', {
+                guildId,
+                message: err.message,
+                stack: err.stack,
+            });
         }
     }, 60 * 1000);
 }

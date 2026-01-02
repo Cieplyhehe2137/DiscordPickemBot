@@ -1,4 +1,6 @@
 const pool = require('../db');
+const { getGuildId } = require('../utils/guildContext');
+const logger = require('../utils/logger');
 
 const cleanList = (val) => {
   if (!val) return [];
@@ -14,6 +16,15 @@ const cleanList = (val) => {
 };
 
 module.exports = async function calculateScores() {
+  // ✅ Walidacja: upewnij się, że jesteśmy w kontekście guilda
+  const guildId = getGuildId();
+  if (!guildId) {
+    const error = new Error('calculateScores called without guild context');
+    logger.error('scores', 'calculateScores called without guild context', {});
+    throw error;
+  }
+
+  logger.info('scores', 'Starting score calculation', { guildId });
   console.log('⚙️ Rozpoczynam przeliczanie punktów...');
 
   // === SWISS ===

@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { DateTime } = require('luxon');
 const pool = require('../db');
+const { withGuild } = require('../utils/guildContext');
 
 // ⏱️ helper do formatowania „ile zostało”
 function formatTimeLeft(deadlineUTCDate) {
@@ -59,23 +60,32 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    const phase = interaction.options.getString('phase');
-    const inputStage = interaction.options.getString('stage') || null;
-    const stage = normalizeStage(phase, inputStage);
-    const rawInput = interaction.options.getString('data');
-    const channel = interaction.channel;
-
-    const deadlineDate = DateTime.fromFormat(rawInput, 'yyyy-MM-dd HH:mm', { zone: 'Europe/Warsaw' });
-    if (!deadlineDate.isValid) {
+    const guildId = interaction.guildId;
+    if (!guildId) {
       return interaction.reply({
-        ephemeral: true,
-        content: '❌ Zły format daty. Użyj `YYYY-MM-DD HH:mm`, np. `2025-07-25 11:30`.'
+        content: '❌ Ta komenda działa tylko na serwerze (nie w DM).',
+        ephemeral: true
       });
     }
-    const deadlineUTC = deadlineDate.toUTC().toJSDate();
 
-    // 🔎 znajdź panel w tym kanale dla fazy(+etapu)
-    const [rows] = await pool.query(
+    return withGuild(guildId, async () => {
+      const phase = interaction.options.getString('phase');
+      const inputStage = interaction.options.getString('stage') || null;
+      const stage = normalizeStage(phase, inputStage);
+      const rawInput = interaction.options.getString('data');
+      const channel = interaction.channel;
+
+      const deadlineDate = DateTime.fromFormat(rawInput, 'yyyy-MM-dd HH:mm', { zone: 'Europe/Warsaw' });
+      if (!deadlineDate.isValid) {
+        return interaction.reply({
+          ephemeral: true,
+          content: '❌ Zły format daty. Użyj `YYYY-MM-DD HH:mm`, np. `2025-07-25 11:30`.'
+        });
+      }
+      const deadlineUTC = deadlineDate.toUTC().toJSDate();
+
+      // 🔎 znajdź panel w tym kanale dla fazy(+etapu)
+      const [rows] = await pool.query(
       `SELECT message_id FROM active_panels WHERE phase = ? AND channel_id = ? AND stage <=> ?`,
       [phase, channel.id, stage]
     );
@@ -124,13 +134,14 @@ module.exports = {
       return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });
     }
 
-    // ✅ potwierdzenie
-    await interaction.reply({
-      ephemeral: true,
-      content:
-        `✅ Ustawiono deadline dla \`${phase}\`${stage ? ` (${stage})` : ''}:\n` +
-        `📅 **${deadlineDate.toFormat('yyyy-LL-dd HH:mm')} (Warszawa)**\n` +
-        `🕒 Zapisany jako UTC: \`${deadlineUTC.toISOString()}\``
+      // ✅ potwierdzenie
+      await interaction.reply({
+        ephemeral: true,
+        content:
+          `✅ Ustawiono deadline dla \`${phase}\`${stage ? ` (${stage})` : ''}:\n` +
+          `📅 **${deadlineDate.toFormat('yyyy-LL-dd HH:mm')} (Warszawa)**\n` +
+          `🕒 Zapisany jako UTC: \`${deadlineUTC.toISOString()}\``
+      });
     });
   }
 };

@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const pool = require('../db');
+const { withGuild } = require('../utils/guildContext');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,14 +14,23 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    try {
-      const user = interaction.options.getUser('użytkownik');
-      const member = await interaction.guild.members.fetch(user.id).catch(() => null);
-      const displayName = member?.displayName || user.username;
-      const uid = user.id;
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.reply({
+        content: '❌ Ta komenda działa tylko na serwerze (nie w DM).',
+        ephemeral: true
+      });
+    }
 
-      // JEDNO ZAPYTANIE SQL — POBIERA WSZYSTKO
-      const [rows] = await pool.query(`
+    return withGuild(guildId, async () => {
+      try {
+        const user = interaction.options.getUser('użytkownik');
+        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+        const displayName = member?.displayName || user.username;
+        const uid = user.id;
+
+        // JEDNO ZAPYTANIE SQL — POBIERA WSZYSTKO
+        const [rows] = await pool.query(`
         SELECT 
           u.user_id,
           u.displayname,
@@ -121,15 +131,16 @@ module.exports = {
         );
       }
 
-      await interaction.reply({ embeds: [embed], ephemeral: false });
+        await interaction.reply({ embeds: [embed], ephemeral: false });
 
-    } catch (err) {
-      console.error('❌ Błąd w /miejsce:', err);
-      if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: '❌ Wystąpił błąd.', ephemeral: true });
-      } else {
-        await interaction.reply({ content: '❌ Wystąpił błąd.', ephemeral: true });
+      } catch (err) {
+        console.error('❌ Błąd w /miejsce:', err);
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({ content: '❌ Wystąpił błąd.', ephemeral: true });
+        } else {
+          await interaction.reply({ content: '❌ Wystąpił błąd.', ephemeral: true });
+        }
       }
-    }
+    });
   }
 };

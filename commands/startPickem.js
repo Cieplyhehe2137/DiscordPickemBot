@@ -8,6 +8,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 const pool = require('../db.js');
+const { withGuild } = require('../utils/guildContext');
 
 const allowedRoles = [
   "1164253439417659456",
@@ -110,36 +111,43 @@ module.exports = {
   async handlePhaseSelect(interaction) {
     if (!interaction.isStringSelectMenu() || interaction.customId !== 'select_pickem_phase') return;
 
-    const selected = interaction.values[0];
-    const config = phasesConfig[selected];
-    if (!config) {
-      return interaction.reply({ content: `❌ Nieznana faza: ${selected}`, ephemeral: true });
+    const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.reply({ content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).', ephemeral: true });
     }
 
-    // Przygotuj embed i przycisk dla wybranej fazy
-    const embed = new EmbedBuilder()
-      .setTitle(config.title)
-      .setDescription(config.description)
-      .setColor(config.color);
+    return withGuild(guildId, async () => {
+      const selected = interaction.values[0];
+      const config = phasesConfig[selected];
+      if (!config) {
+        return interaction.reply({ content: `❌ Nieznana faza: ${selected}`, ephemeral: true });
+      }
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(config.buttonId)
-        .setLabel(config.buttonLabel)
-        .setStyle(ButtonStyle.Primary)
-    );
+      // Przygotuj embed i przycisk dla wybranej fazy
+      const embed = new EmbedBuilder()
+        .setTitle(config.title)
+        .setDescription(config.description)
+        .setColor(config.color);
 
-    // Wyślij embed i przycisk na ten sam kanał
-    const message = await interaction.channel.send({ embeds: [embed], components: [row] });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(config.buttonId)
+          .setLabel(config.buttonLabel)
+          .setStyle(ButtonStyle.Primary)
+      );
 
-    // Zapisz panel do bazy active_panels
-    await pool.query(`
-      INSERT INTO active_panels (phase, channel_id, message_id)
-      VALUES (?, ?, ?)
-      ON DUPLICATE KEY UPDATE channel_id=VALUES(channel_id), message_id=VALUES(message_id)
-    `, [selected, interaction.channel.id, message.id]);
+      // Wyślij embed i przycisk na ten sam kanał
+      const message = await interaction.channel.send({ embeds: [embed], components: [row] });
 
-    // Odpowiedz ephemeral użytkownikowi, że faza została uruchomiona
-    await interaction.reply({ content: `✅ Uruchomiono typowanie fazy **${config.title}**`, ephemeral: true });
+      // Zapisz panel do bazy active_panels
+      await pool.query(`
+        INSERT INTO active_panels (phase, channel_id, message_id)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE channel_id=VALUES(channel_id), message_id=VALUES(message_id)
+      `, [selected, interaction.channel.id, message.id]);
+
+      // Odpowiedz ephemeral użytkownikowi, że faza została uruchomiona
+      await interaction.reply({ content: `✅ Uruchomiono typowanie fazy **${config.title}**`, ephemeral: true });
+    });
   }
 };
