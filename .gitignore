@@ -1,59 +1,22 @@
-# ===== Node =====
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# ===== Env / secrets =====
 .env
 .env.*
-!.env.example
-
-# ===== Editor / OS =====
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# ===== Runtime artifacts =====
-logs/
 *.log
-
-# ===== Pick'Em artifacts =====
-archiwum/
-backup/
-exports/
-tmp/
-temp/
-*.xlsx
-*.csv
-
-# (Jeśli trzymasz w repo sample pliki, przenieś je do /samples i od-ignoruj)
-# !samples/*.xlsx
-
-# ===== Uploads / downloads if any =====
-uploads/
-downloads/
-
-# ===== Build outputs (jeśli masz web) =====
+logs/
 dist/
 build/
-.vite/
-.cache/
-
-# ===== Coverage / tests =====
 coverage/
+.DS_Store
+config/
+.md
 
-# ===== PM2 / process files =====
-pids/
-*.pid
-*.seed
+# runtime / uploads / backups (jeśli masz)
 
-# ===== Optional: local DB dumps =====
-*.sql
-*.dump
+
 
 # ===== Optional: runtime configs (jeśli generowane) =====
 config/*.local*
 config/*.env
+=======
+tmp/
+
