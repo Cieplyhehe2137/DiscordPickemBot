@@ -88,6 +88,9 @@ function loadGuildConfigsOnce() {
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = dotenv.parse(raw);
 
+    // aliasy / kompatybilność nazw
+    parsed.DB_PASS = parsed.DB_PASS || parsed.DB_PASSWORD;
+
     const cfg = _validate(parsed, filePath);
     cfg.GUILD_ID = String(cfg.GUILD_ID).trim();
     cfg.DB_PORT = cfg.DB_PORT ? String(cfg.DB_PORT).trim() : '3306';
