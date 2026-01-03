@@ -1,5 +1,6 @@
 // utils/closeExpiredPanels.js
-const pool = require('../db');
+const db = require('../db');
+const { getAllGuildIds } = require('./guildRegistry');
 const {
   EmbedBuilder,
   ButtonBuilder,
@@ -10,14 +11,25 @@ const {
 const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 
+// opcjonalny kontekst (jeśli masz AsyncLocalStorage)
+let runWithGuildId = null;
+try {
+  ({ runWithGuildId } = require('./guildContext'));
+} catch (_) {
+  // brak kontekstu — lecimy bez niego
+}
+
+async function withGuildContext(guildId, fn) {
+  if (typeof runWithGuildId === 'function') {
+    return runWithGuildId(String(guildId), fn);
+  }
+  return fn();
+}
+
 /* ======================================================
    🔒 BEZPIECZNE ZAPYTANIA SQL — ODPORNE NA CYBRANCEE
-   Automatyczny retry przy:
-   - ER_SERVER_SHUTDOWN
-   - PROTOCOL_CONNECTION_LOST
-   - ECONNREFUSED
    ====================================================== */
-async function safeQuery(sql, params = [], attempt = 1) {
+async function safeQuery(pool, sql, params = [], attempt = 1) {
   try {
     return await pool.query(sql, params);
   } catch (err) {
@@ -31,7 +43,7 @@ async function safeQuery(sql, params = [], attempt = 1) {
         `⚠️  MySQL niedostępny (próba ${attempt}/3): ${err.code}. Retrying za 2s...`
       );
       await new Promise((res) => setTimeout(res, 2000));
-      return safeQuery(sql, params, attempt + 1);
+      return safeQuery(pool, sql, params, attempt + 1);
     }
 
     throw err;
@@ -169,9 +181,12 @@ async function sendTrendsAfterDeadline(client, panelRow) {
   }
 }
 
-async function closeExpiredPanels(client) {
+async function closeExpiredPanelsForGuild(client, guildId) {
+  const pool = db.getPoolForGuild(guildId);
+
   try {
     const [rows] = await safeQuery(
+      pool,
       `SELECT id, message_id, channel_id, phase, stage, deadline
          FROM active_panels
         WHERE active = 1
@@ -185,13 +200,13 @@ async function closeExpiredPanels(client) {
       try {
         const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
         if (!channel) {
-          console.warn(`⚠️ Brak kanału ${panel.channel_id} (panel ${panel.id})`);
+          console.warn(`⚠️ [${guildId}] Brak kanału ${panel.channel_id} (panel ${panel.id})`);
           continue;
         }
 
         const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
         if (!msg) {
-          console.warn(`⚠️ Brak wiadomości ${panel.message_id} (panel ${panel.id})`);
+          console.warn(`⚠️ [${guildId}] Brak wiadomości ${panel.message_id} (panel ${panel.id})`);
           continue;
         }
 
@@ -205,15 +220,14 @@ async function closeExpiredPanels(client) {
         let count = 0;
         let stageNormUsed = null;
         try {
-          const { confirmed, any, stageNorm } = getCountQueryForPhase(panel.phase, panel.stage);
+          const { any, stageNorm } = getCountQueryForPhase(panel.phase, panel.stage);
           stageNormUsed = stageNorm;
           if (any.sql) {
-  const [[r]] = await safeQuery(any.sql, any.params);
-  count = r?.c || 0;
-}
-
+            const [[r]] = await safeQuery(pool, any.sql, any.params);
+            count = r?.c || 0;
+          }
         } catch (e) {
-          console.warn('⚠️ Liczenie uczestników nie powiodło się:', e.message);
+          console.warn(`⚠️ [${guildId}] Liczenie uczestników nie powiodło się:`, e.message);
         }
 
         const noun = count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osób');
@@ -239,18 +253,29 @@ async function closeExpiredPanels(client) {
         const row = new ActionRowBuilder().addComponents(closedBtn);
 
         await msg.edit({ embeds: [embed], components: [row] }).catch(() => {});
-        await safeQuery(`UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id]);
+        await safeQuery(pool, `UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id]);
 
-        console.log(`✅ Zamknięto panel: ${phaseTitle} (msg ${panel.message_id}) — typowało ${count} osób`);
+        console.log(`✅ [${guildId}] Zamknięto panel: ${phaseTitle} (msg ${panel.message_id}) — typowało ${count} osób`);
 
         await sendTrendsAfterDeadline(client, panel);
 
       } catch (e) {
-        console.error('❌ Błąd przy zamykaniu jednego panelu:', e);
+        console.error(`❌ [${guildId}] Błąd przy zamykaniu jednego panelu:`, e);
       }
     }
   } catch (err) {
-    console.error('❌ Błąd w closeExpiredPanels (zapytanie główne):', err);
+    console.error(`❌ [${guildId}] Błąd w closeExpiredPanels (zapytanie główne):`, err);
+  }
+}
+
+async function closeExpiredPanels(client) {
+  const guildIds = getAllGuildIds();
+  if (!guildIds.length) return;
+
+  for (const guildId of guildIds) {
+    await withGuildContext(guildId, async () => {
+      await closeExpiredPanelsForGuild(client, guildId);
+    });
   }
 }
 
