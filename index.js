@@ -1,6 +1,19 @@
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const dotenv = require('dotenv');
+
+const envPath = process.env.ENV_FILE || '.env';
+const resolvedEnvPath = path.isAbsolute(envPath)
+  ? envPath
+  : path.join(process.cwd(), envPath);
+
+dotenv.config({ path: resolvedEnvPath });
+
+console.log('ENV_FILE:', resolvedEnvPath);
+if (!fs.existsSync(resolvedEnvPath)) {
+  console.warn(`⚠️ ENV_FILE path nie istnieje: ${resolvedEnvPath}`);
+}
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
