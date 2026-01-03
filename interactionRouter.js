@@ -39,12 +39,7 @@ function resolveHandler(handlers, handlerName) {
 }
 
 async function _handleInteraction(interaction, client, handlers = {}, maps = {}) {
-  const {
-    buttonMap = {},
-    modalMap = {},
-    selectMap = {},
-    dropdownMap = {},
-  } = maps;
+  const { buttonMap = {}, modalMap = {}, selectMap = {}, dropdownMap = {} } = maps;
 
   try {
     logger.info('interaction', 'Interaction received', {
@@ -148,7 +143,6 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return;
       }
 
-      // Inne przyciski
       await fn(interaction, client);
       return;
     }
@@ -193,7 +187,6 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           return;
         }
 
-        // NOTE: zachowuję Twoje wywołanie z dodatkowymi parametrami
         return fn(interaction, client, handlers, maps);
       }
 
@@ -211,13 +204,10 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client);
       }
 
-      // 3) brak handlera -> ACK + log
       logger.warn('interaction', 'Unhandled select menu', { customId });
       await safeDeferUpdate(interaction);
       return;
     }
-
-    // Inne typy interakcji (autocomplete itd.) – ignorujemy
   } catch (err) {
     logger.error('interaction', 'Unhandled interactionCreate error', {
       message: err.message,
@@ -230,18 +220,17 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) {
-        // ignore
-      }
+      } catch (_) {}
     }
   }
 }
 
 module.exports = async function handleInteraction(interaction, client, handlers = {}, maps = {}) {
-  // DM / brak guildId -> bez kontekstu
   if (!interaction.guildId) {
     return _handleInteraction(interaction, client, handlers, maps);
   }
 
-  return withGuild(interaction.guildId, () => _handleInteraction(interaction, client, handlers, maps));
+  return withGuild(interaction.guildId, async () => {
+    return _handleInteraction(interaction, client, handlers, maps);
+  });
 };

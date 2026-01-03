@@ -140,9 +140,9 @@ client.once('ready', async () => {
 
 const handlers = loadHandlers('handlers');
 
-client.on('interactionCreate', (interaction) => {
+client.on('interactionCreate', async (interaction) => {
   try {
-    handleInteraction(interaction, client, handlers, maps);
+    await handleInteraction(interaction, client, handlers, maps);
   } catch (e) {
     console.error('❌ interactionCreate error:', e);
   }
