@@ -65,14 +65,23 @@ function getPoolFromContext() {
   return defaultPool;
 }
 
-const proxy = new Proxy({}, {
-  get(_t, prop) {
+const api = {
+  getPoolForGuild,
+};
+
+const proxy = new Proxy(api, {
+  get(target, prop) {
+    // 1) Najpierw zwróć własne API (np. getPoolForGuild)
+    if (prop in target) {
+      const v = target[prop];
+      return typeof v === 'function' ? v.bind(target) : v;
+    }
+
+    // 2) Inaczej zachowuj się jak pool z kontekstu
     const pool = getPoolFromContext();
     const value = pool[prop];
     return typeof value === 'function' ? value.bind(pool) : value;
   }
 });
-
-proxy.getPoolForGuild = getPoolForGuild;
 
 module.exports = proxy;
