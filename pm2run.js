@@ -6,4 +6,4 @@ process.argv = [
     "ecosystem.config.js"
 ];
 
-require("/node_modules/pm2/bin/pm2-runtime");
+require("pm2/bin/pm2-runtime");
