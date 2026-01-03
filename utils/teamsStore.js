@@ -33,7 +33,7 @@ function readTeamsJsonFallback() {
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) {
                 return parsed
-                    .map(t => (typeof t === 'string ?' ? t : (t?.name || t?.label || t?.value)))
+                    .map(t => (typeof t === 'string' ? t : (t?.name || t?.label || t?.value)))
                     .map(s => String(s || '').trim())
                     .filter(Boolean);
             }
@@ -100,7 +100,7 @@ async function addTeam(guildId, name, shortName = null) {
     const cleanName = String(name || '').trim();
     if (!cleanName) throw new Error('EMPTY_NAME');
 
-    const [[m]] = await pool.quer(
+    const [[m]] = await pool.query(
         `SELECT COALESCE(MAX(sort_order), 0) AS mx FROM teams WHERE guild_id = ?`,
         [String(guildId)]
     );
@@ -162,7 +162,7 @@ async function seedFromNames(guildId, names, { replace = false, syncFiles = true
     return unique;
 }
 
-async function importFromJsonText(guildId, jsonText, { replace = true } ={}) {
+async function importFromJsonText(guildId, jsonText, { replace = true } = {}) {
     let parsed;
     try {
         parsed = JSON.parse(jsonText);
@@ -170,28 +170,81 @@ async function importFromJsonText(guildId, jsonText, { replace = true } ={}) {
         throw new Error('BAD_JSON');
     }
 
-    if (Array.isArray(parsed)) throw new Error('BAD_FORMAT');
-    const names = parsed
-      .map(t => (typeof t === 'string' ? t : (t?.name || t?.label || t?.value)))
-      .map(s => String(s || '').trim())
-      .filter(Boolean);
+    if (!Array.isArray(parsed)) throw new Error('BAD_FORMAT');
 
-      return seedFromNames(guildId, names, { replace, syncFiles: true });
+    const names = parsed
+        .map(t => (typeof t === 'string' ? t : (t?.name || t?.label || t?.value)))
+        .map(s => String(s || '').trim())
+        .filter(Boolean);
+
+    return seedFromNames(guildId, names, { replace, syncFiles: true });
 }
 
+
+async function renameTeam(guildId, teamId, newName, newShortName = null) {
+    await ensureTable();
+
+    const cleanName = String(newName || '').trim();
+    if (!cleanName) throw new Error('EMPTY_NAME');
+
+    const cleanShort = (newShortName === null || newShortName === undefined || String(newShortName).trim() === '')
+        ? null
+        : String(newShortName).trim();
+
+    const [res] = await pool.query(
+        `UPDATE teams
+     SET name = ?, short_name = ?
+     WHERE guild_id = ? AND id = ?`,
+        [cleanName, cleanShort, String(guildId), Number(teamId)]
+    );
+
+    if (!res.affectedRows) throw new Error('NOT_FOUND');
+
+    await syncFilesFromDb(guildId);
+    return true;
+}
+
+async function toggleTeam(guildId, teamId, active) {
+    await ensureTable();
+
+    // jeśli active nie podane — przełącz
+    let nextActive;
+    if (active === undefined || active === null) {
+        const [[row]] = await pool.query(
+            `SELECT active FROM teams WHERE guild_id = ? AND id = ?`,
+            [String(guildId), Number(teamId)]
+        );
+        if (!row) throw new Error('NOT_FOUND');
+        nextActive = row.active ? 0 : 1;
+    } else {
+        nextActive = active ? 1 : 0;
+    }
+
+    const [res] = await pool.query(
+        `UPDATE teams SET active = ? WHERE guild_id = ? AND id = ?`,
+        [nextActive, String(guildId), Number(teamId)]
+    );
+
+    if (!res.affectedRows) throw new Error('NOT_FOUND');
+
+    await syncFilesFromDb(guildId);
+    return nextActive === 1;
+}
+
+
 module.exports = {
-  ensureTable,
-  listTeams,
-  getTeamNames,
-  addTeam,
-  renameTeam,
-  toggleTeam,
-  deleteTeam,
-  seedFromNames,
-  importFromJsonText,
-  syncFilesFromDb,
-  readTeamsJsonFallback,
-  writeTeamsJsonFiles,
-  ROOT_TEAMS_PATH,
-  DATA_TEAMS_PATH
+    ensureTable,
+    listTeams,
+    getTeamNames,
+    addTeam,
+    renameTeam,
+    toggleTeam,
+    deleteTeam,
+    seedFromNames,
+    importFromJsonText,
+    syncFilesFromDb,
+    readTeamsJsonFallback,
+    writeTeamsJsonFiles,
+    ROOT_TEAMS_PATH,
+    DATA_TEAMS_PATH
 };
