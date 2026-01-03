@@ -21,3 +21,5 @@ config/*.env
 !config/*.env.example
 
 
+.env
+config/hyperland.env config/luffastream.env
