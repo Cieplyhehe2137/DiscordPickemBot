@@ -67,6 +67,7 @@ module.exports = {
   'panel:open:db': 'panelOpenMenu',
   'panel:open:danger': 'panelOpenMenu',
   'panel:danger:cancel': 'panelDangerCancel',
+  'panel:open:teams': 'openTeamsManager',
   'match_admin_start_open:': 'matchAdminStartOpen',
   'match_admin_lock_toggle:': 'matchAdminLockToggle',
 
