@@ -1,31 +1,25 @@
-// validateConfig.js
-const fs = require('fs');
-const path = require('path');
 require('dotenv').config();
 
+const { getAllGuildConfig } = require('./utils/guildRegistry');
+
 module.exports = function validateConfig() {
-  const requiredVars = [
-    'DISCORD_TOKEN',
-    'CLIENT_ID',
-    'GUILD_ID',
-    'DB_HOST',
-    'DB_USER',
-    'DB_PASSWORD',
-    'DB_NAME',
-  ];
+  const requiredRoot = ['DISCORD_TOKEN', 'CLIENT_ID'];
+  const missingRoot = requiredRoot.filter(k => !process.env[k] || !String(process.env[k]).trim());
 
-  const missing = requiredVars.filter(v => !process.env[v]);
-
-  if (missing.length > 0) {
-    console.error(`❌ Brakujące zmienne środowiskowe: ${missing.join(', ')}`);
+  if (missingRoot.length) {
+    console.error(`❌ Brakujące zmienne w root .env: ${missingRoot.join(', ')}`);
     process.exit(1);
   }
 
-  const teamsPath = path.join(__dirname, 'teams.json');
-  if (!fs.existsSync(teamsPath)) {
-    console.error('❌ Brak pliku teams.json w katalogu głównym!');
+  // Walidacja per-guild robi się w guildRegistry (czyta config/*env i sprawdza wymagane klucze).
+  try {
+    const cfgs = getAllGuildConfig();
+    if (!cfgs || !Object.keys(cfgs).length) {
+      console.error('❌ Brak konfiguracji guild (config/*.env) i brak legacy root GUILD_ID/DB_*');
+      process.exit(1);
+    }
+  } catch (e) {
+    console.error(`❌ Błąd konfiguracji guild: ${e.message}`);
     process.exit(1);
   }
-
-  console.log('✅ Konfiguracja poprawna – wszystkie wymagane pliki i zmienne istnieją.');
 };

@@ -3,143 +3,111 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('dis
 const fs = require('fs');
 const path = require('path');
 
-const logger = require('./logger'); // ✅ wrapper loggera (scope, msg, data)
+const logger = require('./logger'); // wrapper loggera (scope, msg, data) lub logger.info/error
 const { getGuildConfig, getGuildPaths, ensureGuildDirs } = require('./guildRegistry');
 
-const PANEL_TITLE = "📂 Archiwum Pick'Em";
+const PANEL_TITLE = "📂 Archiwum Pick'em";
 
 function safeLabel(str) {
   if (!str) return 'plik';
   const s = String(str);
-  return s.length > 100 ? s.slice(0, 97) + '…' : s;
+  return s.length > 80 ? s.slice(0, 77) + '...' : s;
 }
 
-// 🧩 Zbuduj embed + dropdown dla konkretnego guildId
-function buildArchiveMessage(archiveDir) {
-  let files = [];
+function listArchiveFiles(archiveDir) {
+  if (!fs.existsSync(archiveDir)) return [];
+  const files = fs.readdirSync(archiveDir)
+    .filter(f => f.endsWith('.xlsx'))
+    .map(f => ({
+      file: f,
+      full: path.join(archiveDir, f),
+      mtime: fs.statSync(path.join(archiveDir, f)).mtimeMs,
+    }))
+    .sort((a, b) => b.mtime - a.mtime);
 
-  if (fs.existsSync(archiveDir)) {
-    files = fs.readdirSync(archiveDir)
-      .filter(n => n.toLowerCase().endsWith('.xlsx'))
-      .map(name => ({ name, mtime: fs.statSync(path.join(archiveDir, name)).mtimeMs }))
-      .sort((a, b) => b.mtime - a.mtime)
-      .map(x => x.name);
+  return files;
+}
+
+module.exports = async function sendArchivePanel(client, guildId) {
+  // ✅ multi-guild: wymagany guildId
+  const gid = String(guildId || '').trim();
+  if (!gid) throw new Error('sendArchivePanel: guildId jest wymagane (bez fallbacku na process.env.GUILD_ID)');
+
+  const cfg = getGuildConfig(gid);
+  const { archiveDir } = getGuildPaths(gid);
+  ensureGuildDirs(gid);
+
+  const channelId = String(cfg.ARCHIVE_CHANNEL_ID || '').trim();
+  if (!channelId) {
+    // jeśli logger nie ma .error, to możesz zamienić na logger('archivePanel', ...)
+    logger.error?.('archivePanel', 'Missing ARCHIVE_CHANNEL_ID in guild config', { guildId: gid });
+    if (!logger.error) logger('archivePanel', '❌ Missing ARCHIVE_CHANNEL_ID in guild config', { guildId: gid });
+    return;
   }
+
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel) {
+    if (logger.error) logger.error('archivePanel', `Nie mogę pobrać ARCHIVE_CHANNEL_ID=${channelId}`, { guildId: gid });
+    else logger('archivePanel', `❌ Nie mogę pobrać ARCHIVE_CHANNEL_ID=${channelId}`, { guildId: gid });
+    return;
+  }
+
+  // ✅ kanał musi być tekstowy
+  if (!channel.isTextBased?.()) {
+    if (logger.error) logger.error('archivePanel', 'Archive channel is not text-based', { guildId: gid, channelId });
+    else logger('archivePanel', '❌ Archive channel is not text-based', { guildId: gid, channelId });
+    return;
+  }
+
+  // ✅ Guard: kanał musi należeć do tego guilda
+  if (channel.guildId && String(channel.guildId) !== String(gid)) {
+    if (logger.error) logger.error('archivePanel', 'ARCHIVE_CHANNEL_ID wskazuje kanał z innej guildy', {
+      guildId: gid,
+      channelGuildId: channel.guildId,
+      channelId,
+    });
+    else logger('archivePanel', '❌ ARCHIVE_CHANNEL_ID wskazuje kanał z innej guildy', {
+      guildId: gid,
+      channelGuildId: channel.guildId,
+      channelId,
+    });
+    return;
+  }
+
+  const files = listArchiveFiles(archiveDir);
 
   const embed = new EmbedBuilder()
     .setTitle(PANEL_TITLE)
-    .setDescription(
-      files.length
-        ? 'Wybierz jeden z zakończonych turniejów, aby pobrać plik z wynikami.'
-        : 'Brak zakończonych turniejów. Gdy archiwum zostanie uzupełnione, pliki pojawią się tutaj.'
-    )
-    .setColor(0x5865F2)
-    .setTimestamp(new Date());
+    .setDescription(files.length
+      ? 'Wybierz plik z listy poniżej, aby pobrać archiwum.'
+      : 'Brak plików archiwum. Po zakończeniu turnieju pojawią się tutaj eksporty.')
+    .setFooter({ text: `Guild: ${gid}` });
 
-  const hasFiles = files.length > 0;
-
-  // Discord: max 25 opcji w select
-  const options = hasFiles
-    ? files.slice(0, 25).map(name => ({
-        label: safeLabel(name),
-        value: name, // UWAGA: value też ma limit 100 znaków – nazwy plików trzymaj krótkie
-      }))
-    : [{
-        label: 'Brak plików archiwum',
-        value: '__none__',
-        description: 'Pliki pojawią się po zakończeniu turnieju.',
-      }];
+  const options = files.slice(0, 25).map(f => ({
+    label: safeLabel(f.file),
+    value: f.file,
+    description: 'Pobierz plik XLSX',
+  }));
 
   const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('archive_select')
-      .setPlaceholder(hasFiles ? 'Wybierz plik archiwum...' : 'Brak plików archiwum')
-      .setDisabled(!hasFiles)
-      .addOptions(options)
+      .setPlaceholder(files.length ? 'Wybierz archiwum…' : 'Brak archiwów')
+      .setDisabled(!files.length)
+      .addOptions(options.length ? options : [{ label: 'Brak archiwów', value: 'none' }])
   );
 
-  return { embed, components: [row] };
-}
+  // jeśli panel już istnieje — edytuj, inaczej wyślij nowy
+  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+  const existing = messages?.find(m => m.author?.id === client.user.id && m.embeds?.[0]?.title === PANEL_TITLE);
 
-async function findExistingPanelMessage(channel, clientUserId) {
-  try {
-    const messages = await channel.messages.fetch({ limit: 50 });
-
-    const found = messages
-      .filter(m => m.author?.id === clientUserId)
-      .find(m => {
-        const e = m.embeds?.[0];
-        return e && e.title === PANEL_TITLE;
-      });
-
-    return found || null;
-  } catch (err) {
-    logger.error('archive', 'Failed to fetch messages for archive panel lookup', {
-      message: err.message,
-      stack: err.stack,
-    });
-    return null;
-  }
-}
-
-// 📤 Utwórz/edytuj panel archiwum per guild
-module.exports = async function sendArchivePanel(client, guildId) {
-  const gid = guildId || process.env.GUILD_ID;
-  if (!gid) {
-    logger.error('archive', 'sendArchivePanel called without guildId', {});
-    return;
-  }
-
-  const cfg = getGuildConfig(gid);
-  if (!cfg) {
-    logger.error('archive', 'Missing guild config for sendArchivePanel', { guildId: gid });
-    return;
-  }
-
-  const channelId = String(cfg.ARCHIVE_CHANNEL_ID || '').trim();
-  if (!channelId) {
-    logger.error('archive', 'Missing ARCHIVE_CHANNEL_ID in guild config', { guildId: gid });
-    return;
-  }
-
-  try {
-    ensureGuildDirs(gid);
-    const { archiveDir } = getGuildPaths(gid);
-
-    const channel = await client.channels.fetch(channelId);
-
-    if (!channel || !channel.isTextBased?.()) {
-      logger.error('archive', 'Archive channel not found or not text-based', { guildId: gid, channelId });
-      return;
-    }
-
-    // ✅ Guard: kanał musi należeć do tego guilda
-    if (channel.guildId && String(channel.guildId) !== String(gid)) {
-      logger.error('archive', 'ARCHIVE_CHANNEL_ID points to a channel in another guild', {
-        guildId: gid,
-        channelId,
-        channelGuildId: channel.guildId,
-      });
-      return;
-    }
-
-    const { embed, components } = buildArchiveMessage(archiveDir);
-    const existing = await findExistingPanelMessage(channel, client.user.id);
-
-    if (existing) {
-      await existing.edit({ embeds: [embed], components });
-      logger.info('archive', 'Archive panel updated', { guildId: gid, channelId, messageId: existing.id });
-      return;
-    }
-
-    const sent = await channel.send({ embeds: [embed], components });
-    logger.info('archive', 'Archive panel sent', { guildId: gid, channelId, messageId: sent.id });
-  } catch (err) {
-    logger.error('archive', 'sendArchivePanel failed', {
-      guildId: gid,
-      channelId,
-      message: err.message,
-      stack: err.stack,
-    });
+  if (existing) {
+    await existing.edit({ embeds: [embed], components: [row] });
+    if (logger.info) logger.info('archivePanel', 'Zaktualizowano panel archiwum', { guildId: gid, channelId });
+    else logger('archivePanel', '✅ Zaktualizowano panel archiwum', { guildId: gid, channelId });
+  } else {
+    await channel.send({ embeds: [embed], components: [row] });
+    if (logger.info) logger.info('archivePanel', 'Wysłano panel archiwum', { guildId: gid, channelId });
+    else logger('archivePanel', '✅ Wysłano panel archiwum', { guildId: gid, channelId });
   }
 };

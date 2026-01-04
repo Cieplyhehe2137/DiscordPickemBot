@@ -1,13 +1,13 @@
 // db.js
 const mysql = require('mysql2/promise');
-const logger = require('./utils/logger');
-const { getGuildId } = require('./utils/guildContext');
-const { getGuildConfig } = require('./utils/guildRegistry');
+const path = require('path');
 
-const pools = new Map();
-let defaultPool = null;
+const { loadGuildConfigsOnce, getGuildConfig } = require('./utils/guildRegistry');
+const { getCurrentGuildId, getGuildId } = require('./utils/guildContext');
 
-function buildPoolFromCfg(cfg) {
+let _pools = {};
+
+function createPoolFromCfg(cfg) {
   return mysql.createPool({
     host: cfg.DB_HOST,
     port: Number(cfg.DB_PORT || 3306),
@@ -19,69 +19,59 @@ function buildPoolFromCfg(cfg) {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    multipleStatements: true,
-  });
+    multipleStatements: false,
+  })
 }
 
 function buildPoolFromEnv() {
   if (!process.env.DB_HOST || !process.env.DB_NAME) {
-    throw new Error('Brak DB_* w root .env i brak config/*.env — nie mam jak zbudować poola');
+    throw new Error('Brak DB_* w root .env i brak config/*.env - nie mam jak zbudować poola.');
   }
-  return buildPoolFromCfg({
-    DB_HOST: process.env.DB_HOST,
-    DB_PORT: process.env.DB_PORT || '3306',
-    DB_USER: process.env.DB_USER,
-    DB_PASS: process.env.DB_PASS,
-    DB_NAME: process.env.DB_NAME,
-    DB_POOL_LIMIT: process.env.DB_POOL_LIMIT || 10,
+
+  return mysql.createPool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS || process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: Number(process.env.DB_POOL_LIMIT || 10),
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0,
+    multipleStatements: false,
   });
 }
 
 function getPoolForGuild(guildId) {
-  const gid = String(guildId);
-  if (pools.has(gid)) return pools.get(gid);
+  const gid = String(guildId || '').trim();
+  if (!gid) throw new Error('getPoolForGuild: guildId jest wymagane');
+
+  if (_pools[gid]) return _pools[gid];
+
+  // upewniamy się, że configi są załadowane (rzuci błędem jeśli są braki)
+  loadGuildConfigsOnce();
 
   const cfg = getGuildConfig(gid);
-  if (!cfg) throw new Error(`Brak configu dla guildId=${gid} (config/*.env)`);
-
-  const pool = buildPoolFromCfg(cfg);
-  pools.set(gid, pool);
-
-  logger.info('db', 'Created MySQL pool for guild', { guildId: gid, db: cfg.DB_NAME });
+  const pool = createPoolFromCfg(cfg);
+  _pools[gid] = pool;
   return pool;
 }
 
-function getPoolFromContext() {
-  const gid = getGuildId();
-  if (gid) {
-    try {
-      return getPoolForGuild(gid);
-    } catch (e) {
-      logger.warn('db', 'No guild pool for context, falling back', { guildId: gid, message: e.message });
-    }
-  }
+// Proxy pool: bierzemy guild z kontekstu withGuild(...)
+const poolProxy = new Proxy({}, {
+  get(_target, prop) {
+    if (prop === 'getPoolForGuild') return getPoolForGuild;
 
-  if (!defaultPool) defaultPool = buildPoolFromEnv();
-  return defaultPool;
-}
+    // legacy fallback: jeśli ktoś zawoła bez withGuild(...) i bez multi-configów
+    const gid = getCurrentGuildId();
+    if (gid) return getPoolForGuild(gid)[prop].bind(getPoolForGuild(gid));
 
-const api = {
-  getPoolForGuild,
-};
-
-const proxy = new Proxy(api, {
-  get(target, prop) {
-    // 1) Najpierw zwróć własne API (np. getPoolForGuild)
-    if (prop in target) {
-      const v = target[prop];
-      return typeof v === 'function' ? v.bind(target) : v;
-    }
-
-    // 2) Inaczej zachowuj się jak pool z kontekstu
-    const pool = getPoolFromContext();
-    const value = pool[prop];
-    return typeof value === 'function' ? value.bind(pool) : value;
+    // jeśli nie ma kontekstu - spróbujemy zbudować z root env (legacy)
+    const legacy = buildPoolFromEnv();
+    return legacy[prop].bind(legacy);
   }
 });
 
-module.exports = proxy;
+module.exports = poolProxy;
+module.exports.getPoolForGuild = getPoolForGuild;

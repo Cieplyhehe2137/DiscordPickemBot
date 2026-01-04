@@ -6,7 +6,7 @@ const {
   ButtonStyle,
 } = require('discord.js');
 
-const logger = require('./logger'); // ✅ wrapper loggera (scope, msg, data)
+const logger = require('./logger'); // wrapper loggera (scope, msg, data)
 const { getGuildConfig } = require('./guildRegistry');
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
@@ -14,7 +14,8 @@ const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
 // Bezpieczne pobranie ostatnich wiadomości i znalezienie panelu do edycji
 async function findExistingPanelMessage(channel, clientUserId) {
   try {
-    const messages = await channel.messages.fetch({ limit: 50 });
+    // 50 jest OK, ale 20 zwykle wystarczy i mniej obciąża
+    const messages = await channel.messages.fetch({ limit: 20 });
 
     const found = messages
       .filter(m => m.author?.id === clientUserId)
@@ -77,9 +78,10 @@ function buildPanelPayload() {
 }
 
 module.exports = async function startExportPanel(client, guildId) {
-  const gid = guildId || process.env.GUILD_ID;
+  // ✅ MULTI-GUILD: wymagamy guildId (bez fallbacku do process.env.GUILD_ID)
+  const gid = String(guildId || '').trim();
   if (!gid) {
-    logger.error('panel', 'startExportPanel called without guildId', {});
+    logger.error('panel', 'startExportPanel called without guildId (required in multi-guild)', {});
     return;
   }
 
