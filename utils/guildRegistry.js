@@ -142,4 +142,5 @@ module.exports = {
   getGuildConfig,
   getGuildPaths,
   ensureGuildDirs,
+  loadGuildConfigsOnce,
 };
