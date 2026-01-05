@@ -27,41 +27,73 @@ async function withGuildContext(guildId, fn) {
 }
 
 /* ======================================================
-   🔒 BEZPIECZNE ZAPYTANIA SQL — ODPORNE NA CYBRANCEE
+   🔒 BEZPIECZNE ZAPYTANIA SQL — ODPORNE NA CYBRANCEE (ETIMEDOUT etc.)
    ====================================================== */
-async function safeQuery(pool, sql, params = [], attempt = 1) {
-  try {
-    return await pool.query(sql, params);
-  } catch (err) {
-    const transient =
-      err.code === 'ER_SERVER_SHUTDOWN' ||
-      err.code === 'PROTOCOL_CONNECTION_LOST' ||
-      err.code === 'ECONNREFUSED';
+const TRANSIENT_DB_CODES = new Set([
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'EPIPE',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ENETUNREACH',
+  'EHOSTUNREACH',
+  'PROTOCOL_CONNECTION_LOST',
+  'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR',
+  'PROTOCOL_ENQUEUE_AFTER_QUIT',
+  'ER_SERVER_SHUTDOWN',
+  'ER_CON_COUNT_ERROR',
+  'ER_TOO_MANY_USER_CONNECTIONS',
+]);
 
-    if (transient && attempt <= 3) {
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function safeQuery(pool, sql, params = [], opts = {}) {
+  const guildId = opts.guildId ? String(opts.guildId) : undefined;
+  const label = opts.label ? String(opts.label) : undefined;
+
+  const maxAttempts = Math.max(1, Number(opts.maxAttempts || 3));
+  const baseDelayMs = Math.max(200, Number(opts.baseDelayMs || 500));
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await pool.query(sql, params);
+    } catch (err) {
+      const code = err?.code;
+      const transient = code && TRANSIENT_DB_CODES.has(code);
+
+      if (!transient || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const jitter = Math.floor(Math.random() * 200);
+      const delay = baseDelayMs * (2 ** (attempt - 1)) + jitter;
+
+      const prefix = guildId ? `[${guildId}] ` : '';
+      const q = label ? ` (${label})` : '';
       console.warn(
-        `⚠️  MySQL niedostępny (próba ${attempt}/3): ${err.code}. Retrying za 2s...`
+        `⚠️ ${prefix}MySQL chwilowo niedostępny${q}: ${code}. Retry za ${delay}ms (próba ${attempt}/${maxAttempts})`
       );
-      await new Promise((res) => setTimeout(res, 2000));
-      return safeQuery(pool, sql, params, attempt + 1);
-    }
 
-    throw err;
+      await sleep(delay);
+    }
   }
 }
+
+/* ======================================================
+   🧯 ANTY-OVERLAP (setInterval potrafi odpalić drugi tick zanim skończy pierwszy)
+   ====================================================== */
+let _closeExpiredPanelsRunningGlobal = false;
+const _closeExpiredPanelsRunningByGuild = new Set();
 
 /* ====================================================== */
 
 function prettyPhase(phaseRaw = '') {
   const p = String(phaseRaw || '').toLowerCase();
 
-  if (p.includes('swiss') || /\bstage[-_ ]?(1|2|3)\b|\b(1|2|3)\b/.test(p)) {
-    const m = p.match(/stage[-_ ]?(1|2|3)|\b(1|2|3)\b/);
-    const n = (m && (m[1] || m[2])) ? (m[1] || m[2]) : '';
-    return n ? `Swiss (STAGE${n})` : 'Swiss';
-  }
+  if (!p) return 'Panel';
+
   if (p.includes('playoffs')) return 'Playoffs';
-  if (p.includes('double')) return 'Double Elimination';
   if (p.includes('playin') || p.includes('play-in') || p.includes('play_in')) return 'Play-In';
 
   return (phaseRaw || '').toString().toUpperCase();
@@ -83,16 +115,17 @@ function getCountQueryForPhase(phaseRaw = '', stageFromPanel = null) {
       confirmed: {
         sql: `SELECT COUNT(DISTINCT user_id) AS c
               FROM swiss_predictions
-              WHERE ${stageNorm ? 'stage = ? AND ' : ''} active = 1`,
-        params: stageNorm ? [stageNorm] : [],
+              WHERE active = 1
+                AND stage = ?`,
+        params: [stageNorm || 'stage1'],
       },
       any: {
         sql: `SELECT COUNT(DISTINCT user_id) AS c
               FROM swiss_predictions
-              WHERE ${stageNorm ? 'stage = ?' : '1=1'}`,
-        params: stageNorm ? [stageNorm] : [],
+              WHERE stage = ?`,
+        params: [stageNorm || 'stage1'],
       },
-      stageNorm,
+      stageNorm: stageNorm || 'stage1',
     };
   }
 
@@ -100,14 +133,6 @@ function getCountQueryForPhase(phaseRaw = '', stageFromPanel = null) {
     return {
       confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions WHERE active = 1`, params: [] },
       any:       { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions`, params: [] },
-      stageNorm: null,
-    };
-  }
-
-  if (p.includes('double')) {
-    return {
-      confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM doubleelim_predictions WHERE active = 1`, params: [] },
-      any:       { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM doubleelim_predictions`, params: [] },
       stageNorm: null,
     };
   }
@@ -142,34 +167,26 @@ async function sendTrendsAfterDeadline(client, panelRow) {
     let order;
 
     if (phaseLower.includes('swiss') || panelRow.stage) {
-      const st = panelRow.stage;
-      stageHuman =
-        st === 'stage1' ? 'Swiss 1' :
-        st === 'stage2' ? 'Swiss 2' :
-        st === 'stage3' ? 'Swiss 3' : 'Swiss';
-      title = `Trendy typowania – ${stageHuman}`;
-      order = ['3-0', '0-3', 'Awans'];
+      stageHuman = (panelRow.stage || '').toUpperCase();
+      title = `📊 Trendy po deadline • Swiss (${stageHuman || 'STAGE'})`;
+      order = 'byStageThenConfidence';
     } else if (phaseLower.includes('playoffs')) {
-      title = 'Trendy typowania – Playoffs';
-      order = ['Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce'];
-    } else if (phaseLower.includes('double')) {
-      title = 'Trendy typowania – Double Elimination';
-      order = ['Upper Final – Grupa A', 'Lower Final – Grupa A', 'Upper Final – Grupa B', 'Lower Final – Grupa B'];
+      title = '📊 Trendy po deadline • Playoffs';
+      order = 'byConfidence';
     } else if (phaseLower.includes('playin') || phaseLower.includes('play-in') || phaseLower.includes('play_in')) {
-      title = 'Trendy typowania – Play-In';
-      order = ['Awans'];
+      title = '📊 Trendy po deadline • Play-In';
+      order = 'byConfidence';
     } else {
-      order = Object.keys(stats.buckets || {});
+      title = `📊 Trendy po deadline • ${phaseLabel}`;
+      order = 'byConfidence';
     }
 
     const embed = buildPopularityEmbedGrouped(stats, {
       title,
-      phase: phaseLabel,
-      stage: stageHuman,
-      rawPhase: phaseLower.includes('double') ? 'doubleelim'
-             : phaseLower.includes('playin') ? 'playin'
-             : phaseLower.includes('playoffs') ? 'playoffs'
-             : 'swiss',
+      phaseGroup:
+        phaseLower.includes('playoffs') ? 'playoffs'
+          : (phaseLower.includes('playin') || phaseLower.includes('play-in') || phaseLower.includes('play_in')) ? 'playin'
+          : 'swiss',
       topPerBucket: 30,
       order,
       showEmptyBuckets: false,
@@ -182,6 +199,10 @@ async function sendTrendsAfterDeadline(client, panelRow) {
 }
 
 async function closeExpiredPanelsForGuild(client, guildId) {
+  guildId = String(guildId);
+  if (_closeExpiredPanelsRunningByGuild.has(guildId)) return;
+  _closeExpiredPanelsRunningByGuild.add(guildId);
+
   const pool = db.getPoolForGuild(guildId);
 
   try {
@@ -191,7 +212,9 @@ async function closeExpiredPanelsForGuild(client, guildId) {
          FROM active_panels
         WHERE active = 1
           AND deadline IS NOT NULL
-          AND NOW() >= deadline`
+          AND NOW() >= deadline`,
+      [],
+      { guildId, label: 'select_expired_panels' }
     );
 
     if (!rows.length) return;
@@ -200,13 +223,15 @@ async function closeExpiredPanelsForGuild(client, guildId) {
       try {
         const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
         if (!channel) {
-          console.warn(`⚠️ [${guildId}] Brak kanału ${panel.channel_id} (panel ${panel.id})`);
+          console.warn(`⚠️ [${guildId}] Brak kanału ${panel.channel_id} (panel ${panel.id}) – dezaktywuję w DB`);
+          await safeQuery(pool, `UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id], { guildId, label: 'deactivate_missing_channel' }).catch(() => {});
           continue;
         }
 
         const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
         if (!msg) {
-          console.warn(`⚠️ [${guildId}] Brak wiadomości ${panel.message_id} (panel ${panel.id})`);
+          console.warn(`⚠️ [${guildId}] Brak wiadomości ${panel.message_id} (panel ${panel.id}) – dezaktywuję w DB`);
+          await safeQuery(pool, `UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id], { guildId, label: 'deactivate_missing_message' }).catch(() => {});
           continue;
         }
 
@@ -223,7 +248,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
           const { any, stageNorm } = getCountQueryForPhase(panel.phase, panel.stage);
           stageNormUsed = stageNorm;
           if (any.sql) {
-            const [[r]] = await safeQuery(pool, any.sql, any.params);
+            const [[r]] = await safeQuery(pool, any.sql, any.params, { guildId, label: 'count_participants' });
             count = r?.c || 0;
           }
         } catch (e) {
@@ -253,7 +278,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
         const row = new ActionRowBuilder().addComponents(closedBtn);
 
         await msg.edit({ embeds: [embed], components: [row] }).catch(() => {});
-        await safeQuery(pool, `UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id]);
+        await safeQuery(pool, `UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id], { guildId, label: 'deactivate_panel' });
 
         console.log(`✅ [${guildId}] Zamknięto panel: ${phaseTitle} (msg ${panel.message_id}) — typowało ${count} osób`);
 
@@ -265,17 +290,26 @@ async function closeExpiredPanelsForGuild(client, guildId) {
     }
   } catch (err) {
     console.error(`❌ [${guildId}] Błąd w closeExpiredPanels (zapytanie główne):`, err);
+  } finally {
+    _closeExpiredPanelsRunningByGuild.delete(guildId);
   }
 }
 
 async function closeExpiredPanels(client) {
-  const guildIds = getAllGuildIds();
-  if (!guildIds.length) return;
+  if (_closeExpiredPanelsRunningGlobal) return;
+  _closeExpiredPanelsRunningGlobal = true;
 
-  for (const guildId of guildIds) {
-    await withGuildContext(guildId, async () => {
-      await closeExpiredPanelsForGuild(client, guildId);
-    });
+  try {
+    const guildIds = getAllGuildIds();
+    if (!guildIds.length) return;
+
+    for (const guildId of guildIds) {
+      await withGuildContext(guildId, async () => {
+        await closeExpiredPanelsForGuild(client, guildId);
+      });
+    }
+  } finally {
+    _closeExpiredPanelsRunningGlobal = false;
   }
 }
 
