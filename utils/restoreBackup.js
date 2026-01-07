@@ -246,7 +246,15 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.log('[RESTORE] start', guildId ? `(guildId=${guildId})` : '');
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query(`SET @__old_sql_mode := @@sql_mode`);
 
+    await connection.query(`
+  SET @__new_sql_mode := @@sql_mode;
+  SET @__new_sql_mode := REPLACE(@__new_sql_mode, 'NO_BACKSLASH_ESCAPES', '');
+  SET @__new_sql_mode := REPLACE(@__new_sql_mode, ',,', ',');
+  SET @__new_sql_mode := TRIM(BOTH ',' FROM @__new_sql_mode);
+  SET SESSION sql_mode := @__new_sql_mode;
+`);
     console.log('[RESTORE] clearing tables...');
     await clearAllTables(connection);
 
@@ -282,7 +290,7 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     }
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-
+    await connection.query(`SET SESSION sql_mode := @__old_sql_mode`);
     console.log('[RESTORE] SUCCESS');
   } catch (err) {
     console.error('[RESTORE] FAIL', err);
