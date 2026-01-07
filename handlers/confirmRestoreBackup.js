@@ -58,7 +58,8 @@ module.exports = async (interaction) => {
     });
 
     try {
-      await restoreBackup(backupPath);
+      // Przekaż guildId jawnie (nawet jeśli restore potrafi go wziąć z kontekstu)
+      await restoreBackup(backupPath, { guildId });
 
       logger.info('restore', 'Backup restored', { guildId, fileName });
 

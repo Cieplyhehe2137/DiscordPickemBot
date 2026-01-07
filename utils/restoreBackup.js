@@ -4,6 +4,7 @@ const mysql = require('mysql2/promise');
 
 // bierzemy config dokładnie tak jak reszta bota (per-guild config/*.env)
 const { loadGuildConfigsOnce, getGuildConfig } = require('./guildRegistry');
+const { getCurrentGuildId } = require('./guildContext');
 
 // -----------------------------
 // helpers: escaping + splitting
@@ -409,7 +410,10 @@ async function execBatch(connection, batchStatements) {
 // -----------------------------
 
 module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
-  const guildId = opts.guildId ? String(opts.guildId) : null;
+  // restore może być wołany bez opts.guildId (np. handler nie przekazał) —
+  // wtedy bierzemy guildId z kontekstu withGuild(...)
+  const ctxGuildId = (typeof getCurrentGuildId === 'function') ? getCurrentGuildId() : null;
+  const guildId = opts.guildId ? String(opts.guildId) : (ctxGuildId ? String(ctxGuildId) : null);
 
   if (!fs.existsSync(sqlFilePath)) throw new Error('Plik backupu nie istnieje');
 
