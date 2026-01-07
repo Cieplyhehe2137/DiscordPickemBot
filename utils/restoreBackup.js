@@ -2,6 +2,13 @@
 const fs = require('fs');
 const db = require('../db');
 
+// apostrof/cudzysłów jest escaped, jeśli bezpośrednio przed nim jest nieparzysta liczba backslashy
+function isEscaped(sql, i) {
+  let cnt = 0;
+  for (let j = i - 1; j >= 0 && sql[j] === '\\'; j--) cnt++;
+  return (cnt % 2) === 1;
+}
+
 /**
  * Split a SQL chunk by ';' at top level (outside quotes/backticks).
  * Used as a fallback when a "statement" actually contains many INSERTs.
@@ -15,32 +22,48 @@ function splitBySemicolonTopLevel(sqlText) {
   let inDouble = false;
   let inBacktick = false;
 
-  for (let i = 0; i < sql.length; i++) {
+  let i = 0;
+  const n = sql.length;
+
+  while (i < n) {
     const ch = sql[i];
-    const next = i + 1 < sql.length ? sql[i + 1] : '';
+    const next = i + 1 < n ? sql[i + 1] : '';
 
     // single quotes
     if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
-        if (next === "'") { stmt += "''"; i++; continue; }
-        const prev = i > 0 ? sql[i - 1] : '';
-        if (prev !== '\\') inSingle = false;
+        const escaped = isEscaped(sql, i);
+
+        // doubled '' only if NOT escaped
+        if (!escaped && next === "'") {
+          stmt += "''";
+          i += 2;
+          continue;
+        }
+
+        if (!escaped) inSingle = false;
+
+        stmt += ch;
+        i++;
+        continue;
       } else {
         inSingle = true;
+        stmt += ch;
+        i++;
+        continue;
       }
-      stmt += ch;
-      continue;
     }
 
     // double quotes
     if (!inSingle && !inBacktick && ch === '"') {
       if (inDouble) {
-        const prev = i > 0 ? sql[i - 1] : '';
-        if (prev !== '\\') inDouble = false;
+        const escaped = isEscaped(sql, i);
+        if (!escaped) inDouble = false;
       } else {
         inDouble = true;
       }
       stmt += ch;
+      i++;
       continue;
     }
 
@@ -48,18 +71,21 @@ function splitBySemicolonTopLevel(sqlText) {
     if (!inSingle && !inDouble && ch === '`') {
       inBacktick = !inBacktick;
       stmt += ch;
+      i++;
       continue;
     }
 
-    // split
+    // split on ; outside quotes
     if (!inSingle && !inDouble && !inBacktick && ch === ';') {
       const t = stmt.trim();
       if (t) out.push(t);
       stmt = '';
+      i++;
       continue;
     }
 
     stmt += ch;
+    i++;
   }
 
   const tail = stmt.trim();
@@ -89,8 +115,7 @@ function splitSqlStatements(sqlText) {
   const len = sql.length;
 
   function isAtLineStart(idx) {
-    if (idx === 0) return true;
-    return sql[idx - 1] === '\n';
+    return idx === 0 || sql[idx - 1] === '\n';
   }
 
   function readToLineEnd(idx) {
@@ -151,24 +176,35 @@ function splitSqlStatements(sqlText) {
       }
     }
 
-    // quotes/backticks
+    // single quotes (FIX: escaped vs doubled)
     if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
-        if (next === "'") { stmt += "''"; i += 2; continue; }
-        const prev = i > 0 ? sql[i - 1] : '';
-        if (prev !== '\\') inSingle = false;
+        const escaped = isEscaped(sql, i);
+
+        if (!escaped && next === "'") {
+          stmt += "''";
+          i += 2;
+          continue;
+        }
+
+        if (!escaped) inSingle = false;
+
+        stmt += ch;
+        i++;
+        continue;
       } else {
         inSingle = true;
+        stmt += ch;
+        i++;
+        continue;
       }
-      stmt += ch;
-      i++;
-      continue;
     }
 
+    // double quotes
     if (!inSingle && !inBacktick && ch === '"') {
       if (inDouble) {
-        const prev = i > 0 ? sql[i - 1] : '';
-        if (prev !== '\\') inDouble = false;
+        const escaped = isEscaped(sql, i);
+        if (!escaped) inDouble = false;
       } else {
         inDouble = true;
       }
@@ -177,6 +213,7 @@ function splitSqlStatements(sqlText) {
       continue;
     }
 
+    // backticks
     if (!inSingle && !inDouble && ch === '`') {
       inBacktick = !inBacktick;
       stmt += ch;
@@ -257,14 +294,12 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   try {
     console.log('[RESTORE] start', guildId ? `(guildId=${guildId})` : '');
 
-    // FK OFF
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     fkDisabled = true;
 
-    // sql_mode: zdejmujemy NO_BACKSLASH_ESCAPES na czas restore (bez multi statements)
+    // zdejmij NO_BACKSLASH_ESCAPES na czas restore (bez multi statements)
     const [[row]] = await connection.query('SELECT @@SESSION.sql_mode AS mode');
     oldSqlMode = String(row?.mode || '');
-
     const newSqlMode = removeMode(oldSqlMode, 'NO_BACKSLASH_ESCAPES');
     if (newSqlMode !== oldSqlMode) {
       await connection.query('SET SESSION sql_mode = ?', [newSqlMode]);
@@ -283,7 +318,7 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       try {
         await connection.query(s);
       } catch (err) {
-        // Fallback for "many INSERTs in one string"
+        // safety fallback: if something is still multi-statement-like, split by ';'
         const insertCount = (s.match(/INSERT\s+INTO/gi) || []).length;
         const looksLikeMulti = insertCount >= 2 && s.includes(';');
 
@@ -295,7 +330,7 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
               if (!stmt2) continue;
               await connection.query(stmt2);
             }
-            continue; // ✅ rescued
+            continue;
           }
         }
 
@@ -309,7 +344,6 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
-    // sprzątanie sesji (nie maskujemy głównego błędu)
     try {
       if (oldSqlMode != null) {
         await connection.query('SET SESSION sql_mode = ?', [oldSqlMode]);
