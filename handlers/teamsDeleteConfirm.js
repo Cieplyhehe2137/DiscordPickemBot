@@ -19,7 +19,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
 
-    const st = teamsState.get(guildId, userId);
+    const st = teamsState.getState(guildId, userId);
     const ids = getSelectedIds(st).map(Number).filter(n => Number.isFinite(n) && n > 0);
 
     if (!ids.length) {
@@ -34,7 +34,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     await deleteTeams(guildId, ids);
 
     // clear selection after delete
-    teamsState.set(guildId, userId, { page: st?.page || 0, selectedTeamIds: [], selectedTeamId: null });
+    teamsState.setState(guildId, userId, { page: st?.page || 0, selectedTeamIds: [], selectedTeamId: null });
 
     const backRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
