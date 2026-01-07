@@ -1,18 +1,25 @@
 // utils/restoreBackup.js
 const fs = require('fs');
-const db = require('../db');
+const mysql = require('mysql2/promise');
 
-// apostrof/cudzysłów jest escaped, jeśli bezpośrednio przed nim jest nieparzysta liczba backslashy
+let getGuildConfig = null;
+try {
+  ({ getGuildConfig } = require('./guildRegistry'));
+} catch (_) {
+  // optional
+}
+
+// -----------------------------
+// helpers: escaping + splitting
+// -----------------------------
+
+// apostrof/cudzysłów jest escaped, jeśli przed nim jest nieparzysta liczba backslashy
 function isEscaped(sql, i) {
   let cnt = 0;
   for (let j = i - 1; j >= 0 && sql[j] === '\\'; j--) cnt++;
   return (cnt % 2) === 1;
 }
 
-/**
- * Split a SQL chunk by ';' at top level (outside quotes/backticks).
- * Used as a fallback when a "statement" actually contains many INSERTs.
- */
 function splitBySemicolonTopLevel(sqlText) {
   const sql = String(sqlText || '').replace(/\r\n/g, '\n');
   const out = [];
@@ -29,7 +36,6 @@ function splitBySemicolonTopLevel(sqlText) {
     const ch = sql[i];
     const next = i + 1 < n ? sql[i + 1] : '';
 
-    // single quotes
     if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
         const escaped = isEscaped(sql, i);
@@ -54,7 +60,6 @@ function splitBySemicolonTopLevel(sqlText) {
       }
     }
 
-    // double quotes
     if (!inSingle && !inBacktick && ch === '"') {
       if (inDouble) {
         const escaped = isEscaped(sql, i);
@@ -67,7 +72,6 @@ function splitBySemicolonTopLevel(sqlText) {
       continue;
     }
 
-    // backticks
     if (!inSingle && !inDouble && ch === '`') {
       inBacktick = !inBacktick;
       stmt += ch;
@@ -75,7 +79,6 @@ function splitBySemicolonTopLevel(sqlText) {
       continue;
     }
 
-    // split on ; outside quotes
     if (!inSingle && !inDouble && !inBacktick && ch === ';') {
       const t = stmt.trim();
       if (t) out.push(t);
@@ -95,11 +98,11 @@ function splitBySemicolonTopLevel(sqlText) {
 }
 
 /**
- * Split SQL dump into statements without using multipleStatements=true.
+ * Split SQL dump into statements (no multipleStatements needed).
  * Supports:
- * - DELIMITER changes (basic)
+ * - DELIMITER changes (basic) — treats delimiter client-side
  * - ignores line comments (--, #) and block comments (/* ... * /) except /*! ... * / (kept)
- * - avoids splitting inside quotes/backticks
+ * - avoids splitting inside quotes/backticks (proper escaping)
  */
 function splitSqlStatements(sqlText) {
   const sql = String(sqlText || '').replace(/\r\n/g, '\n');
@@ -251,6 +254,43 @@ function shouldSkipStatement(s) {
   return false;
 }
 
+function removeMode(modeStr, modeName) {
+  const modes = String(modeStr || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return modes.filter(m => m !== modeName).join(',');
+}
+
+// -----------------------------
+// DB config + maintenance
+// -----------------------------
+
+function getDbConfig(guildId) {
+  if (guildId && typeof getGuildConfig === 'function') {
+    const cfg = getGuildConfig(String(guildId));
+    if (!cfg) throw new Error(`Brak configu DB dla guildId=${guildId}`);
+
+    return {
+      host: cfg.DB_HOST,
+      port: Number(cfg.DB_PORT || 3306),
+      user: cfg.DB_USER,
+      password: cfg.DB_PASS,
+      database: cfg.DB_NAME,
+    };
+  }
+
+  // fallback global
+  return {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASS || process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
+}
+
 async function clearAllTables(connection) {
   const [tables] = await connection.query(`
     SELECT TABLE_NAME AS name
@@ -268,25 +308,107 @@ async function clearAllTables(connection) {
   }
 }
 
-function removeMode(modeStr, modeName) {
-  const modes = String(modeStr || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
+// -----------------------------
+// executor: FAST batches + fallback
+// -----------------------------
 
-  return modes.filter(m => m !== modeName).join(',');
+function buildBatches(statements, opts = {}) {
+  const maxStatementsPerBatch = Math.max(1, Number(opts.maxStatementsPerBatch || 200));
+  const maxBatchBytes = Math.max(64_000, Number(opts.maxBatchBytes || 512_000)); // ~512KB
+
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+
+  for (const s of statements) {
+    if (!s || shouldSkipStatement(s)) continue;
+
+    const one = s.endsWith(';') ? s : (s + ';');
+    const bytes = Buffer.byteLength(one, 'utf8');
+
+    // jeśli pojedynczy statement jest gigantyczny, wrzuć go jako osobny batch
+    if (bytes >= maxBatchBytes) {
+      if (current.length) batches.push(current);
+      batches.push([s]);
+      current = [];
+      currentBytes = 0;
+      continue;
+    }
+
+    if (current.length >= maxStatementsPerBatch || (currentBytes + bytes) > maxBatchBytes) {
+      if (current.length) batches.push(current);
+      current = [s];
+      currentBytes = bytes;
+      continue;
+    }
+
+    current.push(s);
+    currentBytes += bytes;
+  }
+
+  if (current.length) batches.push(current);
+  return batches;
 }
+
+async function execStatementWithFallback(connection, stmt) {
+  try {
+    return await connection.query(stmt);
+  } catch (err) {
+    const insertCount = (stmt.match(/INSERT\s+INTO/gi) || []).length;
+    const looksLikeMulti = insertCount >= 2 && stmt.includes(';');
+
+    if (err?.code === 'ER_PARSE_ERROR' && looksLikeMulti) {
+      const parts = splitBySemicolonTopLevel(stmt);
+      if (parts.length >= 2) {
+        for (const p of parts) {
+          const x = p.trim();
+          if (!x) continue;
+          await connection.query(x);
+        }
+        return;
+      }
+    }
+
+    throw err;
+  }
+}
+
+async function execBatch(connection, batchStatements) {
+  // FAST: spróbuj puścić całą paczkę jednym query (wymaga multipleStatements=true)
+  const sql = batchStatements.map(s => (s.endsWith(';') ? s : s + ';')).join('\n');
+
+  try {
+    await connection.query(sql);
+    return;
+  } catch (err) {
+    // fallback: wykonaj statementy pojedynczo
+    for (const s of batchStatements) {
+      await execStatementWithFallback(connection, s);
+    }
+  }
+}
+
+// -----------------------------
+// main
+// -----------------------------
 
 module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   const guildId = opts.guildId ? String(opts.guildId) : null;
-  const pool = guildId ? db.getPoolForGuild(guildId) : db;
 
   if (!fs.existsSync(sqlFilePath)) throw new Error('Plik backupu nie istnieje');
 
-  const sql = fs.readFileSync(sqlFilePath, 'utf8');
-  if (!sql.trim()) throw new Error('Plik backupu jest pusty');
+  const dump = fs.readFileSync(sqlFilePath, 'utf8');
+  if (!dump.trim()) throw new Error('Plik backupu jest pusty');
 
-  const connection = await pool.getConnection();
+  const dbCfg = getDbConfig(guildId);
+
+  // UWAGA: tutaj celowo włączamy multipleStatements TYLKO dla restore
+  const connection = await mysql.createConnection({
+    ...dbCfg,
+    multipleStatements: true,
+    connectTimeout: 30000,
+    charset: 'utf8mb4',
+  });
 
   let oldSqlMode = null;
   let fkDisabled = false;
@@ -294,10 +416,11 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   try {
     console.log('[RESTORE] start', guildId ? `(guildId=${guildId})` : '');
 
+    // FK OFF
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     fkDisabled = true;
 
-    // zdejmij NO_BACKSLASH_ESCAPES na czas restore (bez multi statements)
+    // zdejmij NO_BACKSLASH_ESCAPES na czas restore
     const [[row]] = await connection.query('SELECT @@SESSION.sql_mode AS mode');
     oldSqlMode = String(row?.mode || '');
     const newSqlMode = removeMode(oldSqlMode, 'NO_BACKSLASH_ESCAPES');
@@ -308,34 +431,29 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.log('[RESTORE] clearing tables...');
     await clearAllTables(connection);
 
-    console.log('[RESTORE] executing dump statements...');
-    const statements = splitSqlStatements(sql);
+    console.log('[RESTORE] parsing dump...');
+    const statementsRaw = splitSqlStatements(dump);
+    const statements = statementsRaw.filter(s => s && !shouldSkipStatement(s));
 
-    for (let idx = 0; idx < statements.length; idx++) {
-      const s = statements[idx];
-      if (!s || shouldSkipStatement(s)) continue;
+    console.log(`[RESTORE] statements: ${statements.length}`);
 
-      try {
-        await connection.query(s);
-      } catch (err) {
-        // safety fallback: if something is still multi-statement-like, split by ';'
-        const insertCount = (s.match(/INSERT\s+INTO/gi) || []).length;
-        const looksLikeMulti = insertCount >= 2 && s.includes(';');
+    console.log('[RESTORE] executing dump statements (FAST batches)...');
+    const batches = buildBatches(statements, {
+      maxStatementsPerBatch: 200,
+      maxBatchBytes: 512_000,
+    });
 
-        if (err?.code === 'ER_PARSE_ERROR' && looksLikeMulti) {
-          const parts = splitBySemicolonTopLevel(s);
-          if (parts.length >= 2) {
-            for (const part of parts) {
-              const stmt2 = part.trim();
-              if (!stmt2) continue;
-              await connection.query(stmt2);
-            }
-            continue;
-          }
-        }
+    const started = Date.now();
+    let done = 0;
 
-        err.message = `[RESTORE] Statement #${idx + 1}/${statements.length} failed: ${err.message}`;
-        throw err;
+    for (let b = 0; b < batches.length; b++) {
+      const batch = batches[b];
+      await execBatch(connection, batch);
+      done += batch.length;
+
+      if (done % 100 === 0 || b === batches.length - 1) {
+        const sec = Math.round((Date.now() - started) / 1000);
+        console.log(`[RESTORE] progress: ${done}/${statements.length} (${sec}s)`);
       }
     }
 
@@ -344,6 +462,7 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
+    // restore session settings
     try {
       if (oldSqlMode != null) {
         await connection.query('SET SESSION sql_mode = ?', [oldSqlMode]);
@@ -356,6 +475,8 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       }
     } catch (_) {}
 
-    connection.release();
+    try {
+      await connection.end();
+    } catch (_) {}
   }
 };
