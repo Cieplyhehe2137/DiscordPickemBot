@@ -17,9 +17,11 @@ module.exports = async function teamsRenameOpen(interaction) {
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
     const st = teamsState.get(guildId, userId);
-    if (!st?.selectedTeamId) {
-        return interaction.reply({ content: '⚠️ Najpierw wybierz drużynę z listy.', ephemeral: true });
+    const ids = Array.isArray(st?.selectedTeamIds) ? st.selectedTeamIds : (st?.selectedTeamId ? [st.selectedTeamId] : []);
+    if (ids.length !== 1) {
+        return interaction.reply({ content: '⚠️ Do zmiany nazwy wybierz dokładnie **1** drużynę.', ephemeral: true });
     }
+
 
     const modal = new ModalBuilder()
         .setCustomId('teams:rename_modal')

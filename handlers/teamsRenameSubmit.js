@@ -9,9 +9,12 @@ module.exports = async function teamsRenameSubmit(interaction) {
         const guildId = interaction.guildId;
         const userId = interaction.user.id;
         const st = teamsState.get(guildId, userId);
-        if (!st?.selectedTeamId) {
-            return interaction.reply({ content: '⚠️ Najpierw wybierz drużynę z listy.', ephemeral: true });
+        const ids = Array.isArray(st?.selectedTeamIds) ? st.selectedTeamIds : (st?.selectedTeamId ? [st.selectedTeamId] : []);
+        if (ids.length !== 1) {
+            return interaction.reply({ content: '⚠️ Do zmiany nazwy wybierz dokładnie **1** drużynę.', ephemeral: true });
         }
+        await renameTeam(guildId, Number(ids[0]), newName, newShort);
+
 
         const newName = interaction.fields.getTextInputValue('team_name')?.trim();
         const newShort = interaction.fields.getTextInputValue('team_short')?.trim() || null;

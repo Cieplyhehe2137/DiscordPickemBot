@@ -4,24 +4,35 @@ const teamsState = require('../utils/teamsState');
 const openTeamsManager = require('./openTeamsManager');
 
 module.exports = async function teamsSelect(interaction) {
-    try {
-        const guildId = interaction.guildId;
-        const userId = interaction.user.id;
-        const value = interaction.values?.[0];
+  try {
+    const guildId = interaction.guildId;
+    const userId = interaction.user.id;
 
-        if (!value || value === 'none') {
-            return interaction.deferUpdate();
-        }
+    const values = Array.isArray(interaction.values) ? interaction.values : [];
 
-        const st = teamsState.get(guildId, userId) || { page: 0, selectedTeamId: null };
-        st.selectedTeamId = Number(value);
-        teamsState.set(guildId, userId, st);
+    const st = teamsState.get(guildId, userId) || { page: 0, selectedTeamIds: [] };
 
-        return openTeamsManager(interaction);
-    } catch (err) {
-        logger.error('teams', 'teamsSelect failed', { message: err.message, stack: err.stack });
-        if (!interaction.replied && !interaction.deferred) {
-            return interaction.reply({ content: '❌ Nie udało się wybrać drużyny.', ephemeral: true });
-        }
+    // allow clear (minValues=0)
+    if (!values.length || values.includes('none')) {
+      st.selectedTeamIds = [];
+      st.selectedTeamId = null; // legacy
+      teamsState.set(guildId, userId, st);
+      return openTeamsManager(interaction);
     }
+
+    const ids = values
+      .map(v => Number(v))
+      .filter(n => Number.isFinite(n) && n > 0);
+
+    st.selectedTeamIds = [...new Set(ids)];
+    st.selectedTeamId = st.selectedTeamIds[0] || null; // legacy compat
+
+    teamsState.set(guildId, userId, st);
+    return openTeamsManager(interaction);
+  } catch (err) {
+    logger.error('teams', 'teamsSelect failed', { message: err.message, stack: err.stack });
+    if (!interaction.replied && !interaction.deferred) {
+      return interaction.reply({ content: '❌ Nie udało się wybrać drużyn.', ephemeral: true });
+    }
+  }
 };

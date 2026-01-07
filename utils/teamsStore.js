@@ -127,6 +127,26 @@ async function deleteTeam(guildId, teamId) {
     await syncFilesFromDb(guildId);
 }
 
+async function deleteTeams(guildId, teamIds) {
+  await ensureTable();
+
+  const ids = [...new Set((Array.isArray(teamIds) ? teamIds : [])
+    .map(n => Number(n))
+    .filter(n => Number.isFinite(n) && n > 0))];
+
+  if (!ids.length) return 0;
+
+  const placeholders = ids.map(() => '?').join(',');
+  await pool.query(
+    `DELETE FROM teams WHERE guild_id = ? AND id IN (${placeholders})`,
+    [String(guildId), ...ids]
+  );
+
+  await syncFilesFromDb(guildId);
+  return ids.length;
+}
+
+
 async function seedFromNames(guildId, names, { replace = false, syncFiles = true } = {}) {
     await ensureTable();
 
@@ -240,6 +260,7 @@ module.exports = {
     renameTeam,
     toggleTeam,
     deleteTeam,
+    deleteTeams,
     seedFromNames,
     importFromJsonText,
     syncFilesFromDb,
