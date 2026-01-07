@@ -26,7 +26,7 @@ function invalidateTeams(guildId) {
   }
 }
 
-export default {
+module.exports = {
   get,
   set,
   clearSelection,
