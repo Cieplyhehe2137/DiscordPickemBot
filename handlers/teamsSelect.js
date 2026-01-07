@@ -10,13 +10,13 @@ module.exports = async function teamsSelect(interaction) {
 
     const values = Array.isArray(interaction.values) ? interaction.values : [];
 
-    const st = teamsState.get(guildId, userId) || { page: 0, selectedTeamIds: [] };
+    const st = teamsState.getState(guildId, userId) || { page: 0, selectedTeamIds: [] };
 
     // allow clear (minValues=0)
     if (!values.length || values.includes('none')) {
       st.selectedTeamIds = [];
       st.selectedTeamId = null; // legacy
-      teamsState.set(guildId, userId, st);
+      teamsState.setState(guildId, userId, st);
       return openTeamsManager(interaction);
     }
 
@@ -27,7 +27,7 @@ module.exports = async function teamsSelect(interaction) {
     st.selectedTeamIds = [...new Set(ids)];
     st.selectedTeamId = st.selectedTeamIds[0] || null; // legacy compat
 
-    teamsState.set(guildId, userId, st);
+    teamsState.setState(guildId, userId, st);
     return openTeamsManager(interaction);
   } catch (err) {
     logger.error('teams', 'teamsSelect failed', { message: err.message, stack: err.stack });
