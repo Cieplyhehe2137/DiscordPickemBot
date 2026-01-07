@@ -1,34 +1,57 @@
-// utils/teamsState.js
 const state = new Map();
 
-function key(guildId, userId) {
-  return `${String(guildId || '0')}:${String(userId || '0')}`;
-}
-
-module.exports = {
-  set(guildId, userId, ctx) {
-    if (!guildId || !userId) return;
-    state.set(key(guildId, userId), ctx);
-  },
-  get(guildId, userId) {
-    if (!guildId || !userId) return null;
-    return state.get(key(guildId, userId)) || null;
-  },
-  clear(guildId, userId) {
-    if (!guildId || !userId) return;
-    state.delete(key(guildId, userId));
+/**
+ * Zwraca stan usera w danej guildii
+ */
+function getState(guildId, userId) {
+  if (!state.has(guildId)) {
+    state.set(guildId, {});
   }
+
+  const guildState = state.get(guildId);
+
+  if (!guildState[userId]) {
+    guildState[userId] = {
+      selectedTeamIds: [],
+      page: 0,
+      teams: null
+    };
+  }
+
+  return guildState[userId];
 }
 
+/**
+ * Nadpisuje fragment stanu
+ */
+function setState(guildId, userId, data) {
+  const s = getState(guildId, userId);
+  Object.assign(s, data);
+}
+
+/**
+ * Czyści tylko zaznaczenie
+ */
+function clearSelection(guildId, userId) {
+  const s = getState(guildId, userId);
+  s.selectedTeamIds = [];
+}
+
+/**
+ * 🔥 KLUCZOWE – unieważnia cache drużyn
+ */
 function invalidateTeams(guildId) {
-  if (state.has(guildId)) {
-    state.get(guildId).teams = null;
+  if (!state.has(guildId)) return;
+
+  const guildState = state.get(guildId);
+  for (const userId of Object.keys(guildState)) {
+    guildState[userId].teams = null;
   }
 }
 
 module.exports = {
-  get,
-  set,
+  getState,
+  setState,
   clearSelection,
   invalidateTeams
-}
+};
