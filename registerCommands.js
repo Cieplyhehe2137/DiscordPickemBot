@@ -1,3 +1,4 @@
+// registerCommands.js
 const fs = require('fs');
 const path = require('path');
 const { REST, Routes } = require('discord.js');
@@ -6,7 +7,6 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.join(__dirname, '.env') });
 
 const { getAllGuildIds } = require('./utils/guildRegistry');
-const { version } = require('os');
 
 const commands = [];
 const commandsDir = path.join(__dirname, 'commands');
@@ -31,7 +31,7 @@ for (const file of commandFiles) {
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
-    // Jeśli podamy w GUILD_ID w root .env - zarejestruje tylko tam (debug/awaryjnie).
+    // Jeśli podamy GUILD_ID w root .env - zarejestruje tylko tam (debug/awaryjnie).
     // W przeciwnym wypadku rejestrujemy po wszystkich guildach z config/*.env.
     const guildIds = (GUILD_ID && String(GUILD_ID).trim())
       ? [String(GUILD_ID).trim()]
@@ -41,11 +41,12 @@ for (const file of commandFiles) {
       throw new Error('Nie znaleziono żadnych guildy do rejestracji (brak GUILD_ID w .env i brak config/*.env).');
     }
 
-    console.log(`🚀 Rejestruję komendy dla ${guildIds.length} guild(y) : ${guildIds.join(', ')}`);
+    console.log(`🚀 Rejestruję komendy dla ${guildIds.length} guild(y): ${guildIds.join(', ')}`);
 
     for (const gid of guildIds) {
       await rest.put(
-        Routes.applicationGuildCommands(GUILD_ID, gid),
+        // ✅ POPRAWKA: tu musi być CLIENT_ID (application id), a nie GUILD_ID
+        Routes.applicationGuildCommands(CLIENT_ID, gid),
         { body: commands }
       );
       console.log(`✅ Komendy zarejestrowane dla guildId=${gid}`);
@@ -53,7 +54,7 @@ for (const file of commandFiles) {
 
     console.log('🎉 Done!');
   } catch (error) {
-    console.error('❌ Rejestracja komendy nieudana.', error);
+    console.error('❌ Rejestracja komend nieudana.', error);
     process.exitCode = 1;
   }
 })();

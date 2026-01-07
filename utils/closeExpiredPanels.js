@@ -11,17 +11,17 @@ const {
 const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 
-// opcjonalny kontekst (jeśli masz AsyncLocalStorage)
-let runWithGuildId = null;
+// ✅ poprawny kontekst ALS (u Ciebie jest withGuild, nie runWithGuildId)
+let withGuild = null;
 try {
-  ({ runWithGuildId } = require('./guildContext'));
+  ({ withGuild } = require('./guildContext'));
 } catch (_) {
   // brak kontekstu — lecimy bez niego
 }
 
 async function withGuildContext(guildId, fn) {
-  if (typeof runWithGuildId === 'function') {
-    return runWithGuildId(String(guildId), fn);
+  if (typeof withGuild === 'function') {
+    return withGuild(String(guildId), fn);
   }
   return fn();
 }

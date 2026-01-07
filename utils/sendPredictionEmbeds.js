@@ -1,69 +1,87 @@
-// utils/sendPredictionEmbed.js
+// utils/sendPredictionEmbeds.js
 const { EmbedBuilder } = require('discord.js');
+const { getGuildConfig, getAllGuildIds } = require('./guildRegistry');
+const logger = require('./logger');
 
-module.exports = async function sendPredictionEmbed(client, typeIn, userId, data = {}) {
-  console.log('================= 📤 sendPredictionEmbed START =================');
-  console.log(`➡️ typeIn =`, typeIn);
-  console.log(`➡️ userId =`, userId);
-  console.log(`➡️ data   =`, JSON.stringify(data));
+/**
+ * Backward compatible:
+ * - old: sendPredictionEmbed(client, typeIn, userId, data)
+ * - new: sendPredictionEmbed(client, guildId, typeIn, userId, data)
+ */
+module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
+  let guildId, typeIn, userId, data;
 
-  console.log('[ENV] LOG_CHANNEL_ID     =', process.env.LOG_CHANNEL_ID || '(brak)');
-  console.log('[ENV] EXPORT_CHANNEL_ID  =', process.env.EXPORT_CHANNEL_ID || '(brak)');
-  console.log('[ENV] GUILD_ID           =', process.env.GUILD_ID || '(brak)');
+  const knownTypes = new Set(['swiss', 'playoffs', 'double', 'playin']);
+  const aNorm = String(a || '').toLowerCase();
 
-  // 1) Normalizacja typu (obsłuż m.in. 'swiss_stage_1')
+  if (knownTypes.has(aNorm) || aNorm.startsWith('swiss_stage_')) {
+    // old signature
+    guildId = d?.guildId ? String(d.guildId) : null;
+    typeIn = a;
+    userId = b;
+    data = c || {};
+  } else {
+    // new signature
+    guildId = a ? String(a) : null;
+    typeIn = b;
+    userId = c;
+    data = d || {};
+  }
+
   const typeRaw = String(typeIn || '').toLowerCase();
   const isSwiss = typeRaw === 'swiss' || typeRaw.startsWith('swiss_stage_');
   const type = isSwiss ? 'swiss' : typeRaw;
 
-  console.log(`🔍 Po normalizacji: isSwiss=${isSwiss}, type='${type}', typeRaw='${typeRaw}'`);
-
-  // 2) Kanał – dla Swiss na sztywno kierujemy na kanał z typami
-  const SWISS_CHANNEL_HARDCODE = '1387843207832010884'; // <- Twój kanał z typami
-
-  let channelId;
-  if (type === 'swiss') {
-    channelId =
-      process.env.SWISS_PREDICTIONS_CHANNEL_ID || // jak kiedyś dodasz osobne env
-      process.env.EXPORT_CHANNEL_ID ||            // ewentualnie wspólny eksport
-      SWISS_CHANNEL_HARDCODE;                     // ostateczny fallback (Twój kanał)
-    console.log(`🆔 [sendPredictionEmbed] WYBRANO kanał dla SWISS = ${channelId}`);
-  } else {
-    channelId =
-      process.env.LOG_CHANNEL_ID ||
-      process.env.EXPORT_CHANNEL_ID ||
-      SWISS_CHANNEL_HARDCODE;
-    console.log(`🆔 [sendPredictionEmbed] WYBRANO kanał type='${type}' = ${channelId}`);
-  }
-
-  // 3) Spróbuj pobrać displayName – nie blokuje wysyłki w razie błędu
-  let displayName = 'Unknown';
-  let mention = `<@${userId}>`;
-
-  try {
-    const guildId = process.env.GUILD_ID;
-    if (!guildId) throw new Error('Brak GUILD_ID w env');
-    console.log(`[sendPredictionEmbed] Fetch guild ${guildId}`);
-    const guild = await client.guilds.fetch(guildId);
-    const member = await guild.members.fetch(userId);
-    displayName = member.displayName || member.user.username;
-    console.log(`[sendPredictionEmbed] displayName OK = ${displayName}`);
-  } catch (err) {
-    console.warn(`⚠️ [sendPredictionEmbed] member fetch warn: ${err.message}`);
-    // awaryjnie spróbuj usera globalnie
-    try {
-      const user = await client.users.fetch(userId);
-      displayName = user.username || displayName;
-      console.log(`[sendPredictionEmbed] fallback displayName = ${displayName}`);
-    } catch (err2) {
-      console.warn(`⚠️ [sendPredictionEmbed] global user fetch fail: ${err2.message}`);
+  // --- resolve guildId safely
+  if (!guildId) {
+    // jeśli jest dokładnie 1 guild w konfiguracji, można bezpiecznie zgadnąć
+    const ids = getAllGuildIds();
+    if (ids.length === 1) {
+      guildId = ids[0];
+    } else {
+      logger.warn('prediction_embed', 'Brak guildId – pomijam wysyłkę embedów (żeby nie wysłać na zły serwer).', {
+        type,
+        userId,
+        configuredGuilds: ids.length,
+      });
+      return;
     }
   }
 
-  const typujacyField = `${displayName} - ${mention}`;
-  const embed = new EmbedBuilder().setColor('#cccccc').setTimestamp();
+  const cfg = getGuildConfig(guildId);
+  if (!cfg) {
+    logger.warn('prediction_embed', 'Brak configu dla guildId – pomijam embed.', { guildId, type, userId });
+    return;
+  }
 
-  // Helper do pól
+  // --- channel selection (bez hardcode)
+  const channelId =
+    (type === 'swiss'
+      ? (cfg.SWISS_PREDICTIONS_CHANNEL_ID || cfg.PREDICTIONS_CHANNEL_ID || cfg.EXPORT_PANEL_CHANNEL_ID || cfg.LOG_CHANNEL_ID)
+      : (cfg.PREDICTIONS_CHANNEL_ID || cfg.LOG_CHANNEL_ID || cfg.EXPORT_PANEL_CHANNEL_ID));
+
+  if (!channelId) {
+    logger.warn('prediction_embed', 'Brak channelId w configu – nie mam gdzie wysłać embeda.', { guildId, type });
+    return;
+  }
+
+  // --- get displayName (best effort)
+  let displayName = 'Unknown';
+  const mention = `<@${userId}>`;
+
+  try {
+    const guild = await client.guilds.fetch(guildId);
+    const member = await guild.members.fetch(userId);
+    displayName = member.displayName || member.user.username;
+  } catch (err) {
+    try {
+      const user = await client.users.fetch(userId);
+      displayName = user.username || displayName;
+    } catch (_) {}
+  }
+
+  const typujacyField = `${displayName} - ${mention}`;
+
   const toStr = (v) => {
     if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
     if (v == null) return '—';
@@ -71,39 +89,18 @@ module.exports = async function sendPredictionEmbed(client, typeIn, userId, data
     return s.length ? s : '—';
   };
 
+  const embed = new EmbedBuilder().setTimestamp();
+
   if (type === 'swiss') {
-    // 4) Ustal stage (z data.stage lub z sufiksu typu)
     let stage =
       (data.stage && String(data.stage)) ||
       (typeRaw.startsWith('swiss_stage_')
         ? typeRaw.replace('swiss_stage_', 'stage_')
         : null);
 
-    console.log(`[sendPredictionEmbed] SWISS stage =`, stage);
-
-    // 5) Zbierz dane z różnych możliwych kluczy
-    const pick3_0 =
-      data.pick3_0 ||
-      data.threeZero ||
-      data['3_0'] ||
-      data['3-0'] ||
-      [];
-    const pick0_3 =
-      data.pick0_3 ||
-      data.zeroThree ||
-      data['0_3'] ||
-      data['0-3'] ||
-      [];
-    const advancing =
-      data.advancing ||
-      data.advance ||
-      data.awans ||
-      [];
-
-    console.log('[sendPredictionEmbed] SWISS picks:');
-    console.log('  🔥 3-0        =', pick3_0);
-    console.log('  💀 0-3        =', pick0_3);
-    console.log('  🚀 advancing  =', advancing);
+    const pick3_0 = data.pick3_0 || data.threeZero || data['3_0'] || data['3-0'] || [];
+    const pick0_3 = data.pick0_3 || data.zeroThree || data['0_3'] || data['0-3'] || [];
+    const advancing = data.advancing || data.advance || data.awans || [];
 
     embed
       .setColor('#3366ff')
@@ -154,32 +151,22 @@ module.exports = async function sendPredictionEmbed(client, typeIn, userId, data
       );
 
   } else {
-    console.warn(`⚠️ [sendPredictionEmbed] Nieznany type='${typeIn}' (po normalizacji='${type}') – przerwano.`);
-    console.log('================= 📤 sendPredictionEmbed END (UNKNOWN TYPE) =================');
-    return;
-  }
-
-  // LOG EMBED TREŚCI
-  console.log('📦 [sendPredictionEmbed] embed.data =', JSON.stringify(embed.data, null, 2));
-
-  let channel;
-  try {
-    console.log(`[sendPredictionEmbed] Fetch channel ${channelId}`);
-    channel = await client.channels.fetch(channelId);
-    if (!channel) throw new Error('Kanał nie istnieje lub brak dostępu');
-    console.log(`📡 [sendPredictionEmbed] channel OK: ${channel.id} (${channel.type})`);
-  } catch (err) {
-    console.error(`❌ [sendPredictionEmbed] channel fetch error: ${err.message}`);
-    console.log('================= 📤 sendPredictionEmbed END (CHANNEL FAIL) =================');
+    logger.warn('prediction_embed', 'Nieznany typ embeda – pomijam.', { guildId, typeIn, userId });
     return;
   }
 
   try {
+    const channel = await client.channels.fetch(String(channelId));
+    if (!channel) throw new Error('Kanał nie istnieje / brak dostępu');
+
     await channel.send({ embeds: [embed] });
-    console.log('✅ [sendPredictionEmbed] wysłano embed na kanał', channel.id);
+    logger.info('prediction_embed', 'Wysłano embed z typami', { guildId, type, channelId: String(channelId), userId });
   } catch (err) {
-    console.error(`❌ [sendPredictionEmbed] send error: ${err.message}`);
+    logger.error('prediction_embed', 'Nie udało się wysłać embeda', {
+      guildId,
+      type,
+      channelId: String(channelId),
+      message: err.message,
+    });
   }
-
-  console.log('================= 📤 sendPredictionEmbed END (OK) =================');
 };

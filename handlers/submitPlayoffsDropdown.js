@@ -137,12 +137,13 @@ module.exports = async (interaction) => {
       logger.info(`- Wynik zapytania: ${result.affectedRows} wierszy zmodyfikowano`);
 
       // Wyślij embed z typami na kanał
-      await sendPredictionEmbed(interaction.client, 'playoffs', userId, {
+      await sendPredictionEmbed(interaction.client, guildId, 'playoffs', userId, {
         semifinalists: picks.semifinalists,
         finalists: picks.finalists,
         winner: picks.winner[0],
         third_place_winner: thirdPick?.[0] || null,
       });
+
 
       await interaction.followUp({ content: '✅ Twoje typy zostały zapisane!', ephemeral: true });
     } catch (error) {
