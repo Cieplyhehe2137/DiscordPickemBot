@@ -3,6 +3,72 @@ const fs = require('fs');
 const db = require('../db');
 
 /**
+ * Split a SQL chunk by ';' at top level (outside quotes/backticks).
+ * Used as a fallback when a "statement" actually contains many INSERTs.
+ */
+function splitBySemicolonTopLevel(sqlText) {
+  const sql = String(sqlText || '').replace(/\r\n/g, '\n');
+  const out = [];
+
+  let stmt = '';
+  let inSingle = false;
+  let inDouble = false;
+  let inBacktick = false;
+
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    const next = i + 1 < sql.length ? sql[i + 1] : '';
+
+    // single quotes
+    if (!inDouble && !inBacktick && ch === "'") {
+      if (inSingle) {
+        if (next === "'") { stmt += "''"; i++; continue; }
+        const prev = i > 0 ? sql[i - 1] : '';
+        if (prev !== '\\') inSingle = false;
+      } else {
+        inSingle = true;
+      }
+      stmt += ch;
+      continue;
+    }
+
+    // double quotes
+    if (!inSingle && !inBacktick && ch === '"') {
+      if (inDouble) {
+        const prev = i > 0 ? sql[i - 1] : '';
+        if (prev !== '\\') inDouble = false;
+      } else {
+        inDouble = true;
+      }
+      stmt += ch;
+      continue;
+    }
+
+    // backticks
+    if (!inSingle && !inDouble && ch === '`') {
+      inBacktick = !inBacktick;
+      stmt += ch;
+      continue;
+    }
+
+    // split
+    if (!inSingle && !inDouble && !inBacktick && ch === ';') {
+      const t = stmt.trim();
+      if (t) out.push(t);
+      stmt = '';
+      continue;
+    }
+
+    stmt += ch;
+  }
+
+  const tail = stmt.trim();
+  if (tail) out.push(tail);
+
+  return out;
+}
+
+/**
  * Split SQL dump into statements without using multipleStatements=true.
  * Supports:
  * - DELIMITER changes (basic)
@@ -24,8 +90,7 @@ function splitSqlStatements(sqlText) {
 
   function isAtLineStart(idx) {
     if (idx === 0) return true;
-    const prev = sql[idx - 1];
-    return prev === '\n';
+    return sql[idx - 1] === '\n';
   }
 
   function readToLineEnd(idx) {
@@ -39,23 +104,20 @@ function splitSqlStatements(sqlText) {
     const ch = sql[i];
     const next = i + 1 < len ? sql[i + 1] : '';
 
-    // --- DELIMITER (only at line start, outside quotes)
+    // DELIMITER at line start (outside quotes)
     if (!inSingle && !inDouble && !inBacktick && isAtLineStart(i)) {
-      // skip leading whitespace
       let k = i;
       while (k < len && (sql[k] === ' ' || sql[k] === '\t')) k++;
       if (sql.slice(k, k + 9).toUpperCase() === 'DELIMITER') {
         const { line, next: nl } = readToLineEnd(k);
         const parts = line.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          delimiter = parts[1];
-        }
+        if (parts.length >= 2) delimiter = parts[1];
         i = nl + 1;
         continue;
       }
     }
 
-    // --- Line comments: -- <space> or #
+    // line comments
     if (!inSingle && !inDouble && !inBacktick) {
       if (ch === '#' && isAtLineStart(i)) {
         const { next: nl } = readToLineEnd(i);
@@ -63,7 +125,6 @@ function splitSqlStatements(sqlText) {
         continue;
       }
       if (ch === '-' && next === '-' && isAtLineStart(i)) {
-        // MySQL treats "-- " as comment (dash dash + space/control)
         const third = i + 2 < len ? sql[i + 2] : '';
         if (third === ' ' || third === '\t' || third === '\n' || third === '\r') {
           const { next: nl } = readToLineEnd(i);
@@ -73,12 +134,11 @@ function splitSqlStatements(sqlText) {
       }
     }
 
-    // --- Block comments /* ... */ (but keep /*! ... */)
+    // block comments (keep /*! ... */)
     if (!inSingle && !inDouble && !inBacktick && ch === '/' && next === '*') {
       const third = i + 2 < len ? sql[i + 2] : '';
       const isVersioned = third === '!';
       if (!isVersioned) {
-        // skip until */
         i += 2;
         while (i < len) {
           if (sql[i] === '*' && i + 1 < len && sql[i + 1] === '/') {
@@ -89,19 +149,12 @@ function splitSqlStatements(sqlText) {
         }
         continue;
       }
-      // versioned comment /*! ... */ -> keep as part of statement
     }
 
-    // --- Handle quotes/backticks
-    if (!inDouble && !inBacktick && ch === "'" ) {
+    // quotes/backticks
+    if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
-        // handle doubled quotes '' (do not close)
-        if (next === "'") {
-          stmt += "''";
-          i += 2;
-          continue;
-        }
-        // handle backslash escape \'
+        if (next === "'") { stmt += "''"; i += 2; continue; }
         const prev = i > 0 ? sql[i - 1] : '';
         if (prev !== '\\') inSingle = false;
       } else {
@@ -131,7 +184,7 @@ function splitSqlStatements(sqlText) {
       continue;
     }
 
-    // --- Delimiter check (only outside quotes)
+    // delimiter split
     if (!inSingle && !inDouble && !inBacktick && delimiter) {
       if (sql.startsWith(delimiter, i)) {
         const trimmed = stmt.trim();
@@ -142,7 +195,6 @@ function splitSqlStatements(sqlText) {
       }
     }
 
-    // normal char
     stmt += ch;
     i++;
   }
@@ -155,15 +207,10 @@ function splitSqlStatements(sqlText) {
 
 function shouldSkipStatement(s) {
   const t = s.trim().toUpperCase();
-
-  // często w dumpach — w transakcji potrafi robić konflikty, a i tak nie są konieczne
   if (t.startsWith('LOCK TABLES')) return true;
   if (t.startsWith('UNLOCK TABLES')) return true;
-
-  // dump czasem zawiera START TRANSACTION/COMMIT — my tego nie potrzebujemy
   if (t.startsWith('START TRANSACTION')) return true;
   if (t === 'COMMIT') return true;
-
   return false;
 }
 
@@ -179,7 +226,6 @@ async function clearAllTables(connection) {
     try {
       await connection.query(`TRUNCATE TABLE \`${table}\``);
     } catch (_) {
-      // fallback (np. brak uprawnień do TRUNCATE)
       await connection.query(`DELETE FROM \`${table}\``);
     }
   }
@@ -189,14 +235,10 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   const guildId = opts.guildId ? String(opts.guildId) : null;
   const pool = guildId ? db.getPoolForGuild(guildId) : db;
 
-  if (!fs.existsSync(sqlFilePath)) {
-    throw new Error('Plik backupu nie istnieje');
-  }
+  if (!fs.existsSync(sqlFilePath)) throw new Error('Plik backupu nie istnieje');
 
   const sql = fs.readFileSync(sqlFilePath, 'utf8');
-  if (!sql.trim()) {
-    throw new Error('Plik backupu jest pusty');
-  }
+  if (!sql.trim()) throw new Error('Plik backupu jest pusty');
 
   const connection = await pool.getConnection();
 
@@ -218,6 +260,22 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       try {
         await connection.query(s);
       } catch (err) {
+        // Fallback for "many INSERTs in one string"
+        const insertCount = (s.match(/INSERT\s+INTO/gi) || []).length;
+        const looksLikeMulti = insertCount >= 2 && s.includes(';');
+
+        if (err?.code === 'ER_PARSE_ERROR' && looksLikeMulti) {
+          const parts = splitBySemicolonTopLevel(s);
+          if (parts.length >= 2) {
+            for (const part of parts) {
+              const stmt2 = part.trim();
+              if (!stmt2) continue;
+              await connection.query(stmt2);
+            }
+            continue; // ✅ rescued
+          }
+        }
+
         err.message = `[RESTORE] Statement #${idx + 1}/${statements.length} failed: ${err.message}`;
         throw err;
       }
