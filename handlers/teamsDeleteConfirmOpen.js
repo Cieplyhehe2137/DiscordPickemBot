@@ -17,7 +17,7 @@ module.exports = async function teamsDeleteConfirmOpen(interaction) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  const st = teamsState.get(guildId, userId);
+  const st = teamsState.getState(guildId, userId);
   const ids = getSelectedIds(st).map(Number).filter(n => Number.isFinite(n) && n > 0);
 
   if (!ids.length) {
