@@ -132,8 +132,8 @@ function startDeadlineReminder(client, guildId) {
                     await channel.send({
                         
                         embeds: [embed],
-                        content: '@everyone',
-                        allowedMentions: { parse: ['everyone'] }
+                        // content: '@everyone',
+                        // allowedMentions: { parse: ['everyone'] }
                     });
 
                     let updateReminderQuery = `UPDATE active_panels SET reminded = 1 WHERE phase = ? AND channel_id = ?`;
@@ -160,8 +160,8 @@ function startDeadlineReminder(client, guildId) {
                     await channel.send({
                         
                         embeds: [closedInfo],
-                        content: '@everyone',
-                        allowedMentions: { parse: ['everyone'] }
+                        // content: '@everyone',
+                        // allowedMentions: { parse: ['everyone'] }
                     });
 
                     // Oznacz jako zamknięte i usuń wpis, żeby watcher już nie tykał panelu
