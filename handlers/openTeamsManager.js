@@ -39,7 +39,7 @@ async function render(interaction) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
-  const st = teamsState.get(guildId, userId) || { page: 0, selectedTeamIds: [] };
+  const st = teamsState.getState(guildId, userId) || { page: 0, selectedTeamIds: [] };
 
   const all = await listTeams(guildId, { includeInactive: true });
   const { page, items, hasPrev, hasNext, total } = chunk25(all, st.page);
