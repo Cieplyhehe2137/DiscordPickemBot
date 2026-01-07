@@ -18,4 +18,17 @@ module.exports = {
     if (!guildId || !userId) return;
     state.delete(key(guildId, userId));
   }
-};
+}
+
+function invalidateTeams(guildId) {
+  if (state.has(guildId)) {
+    state.get(guildId).teams = null;
+  }
+}
+
+export default {
+  get,
+  set,
+  clearSelection,
+  invalidateTeams
+}
