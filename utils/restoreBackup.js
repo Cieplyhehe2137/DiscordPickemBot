@@ -2,12 +2,8 @@
 const fs = require('fs');
 const mysql = require('mysql2/promise');
 
-let getGuildConfig = null;
-try {
-  ({ getGuildConfig } = require('./guildRegistry'));
-} catch (_) {
-  // optional
-}
+// bierzemy config dokładnie tak jak reszta bota (per-guild config/*.env)
+const { loadGuildConfigsOnce, getGuildConfig } = require('./guildRegistry');
 
 // -----------------------------
 // helpers: escaping + splitting
@@ -20,6 +16,10 @@ function isEscaped(sql, i) {
   return (cnt % 2) === 1;
 }
 
+/**
+ * Split a SQL chunk by ';' at top level (outside quotes/backticks).
+ * Used as a fallback when a "statement" actually contains many INSERTs.
+ */
 function splitBySemicolonTopLevel(sqlText) {
   const sql = String(sqlText || '').replace(/\r\n/g, '\n');
   const out = [];
@@ -268,9 +268,22 @@ function removeMode(modeStr, modeName) {
 // -----------------------------
 
 function getDbConfig(guildId) {
-  if (guildId && typeof getGuildConfig === 'function') {
-    const cfg = getGuildConfig(String(guildId));
-    if (!cfg) throw new Error(`Brak configu DB dla guildId=${guildId}`);
+  // Per-guild (config/*.env) — tak samo jak w db.js
+  if (guildId) {
+    const gid = String(guildId).trim();
+    if (!gid) throw new Error('getDbConfig: guildId jest wymagane');
+
+    // upewnij się, że configi są załadowane
+    loadGuildConfigsOnce();
+
+    const cfg = getGuildConfig(gid);
+    if (!cfg) {
+      throw new Error(`Brak configu dla guildId=${gid} (sprawdź config/*.env)`);
+    }
+
+    if (!cfg.DB_HOST || !cfg.DB_NAME) {
+      throw new Error(`Niepełna konfiguracja DB dla guildId=${gid} (DB_HOST/DB_NAME)`);
+    }
 
     return {
       host: cfg.DB_HOST,
@@ -278,16 +291,22 @@ function getDbConfig(guildId) {
       user: cfg.DB_USER,
       password: cfg.DB_PASS,
       database: cfg.DB_NAME,
+      connectTimeout: Number(cfg.DB_CONNECT_TIMEOUT_MS || process.env.DB_CONNECT_TIMEOUT_MS || 15000),
     };
   }
 
-  // fallback global
+  // Legacy/global .env
+  if (!process.env.DB_HOST || !process.env.DB_NAME) {
+    throw new Error('Brak DB_* w root .env i brak config/*.env - nie mam jak zbudować połączenia.');
+  }
+
   return {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER,
     password: process.env.DB_PASS || process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS || 15000),
   };
 }
 
@@ -326,7 +345,6 @@ function buildBatches(statements, opts = {}) {
     const one = s.endsWith(';') ? s : (s + ';');
     const bytes = Buffer.byteLength(one, 'utf8');
 
-    // jeśli pojedynczy statement jest gigantyczny, wrzuć go jako osobny batch
     if (bytes >= maxBatchBytes) {
       if (current.length) batches.push(current);
       batches.push([s]);
@@ -374,14 +392,12 @@ async function execStatementWithFallback(connection, stmt) {
 }
 
 async function execBatch(connection, batchStatements) {
-  // FAST: spróbuj puścić całą paczkę jednym query (wymaga multipleStatements=true)
   const sql = batchStatements.map(s => (s.endsWith(';') ? s : s + ';')).join('\n');
 
   try {
     await connection.query(sql);
     return;
-  } catch (err) {
-    // fallback: wykonaj statementy pojedynczo
+  } catch (_) {
     for (const s of batchStatements) {
       await execStatementWithFallback(connection, s);
     }
@@ -404,9 +420,14 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
 
   // UWAGA: tutaj celowo włączamy multipleStatements TYLKO dla restore
   const connection = await mysql.createConnection({
-    ...dbCfg,
+    host: dbCfg.host,
+    port: dbCfg.port,
+    user: dbCfg.user,
+    password: dbCfg.password,
+    database: dbCfg.database,
+
     multipleStatements: true,
-    connectTimeout: 30000,
+    connectTimeout: dbCfg.connectTimeout || 30000,
     charset: 'utf8mb4',
   });
 
@@ -415,12 +436,11 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
 
   try {
     console.log('[RESTORE] start', guildId ? `(guildId=${guildId})` : '');
+    console.log('[RESTORE] DB:', dbCfg.host, dbCfg.port, dbCfg.database);
 
-    // FK OFF
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     fkDisabled = true;
 
-    // zdejmij NO_BACKSLASH_ESCAPES na czas restore
     const [[row]] = await connection.query('SELECT @@SESSION.sql_mode AS mode');
     oldSqlMode = String(row?.mode || '');
     const newSqlMode = removeMode(oldSqlMode, 'NO_BACKSLASH_ESCAPES');
@@ -434,7 +454,6 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.log('[RESTORE] parsing dump...');
     const statementsRaw = splitSqlStatements(dump);
     const statements = statementsRaw.filter(s => s && !shouldSkipStatement(s));
-
     console.log(`[RESTORE] statements: ${statements.length}`);
 
     console.log('[RESTORE] executing dump statements (FAST batches)...');
@@ -462,7 +481,6 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
-    // restore session settings
     try {
       if (oldSqlMode != null) {
         await connection.query('SET SESSION sql_mode = ?', [oldSqlMode]);
