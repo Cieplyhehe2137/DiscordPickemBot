@@ -231,6 +231,15 @@ async function clearAllTables(connection) {
   }
 }
 
+function removeMode(modeStr, modeName) {
+  const modes = String(modeStr || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return modes.filter(m => m !== modeName).join(',');
+}
+
 module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   const guildId = opts.guildId ? String(opts.guildId) : null;
   const pool = guildId ? db.getPoolForGuild(guildId) : db;
@@ -242,19 +251,25 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
 
   const connection = await pool.getConnection();
 
+  let oldSqlMode = null;
+  let fkDisabled = false;
+
   try {
     console.log('[RESTORE] start', guildId ? `(guildId=${guildId})` : '');
 
+    // FK OFF
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.query(`SET @__old_sql_mode := @@sql_mode`);
+    fkDisabled = true;
 
-    await connection.query(`
-  SET @__new_sql_mode := @@sql_mode;
-  SET @__new_sql_mode := REPLACE(@__new_sql_mode, 'NO_BACKSLASH_ESCAPES', '');
-  SET @__new_sql_mode := REPLACE(@__new_sql_mode, ',,', ',');
-  SET @__new_sql_mode := TRIM(BOTH ',' FROM @__new_sql_mode);
-  SET SESSION sql_mode := @__new_sql_mode;
-`);
+    // sql_mode: zdejmujemy NO_BACKSLASH_ESCAPES na czas restore (bez multi statements)
+    const [[row]] = await connection.query('SELECT @@SESSION.sql_mode AS mode');
+    oldSqlMode = String(row?.mode || '');
+
+    const newSqlMode = removeMode(oldSqlMode, 'NO_BACKSLASH_ESCAPES');
+    if (newSqlMode !== oldSqlMode) {
+      await connection.query('SET SESSION sql_mode = ?', [newSqlMode]);
+    }
+
     console.log('[RESTORE] clearing tables...');
     await clearAllTables(connection);
 
@@ -289,13 +304,24 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       }
     }
 
-    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-    await connection.query(`SET SESSION sql_mode := @__old_sql_mode`);
     console.log('[RESTORE] SUCCESS');
   } catch (err) {
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
+    // sprzątanie sesji (nie maskujemy głównego błędu)
+    try {
+      if (oldSqlMode != null) {
+        await connection.query('SET SESSION sql_mode = ?', [oldSqlMode]);
+      }
+    } catch (_) {}
+
+    try {
+      if (fkDisabled) {
+        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+      }
+    } catch (_) {}
+
     connection.release();
   }
 };
