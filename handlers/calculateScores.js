@@ -8,7 +8,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) { }
+  } catch (_) {}
   return String(val)
     .replace(/[\[\]"]+/g, '')
     .split(/[;,]+/)
@@ -17,21 +17,25 @@ const cleanList = (val) => {
 };
 
 module.exports = async function calculateScores() {
-  // ✅ Walidacja kontekstu guild
   const guildId = getGuildId();
   if (!guildId) {
-    logger.error('scores', 'calculateScores called without guild context', {});
+    logger.error('scores', 'calculateScores called without guild context', {
+      scope: 'cron:calculateScores',
+    });
     throw new Error('calculateScores called without guild context');
   }
 
   const pool = db.getPoolForGuild(guildId);
 
-  logger.info('scores', 'Starting score calculation', { guildId });
-  console.log('⚙️ Rozpoczynam przeliczanie punktów...');
+  logger.info('scores', 'Score calculation started', {
+    guildId,
+    scope: 'cron:calculateScores',
+  });
 
-  // === SWISS ===
+  /* =========================
+     SWISS
+     ========================= */
   try {
-    console.log('📦 Przeliczam fazę SWISS...');
     const [swissResultsRows] = await safeQuery(
       pool,
       `SELECT * FROM swiss_results WHERE active = 1`,
@@ -40,98 +44,113 @@ module.exports = async function calculateScores() {
     );
 
     if (!swissResultsRows.length) {
-      console.warn('⚠️ Brak aktywnych oficjalnych wyników Swiss');
-    } else {
-      for (const correctSwiss of swissResultsRows) {
-        const stageRaw = correctSwiss.stage;
-        const stage = stageRaw.replace('stage', '');
+      logger.warn('scores', 'No active Swiss results', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
+    }
 
-        const correct30 = cleanList(correctSwiss.correct_3_0);
-        const correct03 = cleanList(correctSwiss.correct_0_3);
-        const correctAdv = cleanList(correctSwiss.correct_advancing);
+    for (const correctSwiss of swissResultsRows) {
+      const stageRaw = correctSwiss.stage;
+      const stage = stageRaw.replace('stage', '');
 
-        console.log(`✅ Oficjalne wyniki Swiss (stage: ${stage}):`);
-        console.log(' - 3-0:', correct30);
-        console.log(' - 0-3:', correct03);
-        console.log(' - Awans:', correctAdv);
+      logger.info('scores', 'Calculating Swiss stage', {
+        guildId,
+        stage,
+        scope: 'cron:calculateScores',
+      });
 
-        const [swissPredictions] = await safeQuery(
-          pool,
-          `SELECT * FROM swiss_predictions WHERE stage = ?`,
-          [stageRaw],
-          { guildId, scope: 'cron:calculateScores', label: 'select swiss_predictions' }
-        );
+      const correct30 = cleanList(correctSwiss.correct_3_0);
+      const correct03 = cleanList(correctSwiss.correct_0_3);
+      const correctAdv = cleanList(correctSwiss.correct_advancing);
 
-        const [nameRows] = await safeQuery(
+      const [swissPredictions] = await safeQuery(
+        pool,
+        `SELECT * FROM swiss_predictions WHERE stage = ?`,
+        [stageRaw],
+        { guildId, scope: 'cron:calculateScores', label: 'select swiss_predictions' }
+      );
+
+      const [nameRows] = await safeQuery(
+        pool,
+        `
+        SELECT user_id, displayname
+        FROM swiss_predictions
+        WHERE stage = ?
+          AND displayname IS NOT NULL
+          AND displayname != ''
+        `,
+        [stageRaw],
+        { guildId, scope: 'cron:calculateScores', label: 'preload swiss displaynames' }
+      );
+
+      const displayNameMap = new Map(
+        nameRows.map(r => [r.user_id, r.displayname])
+      );
+
+      const swissScoreRows = [];
+
+      for (const pred of swissPredictions) {
+        const user_id = pred.user_id;
+        const displayname =
+          pred.displayname ||
+          displayNameMap.get(user_id) ||
+          user_id;
+
+        let score = 0;
+        cleanList(pred.pick_3_0).forEach(t => {
+          if (correct30.includes(t)) score += 4;
+        });
+        cleanList(pred.pick_0_3).forEach(t => {
+          if (correct03.includes(t)) score += 4;
+        });
+        cleanList(pred.advancing).forEach(t => {
+          if (correctAdv.includes(t)) score += 2;
+        });
+
+        swissScoreRows.push([
+          user_id,
+          stage,
+          displayname,
+          score,
+        ]);
+      }
+
+      if (swissScoreRows.length) {
+        await safeQuery(
           pool,
           `
-  SELECT user_id, displayname
-  FROM swiss_predictions
-  WHERE stage = ?
-    AND displayname IS NOT NULL
-    AND displayname != ''
-  `,
-          [stageRaw],
-          { guildId, scope: 'cron:calculateScores', label: 'preload swiss displaynames' }
+          INSERT INTO swiss_scores (user_id, stage, displayname, points)
+          VALUES ?
+          ON DUPLICATE KEY UPDATE
+            displayname = VALUES(displayname),
+            points = VALUES(points)
+          `,
+          [swissScoreRows],
+          { guildId, scope: 'cron:calculateScores', label: 'batch upsert swiss_scores' }
         );
-
-        const displayNameMap = new Map(
-          nameRows.map(r => [r.user_id, r.displayname])
-        );
-        const swissScoreRows = [];
-
-
-
-        for (const pred of swissPredictions) {
-          const user_id = pred.user_id;
-          let displayname = pred.displayname;
-
-          if (!displayname || displayname === user_id) {
-            displayname = displayNameMap.get(user_id) || user_id;
-          }
-
-          const pick30 = cleanList(pred.pick_3_0);
-          const pick03 = cleanList(pred.pick_0_3);
-          const adv = cleanList(pred.advancing);
-
-          let score = 0;
-          pick30.forEach(t => { if (correct30.includes(t)) score += 4; });
-          pick03.forEach(t => { if (correct03.includes(t)) score += 4; });
-          adv.forEach(t => { if (correctAdv.includes(t)) score += 2; });
-
-          swissScoreRows.push([
-            user_id,
-            stage,
-            displayname,
-            score
-            
-          ]);
-        }
-        if (swissScoreRows.length) {
-          await safeQuery(
-            pool,
-            `
-    INSERT INTO swiss_scores (user_id, stage, displayname, points)
-    VALUES ?
-    ON DUPLICATE KEY UPDATE
-      displayname = VALUES(displayname),
-      points = VALUES(points)
-    `,
-            [swissScoreRows],
-            { guildId, scope: 'cron:calculateScores', label: 'batch upsert swiss_scores' }
-          );
-        }
-
-
       }
+
+      logger.info('scores', 'Swiss stage calculated', {
+        guildId,
+        stage,
+        users: swissScoreRows.length,
+        scope: 'cron:calculateScores',
+      });
     }
   } catch (err) {
-    console.error('❌ Błąd w fazie SWISS:', err);
+    logger.error('scores', 'Swiss calculation failed', {
+      guildId,
+      scope: 'cron:calculateScores',
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-  // === PLAYOFFS ===
+  /* =========================
+     PLAYOFFS
+     ========================= */
   try {
-    console.log('📦 Przeliczam fazę PLAYOFFS...');
     const [playoffsResultsRows] = await safeQuery(
       pool,
       `SELECT * FROM playoffs_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
@@ -139,10 +158,19 @@ module.exports = async function calculateScores() {
       { guildId, scope: 'cron:calculateScores', label: 'select playoffs_results' }
     );
 
-    const correctPlayoffs = playoffsResultsRows[0];
-    if (!correctPlayoffs) {
-      console.warn('⚠️ Brak aktywnych oficjalnych wyników Playoffs');
+    if (!playoffsResultsRows.length) {
+      logger.warn('scores', 'No active Playoffs results', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
     } else {
+      logger.info('scores', 'Calculating Playoffs', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
+
+      const correctPlayoffs = playoffsResultsRows[0];
+
       const [playoffsPredictions] = await safeQuery(
         pool,
         `SELECT * FROM playoffs_predictions WHERE active = 1`,
@@ -150,16 +178,14 @@ module.exports = async function calculateScores() {
         { guildId, scope: 'cron:calculateScores', label: 'select playoffs_predictions' }
       );
 
-      const playoffsScoreRows = [];
-
       const [nameRows] = await safeQuery(
         pool,
         `
-  SELECT user_id, displayname
-  FROM playoffs_predictions
-  WHERE displayname IS NOT NULL
-    AND displayname != ''
-  `,
+        SELECT user_id, displayname
+        FROM playoffs_predictions
+        WHERE displayname IS NOT NULL
+          AND displayname != ''
+        `,
         [],
         { guildId, scope: 'cron:calculateScores', label: 'preload playoffs displaynames' }
       );
@@ -168,64 +194,66 @@ module.exports = async function calculateScores() {
         nameRows.map(r => [r.user_id, r.displayname])
       );
 
-
+      const playoffsScoreRows = [];
 
       for (const pred of playoffsPredictions) {
         const user_id = pred.user_id;
-        let displayname = pred.displayname;
-
-        if (!displayname || displayname === user_id) {
-          displayname = displayNameMap.get(user_id) || user_id;
-        }
-
-
-        const semis = cleanList(pred.semifinalists);
-        const finals = cleanList(pred.finalists);
-        const winner = pred.winner;
-        const third = pred.third_place_winner;
-
-        const correctSemis = cleanList(correctPlayoffs.correct_semifinalists);
-        const correctFinals = cleanList(correctPlayoffs.correct_finalists);
-        const correctWinner = correctPlayoffs.correct_winner;
-        const correctThird = correctPlayoffs.correct_third_place_winner;
+        const displayname =
+          pred.displayname ||
+          displayNameMap.get(user_id) ||
+          user_id;
 
         let score = 0;
-        semis.forEach(t => { if (correctSemis.includes(t)) score += 1; });
-        finals.forEach(t => { if (correctFinals.includes(t)) score += 2; });
-        if (winner === correctWinner) score += 3;
-        if (third && third === correctThird) score += 2;
+        cleanList(pred.semifinalists).forEach(t => {
+          if (cleanList(correctPlayoffs.correct_semifinalists).includes(t)) score += 1;
+        });
+        cleanList(pred.finalists).forEach(t => {
+          if (cleanList(correctPlayoffs.correct_finalists).includes(t)) score += 2;
+        });
+        if (pred.winner === correctPlayoffs.correct_winner) score += 3;
+        if (pred.third_place_winner === correctPlayoffs.correct_third_place_winner) score += 2;
 
         playoffsScoreRows.push([
           user_id,
           displayname,
           score,
-          
         ]);
-
       }
+
       if (playoffsScoreRows.length) {
         await safeQuery(
           pool,
           `
-    INSERT INTO playoffs_scores (user_id, displayname, points)
-    VALUES ?
-    ON DUPLICATE KEY UPDATE
-      displayname = VALUES(displayname),
-      points = VALUES(points)
-    `,
+          INSERT INTO playoffs_scores (user_id, displayname, points)
+          VALUES ?
+          ON DUPLICATE KEY UPDATE
+            displayname = VALUES(displayname),
+            points = VALUES(points)
+          `,
           [playoffsScoreRows],
           { guildId, scope: 'cron:calculateScores', label: 'batch upsert playoffs_scores' }
         );
       }
 
+      logger.info('scores', 'Playoffs calculated', {
+        guildId,
+        users: playoffsScoreRows.length,
+        scope: 'cron:calculateScores',
+      });
     }
   } catch (err) {
-    console.error('❌ Błąd w fazie PLAYOFFS:', err);
+    logger.error('scores', 'Playoffs calculation failed', {
+      guildId,
+      scope: 'cron:calculateScores',
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-  // === DOUBLE ELIMINATION ===
+  /* =========================
+     DOUBLE ELIMINATION
+     ========================= */
   try {
-    console.log('📦 Przeliczam fazę DOUBLE ELIM...');
     const [doubleResultsRows] = await safeQuery(
       pool,
       `SELECT * FROM doubleelim_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
@@ -233,10 +261,14 @@ module.exports = async function calculateScores() {
       { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_results' }
     );
 
-    const correctDouble = doubleResultsRows[0];
-    if (!correctDouble) {
-      console.warn('⚠️ Brak aktywnych oficjalnych wyników Double Elim');
+    if (!doubleResultsRows.length) {
+      logger.warn('scores', 'No active Double Elim results', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
     } else {
+      const correctDouble = doubleResultsRows[0];
+
       const [doublePredictions] = await safeQuery(
         pool,
         `
@@ -252,16 +284,14 @@ module.exports = async function calculateScores() {
         { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_predictions' }
       );
 
-      const doubleElimScoreRows = [];
-
       const [nameRows] = await safeQuery(
         pool,
         `
-  SELECT user_id, displayname
-  FROM doubleelim_predictions
-  WHERE displayname IS NOT NULL
-    AND displayname != ''
-  `,
+        SELECT user_id, displayname
+        FROM doubleelim_predictions
+        WHERE displayname IS NOT NULL
+          AND displayname != ''
+        `,
         [],
         { guildId, scope: 'cron:calculateScores', label: 'preload doubleelim displaynames' }
       );
@@ -270,61 +300,70 @@ module.exports = async function calculateScores() {
         nameRows.map(r => [r.user_id, r.displayname])
       );
 
-
+      const doubleElimScoreRows = [];
 
       for (const pred of doublePredictions) {
         const user_id = pred.user_id;
-        let displayname = pred.displayname;
-
-        if (!displayname || displayname === user_id) {
-          displayname = displayNameMap.get(user_id) || user_id;
-        }
-
-        const ua = cleanList(pred.upper_final_a);
-        const la = cleanList(pred.lower_final_a);
-        const ub = cleanList(pred.upper_final_b);
-        const lb = cleanList(pred.lower_final_b);
-
-        const correctUA = cleanList(correctDouble.upper_final_a);
-        const correctLA = cleanList(correctDouble.lower_final_a);
-        const correctUB = cleanList(correctDouble.upper_final_b);
-        const correctLB = cleanList(correctDouble.lower_final_b);
+        const displayname =
+          pred.displayname ||
+          displayNameMap.get(user_id) ||
+          user_id;
 
         let score = 0;
-        ua.forEach(t => { if (correctUA.includes(t)) score += 1; });
-        la.forEach(t => { if (correctLA.includes(t)) score += 1; });
-        ub.forEach(t => { if (correctUB.includes(t)) score += 1; });
-        lb.forEach(t => { if (correctLB.includes(t)) score += 1; });
+        cleanList(pred.upper_final_a).forEach(t => {
+          if (cleanList(correctDouble.upper_final_a).includes(t)) score += 1;
+        });
+        cleanList(pred.lower_final_a).forEach(t => {
+          if (cleanList(correctDouble.lower_final_a).includes(t)) score += 1;
+        });
+        cleanList(pred.upper_final_b).forEach(t => {
+          if (cleanList(correctDouble.upper_final_b).includes(t)) score += 1;
+        });
+        cleanList(pred.lower_final_b).forEach(t => {
+          if (cleanList(correctDouble.lower_final_b).includes(t)) score += 1;
+        });
 
         doubleElimScoreRows.push([
           user_id,
           displayname,
-          score
+          score,
         ]);
       }
+
       if (doubleElimScoreRows.length) {
         await safeQuery(
           pool,
           `
-    INSERT INTO doubleelim_scores (user_id, displayname, points)
-    VALUES ?
-    ON DUPLICATE KEY UPDATE
-      displayname = VALUES(displayname),
-      points = VALUES(points)
-    `,
+          INSERT INTO doubleelim_scores (user_id, displayname, points)
+          VALUES ?
+          ON DUPLICATE KEY UPDATE
+            displayname = VALUES(displayname),
+            points = VALUES(points)
+          `,
           [doubleElimScoreRows],
           { guildId, scope: 'cron:calculateScores', label: 'batch upsert doubleelim_scores' }
         );
       }
 
+      logger.info('scores', 'Double Elim calculated', {
+        guildId,
+        users: doubleElimScoreRows.length,
+        scope: 'cron:calculateScores',
+      });
     }
   } catch (err) {
-    console.error('❌ Błąd w fazie DOUBLE ELIM:', err);
+    logger.error('scores', 'Double Elim calculation failed', {
+      guildId,
+      scope: 'cron:calculateScores',
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-  // === PLAY-IN ===
+  /* =========================
+     PLAY-IN
+     ========================= */
   try {
-    console.log('📦 Przeliczam fazę PLAY-IN...');
     const [playinResultsRows] = await safeQuery(
       pool,
       `SELECT * FROM playin_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
@@ -332,10 +371,14 @@ module.exports = async function calculateScores() {
       { guildId, scope: 'cron:calculateScores', label: 'select playin_results' }
     );
 
-    const correctPlayin = playinResultsRows[0];
-    if (!correctPlayin) {
-      console.warn('⚠️ Brak aktywnych oficjalnych wyników Play-In');
+    if (!playinResultsRows.length) {
+      logger.warn('scores', 'No active Play-In results', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
     } else {
+      const correctPlayin = playinResultsRows[0];
+
       const [playinPredictions] = await safeQuery(
         pool,
         `SELECT * FROM playin_predictions WHERE active = 1`,
@@ -343,7 +386,6 @@ module.exports = async function calculateScores() {
         { guildId, scope: 'cron:calculateScores', label: 'select playin_predictions' }
       );
 
-      // preload displayname
       const [nameRows] = await safeQuery(
         pool,
         `
@@ -351,7 +393,7 @@ module.exports = async function calculateScores() {
         FROM playin_predictions
         WHERE displayname IS NOT NULL
           AND displayname != ''
-      `,
+        `,
         [],
         { guildId, scope: 'cron:calculateScores', label: 'preload playin displaynames' }
       );
@@ -365,23 +407,20 @@ module.exports = async function calculateScores() {
 
       for (const pred of playinPredictions) {
         const user_id = pred.user_id;
-        let displayname = pred.displayname;
-
-        if (!displayname || displayname === user_id) {
-          displayname = displayNameMap.get(user_id) || user_id;
-        }
-
-        const teams = cleanList(pred.teams);
+        const displayname =
+          pred.displayname ||
+          displayNameMap.get(user_id) ||
+          user_id;
 
         let score = 0;
-        teams.forEach(t => {
+        cleanList(pred.teams).forEach(t => {
           if (correctTeams.includes(t)) score += 1;
         });
 
         playinScoreRows.push([
           user_id,
           displayname,
-          score
+          score,
         ]);
       }
 
@@ -394,21 +433,31 @@ module.exports = async function calculateScores() {
           ON DUPLICATE KEY UPDATE
             displayname = VALUES(displayname),
             points = VALUES(points)
-        `,
+          `,
           [playinScoreRows],
           { guildId, scope: 'cron:calculateScores', label: 'batch upsert playin_scores' }
         );
       }
+
+      logger.info('scores', 'Play-In calculated', {
+        guildId,
+        users: playinScoreRows.length,
+        scope: 'cron:calculateScores',
+      });
     }
   } catch (err) {
-    console.error('❌ Błąd w fazie PLAY-IN:', err);
+    logger.error('scores', 'Play-In calculation failed', {
+      guildId,
+      scope: 'cron:calculateScores',
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-  // === MATCHES ===
+  /* =========================
+     MATCHES
+     ========================= */
   try {
-    console.log('📦 Przeliczam punkty za WYNIKI MECZÓW...');
-
-    // 1) Wszystkie mecze z oficjalnym wynikiem
     const [matchesWithResults] = await safeQuery(
       pool,
       `
@@ -416,82 +465,85 @@ module.exports = async function calculateScores() {
       FROM matches m
       JOIN match_results r ON r.match_id = m.id
       ORDER BY m.id ASC
-    `,
+      `,
       [],
       { guildId, scope: 'cron:calculateScores', label: 'select matches with results' }
     );
 
     if (!matchesWithResults.length) {
-      console.warn('⚠️ Brak meczów z oficjalnym wynikiem');
-      return;
-    }
+      logger.warn('scores', 'No matches with official results', {
+        guildId,
+        scope: 'cron:calculateScores',
+      });
+    } else {
+      const matchIds = matchesWithResults.map(m => m.match_id);
 
-    // 2) Wszystkie predykcje do tych meczów (jednym strzałem)
-    const matchIds = matchesWithResults.map(m => m.match_id);
-
-    const [allPredictions] = await safeQuery(
-      pool,
-      `
-      SELECT match_id, user_id, pred_a, pred_b
-      FROM match_predictions
-      WHERE match_id IN (?)
-    `,
-      [matchIds],
-      { guildId, scope: 'cron:calculateScores', label: 'select match_predictions bulk' }
-    );
-
-    // 3) Grupowanie predykcji po match_id
-    const predsByMatch = new Map();
-    for (const p of allPredictions) {
-      if (!predsByMatch.has(p.match_id)) {
-        predsByMatch.set(p.match_id, []);
-      }
-      predsByMatch.get(p.match_id).push(p);
-    }
-
-    // 4) Liczenie punktów (bez DB)
-    const matchPointRows = [];
-
-    for (const m of matchesWithResults) {
-      const preds = predsByMatch.get(m.match_id) || [];
-
-      for (const p of preds) {
-        const pts = computePoints({
-          predA: p.pred_a,
-          predB: p.pred_b,
-          resA: m.res_a,
-          resB: m.res_b,
-        });
-
-        matchPointRows.push([
-          m.match_id,
-          p.user_id,
-          pts,
-        ]);
-      }
-    }
-
-    // 5) Batch INSERT
-    if (matchPointRows.length) {
-      await safeQuery(
+      const [allPredictions] = await safeQuery(
         pool,
         `
-        INSERT INTO match_points (match_id, user_id, points)
-        VALUES ?
-        ON DUPLICATE KEY UPDATE
-          points = VALUES(points),
-          computed_at = CURRENT_TIMESTAMP
-      `,
-        [matchPointRows],
-        { guildId, scope: 'cron:calculateScores', label: 'batch upsert match_points' }
+        SELECT match_id, user_id, pred_a, pred_b
+        FROM match_predictions
+        WHERE match_id IN (?)
+        `,
+        [matchIds],
+        { guildId, scope: 'cron:calculateScores', label: 'select match_predictions bulk' }
       );
-    }
 
-    console.log(`✅ MATCHES: zapisano ${matchPointRows.length} wpisów`);
+      const predsByMatch = new Map();
+      for (const p of allPredictions) {
+        if (!predsByMatch.has(p.match_id)) {
+          predsByMatch.set(p.match_id, []);
+        }
+        predsByMatch.get(p.match_id).push(p);
+      }
+
+      const matchPointRows = [];
+
+      for (const m of matchesWithResults) {
+        const preds = predsByMatch.get(m.match_id) || [];
+        for (const p of preds) {
+          const pts = computePoints({
+            predA: p.pred_a,
+            predB: p.pred_b,
+            resA: m.res_a,
+            resB: m.res_b,
+          });
+          matchPointRows.push([m.match_id, p.user_id, pts]);
+        }
+      }
+
+      if (matchPointRows.length) {
+        await safeQuery(
+          pool,
+          `
+          INSERT INTO match_points (match_id, user_id, points)
+          VALUES ?
+          ON DUPLICATE KEY UPDATE
+            points = VALUES(points),
+            computed_at = CURRENT_TIMESTAMP
+          `,
+          [matchPointRows],
+          { guildId, scope: 'cron:calculateScores', label: 'batch upsert match_points' }
+        );
+      }
+
+      logger.info('scores', 'Match points calculated', {
+        guildId,
+        rows: matchPointRows.length,
+        scope: 'cron:calculateScores',
+      });
+    }
   } catch (err) {
-    console.error('❌ Błąd w fazie MATCHES:', err);
+    logger.error('scores', 'Match calculation failed', {
+      guildId,
+      scope: 'cron:calculateScores',
+      message: err.message,
+      stack: err.stack,
+    });
   }
 
-
-  console.log('✅ Przeliczanie zakończone.');
+  logger.info('scores', 'Score calculation finished', {
+    guildId,
+    scope: 'cron:calculateScores',
+  });
 };
