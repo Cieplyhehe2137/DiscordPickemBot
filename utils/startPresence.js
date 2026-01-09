@@ -1,4 +1,9 @@
+let presenceStarted = false;
+
 module.exports = (client) => {
+  if (presenceStarted) return;
+  presenceStarted = true;
+
   const activities = [
     "Sprawdza twoje typy Pick'Em 🎯",
     "Liczy punkty w Swiss 🧮",
@@ -15,6 +20,13 @@ module.exports = (client) => {
   ];
 
   let i = 0;
+
+  // ustaw od razu, nie czekaj 30s
+  client.user.setPresence({
+    activities: [{ name: activities[0], type: 4 }],
+    status: 'online'
+  });
+
   setInterval(() => {
     const status = activities[i % activities.length];
     client.user.setPresence({
@@ -22,5 +34,5 @@ module.exports = (client) => {
       status: 'online'
     });
     i++;
-  }, 30000);
-}
+  }, 30_000);
+};

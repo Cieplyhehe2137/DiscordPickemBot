@@ -110,33 +110,31 @@ client.on('error', (e) => console.error('💥 client error:', e));
 client.on('warn', (w) => console.warn('⚠️ client warn:', w));
 
 // Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
+const startPresence = require('./utils/startPresence');
+
 client.once('ready', async () => {
   try {
     console.log(`🤖 Discord READY jako ${client.user.tag} (id: ${client.user.id})`);
-    // pokaż, że żyje
-    if (client.user && client.user.setPresence) {
-      client.user.setPresence({ activities: [{ name: 'Pick’Em panel' }], status: 'online' });
-    }
-    // teraz bezpiecznie wywołujemy Twój handler
-    try {
-      await onReady(client);
-      console.log('✅ onReady() zakończone');
-      // 🕒 co 15 sekund sprawdzaj deadliny i automatycznie zamykaj panele
-      setInterval(() => {
-        closeExpiredPanels(client).catch(err =>
-          console.error('❌ Błąd w closeExpiredPanels tick:', err)
-        );
-      }, 15 * 1000);
 
-      console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
+    await onReady(client);
+    console.log('✅ onReady() zakończone');
 
-    } catch (e) {
-      console.error('❌ Błąd w onReady():', e);
-    }
+    // ✅ PRESENCE – TYLKO TU
+    startPresence(client);
+
+    // 🕒 closeExpiredPanels
+    setInterval(() => {
+      closeExpiredPanels(client).catch(err =>
+        console.error('❌ Błąd w closeExpiredPanels tick:', err)
+      );
+    }, 15_000);
+
+    console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
   } catch (e) {
     console.error('❌ Błąd w ready-handlerze:', e);
   }
 });
+
 
 const handlers = loadHandlers('handlers');
 
