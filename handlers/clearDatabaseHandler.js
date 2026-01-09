@@ -1,32 +1,55 @@
-// handlers/clearDatabaseHandler.js
-const pool = require('../db.js');
+const db = require('../db.js');
+const isAdmin = require('../utils/isAdmin');
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
+  EmbedBuilder,
 } = require('discord.js');
 const logger = require('../utils/logger');
+const { safeQuery } = require('../utils/safeQuery');
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true,
+    });
+  }
+
+  // 🔒 ADMIN ONLY
+  if (!isAdmin(interaction)) {
+    logger.warn('clear', 'Unauthorized clear attempt', {
+      guildId,
+      userId: interaction.user.id,
+      customId: interaction.customId,
+    });
+
+    return interaction.reply({
+      content: '❌ Brak uprawnień do tej operacji.',
+      ephemeral: true,
+    });
+  }
+
+  const pool = db.getPoolForGuild(guildId);
+
   const userMeta = {
+    guildId,
     userId: interaction.user.id,
     username: interaction.user.tag,
-    customId: interaction.customId
+    customId: interaction.customId,
   };
 
-  // 🔥 START — każda próba
-  logger.warn("clear", "Clear database interaction triggered", userMeta);
+  logger.warn('clear', 'Clear database interaction triggered', userMeta);
 
   try {
     if (!interaction.replied && !interaction.deferred) {
       await interaction.deferUpdate();
     }
-  } catch (_) {
-    // ignore
-  }
+  } catch (_) {}
 
   const aliasMap = {
     clear_user_picks: 'clear_db_confirm',
@@ -34,8 +57,7 @@ module.exports = async (interaction) => {
     clear_official_results: 'clear_only_results_confirm',
   };
 
-  const rawId = interaction.customId || '';
-  const action = aliasMap[rawId] || rawId;
+  const action = aliasMap[interaction.customId] || interaction.customId;
 
   async function safeFollowUp(payload) {
     try {
@@ -44,222 +66,171 @@ module.exports = async (interaction) => {
       try {
         return await interaction.followUp({
           ephemeral: true,
-          content: '❌ Wystąpił błąd.'
+          content: '❌ Wystąpił błąd.',
         });
       } catch (_) {}
     }
   }
 
   // =========================
-  // CONFIRMY
+  // CONFIRMS
   // =========================
 
-  // (1) Wyczyść tylko typy userów
   if (action === 'clear_db_confirm') {
-    logger.warn("clear", "Clear DB confirm requested", userMeta);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('clear_db_yes')
-        .setLabel('✅ Tak, wyczyść')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('clear_db_no')
-        .setLabel('❌ Nie, anuluj')
-        .setStyle(ButtonStyle.Secondary),
-    );
-
     return safeFollowUp({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Czy na pewno chcesz wyczyścić bazę?')
-          .setDescription('Ta operacja usunie **wszystkie typy użytkowników**.')
-          .setColor(0xffcc00)
+          .setDescription('Usunie **wszystkie typy użytkowników**.')
+          .setColor(0xffcc00),
       ],
-      components: [row]
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('clear_db_yes')
+            .setLabel('✅ Tak')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId('clear_db_no')
+            .setLabel('❌ Nie')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
     });
   }
 
-  // (2) PEŁNY RESET: typy + wyniki + score
   if (action === 'clear_db_with_results') {
-    logger.warn("clear", "FULL RESET confirm requested", userMeta);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('clear_all_yes')
-        .setLabel('✅ Tak, pełny reset')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('clear_all_no')
-        .setLabel('❌ Nie, anuluj')
-        .setStyle(ButtonStyle.Secondary),
-    );
-
     return safeFollowUp({
       embeds: [
         new EmbedBuilder()
           .setTitle('💣 PEŁNY RESET — na pewno?')
-          .setDescription('Ta operacja usunie **typy użytkowników + oficjalne wyniki + score**.')
-          .setColor(0xff0000)
+          .setDescription('Usunie **typy + wyniki + score**.')
+          .setColor(0xff0000),
       ],
-      components: [row]
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('clear_all_yes')
+            .setLabel('✅ Tak')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId('clear_all_no')
+            .setLabel('❌ Nie')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
     });
   }
 
-  // (3) Usuń tylko oficjalne wyniki + score
   if (action === 'clear_only_results_confirm') {
-    logger.warn("clear", "OFFICIAL RESULTS confirm requested", userMeta);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('clear_only_results_yes')
-        .setLabel('✅ Tak, usuń wyniki')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('clear_only_results_no')
-        .setLabel('❌ Nie, anuluj')
-        .setStyle(ButtonStyle.Secondary),
-    );
-
     return safeFollowUp({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Usunąć tylko oficjalne wyniki?')
-          .setDescription('Usunie **wyniki + score**, ale **zostawi typy użytkowników**.')
-          .setColor(0xffcc00)
+          .setDescription('Typy użytkowników zostaną.')
+          .setColor(0xffcc00),
       ],
-      components: [row]
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('clear_only_results_yes')
+            .setLabel('✅ Tak')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId('clear_only_results_no')
+            .setLabel('❌ Nie')
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
     });
   }
 
   // =========================
-  // AKCJE KASUJĄCE
+  // EXECUTION
   // =========================
 
-  // (A) Wyczyść typy userów
   if (action === 'clear_db_yes') {
-    logger.warn("clear", "Executing USER PICKS cleanup", userMeta);
-
     try {
-      await pool.query(`DELETE FROM swiss_predictions`);
-      await pool.query(`DELETE FROM playoffs_predictions`);
-      await pool.query(`DELETE FROM doubleelim_predictions`);
-      await pool.query(`DELETE FROM playin_predictions`);
-      await pool.query(`DELETE FROM swiss_scores`);
-      await pool.query(`DELETE FROM playoffs_scores`);
-      await pool.query(`DELETE FROM doubleelim_scores`);
-      await pool.query(`DELETE FROM playin_scores`);
+      await pool.query('START TRANSACTION');
 
-      logger.info("clear", "User picks cleared successfully", userMeta);
+      await safeQuery(pool, 'DELETE FROM swiss_predictions', [], { guildId, scope: 'clear', label: 'delete swiss_predictions' });
+      await safeQuery(pool, 'DELETE FROM playoffs_predictions', [], { guildId, scope: 'clear', label: 'delete playoffs_predictions' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_predictions', [], { guildId, scope: 'clear', label: 'delete doubleelim_predictions' });
+      await safeQuery(pool, 'DELETE FROM playin_predictions', [], { guildId, scope: 'clear', label: 'delete playin_predictions' });
+      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
+      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
+      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
 
-      await safeFollowUp({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x00ff88)
-            .setTitle('🧹 Baza wyczyszczona')
-            .setDescription('Usunięto **wszystkie typy użytkowników**.')
-        ]
-      });
+      await pool.query('COMMIT');
+
+      logger.info('clear', 'User picks cleared', userMeta);
+      return safeFollowUp({ content: '🧹 Usunięto typy użytkowników.' });
     } catch (err) {
-      logger.error("clear", "Failed to clear user picks", {
-        ...userMeta,
-        message: err.message,
-        stack: err.stack
-      });
-
-      await safeFollowUp({ content: '❌ Błąd podczas czyszczenia typów.' });
+      await pool.query('ROLLBACK');
+      logger.error('clear', 'Clear user picks failed', { ...userMeta, message: err.message });
+      return safeFollowUp({ content: '❌ Błąd czyszczenia.' });
     }
-    return;
   }
 
-  // (B) PEŁNY RESET: typy + wyniki + score + active_panels
   if (action === 'clear_all_yes') {
-    logger.warn("clear", "Executing FULL DATABASE RESET", userMeta);
-
     try {
-      await pool.query(`DELETE FROM swiss_predictions`);
-      await pool.query(`DELETE FROM playoffs_predictions`);
-      await pool.query(`DELETE FROM doubleelim_predictions`);
-      await pool.query(`DELETE FROM playin_predictions`);
-      await pool.query(`DELETE FROM active_panels`);
-      await pool.query(`DELETE FROM swiss_results`);
-      await pool.query(`DELETE FROM playoffs_results`);
-      await pool.query(`DELETE FROM doubleelim_results`);
-      await pool.query(`DELETE FROM playin_results`);
-      await pool.query(`DELETE FROM swiss_scores`);
-      await pool.query(`DELETE FROM playoffs_scores`);
-      await pool.query(`DELETE FROM doubleelim_scores`);
-      await pool.query(`DELETE FROM playin_scores`);
+      await pool.query('START TRANSACTION');
 
-      logger.info("clear", "FULL database reset completed", userMeta);
+      await safeQuery(pool, 'DELETE FROM active_panels', [], { guildId, scope: 'clear', label: 'delete active_panels' });
+      await safeQuery(pool, 'DELETE FROM swiss_predictions', [], { guildId, scope: 'clear', label: 'delete swiss_predictions' });
+      await safeQuery(pool, 'DELETE FROM playoffs_predictions', [], { guildId, scope: 'clear', label: 'delete playoffs_predictions' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_predictions', [], { guildId, scope: 'clear', label: 'delete doubleelim_predictions' });
+      await safeQuery(pool, 'DELETE FROM playin_predictions', [], { guildId, scope: 'clear', label: 'delete playin_predictions' });
+      await safeQuery(pool, 'DELETE FROM swiss_results', [], { guildId, scope: 'clear', label: 'delete swiss_results' });
+      await safeQuery(pool, 'DELETE FROM playoffs_results', [], { guildId, scope: 'clear', label: 'delete playoffs_results' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_results', [], { guildId, scope: 'clear', label: 'delete doubleelim_results' });
+      await safeQuery(pool, 'DELETE FROM playin_results', [], { guildId, scope: 'clear', label: 'delete playin_results' });
+      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
+      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
+      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
 
-      await safeFollowUp({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('🧹 PEŁNY RESET')
-            .setDescription('Usunięto **wszystko**: typy i oficjalne wyniki.')
-        ]
-      });
+      await pool.query('COMMIT');
+
+      logger.warn('clear', 'FULL RESET completed', userMeta);
+      return safeFollowUp({ content: '💣 Wykonano pełny reset.' });
     } catch (err) {
-      logger.error("clear", "FULL database reset failed", {
-        ...userMeta,
-        message: err.message,
-        stack: err.stack
-      });
-
-      await safeFollowUp({ content: '❌ Błąd podczas pełnego resetu bazy.' });
+      await pool.query('ROLLBACK');
+      logger.error('clear', 'FULL RESET failed', { ...userMeta, message: err.message });
+      return safeFollowUp({ content: '❌ Błąd pełnego resetu.' });
     }
-    return;
   }
 
-  // (C) Usuń tylko oficjalne wyniki + score
   if (action === 'clear_only_results_yes') {
-    logger.warn("clear", "Executing OFFICIAL RESULTS cleanup", userMeta);
-
     try {
-      await pool.query(`DELETE FROM swiss_results`);
-      await pool.query(`DELETE FROM playoffs_results`);
-      await pool.query(`DELETE FROM doubleelim_results`);
-      await pool.query(`DELETE FROM playin_results`);
-      await pool.query(`DELETE FROM swiss_scores`);
-      await pool.query(`DELETE FROM playoffs_scores`);
-      await pool.query(`DELETE FROM doubleelim_scores`);
-      await pool.query(`DELETE FROM playin_scores`);
+      await pool.query('START TRANSACTION');
 
-      logger.info("clear", "Official results cleared", userMeta);
+      await safeQuery(pool, 'DELETE FROM swiss_results', [], { guildId, scope: 'clear', label: 'delete swiss_results' });
+      await safeQuery(pool, 'DELETE FROM playoffs_results', [], { guildId, scope: 'clear', label: 'delete playoffs_results' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_results', [], { guildId, scope: 'clear', label: 'delete doubleelim_results' });
+      await safeQuery(pool, 'DELETE FROM playin_results', [], { guildId, scope: 'clear', label: 'delete playin_results' });
+      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
+      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
+      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
+      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
 
-      await safeFollowUp({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0xff4444)
-            .setTitle('🧹 Usunięto oficjalne wyniki')
-            .setDescription('Typy użytkowników pozostały bez zmian.')
-        ]
-      });
+      await pool.query('COMMIT');
+
+      logger.info('clear', 'Official results cleared', userMeta);
+      return safeFollowUp({ content: '🧹 Usunięto oficjalne wyniki.' });
     } catch (err) {
-      logger.error("clear", "Failed to clear official results", {
-        ...userMeta,
-        message: err.message,
-        stack: err.stack
-      });
-
-      await safeFollowUp({ content: '❌ Błąd podczas usuwania oficjalnych wyników.' });
+      await pool.query('ROLLBACK');
+      logger.error('clear', 'Clear results failed', { ...userMeta, message: err.message });
+      return safeFollowUp({ content: '❌ Błąd usuwania wyników.' });
     }
-    return;
   }
 
-  // =========================
-  // ANULOWANIE
-  // =========================
-  if (action === 'clear_db_no' || action === 'clear_all_no' || action === 'clear_only_results_no') {
-    logger.info("clear", "Clear database action cancelled", userMeta);
+  if (action.endsWith('_no')) {
+    logger.info('clear', 'Clear action cancelled', userMeta);
     return safeFollowUp({ content: '✅ Anulowano.' });
   }
 
-  // =========================
-  // FALLBACK (żeby nie było ciszy)
-  // =========================
-  logger.warn("clear", "Unknown clear action (no matching case)", { ...userMeta, action });
+  logger.warn('clear', 'Unknown clear action', { ...userMeta, action });
   return safeFollowUp({ content: `❌ Nieznana akcja: ${action}` });
 };

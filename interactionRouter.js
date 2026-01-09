@@ -2,7 +2,7 @@
 const logger = require('./utils/logger');
 const { withGuild } = require('./utils/guildContext.js');
 
-// Bezpieczny ACK dla button/select gdy brakuje handlera (żeby Discord nie pokazywał "Ta czynność się nie powiodła")
+// Bezpieczny ACK dla button/select gdy brakuje handlera
 async function safeDeferUpdate(interaction) {
   if (interaction.replied || interaction.deferred) return;
   try {
@@ -15,12 +15,10 @@ async function safeDeferUpdate(interaction) {
 function resolveHandler(handlers, handlerName) {
   let fn = handlers?.[handlerName];
 
-  // jeśli loader zwrócił obiekt zamiast funkcji, spróbuj wyciągnąć callable
   if (fn && typeof fn === 'object') {
     fn = fn[handlerName] || fn.execute || fn.run || fn.handler || fn.default;
   }
 
-  // jeśli nadal nie funkcja, spróbuj require pliku
   if (typeof fn !== 'function') {
     try {
       const mod = require(`./handlers/${handlerName}`);
@@ -39,6 +37,16 @@ function resolveHandler(handlers, handlerName) {
 }
 
 async function _handleInteraction(interaction, client, handlers = {}, maps = {}) {
+  // 🔒 HARD GUARD — nigdy bez guild
+  if (!interaction.guildId) {
+    logger.warn('interaction', 'Interaction without guildId blocked', {
+      type: interaction.type,
+      userId: interaction.user?.id,
+      customId: interaction.customId,
+    });
+    return;
+  }
+
   const { buttonMap = {}, modalMap = {}, selectMap = {}, dropdownMap = {} } = maps;
 
   try {
@@ -60,31 +68,26 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (interaction.isButton()) {
       let customId = interaction.customId;
 
-      // ranking (dwukropek)
       if (customId.startsWith('ranking:')) {
         const rankingCmd = require('./commands/ranking.js');
         return rankingCmd.handleComponent(interaction);
       }
 
-      // legacy ranking_
       if (customId.startsWith('ranking_')) {
         const handler = require('./handlers/rankingPagination');
         return handler(interaction, client);
       }
 
-      // Aliasowanie customId
       if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
       if (customId === 'full_reset') customId = 'clear_db_with_results';
       if (customId === 'clear_official_results') customId = 'clear_only_results_confirm';
 
-      // Legacy: część buttonów może iść przez dropdownMap (exact)
       if (dropdownMap?.[customId]) {
         const nameOrFile = dropdownMap[customId];
         const fn = handlers?.[nameOrFile] || require(`./handlers/${nameOrFile}`);
         return fn(interaction, client);
       }
 
-      // Dopasowanie handlera (exact + prefix)
       const prefixKey = Object.keys(buttonMap).find((key) => customId.startsWith(key));
       let handlerName =
         buttonMap[customId] ||
@@ -92,26 +95,32 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         (customId?.startsWith('confirm_end_pickem') && 'confirmEndPickem') ||
         (customId?.startsWith('confirm_stage') && 'submitSwissDropdown');
 
-      // Fallback dla clear_*
       if (!handlerName && customId?.startsWith('clear_')) {
-        logger.warn('interaction', 'Fallback clearDatabaseHandler', { customId });
+        logger.warn('interaction', 'Fallback clearDatabaseHandler', {
+          guildId: interaction.guildId,
+          customId,
+        });
         handlerName = 'clearDatabaseHandler';
       }
 
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
       if (!fn) {
-        logger.warn('interaction', 'Unhandled button', { customId, handlerName });
+        logger.warn('interaction', 'Unhandled button', {
+          guildId: interaction.guildId,
+          customId,
+          handlerName,
+        });
         await safeDeferUpdate(interaction);
         return;
       }
 
-      // EXPORT RANKING — osobny try/catch
       if (customId === 'export_ranking') {
         try {
           await fn(interaction, client);
         } catch (err) {
           logger.error('interaction', 'Export ranking failed', {
+            guildId: interaction.guildId,
             message: err.message,
             stack: err.stack,
           });
@@ -127,7 +136,6 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return;
       }
 
-      // CALCULATE SCORES
       if (customId === 'calculate_scores') {
         await interaction.deferReply({ ephemeral: true });
         try {
@@ -135,10 +143,14 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           await interaction.followUp({ content: '✅ Punkty zostały przeliczone!', ephemeral: true });
         } catch (err) {
           logger.error('interaction', 'Calculate scores failed', {
+            guildId: interaction.guildId,
             message: err.message,
             stack: err.stack,
           });
-          await interaction.followUp({ content: '❌ Wystąpił błąd podczas przeliczania punktów.', ephemeral: true });
+          await interaction.followUp({
+            content: '❌ Wystąpił błąd podczas przeliczania punktów.',
+            ephemeral: true,
+          });
         }
         return;
       }
@@ -147,14 +159,16 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       return;
     }
 
-    // === MODAL SUBMIT ===
+    // === MODAL ===
     if (interaction.isModalSubmit()) {
-      const customId = interaction.customId;
-      const handlerName = modalMap?.[customId];
+      const handlerName = modalMap?.[interaction.customId];
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
       if (!fn) {
-        logger.warn('interaction', 'Unhandled modal', { customId, handlerName });
+        logger.warn('interaction', 'Unhandled modal', {
+          guildId: interaction.guildId,
+          customId: interaction.customId,
+        });
         return;
       }
 
@@ -162,26 +176,24 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       return;
     }
 
-    // === SELECT MENU ===
+    // === SELECT ===
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
 
-      // ranking
       if (customId.startsWith('ranking:')) {
         const rankingCmd = require('./commands/ranking.js');
         return rankingCmd.handleComponent(interaction);
       }
 
-      // 1) selectMap (exact)
       if (selectMap?.[customId]) {
         const handlerName = selectMap[customId];
         const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
         if (!fn) {
-          logger.error('interaction', 'Select handler is not a function', {
+          logger.error('interaction', 'Select handler not callable', {
+            guildId: interaction.guildId,
             customId,
             handlerName,
-            resolvedType: typeof handlers?.[handlerName],
           });
           await safeDeferUpdate(interaction);
           return;
@@ -190,11 +202,10 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client, handlers, maps);
       }
 
-      // 2) dropdownMap (fix _p0/_p1)
       const baseId = customId.replace(/_p\d+$/i, '');
       const dropdownKey =
-        (dropdownMap?.[customId] && customId) ||
-        (dropdownMap?.[baseId] && baseId) ||
+        dropdownMap?.[customId] ||
+        dropdownMap?.[baseId] ||
         Object.keys(dropdownMap || {}).find((k) => customId.startsWith(k)) ||
         Object.keys(dropdownMap || {}).find((k) => baseId.startsWith(k));
 
@@ -204,12 +215,15 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client);
       }
 
-      logger.warn('interaction', 'Unhandled select menu', { customId });
+      logger.warn('interaction', 'Unhandled select menu', {
+        guildId: interaction.guildId,
+        customId,
+      });
       await safeDeferUpdate(interaction);
-      return;
     }
   } catch (err) {
     logger.error('interaction', 'Unhandled interactionCreate error', {
+      guildId: interaction.guildId,
       message: err.message,
       stack: err.stack,
     });
@@ -220,17 +234,22 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
 
 module.exports = async function handleInteraction(interaction, client, handlers = {}, maps = {}) {
   if (!interaction.guildId) {
-    return _handleInteraction(interaction, client, handlers, maps);
+    logger.warn('interaction', 'Blocked interaction without guildId', {
+      type: interaction.type,
+      userId: interaction.user?.id,
+      customId: interaction.customId,
+    });
+    return;
   }
 
-  return withGuild(interaction.guildId, async () => {
-    return _handleInteraction(interaction, client, handlers, maps);
-  });
+  return withGuild(interaction.guildId, async () =>
+    _handleInteraction(interaction, client, handlers, maps),
+  );
 };

@@ -6,15 +6,15 @@ const {
   ButtonStyle,
 } = require('discord.js');
 
-const logger = require('./logger'); // wrapper loggera (scope, msg, data)
+const logger = require('./logger');
 const { getGuildConfig } = require('./guildRegistry');
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
 
-// Bezpieczne pobranie ostatnich wiadomości i znalezienie panelu do edycji
 async function findExistingPanelMessage(channel, clientUserId) {
+  if (!clientUserId) return null;
+
   try {
-    // 50 jest OK, ale 20 zwykle wystarczy i mniej obciąża
     const messages = await channel.messages.fetch({ limit: 20 });
 
     const found = messages
@@ -27,6 +27,7 @@ async function findExistingPanelMessage(channel, clientUserId) {
     return found || null;
   } catch (err) {
     logger.error('panel', 'Failed to fetch messages for panel lookup', {
+      channelId: channel.id,
       message: err.message,
       stack: err.stack,
     });
@@ -78,10 +79,9 @@ function buildPanelPayload() {
 }
 
 module.exports = async function startExportPanel(client, guildId) {
-  // ✅ MULTI-GUILD: wymagamy guildId (bez fallbacku do process.env.GUILD_ID)
   const gid = String(guildId || '').trim();
   if (!gid) {
-    logger.error('panel', 'startExportPanel called without guildId (required in multi-guild)', {});
+    logger.error('panel', 'startExportPanel called without guildId', {});
     return;
   }
 
@@ -101,13 +101,15 @@ module.exports = async function startExportPanel(client, guildId) {
     const channel = await client.channels.fetch(channelId);
 
     if (!channel || !channel.isTextBased?.()) {
-      logger.error('panel', 'Export panel channel not found or not text-based', { guildId: gid, channelId });
+      logger.error('panel', 'Export panel channel not found or not text-based', {
+        guildId: gid,
+        channelId,
+      });
       return;
     }
 
-    // ✅ Guard: kanał musi należeć do tego guilda
     if (channel.guildId && String(channel.guildId) !== String(gid)) {
-      logger.error('panel', 'EXPORT_PANEL_CHANNEL_ID points to a channel in another guild', {
+      logger.error('panel', 'EXPORT_PANEL_CHANNEL_ID points to another guild', {
         guildId: gid,
         channelId,
         channelGuildId: channel.guildId,
@@ -116,7 +118,7 @@ module.exports = async function startExportPanel(client, guildId) {
     }
 
     const payload = buildPanelPayload();
-    const existing = await findExistingPanelMessage(channel, client.user.id);
+    const existing = await findExistingPanelMessage(channel, client.user?.id);
 
     if (existing) {
       await existing.edit(payload);
