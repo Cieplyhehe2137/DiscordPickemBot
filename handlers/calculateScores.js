@@ -103,8 +103,8 @@ module.exports = async function calculateScores() {
             user_id,
             stage,
             displayname,
-            score,
             score
+            
           ]);
         }
         if (swissScoreRows.length) {
@@ -199,7 +199,7 @@ module.exports = async function calculateScores() {
           user_id,
           displayname,
           score,
-          score
+          
         ]);
 
       }
@@ -299,7 +299,6 @@ module.exports = async function calculateScores() {
         doubleElimScoreRows.push([
           user_id,
           displayname,
-          score,
           score
         ]);
       }
@@ -382,7 +381,6 @@ module.exports = async function calculateScores() {
         playinScoreRows.push([
           user_id,
           displayname,
-          score,
           score
         ]);
       }
@@ -409,27 +407,53 @@ module.exports = async function calculateScores() {
   // === MATCHES ===
   try {
     console.log('📦 Przeliczam punkty za WYNIKI MECZÓW...');
+
+    // 1) Wszystkie mecze z oficjalnym wynikiem
     const [matchesWithResults] = await safeQuery(
       pool,
       `
-      SELECT m.id, m.team_a, m.team_b, m.phase, r.res_a, r.res_b
+      SELECT m.id AS match_id, r.res_a, r.res_b
       FROM matches m
       JOIN match_results r ON r.match_id = m.id
       ORDER BY m.id ASC
-      `,
+    `,
       [],
       { guildId, scope: 'cron:calculateScores', label: 'select matches with results' }
     );
 
-    let totalComputed = 0;
+    if (!matchesWithResults.length) {
+      console.warn('⚠️ Brak meczów z oficjalnym wynikiem');
+      return;
+    }
+
+    // 2) Wszystkie predykcje do tych meczów (jednym strzałem)
+    const matchIds = matchesWithResults.map(m => m.match_id);
+
+    const [allPredictions] = await safeQuery(
+      pool,
+      `
+      SELECT match_id, user_id, pred_a, pred_b
+      FROM match_predictions
+      WHERE match_id IN (?)
+    `,
+      [matchIds],
+      { guildId, scope: 'cron:calculateScores', label: 'select match_predictions bulk' }
+    );
+
+    // 3) Grupowanie predykcji po match_id
+    const predsByMatch = new Map();
+    for (const p of allPredictions) {
+      if (!predsByMatch.has(p.match_id)) {
+        predsByMatch.set(p.match_id, []);
+      }
+      predsByMatch.get(p.match_id).push(p);
+    }
+
+    // 4) Liczenie punktów (bez DB)
+    const matchPointRows = [];
 
     for (const m of matchesWithResults) {
-      const [preds] = await safeQuery(
-        pool,
-        `SELECT user_id, pred_a, pred_b FROM match_predictions WHERE match_id = ?`,
-        [m.id],
-        { guildId, scope: 'cron:calculateScores', label: 'select match_predictions' }
-      );
+      const preds = predsByMatch.get(m.match_id) || [];
 
       for (const p of preds) {
         const pts = computePoints({
@@ -439,23 +463,35 @@ module.exports = async function calculateScores() {
           resB: m.res_b,
         });
 
-        await safeQuery(
-          pool,
-          `INSERT INTO match_points (match_id, user_id, points)
-           VALUES (?, ?, ?)
-           ON DUPLICATE KEY UPDATE points = VALUES(points), computed_at = CURRENT_TIMESTAMP`,
-          [m.id, p.user_id, pts],
-          { guildId, scope: 'cron:calculateScores', label: 'upsert match_points' }
-        );
-
-        totalComputed++;
+        matchPointRows.push([
+          m.match_id,
+          p.user_id,
+          pts,
+        ]);
       }
     }
 
-    console.log(`✅ Mecze przeliczone. Zaktualizowano wpisów match_points: ${totalComputed}`);
+    // 5) Batch INSERT
+    if (matchPointRows.length) {
+      await safeQuery(
+        pool,
+        `
+        INSERT INTO match_points (match_id, user_id, points)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+          points = VALUES(points),
+          computed_at = CURRENT_TIMESTAMP
+      `,
+        [matchPointRows],
+        { guildId, scope: 'cron:calculateScores', label: 'batch upsert match_points' }
+      );
+    }
+
+    console.log(`✅ MATCHES: zapisano ${matchPointRows.length} wpisów`);
   } catch (err) {
     console.error('❌ Błąd w fazie MATCHES:', err);
   }
+
 
   console.log('✅ Przeliczanie zakończone.');
 };
