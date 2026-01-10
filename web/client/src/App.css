@@ -40,3 +40,33 @@
 .read-the-docs {
   color: #888;
 }
+
+.actions {
+  margin-top: 32px;
+  display: flex;
+  gap: 16px;
+}
+
+.btn {
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.green {
+  background: #1f8f4e;
+  color: #fff;
+}
+
+.btn.red {
+  background: #8f2f2f;
+  color: #fff;
+}
