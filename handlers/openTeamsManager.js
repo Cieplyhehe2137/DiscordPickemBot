@@ -72,11 +72,12 @@ async function render(interaction) {
     .setColor(0x2f3136)
     .setTitle('👥 Manager drużyn')
     .setDescription(
-      'Zarządzaj listą drużyn w DB. Zmiany automatycznie synchronizują `teams.json` (root oraz `/data/teams.json`).\n\n' +
+      'Zarządzaj listą drużyn w bazie danych (tabela `teams`).\n\n' +
       `• Aktywne: **${activeCount}** / Wszystkie: **${total}**\n` +
       `• Strona: **${page + 1}**\n` +
       selectedLine
     );
+
 
   // options for current page
   const optionsRaw = items.map(t => ({
@@ -127,13 +128,14 @@ async function render(interaction) {
     new ButtonBuilder().setCustomId('teams:rename').setLabel('✏️ Zmień nazwę').setStyle(ButtonStyle.Primary).setDisabled(!canSingle),
     new ButtonBuilder().setCustomId('teams:toggle').setLabel('✅/🚫 Aktywuj').setStyle(ButtonStyle.Secondary).setDisabled(!canSingle),
     new ButtonBuilder().setCustomId('teams:delete').setLabel('🗑 Usuń').setStyle(ButtonStyle.Danger).setDisabled(!canAny),
-    new ButtonBuilder().setCustomId('teams:seed_from_file').setLabel('📥 Import z pliku').setStyle(ButtonStyle.Secondary)
   );
 
+
   const ioRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('teams:export').setLabel('📤 Export JSON').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('teams:import').setLabel('📥 Import JSON').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('teams:export').setLabel('📤 Eksport listy').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('teams:import').setLabel('📥 Import listy').setStyle(ButtonStyle.Secondary)
   );
+
 
   const activeNames = await getTeamNames(guildId, { includeInactive: false });
   const preview = activeNames.slice(0, 15);
