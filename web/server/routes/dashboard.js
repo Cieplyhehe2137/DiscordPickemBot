@@ -1,6 +1,8 @@
 import express from "express";
 import { withGuild } from "../../../utils/guildContext.js";
 import db from "../../../db.js";
+import { logTournamentAction } from "../../../utils/auditLog.js";
+import { ensureTournamentState } from "../../../utils/ensureTournamentTables.js";
 
 const router = express.Router();
 
@@ -9,7 +11,7 @@ const ALLOWED_PHASES = [
   "SWISS_STAGE_2",
   "SWISS_STAGE_3",
   "PLAYOFFS",
-  "FINISHED"
+  "FINISHED",
 ];
 
 /**
@@ -25,6 +27,8 @@ router.get("/summary", async (req, res) => {
   try {
     const result = await withGuild(guildId, async () => {
       const pool = db.getPoolForGuild(guildId);
+
+      await ensureTournamentState(pool);
 
       const [[participants]] = await pool.query(
         "SELECT COUNT(DISTINCT user_id) AS count FROM swiss_predictions"
@@ -43,7 +47,7 @@ router.get("/summary", async (req, res) => {
         isOpen: !!state?.is_open,
         participants: participants.count,
         predictions: predictions.count,
-        isAdmin: !!req.user?.isAdmin
+        isAdmin: !!req.user?.isAdmin,
       };
     });
 
@@ -67,9 +71,18 @@ router.post("/open", async (req, res) => {
   try {
     await withGuild(guildId, async () => {
       const pool = db.getPoolForGuild(guildId);
-      await pool.query(
-        "UPDATE tournament_state SET is_open = 1 WHERE id = 1"
-      );
+
+      await ensureTournamentState(pool);
+
+      await pool.query("UPDATE tournament_state SET is_open = 1 WHERE id = 1");
+    });
+
+    await logTournamentAction({
+      guildId,
+      actorId: req.user.discordId,
+      action: "OPEN_PREDICTIONS",
+      oldValue: "CLOSED",
+      newValue: "OPEN",
     });
 
     res.json({ ok: true, isOpen: true });
@@ -92,9 +105,18 @@ router.post("/close", async (req, res) => {
   try {
     await withGuild(guildId, async () => {
       const pool = db.getPoolForGuild(guildId);
-      await pool.query(
-        "UPDATE tournament_state SET is_open = 0 WHERE id = 1"
-      );
+
+      await ensureTournamentState(pool);
+
+      await pool.query("UPDATE tournament_state SET is_open = 0 WHERE id = 1");
+    });
+
+    await logTournamentAction({
+      guildId,
+      actorId: req.user.discordId,
+      action: "CLOSE_PREDICTIONS",
+      oldValue: "OPEN",
+      newValue: "CLOSED",
     });
 
     res.json({ ok: true, isOpen: false });
@@ -120,12 +142,29 @@ router.post("/phase", async (req, res) => {
   }
 
   try {
+    let oldPhase = "UNKNOWN";
+
     await withGuild(guildId, async () => {
       const pool = db.getPoolForGuild(guildId);
-      await pool.query(
-        "UPDATE tournament_state SET phase = ? WHERE id = 1",
-        [phase]
+
+      await ensureTournamentState(pool);
+
+      const [[current]] = await pool.query(
+        "SELECT phase FROM tournament_state WHERE id = 1"
       );
+      oldPhase = current?.phase ?? "UNKNOWN";
+
+      await pool.query("UPDATE tournament_state SET phase = ? WHERE id = 1", [
+        phase,
+      ]);
+    });
+
+    await logTournamentAction({
+      guildId,
+      actorId: req.user.discordId,
+      action: "CHANGE_PHASE",
+      oldValue: oldPhase,
+      newValue: phase,
     });
 
     res.json({ ok: true, phase });

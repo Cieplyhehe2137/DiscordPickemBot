@@ -2,6 +2,7 @@ const db = require('../db');
 const { getGuildId } = require('../utils/guildContext');
 const logger = require('../utils/logger');
 const { safeQuery } = require('../utils/safeQuery');
+const { computeTotalPoints } = require('../utils/matchScoring'); // ✅
 
 const cleanList = (val) => {
   if (!val) return [];
@@ -51,8 +52,8 @@ module.exports = async function calculateScores() {
     }
 
     for (const correctSwiss of swissResultsRows) {
-      const stageRaw = correctSwiss.stage;
-      const stage = stageRaw.replace('stage', '');
+      const stageRaw = correctSwiss.stage; // ✅ u Ciebie enum: stage1/stage2/stage3
+      const stage = stageRaw;             // ✅ NIE robimy "1/2/3" (bo enum tego nie przyjmie)
 
       logger.info('scores', 'Calculating Swiss stage', {
         guildId,
@@ -110,7 +111,7 @@ module.exports = async function calculateScores() {
 
         swissScoreRows.push([
           user_id,
-          stage,
+          stage, // ✅ stage1/stage2/stage3
           displayname,
           score,
         ]);
@@ -461,7 +462,10 @@ module.exports = async function calculateScores() {
     const [matchesWithResults] = await safeQuery(
       pool,
       `
-      SELECT m.id AS match_id, r.res_a, r.res_b
+      SELECT
+        m.id AS match_id,
+        r.res_a, r.res_b,
+        r.exact_a, r.exact_b
       FROM matches m
       JOIN match_results r ON r.match_id = m.id
       ORDER BY m.id ASC
@@ -481,7 +485,7 @@ module.exports = async function calculateScores() {
       const [allPredictions] = await safeQuery(
         pool,
         `
-        SELECT match_id, user_id, pred_a, pred_b
+        SELECT match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
         FROM match_predictions
         WHERE match_id IN (?)
         `,
@@ -491,9 +495,7 @@ module.exports = async function calculateScores() {
 
       const predsByMatch = new Map();
       for (const p of allPredictions) {
-        if (!predsByMatch.has(p.match_id)) {
-          predsByMatch.set(p.match_id, []);
-        }
+        if (!predsByMatch.has(p.match_id)) predsByMatch.set(p.match_id, []);
         predsByMatch.get(p.match_id).push(p);
       }
 
@@ -502,12 +504,17 @@ module.exports = async function calculateScores() {
       for (const m of matchesWithResults) {
         const preds = predsByMatch.get(m.match_id) || [];
         for (const p of preds) {
-          const pts = computePoints({
+          const pts = computeTotalPoints({
             predA: p.pred_a,
             predB: p.pred_b,
             resA: m.res_a,
             resB: m.res_b,
+            predExactA: p.pred_exact_a ?? null,
+            predExactB: p.pred_exact_b ?? null,
+            exactA: m.exact_a ?? null,
+            exactB: m.exact_b ?? null
           });
+
           matchPointRows.push([m.match_id, p.user_id, pts]);
         }
       }
