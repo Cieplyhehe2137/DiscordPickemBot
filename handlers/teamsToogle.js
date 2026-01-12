@@ -1,7 +1,7 @@
-// handlers/teamsToggle.js
+// handlers/teamsToogle.js
 const logger = require('../utils/logger');
 const teamsState = require('../utils/teamsState');
-const { toggleTeam } = require('../utils/teamsStore');
+const { toggleTeamActive } = require('../utils/teamsStore');
 const openTeamsManager = require('./openTeamsManager');
 const { PermissionFlagsBits } = require('discord.js');
 
@@ -13,12 +13,14 @@ module.exports = async function teamsToggle(interaction) {
 
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
-    const st = teamsState.get(guildId, userId);
-    if (!st?.selectedTeamId) {
+    const st = teamsState.getState(guildId, userId);
+
+    const teamId = Number(st?.selectedTeamId);
+    if (!teamId) {
       return interaction.reply({ content: '⚠️ Najpierw wybierz drużynę z listy.', ephemeral: true });
     }
 
-    await toggleTeam(guildId, st.selectedTeamId);
+    await toggleTeamActive(guildId, teamId);
     return openTeamsManager(interaction);
   } catch (err) {
     logger.error('teams', 'teamsToggle failed', { message: err.message, stack: err.stack });

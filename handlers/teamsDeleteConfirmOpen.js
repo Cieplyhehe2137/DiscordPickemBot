@@ -16,32 +16,37 @@ module.exports = async function teamsDeleteConfirmOpen(interaction) {
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
-
   const st = teamsState.getState(guildId, userId);
-  const ids = getSelectedIds(st).map(Number).filter(n => Number.isFinite(n) && n > 0);
+
+  const ids = getSelectedIds(st)
+    .map(Number)
+    .filter(n => Number.isFinite(n) && n > 0);
 
   if (!ids.length) {
-    return interaction.reply({ content: '⚠️ Najpierw wybierz drużyny z listy.', ephemeral: true });
+    return interaction.reply({ content: '⚠️ Najpierw wybierz drużyny do usunięcia.', ephemeral: true });
   }
 
   const all = await listTeams(guildId, { includeInactive: true });
-  const byId = new Map(all.map(t => [Number(t.id), t]));
-
-  const names = ids
-    .map(id => byId.get(id)?.name || `ID:${id}`)
-    .slice(0, 12);
+  const byId = new Map(all.map(t => [Number(t.id), t.name]));
+  const names = ids.map(id => byId.get(id) || `ID:${id}`);
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('teams:delete_yes').setLabel('✅ Usuń').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('teams:delete_no').setLabel('❌ Anuluj').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder()
+      .setCustomId('teams:delete_yes')
+      .setLabel('✅ Usuń')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId('teams:delete_no')
+      .setLabel('❌ Anuluj')
+      .setStyle(ButtonStyle.Secondary)
   );
 
-  const extra = ids.length > names.length ? `\n… i jeszcze **${ids.length - names.length}**` : '';
-  const list = names.map(n => `• ${n}`).join('\n') + extra;
+  const preview = names.slice(0, 12);
+  const extra = names.length > preview.length ? `\n… i jeszcze **${names.length - preview.length}**` : '';
+  const list = preview.map(n => `• ${n}`).join('\n') + extra;
 
   return interaction.reply({
-    content:
-      `⚠️ Na pewno chcesz usunąć **${ids.length}** drużyn?\n\n${list}`,
+    content: `⚠️ Na pewno chcesz usunąć **${ids.length}** drużyn?\n\n${list}`,
     components: [row],
     ephemeral: true
   });

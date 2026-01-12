@@ -7,18 +7,19 @@ module.exports = async function teamsPageNav(interaction) {
   try {
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
-    const id = interaction.customId;
+    const customId = interaction.customId;
 
-    const st = teamsState.get(guildId, userId) || { page: 0, selectedTeamIds: [] };
+    const st = teamsState.getState(guildId, userId);
+    const page = Number(st.page) || 0;
 
-    if (id === 'teams:page_prev') st.page = Math.max(0, (Number(st.page) || 0) - 1);
-    if (id === 'teams:page_next') st.page = (Number(st.page) || 0) + 1;
+    if (customId === 'teams:page_prev') st.page = Math.max(0, page - 1);
+    if (customId === 'teams:page_next') st.page = page + 1;
 
-    // IMPORTANT: clear selection on page move (avoid accidental deletes)
+    // czyścimy wybór przy zmianie strony (żeby nie usunąć “przypadkiem”)
     st.selectedTeamIds = [];
     st.selectedTeamId = null;
 
-    teamsState.set(guildId, userId, st);
+    teamsState.setState(guildId, userId, st);
     return openTeamsManager(interaction);
   } catch (err) {
     logger.error('teams', 'teamsPageNav failed', { message: err.message, stack: err.stack });

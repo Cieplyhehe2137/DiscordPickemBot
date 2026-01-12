@@ -10,22 +10,24 @@ module.exports = async function teamsExport(interaction) {
     }
 
     const guildId = interaction.guildId;
-    const names = await getTeamNames(guildId, { includeInactive: false });
+    await interaction.deferReply({ ephemeral: true });
 
+    const names = await getTeamNames(guildId, { includeInactive: false });
     const json = JSON.stringify(names, null, 2);
+
     const file = new AttachmentBuilder(Buffer.from(json, 'utf8'), {
       name: `teams_${guildId}.json`
     });
 
-    return interaction.reply({
+    return interaction.editReply({
       content: `📤 Export drużyn: **${names.length}** (aktywne).`,
-      files: [file],
-      ephemeral: true
+      files: [file]
     });
   } catch (err) {
     logger.error('teams', 'teamsExport failed', { message: err.message, stack: err.stack });
-    if (!interaction.replied && !interaction.deferred) {
-      return interaction.reply({ content: '❌ Nie udało się wyeksportować drużyn.', ephemeral: true });
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply({ content: '❌ Nie udało się wyeksportować drużyn.' });
     }
+    return interaction.reply({ content: '❌ Nie udało się wyeksportować drużyn.', ephemeral: true });
   }
 };

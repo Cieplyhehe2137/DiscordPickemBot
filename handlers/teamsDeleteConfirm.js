@@ -23,17 +23,16 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     const ids = getSelectedIds(st).map(Number).filter(n => Number.isFinite(n) && n > 0);
 
     if (!ids.length) {
-      return interaction.update({ content: '⚠️ Brak zaznaczonych drużyn.', components: [] });
+      const payload = { content: '⚠️ Brak zaznaczonych drużyn.', components: [] };
+      return interaction.isRepliable() ? interaction.reply({ ...payload, ephemeral: true }) : interaction.update(payload);
     }
 
-    // Optional: build nice summary
     const all = await listTeams(guildId, { includeInactive: true });
     const byId = new Map(all.map(t => [Number(t.id), t.name]));
     const names = ids.map(id => byId.get(id) || `ID:${id}`);
 
     await deleteTeams(guildId, ids);
 
-    // clear selection after delete
     teamsState.setState(guildId, userId, { page: st?.page || 0, selectedTeamIds: [], selectedTeamId: null });
 
     const backRow = new ActionRowBuilder().addComponents(
@@ -47,8 +46,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     const extra = names.length > 10 ? `\n… i jeszcze **${names.length - 10}**` : '';
 
     return interaction.update({
-      content:
-        `✅ Usunięto **${ids.length}** drużyn.\n\n${preview}${extra}`,
+      content: `✅ Usunięto **${ids.length}** drużyn.\n\n${preview}${extra}`,
       components: [backRow]
     });
   } catch (err) {
