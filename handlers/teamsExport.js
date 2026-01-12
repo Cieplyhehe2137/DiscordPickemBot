@@ -10,8 +10,6 @@ module.exports = async function teamsExport(interaction) {
     }
 
     const guildId = interaction.guildId;
-
-    // export aktywnych nazw (format zgodny z importem)
     const names = await getTeamNames(guildId, { includeInactive: false });
 
     const json = JSON.stringify(names, null, 2);

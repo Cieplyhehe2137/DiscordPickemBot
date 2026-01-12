@@ -1,44 +1,81 @@
-const db = require('../db');
-const { withGuild } = require('./guildContext');
+// utils/teamsState.js
+const state = new Map();
 
-async function getTeams(guildId) {
-  return withGuild(guildId, async () => {
-    const pool = db.getPoolForGuild(guildId);
-    const [rows] = await pool.query(
-      `SELECT id, name, short_name, active, sort_order FROM teams WHERE guild_id = ? ORDER BY sort_order ASC, name ASC`,
-      [guildId]
-    );
-    return rows;
-  })
+function ensureGuild(guildId) {
+  const gid = String(guildId);
+  if (!state.has(gid)) state.set(gid, {});
+  return state.get(gid);
 }
 
-async function saveTeams(guildId, teams) {
-  return withGuild(guildId, async () => {
-    const pool = db.getPoolForGuild(guildId);
+/**
+ * Stan usera w danej guildii
+ */
+function getState(guildId, userId) {
+  const gid = String(guildId);
+  const uid = String(userId);
 
-    const values = teams.map((t, i) => [
-      guildId,
-      t.name,
-      t.short_name ?? null,
-      t.active ?? 1,
-      i + 1,
-    ]);
+  const guildState = ensureGuild(gid);
 
-    await pool.query('DELETE FROM teams WHERE guild_id = ?', [guildId]);
-    if (values.length) {
-      await pool.query(
-        `INSERT INTO teams (guild_id, name, short_name, active, sort_order) VALUES ?`,
-        [values]
-      );
-    }
-  });
+  if (!guildState[uid]) {
+    guildState[uid] = {
+      selectedTeamIds: [],
+      selectedTeamId: null, // legacy
+      page: 0,
+      teams: null
+    };
+  }
+
+  return guildState[uid];
 }
 
-async function resetTeams(guildId) {
-  return withGuild(guildId, async () => {
-    const pool = db.getPoolForGuild(guildId);
-    await pool.query('DELETE FROM teams WHERE guild_id = ?', [guildId]);
-  });
+/**
+ * Nadpisuje fragment stanu
+ */
+function setState(guildId, userId, data) {
+  const s = getState(guildId, userId);
+  Object.assign(s, data || {});
+  return s;
 }
 
-module.exports = { getTeams, saveTeams, resetTeams };
+/**
+ * Czyści zaznaczenie
+ */
+function clearSelection(guildId, userId) {
+  const s = getState(guildId, userId);
+  s.selectedTeamIds = [];
+  s.selectedTeamId = null;
+  return s;
+}
+
+/**
+ * Unieważnia cache drużyn (jeśli gdzieś cachujesz listę)
+ */
+function invalidateTeams(guildId) {
+  const gid = String(guildId);
+  if (!state.has(gid)) return;
+
+  const guildState = state.get(gid);
+  for (const uid of Object.keys(guildState)) {
+    guildState[uid].teams = null;
+  }
+}
+
+/**
+ * Legacy API dla starych handlerów:
+ * teamsState.get(gid, uid) / teamsState.set(gid, uid, data)
+ */
+function get(guildId, userId) {
+  return getState(guildId, userId);
+}
+function set(guildId, userId, data) {
+  return setState(guildId, userId, data);
+}
+
+module.exports = {
+  getState,
+  setState,
+  clearSelection,
+  invalidateTeams,
+  get,
+  set
+};
