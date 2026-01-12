@@ -1,57 +1,44 @@
-const state = new Map();
+const db = require('../db');
+const { withGuild } = require('./guildContext');
 
-/**
- * Zwraca stan usera w danej guildii
- */
-function getState(guildId, userId) {
-  if (!state.has(guildId)) {
-    state.set(guildId, {});
-  }
-
-  const guildState = state.get(guildId);
-
-  if (!guildState[userId]) {
-    guildState[userId] = {
-      selectedTeamIds: [],
-      page: 0,
-      teams: null
-    };
-  }
-
-  return guildState[userId];
+async function getTeams(guildId) {
+  return withGuild(guildId, async () => {
+    const pool = db.getPoolForGuild(guildId);
+    const [rows] = await pool.query(
+      `SELECT id, name, short_name, active, sort_order FROM teams WHERE guild_id = ? ORDER BY sort_order ASC, name ASC`,
+      [guildId]
+    );
+    return rows;
+  })
 }
 
-/**
- * Nadpisuje fragment stanu
- */
-function setState(guildId, userId, data) {
-  const s = getState(guildId, userId);
-  Object.assign(s, data);
+async function saveTeams(guildId, teams) {
+  return withGuild(guildId, async () => {
+    const pool = db.getPoolForGuild(guildId);
+
+    const values = teams.map((t, i) => [
+      guildId,
+      t.name,
+      t.short_name ?? null,
+      t.active ?? 1,
+      i + 1,
+    ]);
+
+    await pool.query('DELETE FROM teams WHERE guild_id = ?', [guildId]);
+    if (values.length) {
+      await pool.query(
+        `INSERT INTO teams (guild_id, name, short_name, active, sort_order) VALUES ?`,
+        [values]
+      );
+    }
+  });
 }
 
-/**
- * Czyści tylko zaznaczenie
- */
-function clearSelection(guildId, userId) {
-  const s = getState(guildId, userId);
-  s.selectedTeamIds = [];
+async function resetTeams(guildId) {
+  return withGuild(guildId, async () => {
+    const pool = db.getPoolForGuild(guildId);
+    await pool.query('DELETE FROM teams WHERE guild_id = ?', [guildId]);
+  });
 }
 
-/**
- * 🔥 KLUCZOWE – unieważnia cache drużyn
- */
-function invalidateTeams(guildId) {
-  if (!state.has(guildId)) return;
-
-  const guildState = state.get(guildId);
-  for (const userId of Object.keys(guildState)) {
-    guildState[userId].teams = null;
-  }
-}
-
-module.exports = {
-  getState,
-  setState,
-  clearSelection,
-  invalidateTeams
-};
+module.exports = { getTeams, saveTeams, resetTeams };

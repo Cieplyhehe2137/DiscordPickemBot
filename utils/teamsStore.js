@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../db');
 const logger = require('./logger');
-const { default: teamsState } = require('./teamsState');
+const teamsState = require('./teamsState');
 
 const ROOT_TEAMS_PATH = path.join(__dirname, '..', 'teams.json');
 const DATA_TEAMS_PATH = path.join(__dirname, '..', 'data', 'teams.json');
