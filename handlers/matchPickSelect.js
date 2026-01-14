@@ -60,7 +60,7 @@ module.exports = async function matchPickSelect(interaction) {
         // dla userów: dodatkowy przycisk do wpisania dokładnego wyniku (np. 13:8)
         let extraRows = [];
         if (mode === 'pred') {
-            userState.set(interaction.user.id, {
+            userState.set(interaction.guildId, interaction.user.id, {
                 matchId: match.id,
                 teamA: match.team_a,
                 teamB: match.team_b,

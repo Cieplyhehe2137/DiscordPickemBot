@@ -45,7 +45,7 @@ module.exports = async function matchScoreSelect(interaction) {
       );
 
       // zostawiamy od razu przycisk do wpisania dokładnego wyniku
-      userState.set(interaction.user.id, {
+      userState.set(interaction.guildId, interaction.user.id, {
         matchId: match.id,
         teamA: match.team_a,
         teamB: match.team_b,

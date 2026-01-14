@@ -60,7 +60,7 @@ function buildModal(match, maxMaps, mapNo, defaults) {
 
 module.exports = async function matchAdminExactSubmit(interaction) {
   try {
-    const ctx = adminState.get(interaction.user.id);
+    const ctx = adminState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
 
     const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
@@ -102,7 +102,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     // Następna mapa -> próbuj od razu modal (fallback: przycisk "Dalej")
     if (maxMaps > 1 && mapNo < maxMaps) {
       const nextMapNo = mapNo + 1;
-      adminState.set(interaction.user.id, { ...ctx, mapNo: nextMapNo });
+      adminState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo: nextMapNo });
 
       const defaults = await getDefaults(match.id, maxMaps, nextMapNo);
       const modal = buildModal(match, maxMaps, nextMapNo, defaults);
@@ -130,7 +130,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
 
     // Koniec
-    if (maxMaps > 1) adminState.set(interaction.user.id, { ...ctx, mapNo: 1 });
+    if (maxMaps > 1) adminState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo: 1 });
 
     return interaction.reply({
       content:

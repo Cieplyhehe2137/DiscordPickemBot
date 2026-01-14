@@ -63,8 +63,8 @@ module.exports = async function matchScoreSelectPred(interaction) {
     );
 
     // zapis do state (to jest to, czego potrzebuje matchUserExactSubmit)
-    const prev = userState.get(interaction.user.id) || {};
-    userState.set(interaction.user.id, {
+    const prev = userState.get(interaction.guildId, interaction.user.id, ) || {};
+    userState.set(interaction.guildId, interaction.user.id, {
       ...prev,
       matchId: match.id,
       teamA: match.team_a,

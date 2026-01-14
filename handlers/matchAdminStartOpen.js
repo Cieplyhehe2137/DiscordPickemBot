@@ -31,8 +31,8 @@ module.exports = async function matchAdminStartOpen(interaction) {
       return interaction.reply({ content: '❌ Nie znaleziono meczu', ephemeral: true });
     }
 
-    const prev = adminState.get(interaction.user.id) || {};
-    adminState.set(interaction.user.id, {
+    const prev = adminState.get(interaction.guildId, interaction.user.id) || {};
+    adminState.set(interaction.guildId, interaction.user.id, {
       ...prev,
       matchId: Number(match.id),
       teamA: match.team_a,

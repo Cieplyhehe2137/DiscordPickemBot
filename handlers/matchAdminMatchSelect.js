@@ -30,7 +30,7 @@ module.exports = async function matchAdminMatchSelect(interaction) {
   const m = rows[0];
 
   // zapamiętaj kontekst dla modala "dokładny wynik"
-  adminState.set(interaction.user.id, {
+  adminState.set(interaction.guildId, interaction.user.id, {
     matchId: Number(m.id),
     teamA: m.team_a,
     teamB: m.team_b,

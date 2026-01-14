@@ -14,7 +14,7 @@ function maxMapsFromBo(bestOf) {
 
 module.exports = async function matchUserExactSubmit(interaction) {
   try {
-    const ctx = userState.get(interaction.user.id);
+    const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
     }
@@ -36,12 +36,12 @@ module.exports = async function matchUserExactSubmit(interaction) {
     );
 
     if (!match) {
-      userState.clear(interaction.user.id);
+      userState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
 
     if (isMatchLocked(match)) {
-      userState.clear(interaction.user.id);
+      userState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '🔒 Typowanie tego meczu jest już zamknięte.', ephemeral: true });
     }
 
@@ -127,7 +127,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
     const winsNeeded = maxMaps === 1 ? 1 : (maxMaps === 3 ? 2 : 3);
 
     // zapisujemy stan po tej mapie
-    userState.set(interaction.user.id, {
+    userState.set(interaction.guildId, interaction.user.id, {
       ...ctx,
       matchId: match.id,
       mapNo,
@@ -136,7 +136,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
       mapWinsB: nextWinsB,
     });
 
-    const cur = userState.get(interaction.user.id) || ctx;
+    const cur = userState.get(interaction.guildId, interaction.user.id) || ctx;
 
     const shouldFinish =
       (mapNo >= requiredMaps) ||
@@ -146,7 +146,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
     if (!shouldFinish) {
       const nextMapNo2 = mapNo + 1;
 
-      userState.set(interaction.user.id, {
+      userState.set(interaction.guildId, interaction.user.id, {
         ...cur,
         matchId: match.id,
         mapNo: nextMapNo2,
@@ -170,7 +170,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
     }
 
     // KONIEC FLOW
-    userState.clear(interaction.user.id);
+    userState.clear(interaction.guildId, interaction.user.id);
 
     return interaction.reply({
       content:

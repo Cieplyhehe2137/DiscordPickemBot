@@ -5,7 +5,7 @@ module.exports = async function matchUserMapSelect(interaction) {
   const val = interaction.values?.[0]; // np. "3"
   const mapNo = Number(val);
 
-  const ctx = userState.get(interaction.user.id);
+  const ctx = userState.get(interaction.guildId, interaction.user.id);
   if (!ctx) {
     return interaction.update({ content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.', components: [] });
   }
@@ -20,7 +20,7 @@ module.exports = async function matchUserMapSelect(interaction) {
     return interaction.update({ content: '❌ Nieprawidłowa mapa.', components: [] });
   }
 
-  userState.set(interaction.user.id, { ...ctx, mapNo });
+  userState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo });
 
   // po wyborze mapy – odpalamy modal (ten sam handler co wcześniej)
   // UWAGA: tutaj nie da się "showModal" po update. Najprościej: w matchUserExactOpen robimy wybór mapy

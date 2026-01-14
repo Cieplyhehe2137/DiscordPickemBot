@@ -3,7 +3,7 @@ const pool = require('../db');
 
 module.exports = async function matchAdminMapSelect(interaction) {
   const mapNo = Number(interaction.values?.[0]);
-  const ctx = adminState.get(interaction.user.id);
+  const ctx = adminState.get(interaction.guildId, interaction.user.id);
   if (!ctx) return interaction.update({ content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.', components: [] });
 
   const [[m]] = await pool.query(`SELECT id, best_of FROM matches WHERE id=? LIMIT 1`, [ctx.matchId]);
@@ -14,7 +14,7 @@ module.exports = async function matchAdminMapSelect(interaction) {
     return interaction.update({ content: '❌ Nieprawidłowa mapa.', components: [] });
   }
 
-  adminState.set(interaction.user.id, { ...ctx, mapNo });
+  adminState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo });
 
   return interaction.update({
     content: `✅ Wybrano mapę **#${mapNo}**. Kliknij ponownie **✍️ Wpisz dokładny wynik**, żeby wpisać liczby.`,

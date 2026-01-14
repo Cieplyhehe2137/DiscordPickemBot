@@ -99,7 +99,7 @@ function buildSeriesSelect(match, maxMaps) {
 
 module.exports = async function matchUserExactOpen(interaction) {
   try {
-    const ctx = userState.get(interaction.user.id);
+    const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
         content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
@@ -113,7 +113,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     );
 
     if (!match) {
-      userState.clear(interaction.user.id);
+      userState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
     if (match.is_locked) {
@@ -126,7 +126,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     let mapNo = Number(ctx.mapNo || 0);
     if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
       mapNo = 1;
-      userState.set(interaction.user.id, { ...ctx, mapNo });
+      userState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo });
     }
 
     const effectiveMapNo = maxMaps === 1 ? 1 : mapNo;
@@ -142,7 +142,7 @@ module.exports = async function matchUserExactOpen(interaction) {
 
     // reset liczników na starcie (żeby nie mieszało między próbami)
     if (maxMaps > 1 && effectiveMapNo === 1) {
-      userState.set(interaction.user.id, {
+      userState.set(interaction.guildId, interaction.user.id, {
         ...ctx,
         matchId: match.id,
         mapNo: 1,

@@ -6,7 +6,7 @@ const { DEFAULT_ZONE, parseStartInputToUtc, isMatchStarted } = require('../utils
 
 module.exports = async function matchAdminStartSubmit(interaction) {
   try {
-    const ctx = adminState.get(interaction.user.id);
+    const ctx = adminState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({ content: '❌ Brak wybranego meczu. Wybierz mecz ponownie', ephemeral: true });
     }
@@ -23,7 +23,7 @@ module.exports = async function matchAdminStartSubmit(interaction) {
     );
 
     if (!match) {
-      adminState.delete(interaction.user.id);
+      adminState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '❌ Mecz nie istnieje już w bazie', ephemeral: true });
     }
 

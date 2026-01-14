@@ -35,7 +35,7 @@ async function getDefaults(matchId, maxMaps, mapNo) {
 
 module.exports = async function matchAdminExactOpen(interaction) {
   try {
-    const ctx = adminState.get(interaction.user.id);
+    const ctx = adminState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
         content: '❌ Brak wybranego meczu. Wybierz najpierw mecz z listy.',
@@ -49,7 +49,7 @@ module.exports = async function matchAdminExactOpen(interaction) {
     );
 
     if (!match) {
-      adminState.clear(interaction.user.id);
+      adminState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '❌ Ten mecz nie istnieje już w bazie.', ephemeral: true });
     }
 
@@ -59,10 +59,10 @@ module.exports = async function matchAdminExactOpen(interaction) {
     let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 0);
     if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
       mapNo = 1;
-      adminState.set(interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
+      adminState.set(interaction.guildId, interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
     } else {
       // odśwież ctx o pewne dane z DB (bezpiecznie)
-      adminState.set(interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
+      adminState.set(interaction.guildId, interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
     }
 
     const defaults = await getDefaults(match.id, maxMaps, mapNo);

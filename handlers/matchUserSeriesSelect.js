@@ -64,7 +64,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
 
 module.exports = async function matchUserSeriesSelect(interaction) {
   try {
-    const ctx = userState.get(interaction.user.id);
+    const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({ content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.', ephemeral: true });
     }
@@ -75,7 +75,7 @@ module.exports = async function matchUserSeriesSelect(interaction) {
     );
 
     if (!match) {
-      userState.clear(interaction.user.id);
+      userState.clear(interaction.guildId, interaction.user.id);
       return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
     }
     if (match.is_locked) {
@@ -94,7 +94,7 @@ module.exports = async function matchUserSeriesSelect(interaction) {
     const requiredMaps = Math.min(winA + winB, maxMaps);
 
     // ustaw state pod submit
-    userState.set(interaction.user.id, {
+    userState.set(interaction.guildId, interaction.user.id, {
       ...ctx,
       matchId: match.id,
       mapNo: 1,
