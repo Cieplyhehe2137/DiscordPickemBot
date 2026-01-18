@@ -4,6 +4,7 @@ const pool = require('../db.js');
 const logger = require('../utils/logger.js');
 const fs = require('fs');
 const path = require('path');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards.js');
 
 // cache: klucz = `${guildId}:${userId}:${stage}`, wartość = { '3': [...], '0': [...], 'advancing': [...] }
 const cache = new Map();
@@ -125,6 +126,12 @@ module.exports = async (interaction) => {
   if (!isConfirmButton) return;
 
   await interaction.deferReply({ ephemeral: true });
+
+  // ✅ P0: globalny gate (tournament_state) + zgodność fazy Swiss z panelem
+  const gate = await assertPredictionsAllowed({ guildId, kind: 'SWISS', stage });
+  if (!gate.allowed) {
+    return interaction.editReply(gate.message || '❌ Typowanie jest aktualnie zamknięte.');
+  }
 
   logger.info("submit", "Submit started", {
     guildId, // <-- NOWE

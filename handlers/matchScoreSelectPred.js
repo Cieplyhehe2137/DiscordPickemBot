@@ -2,7 +2,8 @@
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
-const { isMatchLocked } = require('../utils/matchLock')
+const { isMatchLocked } = require('../utils/matchLock');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -42,6 +43,12 @@ module.exports = async function matchScoreSelectPred(interaction) {
       return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
     }
 
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+    if (!gate.allowed) {
+      return interaction.update({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', components: [] });
+    }
+
     const maxMaps = maxMapsFromBo(match.best_of);
 
     // requiredMaps: 2-0 => 2, 2-1 => 3, 3-1 => 4 itd.
@@ -63,7 +70,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
     );
 
     // zapis do state (to jest to, czego potrzebuje matchUserExactSubmit)
-    const prev = userState.get(interaction.guildId, interaction.user.id, ) || {};
+    const prev = userState.get(interaction.guildId, interaction.user.id) || {};
     userState.set(interaction.guildId, interaction.user.id, {
       ...prev,
       matchId: match.id,

@@ -2,6 +2,7 @@
 const pool = require('../db');
 const logger = require('../logger');
 const teamsList = require('../teams.json');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 const cache = new Map(); // key: `${guildId}:${userId}` -> values[]
 
@@ -23,6 +24,12 @@ module.exports = async (interaction) => {
   }
 
   if (interaction.isButton() && customId === 'confirm_playin') {
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYIN' });
+    if (!gate.allowed) {
+      return interaction.reply({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
+    }
+
     const pickedTeams = cache.get(key);
 
     if (!pickedTeams || pickedTeams.length === 0) {

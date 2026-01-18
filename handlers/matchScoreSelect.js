@@ -4,6 +4,7 @@ const logger = require('../utils/logger');
 const { validateScore, computeTotalPoints } = require('../utils/matchScoring');
 const userState = require('../utils/matchUserState');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 module.exports = async function matchScoreSelect(interaction) {
   try {
@@ -35,6 +36,12 @@ module.exports = async function matchScoreSelect(interaction) {
     if (mode === 'pred') {
       if (match.is_locked) {
         return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
+      }
+
+      // ✅ P0: gate
+      const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+      if (!gate.allowed) {
+        return interaction.update({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', components: [] });
       }
 
       await pool.query(

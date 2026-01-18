@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../db');
 const logger = require('../logger');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 function loadTeams() {
   try {
@@ -59,6 +60,12 @@ module.exports = async (interaction) => {
 
   // Zatwierdzenie zapisuje JSON-em
   if (interaction.isButton() && customId === 'confirm_doubleelim') {
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId, kind: 'DOUBLE_ELIM' });
+    if (!gate.allowed) {
+      return interaction.reply({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
+    }
+
     const teams = loadTeams();
     const picks = cache.get(cacheKey) || {};
 

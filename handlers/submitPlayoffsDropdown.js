@@ -2,6 +2,7 @@ const pool = require('../db');
 const sendPredictionEmbed = require('../utils/sendPredictionEmbeds');
 const logger = require('../logger');
 const teams = require('../teams.json');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 module.exports = async (interaction) => {
   const { user, customId, values } = interaction;
@@ -38,6 +39,12 @@ module.exports = async (interaction) => {
   // === Zatwierdzenie ===
   if (interaction.isButton() && customId === 'confirm_playoffs') {
     await interaction.deferUpdate();
+
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYOFFS' });
+    if (!gate.allowed) {
+      return interaction.followUp({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
+    }
 
     const picks = interaction.client._playoffsCache[guildId]?.[userId] || {};
 
@@ -143,7 +150,6 @@ module.exports = async (interaction) => {
         winner: picks.winner[0],
         third_place_winner: thirdPick?.[0] || null,
       });
-
 
       await interaction.followUp({ content: '✅ Twoje typy zostały zapisane!', ephemeral: true });
     } catch (error) {

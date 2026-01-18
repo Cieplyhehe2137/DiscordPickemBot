@@ -3,6 +3,7 @@ const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = req
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -67,6 +68,12 @@ module.exports = async function matchUserSeriesSelect(interaction) {
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({ content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.', ephemeral: true });
+    }
+
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+    if (!gate.allowed) {
+      return interaction.reply({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
     }
 
     const [[match]] = await pool.query(

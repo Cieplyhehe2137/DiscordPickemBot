@@ -3,7 +3,8 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const pool = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
-const { isMatchLocked } = require('../utils/matchLock')
+const { isMatchLocked } = require('../utils/matchLock');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -17,6 +18,12 @@ module.exports = async function matchUserExactSubmit(interaction) {
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
+    }
+
+    // ✅ P0: gate
+    const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+    if (!gate.allowed) {
+      return interaction.reply({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
     }
 
     const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
