@@ -34,7 +34,8 @@ module.exports = async function handleInteraction(interaction) {
       if (!handlerName) {
         logger.warn('Unhandled select', {
           customId: interaction.customId,
-          guildId: interaction.guildId
+          guildId: interaction.guildId,
+          values: interaction.values
         });
         await interaction.deferUpdate();
         return;
