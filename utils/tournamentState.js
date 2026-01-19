@@ -1,9 +1,18 @@
 const db = require("../db.js");
 const { ensureTournamentState } = require("./ensureTournamentTables.js");
 
-// GLOBALNY stan turnieju (jedna tabela, brak guild_id)
-async function getTournamentState() {
-  const pool = db.getGlobalPool ? db.getGlobalPool() : db.getPool();
+// Tabela tournament_state jest w bazie KAŻDEGO guilda (multi-guild)
+async function getTournamentState(guildId) {
+  if (!guildId) {
+    return {
+      exists: false,
+      phase: "UNKNOWN",
+      isOpen: false,
+      error: "Missing guildId"
+    };
+  }
+
+  const pool = db.getPoolForGuild(guildId);
 
   try {
     await ensureTournamentState(pool);
@@ -27,8 +36,8 @@ async function getTournamentState() {
   }
 }
 
-async function isPredictionsOpen() {
-  const s = await getTournamentState();
+async function isPredictionsOpen(guildId) {
+  const s = await getTournamentState(guildId);
   return !!s.isOpen;
 }
 
