@@ -60,15 +60,16 @@ module.exports = async (interaction) => {
     }
 
     // 4️⃣ ZAPIS DO WŁAŚCIWEJ BAZY
-    console.log(">>> ACTIVE DB:", pool.config.connectionConfig.database);
+    // 4️⃣ ZAPIS DO WŁAŚCIWEJ BAZY
+    console.log(">>> ACTIVE DB:", pool.config.database);
 
     try {
       await pool.query(
         `INSERT INTO playin_predictions (guild_id, user_id, username, displayname, teams)
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           teams = VALUES(teams),
-           displayname = VALUES(displayname)`,
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       teams = VALUES(teams),
+       displayname = VALUES(displayname)`,
         [guildId, userId, username, displayName, picked.join(', ')]
       );
 
