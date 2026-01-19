@@ -3,7 +3,7 @@ const logger = require('../logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 // Pamięć EPHEMERAL per użytkownik i serwer
-const cache = new Map();  
+const cache = new Map();
 
 module.exports = async (interaction) => {
   const guildId = interaction.guildId;
@@ -79,11 +79,12 @@ module.exports = async (interaction) => {
         ephemeral: true
       });
     } catch (err) {
-      logger.error("[Play-In] DB error:", err);
-      return interaction.reply({
-        content: "❌ Błąd zapisu typów do bazy.",
-        ephemeral: true
+      logger.error("[Play-In] DB error", {
+        message: err.message,
+        stack: err.stack,
+        code: err.code,
       });
+
     }
   }
 };
