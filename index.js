@@ -2,9 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-// =======================
-// ENV
-// =======================
 const envPath = process.env.ENV_FILE || '.env';
 const resolvedEnvPath = path.isAbsolute(envPath)
   ? envPath
@@ -17,63 +14,48 @@ if (!fs.existsSync(resolvedEnvPath)) {
   console.warn(`⚠️ ENV_FILE path nie istnieje: ${resolvedEnvPath}`);
 }
 
-// =======================
-// DISCORD
-// =======================
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
-const startPresence = require('./utils/startPresence');
 
-// =======================
-// GIT / DEPLOY DEBUG
-// =======================
 function getGitCommit() {
   try {
-    const headPath = path.join(process.cwd(), '.git', 'HEAD');
-    const head = fs.readFileSync(headPath, 'utf8').trim();
+    const headPath = path.join(process.cwd(), ".git", "HEAD");
+    const head = fs.readFileSync(headPath, "utf8").trim();
 
-    if (head.startsWith('ref:')) {
-      const ref = head.split(' ')[1].trim();
-      const refPath = path.join(process.cwd(), '.git', ref);
-      return fs.readFileSync(refPath, 'utf8').trim();
+    if (head.startsWith("ref:")) {
+      const ref = head.split(" ")[1].trim();
+      const refPath = path.join(process.cwd(), ".git", ref);
+      return fs.readFileSync(refPath, "utf8").trim();
     }
     return head;
-  } catch {
-    return 'no-git';
+  } catch (e) {
+    return "no-git";
   }
 }
 
-console.log('=== DEPLOY DEBUG ===');
-console.log('CWD:', process.cwd());
-console.log('__dirname:', __dirname);
-console.log('GIT COMMIT:', getGitCommit());
-console.log('DEPLOY TS:', new Date().toISOString());
-console.log('====================');
+console.log("=== DEPLOY DEBUG ===");
+console.log("CWD:", process.cwd());
+console.log("ENTRY __dirname:", __dirname);
+console.log("GIT COMMIT:", getGitCommit());
+console.log("DEPLOY TS:", new Date().toISOString());
+console.log("====================");
 
-// =======================
-// ENV CHECK
-// =======================
+
+// 🌍 Debugowanie zmiennych środowiskowych
 console.log('==================== 🌍 DEBUG ENV ====================');
 [
-  'DISCORD_TOKEN',
-  'CLIENT_ID',
-  'GUILD_ID',
-  'EXPORT_PANEL_CHANNEL_ID',
-  'LOG_CHANNEL_ID',
-  'DB_HOST',
-  'DB_USER',
-  'DB_NAME',
-  'DB_PORT'
+  'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
+  'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT'
 ].forEach((key) => {
-  console.log(`${key}:`, process.env[key] ? '✅ załadowany' : '❌ BRAK');
+  const val = process.env[key];
+  console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
 });
 console.log('=====================================================');
 
-// =======================
-// CLIENT
-// =======================
+// 🔧 Konfiguracja klienta Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -83,12 +65,16 @@ const client = new Client({
   ],
 });
 
-// =======================
-// SHARD / SESSION DIAG
-// =======================
+
+
+
 client.on('shardDisconnect', (event, id) => {
+  const code = event?.code ?? event?.closeCode ?? 'unknown';
+  const reason = event?.reason ?? event?.closeReason ?? 'unknown';
+  const clean = event?.wasClean ?? 'unknown';
+
   console.warn(
-    `⚠️ [SHARD DISCONNECT] shard ${id} code=${event?.code ?? 'unknown'}`
+    `⚠️ [SHARD DISCONNECT] shard ${id} code=${code} clean=${clean} reason=${reason}`
   );
 });
 
@@ -97,66 +83,70 @@ client.on('shardResume', (id, replayed) => {
 });
 
 client.on('invalidated', () => {
-  console.warn('🚫 [INVALIDATED] sesja unieważniona (token / druga instancja)');
+  console.warn('🚫 [INVALIDATED] sesja unieważniona (często: druga instancja bota albo problem z tokenem)');
 });
 
-// =======================
-// COMMANDS
-// =======================
-client.commands = new Collection();
-const commandsPath = path.join(__dirname, 'commands');
 
-fs.readdirSync(commandsPath)
+
+// 📦 Ładowanie komend
+client.commands = new Collection();
+fs.readdirSync(path.join(__dirname, 'commands'))
   .filter(file => file.endsWith('.js'))
   .forEach(file => {
     const command = require(`./commands/${file}`);
     client.commands.set(command.data.name, command);
   });
 
-// =======================
-// EVENTS
-// =======================
+// 📥 Mapy interakcji
+const maps = {
+  buttonMap: require('./maps/buttonMap'),
+  selectMap: require('./maps/selectMap'),
+  dropdownMap: require('./maps/dropdownMap'),
+  modalMap: require('./maps/modalMap')
+};
+
+// 🚀 Eventy (diag)
 client.on('error', (e) => console.error('💥 client error:', e));
 client.on('warn', (w) => console.warn('⚠️ client warn:', w));
 
-// =======================
-// READY
-// =======================
+// Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
+const startPresence = require('./utils/startPresence');
+
 client.once('ready', async () => {
   try {
-    console.log(`🤖 Discord READY jako ${client.user.tag} (${client.user.id})`);
+    console.log(`🤖 Discord READY jako ${client.user.tag} (id: ${client.user.id})`);
 
     await onReady(client);
     console.log('✅ onReady() zakończone');
 
+    // ✅ PRESENCE – TYLKO TU
     startPresence(client);
 
+    // 🕒 closeExpiredPanels
     setInterval(() => {
       closeExpiredPanels(client).catch(err =>
-        console.error('❌ closeExpiredPanels error:', err)
+        console.error('❌ Błąd w closeExpiredPanels tick:', err)
       );
     }, 15_000);
 
-    console.log('⏱️ closeExpiredPanels uruchomione (co 15s)');
+    console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
   } catch (e) {
-    console.error('❌ Błąd w ready handlerze:', e);
+    console.error('❌ Błąd w ready-handlerze:', e);
   }
 });
 
-// =======================
-// INTERACTIONS (JEDYNE MIEJSCE)
-// =======================
+
+const handlers = loadHandlers('handlers');
+
 client.on('interactionCreate', async (interaction) => {
   try {
-    await handleInteraction(interaction);
+    await handleInteraction(interaction, client, handlers, maps);
   } catch (e) {
     console.error('❌ interactionCreate error:', e);
   }
 });
 
-// =======================
-// LOGIN
-// =======================
+// 🔑 Start z twardą diagnostyką
 const rawToken = process.env.DISCORD_TOKEN;
 const TOKEN = (rawToken || '').trim();
 
@@ -164,14 +154,17 @@ if (!TOKEN) {
   console.error('❌ Brak DISCORD_TOKEN w ENV!');
 } else {
   console.log('🔎 DISCORD_TOKEN length =', TOKEN.length);
+  if (/\s/.test(rawToken)) {
+    console.warn('⚠️ Uwaga: w oryginalnym DISCORD_TOKEN wykryto znak białej spacji — .trim() to usuwa, ale usuń ją też z ENV.');
+  }
 
+  // watchdog: jeśli READY nie przyjdzie w 25s, zgłoś
   const readyTimeout = setTimeout(() => {
-    console.error('⏱️ 25s bez READY — problem z tokenem / gateway');
-  }, 25_000);
+    console.error('⏱️ 25s bez READY — to zwykle token/sieć/gateway. Sprawdź logi powyżej.');
+  }, 25000);
 
   client.login(TOKEN)
     .then(() => {
-      clearTimeout(readyTimeout);
       console.log('✅ client.login() OK — czekam na READY…');
     })
     .catch((e) => {
@@ -179,10 +172,11 @@ if (!TOKEN) {
       console.error('❌ client.login error:', e);
     });
 
-  process.on('unhandledRejection', (r) =>
-    console.error('❌ UnhandledRejection:', r)
-  );
-  process.on('uncaughtException', (e) =>
-    console.error('❌ UncaughtException:', e)
-  );
+  // czytelniejsze info o nieobsłużonych wyjątkach
+  process.on('unhandledRejection', (r) => console.error('❌ UnhandledRejection:', r));
+  process.on('uncaughtException', (e) => console.error('❌ UncaughtException:', e));
 }
+
+
+//test
+//test test
