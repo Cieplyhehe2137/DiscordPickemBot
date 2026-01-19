@@ -24,7 +24,7 @@ async function loadTeamsFromDB(guildId) {
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
-  if (interaction.customId !== 'open_doubleelim_dropdown') return;
+  if (interaction.customId !== 'open_doubleelim_modal') return;
 
   await withGuild(interaction.guildId, async () => {
     const teams = await loadTeamsFromDB(interaction.guildId);
