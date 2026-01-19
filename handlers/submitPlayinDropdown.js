@@ -60,6 +60,8 @@ module.exports = async (interaction) => {
     }
 
     // 4️⃣ ZAPIS DO WŁAŚCIWEJ BAZY
+    console.log(">>> ACTIVE DB:", pool.config.connectionConfig.database);
+
     try {
       await pool.query(
         `INSERT INTO playin_predictions (guild_id, user_id, username, displayname, teams)
