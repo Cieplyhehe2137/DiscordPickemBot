@@ -81,8 +81,9 @@ module.exports = async (interaction) => {
     } catch (err) {
       logger.error("[Play-In] DB error", {
         message: err.message,
-        stack: err.stack,
         code: err.code,
+        stack: err.stack,
+        sql: err.sql
       });
 
     }
