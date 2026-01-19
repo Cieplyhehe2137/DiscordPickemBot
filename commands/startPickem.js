@@ -13,7 +13,8 @@ const { withGuild } = require('../utils/guildContext');
 const allowedRoles = [
   "1164253439417659456",
   "1301530484479758407",
-  "1386396019339825363"
+  "1386396019339825363",
+  "1372662767881814017"
 ];
 
 // Mapowanie faz na dane embedów i przycisków do typowania
