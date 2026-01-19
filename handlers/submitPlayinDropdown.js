@@ -79,13 +79,18 @@ module.exports = async (interaction) => {
         ephemeral: true
       });
     } catch (err) {
-      logger.error("[Play-In] DB error", {
-        message: err.message,
-        code: err.code,
-        stack: err.stack,
-        sql: err.sql
-      });
+      console.error("=== PLAY-IN DB ERROR ===");
+      console.error("MESSAGE:", err.message);
+      console.error("CODE:", err.code);
+      console.error("SQL:", err.sql);
+      console.error("STACK:", err.stack);
+      console.error("========================");
 
+      return interaction.reply({
+        content: "❌ Błąd zapisu typów do bazy.",
+        ephemeral: true
+      });
     }
+
   }
 };
