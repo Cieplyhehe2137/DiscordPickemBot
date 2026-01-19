@@ -27,6 +27,16 @@ module.exports = {
   'export_full_summary': 'buttonExportFullSummary',
   'backup_database': 'backupDatabase',
   'restore_backup': 'restoreBackupButton',
+  // ===== ADMIN EXPORT PANEL =====
+'panel:open:results': 'panelOpenMenu',
+'panel:open:matches': 'panelOpenMenu',
+'panel:open:db': 'panelOpenMenu',
+'panel:open:danger': 'panelOpenMenu',
+'panel:open:teams': 'panelOpenMenu',
+
+// ===== ADMIN PANEL – DANGER =====
+'panel:danger:cancel': 'panelDangerCancel',
+
 
   // ===== MATCHES =====
   'add_match': 'openAddMatch',
