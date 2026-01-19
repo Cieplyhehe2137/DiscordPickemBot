@@ -1,4 +1,3 @@
-// maps/selectMap.js
 module.exports = {
   // start_pickem -> wybór fazy
   'select_pickem_phase': 'selectMenuHandler',
@@ -36,4 +35,7 @@ module.exports = {
 
   // ===== TEAMS MANAGER =====
   'teams:select': 'teamsSelect',
+
+  // ===== PLAY-IN (BRAKOWAŁO TEGO!) =====
+  'playin_select': 'submitPlayinDropdown',
 };
