@@ -1,5 +1,12 @@
 // commands/setDeadline.js
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
 const { DateTime } = require('luxon');
 const pool = require('../db');
 const { withGuild } = require('../utils/guildContext');
@@ -73,7 +80,6 @@ module.exports = {
       const inputStage = interaction.options.getString('stage') || null;
       const stage = normalizeStage(phase, inputStage);
       const rawInput = interaction.options.getString('data');
-      const channel = interaction.channel;
 
       const deadlineDate = DateTime.fromFormat(rawInput, 'yyyy-MM-dd HH:mm', { zone: 'Europe/Warsaw' });
       if (!deadlineDate.isValid) {
@@ -84,16 +90,21 @@ module.exports = {
       }
       const deadlineUTC = deadlineDate.toUTC().toJSDate();
 
-      // 🔎 znajdź panel w tym kanale dla fazy(+etapu)
+      // 🔎 znajdź aktywny panel dla fazy(+etapu) (nie zakładaj, że komenda jest odpalana w tym samym kanale!)
       const [rows] = await pool.query(
-        `SELECT message_id FROM active_panels WHERE phase = ? AND channel_id = ? AND stage <=> ?`,
-        [phase, channel.id, stage]
+        `SELECT id, channel_id, message_id
+         FROM active_panels
+         WHERE phase = ? AND stage <=> ? AND active = 1
+         ORDER BY id DESC
+         LIMIT 1`,
+        [phase, stage]
       );
-      const messageId = rows?.[0]?.message_id || null;
-      if (!messageId) {
+
+      const row = rows?.[0];
+      if (!row?.message_id || !row?.channel_id) {
         return interaction.reply({
           ephemeral: true,
-          content: '❌ Nie znaleziono wiadomości panelu. Użyj najpierw `/start_pickem` (i wybierz etap dla Swiss).'
+          content: '❌ Nie znaleziono aktywnego panelu. Użyj najpierw `/start_pickem` (i wybierz etap dla Swiss).'
         });
       }
 
@@ -110,14 +121,14 @@ module.exports = {
         if (code === 10008) {
           await pool.query(
             `UPDATE active_panels
-       SET active = 0, closed = 1, closed_at = NOW()
-       WHERE id = ?`,
+             SET active = 0, closed = 1, closed_at = NOW()
+             WHERE id = ?`,
             [row.id]
           );
 
           return interaction.reply({
             ephemeral: true,
-            content: `❌ Panel (${row.message_id}) nie istnieje (został usunięty). Zrobiłem go nieaktywnym w bazie — utwórz panel ponownie.`
+            content: `❌ Panel (${row.message_id}) nie istnieje (został usunięty). Oznaczyłem go jako nieaktywny w bazie — utwórz panel ponownie.`
           });
         }
 
@@ -139,13 +150,18 @@ module.exports = {
         });
       }
 
-
-      // 📝 UPSERT: zapisz deadline
+      // 📝 UPSERT: zapisz deadline (do kanału panelu, nie do kanału komendy!)
       await pool.query(
-        `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed)
-       VALUES (?, ?, ?, ?, ?, 0, 0)
-       ON DUPLICATE KEY UPDATE deadline = VALUES(deadline), reminded = 0, closed = 0, message_id = VALUES(message_id)`,
-        [phase, stage, channel.id, message.id, deadlineUTC]
+        `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed, active)
+         VALUES (?, ?, ?, ?, ?, 0, 0, 1)
+         ON DUPLICATE KEY UPDATE
+           deadline = VALUES(deadline),
+           reminded = 0,
+           closed = 0,
+           active = 1,
+           channel_id = VALUES(channel_id),
+           message_id = VALUES(message_id)`,
+        [phase, stage, panelChannel.id, message.id, deadlineUTC]
       );
 
       // 🕒 ustaw/odśwież footer z czasem do deadline
@@ -163,10 +179,17 @@ module.exports = {
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(true)
         );
+
         const closedEmbed = (message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder())
           .setFooter({ text: '🔒 Typowanie zamknięte – deadline minął' });
+
         await message.edit({ embeds: [closedEmbed], components: [disabledRow] });
-        await pool.query(`UPDATE active_panels SET closed = 1 WHERE phase = ? AND channel_id = ? AND stage <=> ?`, [phase, channel.id, stage]);
+
+        await pool.query(
+          `UPDATE active_panels SET closed = 1 WHERE id = ?`,
+          [row.id]
+        );
+
         return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });
       }
 
