@@ -1,9 +1,9 @@
 const path = require('path');
 const logger = require('./logger');
 
-const buttonMap   = require('./maps/buttonMap');
+const buttonMap = require('./maps/buttonMap');
 const dropdownMap = require('./maps/dropdownMap');
-const modalMap    = require('./maps/modalMap');
+const modalMap = require('./maps/modalMap');
 
 module.exports = async function handleInteraction(interaction) {
   try {
@@ -77,7 +77,7 @@ module.exports = async function handleInteraction(interaction) {
           content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true
         });
-      } catch {}
+      } catch { }
     }
   }
 };
