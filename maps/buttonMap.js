@@ -60,8 +60,6 @@ module.exports = {
   'match_admin_exact_open_next': 'matchAdminExactOpenNext',
   'match_user_exact_open_next': 'matchUserExactOpenNext',
   'match_exact_open': 'matchUserExactOpen',
-  'open_doubleelim_modal': 'openDoubleElimDropdown',
-
 
     // ===== ADMIN PANEL (UPROSZCZONY) =====
   'panel:open:results': 'panelOpenMenu',
