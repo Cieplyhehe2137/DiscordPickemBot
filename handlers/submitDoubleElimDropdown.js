@@ -48,7 +48,13 @@ module.exports = async (interaction) => {
   // ===============================
   // SELECT – zbieranie wyborów
   // ===============================
-  if (interaction.isStringSelectMenu() && selectMap[customId]) {
+  if (interaction.isStringSelectMenu()) {
+    // ⬅️ JEŚLI TO NIE JEST NASZ SELECT – MUSIMY GO ZAMKNĄĆ
+    if (!selectMap[customId]) {
+      await interaction.deferUpdate();
+      return;
+    }
+
     const key = selectMap[customId];
     const values = (interaction.values || []).map(String);
 
