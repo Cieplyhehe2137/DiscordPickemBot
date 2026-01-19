@@ -25,11 +25,7 @@ async function loadTeamsFromDB(guildId) {
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
   if (interaction.customId !== 'open_doubleelim_modal') return;
-  await interaction.reply({
-  content: 'DEBUG: open_doubleelim_modal handler działa',
-  ephemeral: true
-});
-return;
+  
 
   await withGuild(interaction.guildId, async () => {
     const teams = await loadTeamsFromDB(interaction.guildId);
