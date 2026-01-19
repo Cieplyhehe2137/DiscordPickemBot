@@ -26,7 +26,7 @@ module.exports = async (interaction) => {
     });
 
     // ACK bez spamu w czacie
-    try { await interaction.deferUpdate(); } catch (_) {}
+    try { await interaction.deferUpdate(); } catch (_) { }
     return;
   }
 
@@ -81,12 +81,12 @@ module.exports = async (interaction) => {
       // Zapis (bez guild_id — bo masz osobną bazę per guild)
       await pool.query(
         `INSERT INTO playin_predictions (user_id, username, displayname, teams, active, submitted_at)
-         VALUES (?, ?, ?, ?, 1, NOW())
-         ON DUPLICATE KEY UPDATE
-           teams = VALUES(teams),
-           displayname = VALUES(displayname),
-           active = 1,
-           submitted_at = NOW()`,
+   VALUES (?, ?, ?, ?, 1, NOW())
+   ON DUPLICATE KEY UPDATE
+     teams = VALUES(teams),
+     displayname = VALUES(displayname),
+     active = 1,
+     submitted_at = NOW()`,
         [userId, username, displayName, picked.join(', ')]
       );
 

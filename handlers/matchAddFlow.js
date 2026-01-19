@@ -1,11 +1,16 @@
 // handlers/matchAddFlow.js
-const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const pool = require('../db');
+const {
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionFlagsBits
+} = require('discord.js');
+
+const db = require('../db');
 const logger = require('../utils/logger');
 
-const PAGE_SIZE = 24; // 24 + 1 = Next/Prev w 25 limit
+const PAGE_SIZE = 24; // 24 + 1 = Next/Prev w limicie 25
 const state = new Map(); // key: `${guildId}:${userId}` -> { phase, bestOf, teamA }
 
 const stateKey = (interaction) => `${interaction.guildId || 'dm'}:${interaction.user.id}`;
@@ -15,23 +20,18 @@ function hasAdminPerms(interaction) {
   return perms?.has(PermissionFlagsBits.Administrator) || perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
-function loadTeams() {
-  try {
-    const raw = fs.readFileSync(path.join(__dirname, '..', 'teams.json'), 'utf8');
-    const parsed = JSON.parse(raw);
-
-    if (Array.isArray(parsed)) {
-      if (parsed.length === 0) return [];
-      if (typeof parsed[0] === 'string') return parsed;
-      // jeśli masz obiekty { name/label/value }
-      if (typeof parsed[0] === 'object') {
-        return parsed.map(x => x.name || x.label || x.value).filter(Boolean);
-      }
-    }
-    return [];
-  } catch (e) {
-    return [];
-  }
+// ✅ Teams z DB (per guild)
+async function loadTeamsFromDb(guildId) {
+  const pool = db.getPoolForGuild(guildId);
+  const [rows] = await pool.query(
+    `SELECT name
+     FROM teams
+     WHERE guild_id = ?
+       AND active = 1
+     ORDER BY sort_order ASC, name ASC`,
+    [guildId]
+  );
+  return rows.map(r => r.name).filter(Boolean);
 }
 
 function safeLabel(str) {
@@ -135,9 +135,13 @@ async function onBoSelect(interaction) {
   st.teamA = null;
   state.set(key, st);
 
-  const teams = loadTeams();
+  // ✅ Teams z DB
+  const teams = await loadTeamsFromDb(interaction.guildId);
   if (!teams.length) {
-    return interaction.update({ content: '❌ Brak teamów w teams.json.', components: [buildCancelRow()] });
+    return interaction.update({
+      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
+      components: [buildCancelRow()]
+    });
   }
 
   const row = buildTeamSelect({
@@ -171,8 +175,13 @@ async function onTeamASelect(interaction) {
 
   const [type, payload] = picked.split('|');
 
-  const teamsAll = loadTeams();
-  if (!teamsAll.length) return interaction.update({ content: '❌ Brak teamów w teams.json.', components: [buildCancelRow()] });
+  const teamsAll = await loadTeamsFromDb(interaction.guildId);
+  if (!teamsAll.length) {
+    return interaction.update({
+      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
+      components: [buildCancelRow()]
+    });
+  }
 
   if (type === 'PAGE') {
     const page = Number(payload || 0);
@@ -196,6 +205,7 @@ async function onTeamASelect(interaction) {
 
   // Team B = wszystkie oprócz Team A
   const teamsB = teamsAll.filter(t => t !== st.teamA);
+
   const row = buildTeamSelect({
     customId: 'match_add_team_b_select',
     placeholder: 'Wybierz Team B…',
@@ -227,8 +237,13 @@ async function onTeamBSelect(interaction) {
 
   const [type, payload] = picked.split('|');
 
-  const teamsAll = loadTeams().filter(t => t !== st.teamA);
-  if (!teamsAll.length) return interaction.update({ content: '❌ Brak teamów w teams.json.', components: [buildCancelRow()] });
+  const teamsAll = (await loadTeamsFromDb(interaction.guildId)).filter(t => t !== st.teamA);
+  if (!teamsAll.length) {
+    return interaction.update({
+      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
+      components: [buildCancelRow()]
+    });
+  }
 
   if (type === 'PAGE') {
     const page = Number(payload || 0);
@@ -251,6 +266,9 @@ async function onTeamBSelect(interaction) {
   if (teamB === st.teamA) {
     return interaction.update({ content: '❌ Team B nie może być taki sam jak Team A.', components: [buildCancelRow()] });
   }
+
+  // ✅ pool per-guild dla matches
+  const pool = db.getPoolForGuild(interaction.guildId);
 
   // AUTO match_no
   const [[next]] = await pool.query(
@@ -317,8 +335,14 @@ async function onAgain(interaction) {
   st.teamA = null;
   state.set(key, st);
 
-  const teams = loadTeams();
-  if (!teams.length) return interaction.update({ content: '❌ Brak teamów w teams.json.', components: [] });
+  // ✅ Teams z DB
+  const teams = await loadTeamsFromDb(interaction.guildId);
+  if (!teams.length) {
+    return interaction.update({
+      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
+      components: []
+    });
+  }
 
   const row = buildTeamSelect({
     customId: 'match_add_team_a_select',
