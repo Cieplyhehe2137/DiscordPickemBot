@@ -1,6 +1,6 @@
 const { getTournamentState } = require('./tournamentState');
 
-// Mapujemy "stage1" -> "SWISS_STAGE_1" itd.
+// Mapujemy "stage1" -> "SWISS_STAGE_1"
 function swissStageToPhase(stage) {
   const s = String(stage || '').toLowerCase();
   if (s === 'stage1') return 'SWISS_STAGE_1';
@@ -14,21 +14,20 @@ function normalizePhase(phase) {
 }
 
 /**
- * Sprawdza czy użytkownik może typować w danym "kontekście".
- *
- * Ważne: jeżeli tabela tournament_state nie istnieje, NIE BLOKUJEMY
- * (żeby nie rozwalić produkcji/starych baz).
+ * Sprawdza czy użytkownik może typować w danym "kind".
+ * Tabela tournament_state jest GLOBALNA (bez guild_id).
  */
-async function assertPredictionsAllowed({ guildId, kind, stage }) {
-  const state = await getTournamentState(guildId);
+async function assertPredictionsAllowed({ kind, stage }) {
+  const state = await getTournamentState(); 
   const phase = normalizePhase(state.phase);
 
-  // Brak tabeli -> przepuszczamy (kompatybilność)
+  // Jeśli tabela nie istnieje lub jest pusta → PRZEPUŚĆ
   if (!state.exists) {
     return { allowed: true, state: { ...state, phase } };
   }
 
-  if (!state.isOpen) {
+  // Globalny przełącznik otwarte/zamknięte
+  if (!state.is_open) {
     return {
       allowed: false,
       state: { ...state, phase },
@@ -38,59 +37,66 @@ async function assertPredictionsAllowed({ guildId, kind, stage }) {
 
   const k = String(kind || '').toUpperCase();
 
+  // SWISS
   if (k === 'SWISS') {
     const expected = swissStageToPhase(stage);
+
     if (!['SWISS_STAGE_1', 'SWISS_STAGE_2', 'SWISS_STAGE_3'].includes(phase)) {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza turnieju to **${phase}** — typowanie Swiss jest teraz niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Swiss jest niedostępne.`
       };
     }
+
     if (expected && phase !== expected) {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza Swiss to **${phase}** — ten panel jest dla **${expected}**.`
+        message: `❌ Ten panel jest dla **${expected}**, a aktualna faza to **${phase}**.`
       };
     }
+
     return { allowed: true, state: { ...state, phase } };
   }
 
+  // PLAYOFFS
   if (k === 'PLAYOFFS') {
     if (phase !== 'PLAYOFFS') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza turnieju to **${phase}** — typowanie Playoffs jest teraz niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Playoffs jest niedostępne.`
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
+  // PLAY-IN
   if (k === 'PLAYIN') {
     if (phase !== 'PLAYIN') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza turnieju to **${phase}** — typowanie Play-In jest teraz niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Play-In jest niedostępne.`
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
-  if (k === 'DOUBLE_ELIM' || k === 'DOUBLEELIM' || k === 'DOUBLE') {
+  // DOUBLE ELIM
+  if (['DOUBLE_ELIM', 'DOUBLEELIM', 'DOUBLE'].includes(k)) {
     if (phase !== 'DOUBLE_ELIM') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza turnieju to **${phase}** — typowanie Double Elim jest teraz niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Double Elim jest niedostępne.`
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // domyślnie nie blokujemy
+  // Domyślnie pozwalamy
   return { allowed: true, state: { ...state, phase } };
 }
 
