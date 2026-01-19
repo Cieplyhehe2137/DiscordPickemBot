@@ -86,53 +86,89 @@ module.exports = {
 
       // 🔎 znajdź panel w tym kanale dla fazy(+etapu)
       const [rows] = await pool.query(
-      `SELECT message_id FROM active_panels WHERE phase = ? AND channel_id = ? AND stage <=> ?`,
-      [phase, channel.id, stage]
-    );
-    const messageId = rows?.[0]?.message_id || null;
-    if (!messageId) {
-      return interaction.reply({
-        ephemeral: true,
-        content: '❌ Nie znaleziono wiadomości panelu. Użyj najpierw `/start_pickem` (i wybierz etap dla Swiss).'
-      });
-    }
+        `SELECT message_id FROM active_panels WHERE phase = ? AND channel_id = ? AND stage <=> ?`,
+        [phase, channel.id, stage]
+      );
+      const messageId = rows?.[0]?.message_id || null;
+      if (!messageId) {
+        return interaction.reply({
+          ephemeral: true,
+          content: '❌ Nie znaleziono wiadomości panelu. Użyj najpierw `/start_pickem` (i wybierz etap dla Swiss).'
+        });
+      }
 
-    let message;
-    try {
-      message = await channel.messages.fetch(messageId);
-    } catch (e) {
-      return interaction.reply({ ephemeral: true, content: `❌ Nie mogę pobrać wiadomości panelu (${messageId}).` });
-    }
+      let panelChannel;
+      let message;
 
-    // 📝 UPSERT: zapisz deadline
-    await pool.query(
-      `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed)
+      try {
+        panelChannel = await interaction.client.channels.fetch(row.channel_id);
+        message = await panelChannel.messages.fetch(row.message_id);
+      } catch (e) {
+        const code = e?.code;
+
+        // 10008 = Unknown Message (usunięta)
+        if (code === 10008) {
+          await pool.query(
+            `UPDATE active_panels
+       SET active = 0, closed = 1, closed_at = NOW()
+       WHERE id = ?`,
+            [row.id]
+          );
+
+          return interaction.reply({
+            ephemeral: true,
+            content: `❌ Panel (${row.message_id}) nie istnieje (został usunięty). Zrobiłem go nieaktywnym w bazie — utwórz panel ponownie.`
+          });
+        }
+
+        // 50001 = Missing Access, 50013 = Missing Permissions
+        if (code === 50001 || code === 50013) {
+          return interaction.reply({
+            ephemeral: true,
+            content:
+              `❌ Nie mam dostępu żeby pobrać panel (${row.message_id}).\n` +
+              `Sprawdź permisje bota w kanale panelu: View Channel + Read Message History + Send Messages + Embed Links` +
+              (panelChannel?.isThread?.() ? ' + Send Messages in Threads' : '') +
+              `. (kod: ${code})`
+          });
+        }
+
+        return interaction.reply({
+          ephemeral: true,
+          content: `❌ Nie mogę pobrać wiadomości panelu (${row.message_id}). Kod: ${code || 'brak'}`
+        });
+      }
+
+
+      // 📝 UPSERT: zapisz deadline
+      await pool.query(
+        `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed)
        VALUES (?, ?, ?, ?, ?, 0, 0)
        ON DUPLICATE KEY UPDATE deadline = VALUES(deadline), reminded = 0, closed = 0, message_id = VALUES(message_id)`,
-      [phase, stage, channel.id, message.id, deadlineUTC]
-    );
-
-    // 🕒 ustaw/odśwież footer z czasem do deadline
-    const timeLeft = formatTimeLeft(deadlineUTC);
-    const baseEmbed = message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder();
-    const updatedEmbed = baseEmbed.setFooter({ text: `🕒 Deadline za ${timeLeft}` });
-    await message.edit({ embeds: [updatedEmbed] });
-
-    // ⏱️ jeśli deadline już minął → natychmiast zamknij panel (edge case)
-    if (DateTime.utc().toJSDate() >= deadlineUTC) {
-      const disabledRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('disabled_button')
-          .setLabel('Typowanie zamknięte')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true)
+        [phase, stage, channel.id, message.id, deadlineUTC]
       );
-      const closedEmbed = (message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder())
-        .setFooter({ text: '🔒 Typowanie zamknięte – deadline minął' });
-      await message.edit({ embeds: [closedEmbed], components: [disabledRow] });
-      await pool.query(`UPDATE active_panels SET closed = 1 WHERE phase = ? AND channel_id = ? AND stage <=> ?`, [phase, channel.id, stage]);
-      return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });
-    }
+
+      // 🕒 ustaw/odśwież footer z czasem do deadline
+      const timeLeft = formatTimeLeft(deadlineUTC);
+      const baseEmbed = message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder();
+      const updatedEmbed = baseEmbed.setFooter({ text: `🕒 Deadline za ${timeLeft}` });
+      await message.edit({ embeds: [updatedEmbed] });
+
+      // ⏱️ jeśli deadline już minął → natychmiast zamknij panel (edge case)
+      if (DateTime.utc().toJSDate() >= deadlineUTC) {
+        const disabledRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('disabled_button')
+            .setLabel('Typowanie zamknięte')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true)
+        );
+        const closedEmbed = (message.embeds?.[0] ? EmbedBuilder.from(message.embeds[0]) : new EmbedBuilder())
+          .setFooter({ text: '🔒 Typowanie zamknięte – deadline minął' });
+        await message.edit({ embeds: [closedEmbed], components: [disabledRow] });
+        await pool.query(`UPDATE active_panels SET closed = 1 WHERE phase = ? AND channel_id = ? AND stage <=> ?`, [phase, channel.id, stage]);
+        return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });
+      }
 
       // ✅ potwierdzenie
       await interaction.reply({
