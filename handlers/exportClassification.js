@@ -94,9 +94,7 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   logger.info('export', 'Starting classification export', { guildId });
 
-  if (interaction?.deferReply) {
-    await interaction.deferReply({ ephemeral: true });
-  }
+ 
 
   await calculateScores();
   const workbook = new ExcelJS.Workbook();
