@@ -159,10 +159,10 @@ module.exports = async (interaction) => {
           userId,
           username,
           displayName,
-          JSON.stringify(picks.upper_final_a),
-          JSON.stringify(picks.lower_final_a),
-          JSON.stringify(picks.upper_final_b),
-          JSON.stringify(picks.lower_final_b)
+          picks.upper_final_a.join(', '),
+          picks.lower_final_a.join(', '),
+          picks.upper_final_b.join(', '),
+          picks.lower_final_b.join(', ')
         ]
       );
 
