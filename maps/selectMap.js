@@ -38,4 +38,20 @@ module.exports = {
 
   // ===== PLAY-IN (BRAKOWAŁO TEGO!) =====
   'playin_select': 'submitPlayinDropdown',
+
+  // ===== DOUBLE ELIM – PREDICTIONS =====
+'doubleelim_upper_final_a': 'submitDoubleElimDropdown',
+'doubleelim_lower_final_a': 'submitDoubleElimDropdown',
+'doubleelim_upper_final_b': 'submitDoubleElimDropdown',
+'doubleelim_lower_final_b': 'submitDoubleElimDropdown',
+'confirm_doubleelim': 'submitDoubleElimDropdown',
+
+// ===== DOUBLE ELIM – RESULTS =====
+'official_doubleelim_upper_final_a': 'submitDoubleElimResultsDropdown',
+'official_doubleelim_lower_final_a': 'submitDoubleElimResultsDropdown',
+'official_doubleelim_upper_final_b': 'submitDoubleElimResultsDropdown',
+'official_doubleelim_lower_final_b': 'submitDoubleElimResultsDropdown',
+'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
+'open_doubleelim_results': 'openDoubleElimResultsDropdown',
+
 };
