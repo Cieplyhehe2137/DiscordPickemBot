@@ -58,4 +58,11 @@ module.exports = {
 'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
 'open_doubleelim_results': 'openDoubleElimResultsDropdown',
 
+  // ===== PLAYOFFS – RESULTS =====
+  'results_playoffs_semifinalists': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_finalists': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_winner': 'submitPlayoffsResultsDropdown',
+  'results_playoffs_third_place_winner': 'submitPlayoffsResultsDropdown',
+
+
 };
