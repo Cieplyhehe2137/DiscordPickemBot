@@ -1,97 +1,87 @@
-// openPlayoffsResultsDropdown.js
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder
-} = require("discord.js");
+} = require('discord.js');
 
-const fs = require("fs/promises");
-const path = require("path");
+const pool = require('../db');
 
-async function loadTeams() {
-  const filePath = path.join(process.cwd(), "data", "teams.json");
-  const raw = await fs.readFile(filePath, "utf8");
-  return JSON.parse(raw);
+// ⬇️ pobieramy drużyny z BAZY, nie z JSON
+async function loadTeamsFromDB(guildId) {
+  const [rows] = await pool.query(
+    `SELECT name FROM teams WHERE active = 1 ORDER BY name ASC`
+  );
+  return rows.map(r => r.name);
 }
 
 module.exports = async (interaction) => {
-  // musi być button
-  if (!interaction.isButton()) return;
+  // ⛔ NIE sprawdzamy isButton()
+  if (interaction.customId !== 'open_results_playoffs') return;
 
-  // 🔥 NAJWAŻNIEJSZE: poprawione customId
-  if (interaction.customId !== "open_results_playoffs") return;
+  const guildId = interaction.guildId;
+  const teams = await loadTeamsFromDB(guildId);
 
-  await interaction.deferReply({ ephemeral: true });
-
-  const teams = await loadTeams();
+  if (!teams.length) {
+    return interaction.followUp({
+      content: '❌ Brak aktywnych drużyn w bazie.',
+      ephemeral: true
+    });
+  }
 
   const embed = new EmbedBuilder()
-    .setTitle("🏆 Ustaw wyniki Playoffs")
+    .setTitle('🏆 Ustaw wyniki Playoffs')
     .setDescription(
-      "Wybierz drużyny w dropdownach poniżej.\n" +
-      "Możesz dodawać partiami — dokładnie jak w Swiss Stage."
+      'Możesz **dodawać drużyny partiami** – dokładnie jak w Swiss.\n' +
+      'Dropdowny zapisują stan w bazie.'
     )
-    .setColor("#ffcc00");
+    .setColor('#ffcc00');
 
-  // PÓŁFINALIŚCI
-  const semifinalsMenu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("results_playoffs_semifinalists")
-      .setPlaceholder("Wybierz półfinalistów (max 4)")
-      .setMinValues(0)
-      .setMaxValues(4)
-      .addOptions(teams.map(t => ({ label: t, value: t })))
-  );
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('results_playoffs_semifinalists')
+        .setPlaceholder('Półfinaliści (max 4)')
+        .setMinValues(0)
+        .setMaxValues(4)
+        .addOptions(teams.map(t => ({ label: t, value: t })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('results_playoffs_finalists')
+        .setPlaceholder('Finaliści (max 2)')
+        .setMinValues(0)
+        .setMaxValues(2)
+        .addOptions(teams.map(t => ({ label: t, value: t })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('results_playoffs_winner')
+        .setPlaceholder('Zwycięzca')
+        .setMinValues(0)
+        .setMaxValues(1)
+        .addOptions(teams.map(t => ({ label: t, value: t })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('results_playoffs_third_place_winner')
+        .setPlaceholder('3. miejsce (opcjonalnie)')
+        .setMinValues(0)
+        .setMaxValues(1)
+        .addOptions(teams.map(t => ({ label: t, value: t })))
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('confirm_playoffs_results')
+        .setLabel('✅ Zatwierdź')
+        .setStyle(ButtonStyle.Success)
+    )
+  ];
 
-  // FINALIŚCI
-  const finalsMenu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("results_playoffs_finalists")
-      .setPlaceholder("Wybierz finalistów (max 2)")
-      .setMinValues(0)
-      .setMaxValues(2)
-      .addOptions(teams.map(t => ({ label: t, value: t })))
-  );
-
-  // ZWYCIĘZCA
-  const winnerMenu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("results_playoffs_winner")
-      .setPlaceholder("Wybierz zwycięzcę (1 drużyna)")
-      .setMinValues(0)
-      .setMaxValues(1)
-      .addOptions(teams.map(t => ({ label: t, value: t })))
-  );
-
-  // 3. MIEJSCE (opcjonalne)
-  const thirdMenu = new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("results_playoffs_third_place_winner")
-      .setPlaceholder("Wybierz 3. miejsce (opcjonalne)")
-      .setMinValues(0)
-      .setMaxValues(1)
-      .addOptions(teams.map(t => ({ label: t, value: t })))
-  );
-
-  // PRZYCISK ZATWIERDŹ
-  const confirmRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("confirm_playoffs_results")
-      .setLabel("Zatwierdź")
-      .setStyle(ButtonStyle.Success)
-  );
-
-  // ODPOWIEDŹ
-  return interaction.editReply({
+  return interaction.followUp({
     embeds: [embed],
-    components: [
-      semifinalsMenu,
-      finalsMenu,
-      winnerMenu,
-      thirdMenu,
-      confirmRow
-    ]
+    components: rows,
+    ephemeral: true
   });
 };
