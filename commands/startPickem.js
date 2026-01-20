@@ -54,7 +54,7 @@ const phasesConfig = {
       '🟣 2 drużyny z Lower Final B\n\n' +
       '🔴 Deadline: 15 min przed startem meczu',
     buttonLabel: 'Typuj Double Elim',
-    buttonId: 'open_doubleelim_modal',
+    buttonId: 'open_doubleelim_dropdown',
     color: 'Purple'
   },
   playin: {
