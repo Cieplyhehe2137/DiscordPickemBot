@@ -77,12 +77,20 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
     // === NORMAL: odpalamy stary handler (jakby to był button) ===
     const handlerName = resolveHandlerName(maps?.buttonMap, targetCustomId);
     if (!handlerName || !handlers?.[handlerName]) {
-      logger.warn('interaction', 'panelSelectAction missing handler', { value, targetCustomId, handlerName });
+      logger.warn('interaction', 'panelSelectAction missing handler', {
+        value,
+        targetCustomId,
+        handlerName
+      });
       return interaction.reply({ content: '❌ Brak handlera dla tej akcji.', ephemeral: true });
     }
 
+    // 🔥 KLUCZOWE
+    await interaction.deferUpdate();
+
     const proxied = proxyCustomId(interaction, targetCustomId);
     await handlers[handlerName](proxied, client);
+
 
   } catch (err) {
     logger.error('interaction', 'panelSelectAction failed', { message: err.message, stack: err.stack });
