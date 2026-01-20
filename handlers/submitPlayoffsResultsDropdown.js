@@ -1,6 +1,4 @@
 // submitPlayoffsResultsDropdown.js
-const fs = require("fs/promises");
-const path = require("path");
 const pool = require("../db");
 const logger = require("../logger");
 
@@ -8,11 +6,14 @@ const logger = require("../logger");
 if (!global._resultsPlayoffsCache) global._resultsPlayoffsCache = {};
 const cache = global._resultsPlayoffsCache;
 
-async function loadTeams() {
-  // jeśli u Ciebie teams.json jest w /data/teams.json, zostawiam to jak było:
-  const filePath = path.join(process.cwd(), "data", "teams.json");
-  const raw = await fs.readFile(filePath, "utf8");
-  return JSON.parse(raw);
+async function loadTeamsFromDB(guildId) {
+  const [rows] = await pool.query(
+    `SELECT name
+     FROM teams
+     WHERE active = 1
+     ORDER BY name ASC`
+  );
+  return rows.map(r => r.name);
 }
 
 function cleanList(arr) {
