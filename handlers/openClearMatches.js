@@ -7,8 +7,14 @@ function hasAdminPerms(interaction) {
 }
 
 module.exports = async function openClearMatches(interaction) {
+  // ===== brak uprawnień =====
   if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień (Administrator / Zarządzanie serwerem).', ephemeral: true });
+    const err = { content: '❌ Brak uprawnień (Administrator / Zarządzanie serwerem).' };
+
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply(err);
+    }
+    return interaction.reply({ ...err, ephemeral: true });
   }
 
   const row = new ActionRowBuilder().addComponents(
@@ -25,9 +31,15 @@ module.exports = async function openClearMatches(interaction) {
       ])
   );
 
-  return interaction.reply({
+  const payload = {
     content: '🧹 Wybierz fazę, z której chcesz **usunąć wszystkie mecze (MATCHES)** wraz z wynikami i punktami dla meczów:',
-    components: [row],
-    ephemeral: true
-  });
+    components: [row]
+  };
+
+  // ===== KLUCZOWA LOGIKA =====
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply(payload);
+  }
+
+  return interaction.reply({ ...payload, ephemeral: true });
 };

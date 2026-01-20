@@ -2,7 +2,6 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = async function openMatchResults(interaction) {
-  // Admin panel -> wybór fazy
   const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('match_admin_phase_select')
@@ -17,9 +16,15 @@ module.exports = async function openMatchResults(interaction) {
       ])
   );
 
-  return interaction.reply({
+  const payload = {
     content: '📄 Wybierz fazę, dla której chcesz **wprowadzić oficjalne wyniki meczów**:',
-    components: [row],
-    ephemeral: true
-  });
+    components: [row]
+  };
+
+  // 🔑 KLUCZ: nie reply po deferReply
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply(payload);
+  }
+
+  return interaction.reply({ ...payload, ephemeral: true });
 };
