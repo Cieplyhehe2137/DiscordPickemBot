@@ -1,9 +1,29 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const pool = require('../db');
+
+async function loadTeamsFromDB(guildId) {
+  const [rows] = await pool.query(
+    `SELECT name
+     FROM teams
+     WHERE guild_id = ?
+       AND active = 1
+     ORDER BY name ASC`,
+    [guildId]
+  );
+  return rows.map(r => r.name);
+}
 
 module.exports = async (interaction) => {
-  const teams = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'teams.json'), 'utf8'));
+  const guildId = interaction.guildId;
+
+  const teams = await loadTeamsFromDB(guildId);
+
+  if (!teams.length) {
+    return interaction.reply({
+      content: '❌ Brak aktywnych drużyn w bazie danych.',
+      ephemeral: true
+    });
+  }
 
   const embed = new EmbedBuilder()
     .setColor('#f1c40f')
