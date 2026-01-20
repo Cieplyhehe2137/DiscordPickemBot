@@ -136,7 +136,7 @@ module.exports = async (interaction) => {
     }
 
     // WALIDACJA
-    const teams = await loadTeams();
+    const teams = await loadTeamsFromDB(guildId);
     const allSelected = [...mSemi.merged, ...mFinal.merged, ...mWinner.merged, ...mThird.merged];
     const invalid = allSelected.filter(t => !teams.includes(t));
     if (invalid.length) {
