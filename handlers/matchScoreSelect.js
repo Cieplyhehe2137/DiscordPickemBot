@@ -1,7 +1,7 @@
 // handlers/matchScoreSelect.js
 const pool = require('../db');
 const logger = require('../utils/logger');
-const { validateScore, computeTotalPoints } = require('../utils/matchScoring');
+const { validateScore } = require('../utils/matchScoring');
 const userState = require('../utils/matchUserState');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
@@ -10,7 +10,13 @@ module.exports = async function matchScoreSelect(interaction) {
   try {
     const mode = interaction.customId === 'match_score_select_res' ? 'res' : 'pred';
     const val = interaction.values?.[0];
-    if (!val) return interaction.update({ content: '❌ Nie wybrano wyniku.', components: [] });
+
+    if (!val) {
+      return interaction.update({
+        content: '❌ Nie wybrano wyniku.',
+        components: []
+      });
+    }
 
     // value: MATCHID|A:B
     const [matchIdStr, scoreStr] = val.split('|');
@@ -22,36 +28,62 @@ module.exports = async function matchScoreSelect(interaction) {
     const [[match]] = await pool.query(
       `SELECT id, phase, team_a, team_b, best_of, is_locked
        FROM matches
-       WHERE id=?
+       WHERE id = ?
        LIMIT 1`,
       [matchId]
     );
 
-    if (!match) return interaction.update({ content: '❌ Nie znaleziono meczu.', components: [] });
+    if (!match) {
+      return interaction.update({
+        content: '❌ Nie znaleziono meczu.',
+        components: []
+      });
+    }
 
     // walidacja wg BO
     const v = validateScore({ a, b, bestOf: match.best_of });
-    if (!v.ok) return interaction.update({ content: `❌ ${v.reason}`, components: [] });
+    if (!v.ok) {
+      return interaction.update({
+        content: `❌ ${v.reason}`,
+        components: []
+      });
+    }
 
+    // ===============================
+    // TRYB USER – typowanie
+    // ===============================
     if (mode === 'pred') {
       if (match.is_locked) {
-        return interaction.update({ content: '🔒 Ten mecz jest zablokowany (nie można już typować).', components: [] });
+        return interaction.update({
+          content: '🔒 Ten mecz jest zablokowany (nie można już typować).',
+          components: []
+        });
       }
 
-      // ✅ P0: gate
-      const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+      // gate (deadline / faza)
+      const gate = await assertPredictionsAllowed({
+        guildId: interaction.guildId,
+        kind: 'MATCHES'
+      });
+
       if (!gate.allowed) {
-        return interaction.update({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', components: [] });
+        return interaction.update({
+          content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
+          components: []
+        });
       }
 
       await pool.query(
         `INSERT INTO match_predictions (match_id, user_id, pred_a, pred_b)
          VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE pred_a=VALUES(pred_a), pred_b=VALUES(pred_b), updated_at=CURRENT_TIMESTAMP`,
+         ON DUPLICATE KEY UPDATE
+           pred_a = VALUES(pred_a),
+           pred_b = VALUES(pred_b),
+           updated_at = CURRENT_TIMESTAMP`,
         [matchId, interaction.user.id, a, b]
       );
 
-      // zostawiamy od razu przycisk do wpisania dokładnego wyniku
+      // zapamiętaj kontekst do exact score
       userState.set(interaction.guildId, interaction.user.id, {
         matchId: match.id,
         teamA: match.team_a,
@@ -73,74 +105,48 @@ module.exports = async function matchScoreSelect(interaction) {
       });
     }
 
-    // === tryb ADMIN: oficjalny wynik + przeliczenie punktów ===
+    // ===============================
+    // TRYB ADMIN – oficjalny wynik
+    // ===============================
     await pool.query(
       `INSERT INTO match_results (match_id, res_a, res_b)
        VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE res_a=VALUES(res_a), res_b=VALUES(res_b), finished_at=CURRENT_TIMESTAMP`,
+       ON DUPLICATE KEY UPDATE
+         res_a = VALUES(res_a),
+         res_b = VALUES(res_b),
+         finished_at = CURRENT_TIMESTAMP`,
       [matchId, a, b]
     );
 
-    // przeliczenie punktów dla wszystkich typów
-    // pobierz też typ dokładny (pred_exact_a/pred_exact_b) jeśli istnieje
-    let preds = [];
-    try {
-      const [rows] = await pool.query(
-        `SELECT user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
-         FROM match_predictions
-         WHERE match_id=?`,
-        [matchId]
-      );
-      preds = rows;
-    } catch (e) {
-      // kompatybilność wstecz, jeśli nie ma jeszcze kolumn pred_exact_a/b
-      const [rows] = await pool.query(
-        `SELECT user_id, pred_a, pred_b
-         FROM match_predictions
-         WHERE match_id=?`,
-        [matchId]
-      );
-      preds = rows.map(r => ({ ...r, pred_exact_a: null, pred_exact_b: null }));
-    }
-
-    // official exact (np. 13:8) może zostać ustawiony później
-    const [[ex]] = await pool.query(
-      `SELECT exact_a, exact_b FROM match_results WHERE match_id=? LIMIT 1`,
+    // zablokuj mecz
+    await pool.query(
+      `UPDATE matches SET is_locked = 1 WHERE id = ?`,
       [matchId]
     );
-    const exactA = ex?.exact_a ?? null;
-    const exactB = ex?.exact_b ?? null;
 
-    for (const p of preds) {
-      const pts = computeTotalPoints({
-        predA: p.pred_a,
-        predB: p.pred_b,
-        resA: a,
-        resB: b,
-        predExactA: p.pred_exact_a,
-        predExactB: p.pred_exact_b,
-        exactA,
-        exactB
-      });
-      await pool.query(
-        `INSERT INTO match_points (match_id, user_id, points)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE points=VALUES(points), computed_at=CURRENT_TIMESTAMP`,
-        [matchId, p.user_id, pts]
-      );
-    }
-
-    // zablokuj mecz po wpisaniu wyniku
-    await pool.query(`UPDATE matches SET is_locked=1 WHERE id=?`, [matchId]);
-
-    logger.info('matches', 'Official match result saved', { matchId, a, b, computedFor: preds.length });
+    logger.info('matches', 'Official match result saved (no scoring)', {
+      matchId,
+      a,
+      b
+    });
 
     return interaction.update({
-      content: `✅ Ustawiono wynik: **${match.team_a} ${a}:${b} ${match.team_b}**\nPrzeliczono punkty dla: **${preds.length}** typów. (mecz 🔒)`,
+      content:
+        `✅ Ustawiono wynik: **${match.team_a} ${a}:${b} ${match.team_b}**\n` +
+        `⚠️ Punkty NIE zostały jeszcze przeliczone.\n` +
+        `➡️ Użyj **calculateScores.js**, aby zaktualizować ranking.`,
       components: []
     });
+
   } catch (err) {
-    logger.error('matches', 'matchScoreSelect failed', { message: err.message, stack: err.stack });
-    return interaction.update({ content: '❌ Błąd przy zapisie.', components: [] }).catch(() => { });
+    logger.error('matches', 'matchScoreSelect failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.update({
+      content: '❌ Błąd przy zapisie wyniku.',
+      components: []
+    }).catch(() => {});
   }
 };
