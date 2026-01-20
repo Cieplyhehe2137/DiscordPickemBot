@@ -205,7 +205,16 @@ module.exports = async function exportClassification(interaction = null, outputP
   const [playinPreds] = await pool.query(`SELECT * FROM playin_predictions`);
   for (const row of playinPreds) {
     const id = row.user_id;
-    if (!users[id]) continue;
+    if (!users[id]) {
+  users[id] = {
+    displayname: row.displayname || row.username || id,
+    swiss: {},
+    playoffs: 0,
+    double: 0,
+    playin: 0,
+    picks: {}
+  };
+}
     users[id].picks.playin = parseList(row.teams);
   }
 
@@ -442,11 +451,16 @@ module.exports = async function exportClassification(interaction = null, outputP
 
 
   const rowsPlayIn = Object.entries(users)
-    .filter(([, u]) => u.picks.playin)
-    .map(([id, u]) => {
-      const picks = parseList(u.picks.playin);
-      return [id, u.displayname, picks.join(', '), u.playin || 0];
-    }).sort((a, b) => b[3] - a[3]);
+  .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
+  .map(([id, u]) => {
+    return [
+      id,
+      u.displayname,
+      u.picks.playin.join(', '),
+      u.playin || 0
+    ];
+  })
+  .sort((a, b) => b[3] - a[3]);
 
   addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
 
