@@ -38,6 +38,10 @@ module.exports = {
 
   // ===== PLAY-IN (BRAKOWAŁO TEGO!) =====
   'playin_select': 'submitPlayinDropdown',
+  // ===== PLAY-IN – RESULTS =====
+'official_playin_teams': 'submitPlayinResultsDropdown',
+'confirm_playin_results': 'submitPlayinResultsDropdown',
+
 
   // ===== DOUBLE ELIM – PREDICTIONS =====
 'doubleelim_upper_final_a': 'submitDoubleElimDropdown',
