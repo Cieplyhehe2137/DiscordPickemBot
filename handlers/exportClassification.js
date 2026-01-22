@@ -125,6 +125,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   const sheetDouble = workbook.addWorksheet('Double Elim');
   const sheetPlayIn = workbook.addWorksheet('Play-In');
   const sheetMatches = workbook.addWorksheet('Mecze');
+  const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)')
 
   const users = {};
 
@@ -450,7 +451,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   addSheet(sheetDouble,
     ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
     rowsDouble);
-    prettifySheet(sheetDouble)
+  prettifySheet(sheetDouble)
 
 
   // === Oficjalne wyniki na arkuszu Double Elim ===
@@ -566,18 +567,17 @@ module.exports = async function exportClassification(interaction = null, outputP
 
     // Dodaj NOWY arkusz "Mapy"
     const sheetMaps = workbook.getWorksheet('Mapy') || workbook.addWorksheet('Mapy');
+
     sheetMaps.columns = [
       { header: 'Faza', key: 'phase', width: 12 },
-      { header: 'Match No', key: 'match_no', width: 9 },
-      { header: 'Match ID', key: 'match_id', width: 9 },
-      { header: 'Team A', key: 'team_a', width: 22 },
-      { header: 'Team B', key: 'team_b', width: 22 },
-      { header: 'BO', key: 'best_of', width: 5 },
+      { header: 'Mecz', key: 'match_no', width: 8 },
+      { header: 'Drużyna A', key: 'team_a', width: 22 },
+      { header: 'Drużyna B', key: 'team_b', width: 22 },
       { header: 'Nick', key: 'displayname', width: 18 },
       { header: 'User ID', key: 'user_id', width: 20 },
       { header: 'Mapa', key: 'map_no', width: 6 },
-      { header: 'OFF', key: 'off', width: 10 },
-      { header: 'TYP', key: 'pred', width: 10 },
+      { header: 'Typ mapy', key: 'pred', width: 10 },
+      { header: 'Wynik mapy', key: 'off', width: 10 },
     ];
 
     // --- Query dla SERII (bez map)
