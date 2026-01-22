@@ -17,23 +17,23 @@ function parseList(input) {
     .filter(Boolean);
 }
 
-    function prettifySheet(sheet) {
-      sheet.views = [{ state: 'frozen', ySplit: 1 }];
-      sheet.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: 1, column: sheet.columnCount }
-      };
+function prettifySheet(sheet) {
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: sheet.columnCount }
+  };
 
-      const header = sheet.getRow(1);
-      header.font = { bold: true };
-      header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      header.height = 20;
+  const header = sheet.getRow(1);
+  header.font = { bold: true };
+  header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  header.height = 20;
 
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        row.alignment = { vertical: 'middle', wrapText: true };
-      });
-    }
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    row.alignment = { vertical: 'middle', wrapText: true };
+  });
+}
 
 const joinOrDash = arr => (Array.isArray(arr) && arr.length ? arr.join(', ') : '—');
 
@@ -112,7 +112,7 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   logger.info('export', 'Starting classification export', { guildId });
 
- 
+
 
   await calculateScores();
   const workbook = new ExcelJS.Workbook();
@@ -224,15 +224,15 @@ module.exports = async function exportClassification(interaction = null, outputP
   for (const row of playinPreds) {
     const id = row.user_id;
     if (!users[id]) {
-  users[id] = {
-    displayname: row.displayname || row.username || id,
-    swiss: {},
-    playoffs: 0,
-    double: 0,
-    playin: 0,
-    picks: {}
-  };
-}
+      users[id] = {
+        displayname: row.displayname || row.username || id,
+        swiss: {},
+        playoffs: 0,
+        double: 0,
+        playin: 0,
+        picks: {}
+      };
+    }
     users[id].picks.playin = parseList(row.teams);
   }
 
@@ -449,9 +449,9 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   addSheet(sheetDouble,
     ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
-    rowsDouble,
+    rowsDouble);
     prettifySheet(sheetDouble)
-  );
+
 
   // === Oficjalne wyniki na arkuszu Double Elim ===
   try {
@@ -473,16 +473,16 @@ module.exports = async function exportClassification(interaction = null, outputP
 
 
   const rowsPlayIn = Object.entries(users)
-  .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
-  .map(([id, u]) => {
-    return [
-      id,
-      u.displayname,
-      u.picks.playin.join(', '),
-      u.playin || 0
-    ];
-  })
-  .sort((a, b) => b[3] - a[3]);
+    .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
+    .map(([id, u]) => {
+      return [
+        id,
+        u.displayname,
+        u.picks.playin.join(', '),
+        u.playin || 0
+      ];
+    })
+    .sort((a, b) => b[3] - a[3]);
 
   addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
   prettifySheet(sheetPlayIn);
@@ -657,17 +657,26 @@ module.exports = async function exportClassification(interaction = null, outputP
   m.team_a,
   m.team_b,
   m.best_of,
-  p.user_id,
-  mr.map_no,
-  CONCAT(mr.exact_a, ':', mr.exact_b) AS off_score,
+  mp.user_id,
+  mp.map_no,
+  CASE
+    WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+      THEN CONCAT(mr.exact_a, ':', mr.exact_b)
+    ELSE '—'
+  END AS off_score,
   CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
-      FROM matches m
-      JOIN match_predictions p ON p.match_id = m.id
-      JOIN match_map_results mr ON mr.match_id = m.id
-      LEFT JOIN match_map_predictions mp
-        ON mp.match_id = m.id AND mp.user_id = p.user_id AND mp.map_no = mr.map_no
-      ORDER BY m.phase, COALESCE(m.match_no, 999999), m.id, p.user_id, mr.map_no
-    `);
+FROM match_map_predictions mp
+JOIN matches m ON m.id = mp.match_id
+LEFT JOIN match_map_results mr
+  ON mr.match_id = mp.match_id
+ AND mr.map_no = mp.map_no
+ORDER BY
+  m.phase,
+  COALESCE(m.match_no, 999999),
+  m.id,
+  mp.user_id,
+  mp.map_no;
+`);
       mapRows = rows;
     } catch (e) {
       console.log('⚠️ MAPY: nie udało się pobrać map (pomijam):', e?.message || e);
@@ -699,7 +708,7 @@ module.exports = async function exportClassification(interaction = null, outputP
 
     }
 
-  
+
 
 
     prettifySheet(sheetMatches);
