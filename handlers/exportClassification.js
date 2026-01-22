@@ -130,6 +130,32 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   const users = {};
 
+  sheetMaps.columns = [
+  { header: 'Faza', key: 'phase', width: 12 },
+  { header: 'Mecz', key: 'match_no', width: 8 },
+  { header: 'Match ID', key: 'match_id', width: 9 },
+  { header: 'Drużyna A', key: 'team_a', width: 22 },
+  { header: 'Drużyna B', key: 'team_b', width: 22 },
+  { header: 'BO', key: 'best_of', width: 5 },
+  { header: 'Nick', key: 'displayname', width: 18 },
+  { header: 'User ID', key: 'user_id', width: 20 },
+  { header: 'Mapa', key: 'map_no', width: 6 },
+  { header: 'TYP', key: 'pred', width: 10 },
+  { header: 'OFF', key: 'off', width: 10 },
+];
+
+sheetMapsSummary.columns = [
+  { header: 'Faza', key: 'phase', width: 12 },
+  { header: 'Mecz', key: 'match_no', width: 8 },
+  { header: 'Team A', key: 'team_a', width: 20 },
+  { header: 'Team B', key: 'team_b', width: 20 },
+  { header: 'Nick', key: 'displayname', width: 18 },
+  { header: 'User ID', key: 'user_id', width: 20 },
+  { header: 'Mapy (TYP → OFF)', key: 'maps', width: 40 },
+];
+
+
+
   // === Punkty Swiss
   const [swissRows] = await pool.query(`SELECT user_id, displayname, stage, points AS score FROM swiss_scores`);
   for (const row of swissRows) {
