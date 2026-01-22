@@ -125,6 +125,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   const sheetDouble = workbook.addWorksheet('Double Elim');
   const sheetPlayIn = workbook.addWorksheet('Play-In');
   const sheetMatches = workbook.addWorksheet('Mecze');
+  const sheetMaps = workbook.addWorksheet('Mapy')
   const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)')
 
   const users = {};
@@ -565,50 +566,104 @@ module.exports = async function exportClassification(interaction = null, outputP
       { header: 'User ID', key: 'user_id', width: 20 },
     ];
 
-    // Dodaj NOWY arkusz "Mapy"
-    const sheetMaps = workbook.getWorksheet('Mapy') || workbook.addWorksheet('Mapy');
 
-    sheetMaps.columns = [
-      { header: 'Faza', key: 'phase', width: 12 },
-      { header: 'Mecz', key: 'match_no', width: 8 },
-      { header: 'Drużyna A', key: 'team_a', width: 22 },
-      { header: 'Drużyna B', key: 'team_b', width: 22 },
-      { header: 'Nick', key: 'displayname', width: 18 },
-      { header: 'User ID', key: 'user_id', width: 20 },
-      { header: 'Mapa', key: 'map_no', width: 6 },
-      { header: 'Typ mapy', key: 'pred', width: 10 },
-      { header: 'Wynik mapy', key: 'off', width: 10 },
-    ];
+
 
     // --- Query dla SERII (bez map)
     const [matchRows] = await pool.query(`
-    SELECT
-      m.id AS match_id,
-      m.phase,
-      m.match_no,
-      m.team_a,
-      m.team_b,
-      m.best_of,
-      r.res_a,
-      r.res_b,
-      p.user_id,
-      p.pred_a,
-      p.pred_b,
-      pts.points
-    FROM matches m
-    LEFT JOIN match_results r ON r.match_id = m.id
-    LEFT JOIN match_predictions p ON p.match_id = m.id
-    LEFT JOIN (
-      SELECT match_id, user_id, SUM(points) AS points
-      FROM match_points
-      GROUP BY match_id, user_id
-    ) pts ON pts.match_id = m.id AND pts.user_id = p.user_id
-    ORDER BY
-      m.phase ASC,
-      COALESCE(m.match_no, 999999) ASC,
-      m.id ASC,
-      p.user_id ASC
-  `);
+  SELECT
+    m.id AS match_id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    r.res_a,
+    r.res_b,
+    p.user_id,
+    p.pred_a,
+    p.pred_b,
+    pts.points
+  FROM matches m
+  JOIN match_predictions p
+    ON p.match_id = m.id
+  LEFT JOIN match_results r
+    ON r.match_id = m.id
+  LEFT JOIN (
+    SELECT match_id, user_id, SUM(points) AS points
+    FROM match_points
+    GROUP BY match_id, user_id
+  ) pts
+    ON pts.match_id = m.id AND pts.user_id = p.user_id
+  ORDER BY
+    m.phase,
+    COALESCE(m.match_no, 999999),
+    m.id,
+    p.user_id
+`);
+
+
+    // === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
+    const [mapSummaryRows] = await pool.query(`
+SELECT
+  m.phase,
+  m.match_no,
+  m.team_a,
+  m.team_b,
+  mp.user_id,
+  GROUP_CONCAT(
+    CONCAT(
+      'M', mp.map_no, ': ',
+      mp.pred_exact_a, ':', mp.pred_exact_b,
+      CASE
+        WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+          THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
+        ELSE ''
+      END
+    )
+    ORDER BY mp.map_no
+    SEPARATOR ', '
+  ) AS maps_summary
+FROM matches m
+JOIN match_map_predictions mp
+  ON mp.match_id = m.id
+LEFT JOIN match_map_results mr
+  ON mr.match_id = mp.match_id AND mr.map_no = mp.map_no
+GROUP BY
+  m.phase, m.match_no, m.team_a, m.team_b, mp.user_id
+ORDER BY
+  m.phase,
+  COALESCE(m.match_no, 999999),
+  m.match_no,
+  mp.user_id;
+`);
+
+    const mapSummaryUserIds = mapSummaryRows.map(r => r.user_id);
+    const discordNamesSummary = await fetchDisplayNamesFromDiscord(interaction, mapSummaryUserIds);
+
+    for (const r of mapSummaryRows) {
+      const fromUsers = users?.[r.user_id]?.displayname;
+      const fromDiscord = discordNamesSummary.get(r.user_id);
+
+      const nick =
+        (fromUsers && fromUsers !== r.user_id)
+          ? fromUsers
+          : (fromDiscord || r.user_id);
+
+      sheetMapsSummary.addRow({
+        phase: r.phase,
+        match_no: r.match_no,
+        team_a: r.team_a,
+        team_b: r.team_b,
+        displayname: nick,
+        user_id: r.user_id,
+        maps: r.maps_summary || '—',
+      });
+    }
+
+    prettifySheet(sheetMapsSummary);
+
+
 
     // Dociągnij displayname z Discorda dla userów, którzy tu występują
     const matchUserIds = matchRows.map(r => r.user_id).filter(Boolean);
