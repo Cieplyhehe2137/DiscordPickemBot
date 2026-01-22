@@ -263,6 +263,7 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   summary.sort((a, b) => b.total - a.total);
   summary.forEach(row => sheetMain.addRow(row));
+  prettifySheet(sheetMain);
   sheetMain.columns.forEach(col => {
     let maxLength = col.header.length;
     col.eachCell({ includeEmpty: true }, cell => {
@@ -295,6 +296,7 @@ module.exports = async function exportClassification(interaction = null, outputP
       }).sort((a, b) => b[5] - a[5]);
 
     addSheet(sheet, ['User ID', 'Nick', 'Pick 3-0', 'Pick 0-3', 'Awansujące', 'Punkty'], rows);
+    prettifySheet(sheet);
   };
 
   exportSwiss(sheetSwiss1, 1);
@@ -369,6 +371,7 @@ module.exports = async function exportClassification(interaction = null, outputP
     }).sort((a, b) => b[6] - a[6]);
 
   addSheet(sheetPlayoffs, ['User ID', 'Nick', 'Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce', 'Punkty'], rowsPlayoffs);
+  prettifySheet(sheetPlayoffs);
 
   // === Oficjalne wyniki na arkuszu Playoffs ===
   try {
@@ -428,7 +431,8 @@ module.exports = async function exportClassification(interaction = null, outputP
 
   addSheet(sheetDouble,
     ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
-    rowsDouble
+    rowsDouble,
+    prettifySheet(sheetDouble)
   );
 
   // === Oficjalne wyniki na arkuszu Double Elim ===
@@ -463,6 +467,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   .sort((a, b) => b[3] - a[3]);
 
   addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
+  prettifySheet(sheetPlayIn);
 
   // === Oficjalne wyniki na arkuszu Play-In ===
   // === Oficjalne wyniki na arkuszu Play-In ===
