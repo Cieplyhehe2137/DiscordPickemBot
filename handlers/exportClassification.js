@@ -17,6 +17,24 @@ function parseList(input) {
     .filter(Boolean);
 }
 
+    function prettifySheet(sheet) {
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+      sheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: sheet.columnCount }
+      };
+
+      const header = sheet.getRow(1);
+      header.font = { bold: true };
+      header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      header.height = 20;
+
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        row.alignment = { vertical: 'middle', wrapText: true };
+      });
+    }
+
 const joinOrDash = arr => (Array.isArray(arr) && arr.length ? arr.join(', ') : '—');
 
 function putOfficialBlock(sheet, startCol, startRow, title, rows) {
@@ -681,24 +699,8 @@ module.exports = async function exportClassification(interaction = null, outputP
 
     }
 
-    // --- Format: zamrożenie nagłówka + filtry + pogrubiony header
-    function prettifySheet(sheet) {
-      sheet.views = [{ state: 'frozen', ySplit: 1 }];
-      sheet.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: 1, column: sheet.columnCount }
-      };
+  
 
-      const header = sheet.getRow(1);
-      header.font = { bold: true };
-      header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      header.height = 20;
-
-      sheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
-        row.alignment = { vertical: 'middle', wrapText: true };
-      });
-    }
 
     prettifySheet(sheetMatches);
     prettifySheet(sheetMaps);
