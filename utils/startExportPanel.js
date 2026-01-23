@@ -11,7 +11,7 @@ const logger = require('./logger');
 const { getGuildConfig } = require('./guildRegistry');
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
-const PANEL_MARKER = 'export-panel-v1'; // 🔒 marker bezpieczeństwa
+const PANEL_MARKER = 'export-panel-v2'; // 🔒 marker bezpieczeństwa
 
 async function findExistingPanelMessage(channel, clientUserId) {
   if (!clientUserId) return null;

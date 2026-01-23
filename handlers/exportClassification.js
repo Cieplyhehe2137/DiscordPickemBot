@@ -1,4 +1,4 @@
-const pool = require('../db.js');
+const { withGuild } = require('../utils/guildContext');
 const ExcelJS = require('exceljs');
 const calculateScores = require('./calculateScores');
 const path = require('path');
@@ -96,26 +96,20 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 
 
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
-  
   const logger = require('../utils/logger');
-  const guildId = interaction?.guildId;
 
-  if (!guildId) {
-    const error = new Error('exportClassification called without guild context');
-    logger.error('export', 'exportClassification called without guild context', {});
-    if (interaction?.editReply) {
-      await interaction.editReply({ content: '❌ Błąd: brak kontekstu serwera.' });
-    }
-    throw error;
-  }
+  return withGuild(interaction, async ({ pool, guildId }) => {
 
-  
-  logger.info('export', 'Starting classification export', { guildId });
+    logger.info('export', 'Starting classification export', { guildId });
 
+    await calculateScores(guildId);
 
+    const workbook = new ExcelJS.Workbook();
+    
 
-  await calculateScores(guildId);
-  const workbook = new ExcelJS.Workbook();
+    // ⬇️ CAŁA RESZTA KODU BEZ ZMIAN ⬇️
+    // wszystkie pool.query(...) zostają
+
 
   const sheetMain = workbook.addWorksheet('Klasyfikacja ogólna');
   const sheetSwiss1 = workbook.addWorksheet('Swiss Stage 1');
@@ -838,4 +832,5 @@ ORDER BY
   if (!interaction) {
     console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
   }
+});
 };

@@ -64,15 +64,21 @@ function buildConfirmRow(targetCustomId) {
 }
 
 async function safeUpdate(interaction, payload) {
+  const fullPayload = {
+    ...payload,
+    components: payload.components ?? interaction.message.components
+  };
+
   try {
     if (interaction.deferred || interaction.replied) {
-      return await interaction.editReply(payload);
+      return await interaction.editReply(fullPayload);
     }
-    return await interaction.update(payload);
+    return await interaction.update(fullPayload);
   } catch {
-    return interaction.reply({ ...payload, ephemeral: true }).catch(() => {});
+    return interaction.reply({ ...fullPayload, ephemeral: true }).catch(() => {});
   }
 }
+
 
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
   try {
