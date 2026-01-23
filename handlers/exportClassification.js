@@ -99,17 +99,7 @@ module.exports = async function exportClassification(interaction = null, outputP
   
   const logger = require('../utils/logger');
 
-  // ✅ Walidacja: upewnij się, że jesteśmy w kontekście guilda
-  const guildId = getGuildId();
-  if (!guildId) {
-    const error = new Error('exportClassification called without guild context');
-    logger.error('export', 'exportClassification called without guild context', {});
-    if (interaction?.editReply) {
-      await interaction.editReply({ content: '❌ Błąd: brak kontekstu serwera.' });
-    }
-    throw error;
-  }
-
+  
   logger.info('export', 'Starting classification export', { guildId });
 
 
