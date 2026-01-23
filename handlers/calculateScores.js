@@ -17,8 +17,7 @@ const cleanList = (val) => {
     .filter(Boolean);
 };
 
-module.exports = async function calculateScores() {
-  const guildId = getGuildId();
+module.exports = async function calculateScores(guildId) {
   if (!guildId) {
     logger.error('scores', 'calculateScores called without guild context', {
       scope: 'cron:calculateScores',
@@ -33,13 +32,23 @@ module.exports = async function calculateScores() {
     scope: 'cron:calculateScores',
   });
 
+  // ⬇️ CAŁA RESZTA KODU (SWISS / PLAYOFFS / ...)
+
+
+
   /* =========================
      SWISS
      ========================= */
   try {
     const [swissResultsRows] = await safeQuery(
       pool,
-      `SELECT * FROM swiss_results WHERE guild_id = ? AND active = 1`,
+      `SELECT *
+FROM swiss_results
+WHERE guild_id = ?
+  AND active = 1
+ORDER BY id DESC
+LIMIT 1
+`,
       [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select swiss_results' }
     );
@@ -289,7 +298,7 @@ module.exports = async function calculateScores() {
           AND last.ms = p.submitted_at
           WHERE p.guild_id = ?
         `,
-        [],
+        [guildId, guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_predictions' }
       );
 
@@ -393,7 +402,7 @@ module.exports = async function calculateScores() {
       const [playinPredictions] = await safeQuery(
         pool,
         `SELECT * FROM playin_predictions WHERE guild_id = ? AND active = 1`,
-        [],
+        [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select playin_predictions' }
       );
 

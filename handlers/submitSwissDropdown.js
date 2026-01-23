@@ -1,64 +1,70 @@
 // handlers/submitSwissDropdown.js
 
-const db = require('../db');
+const { withGuild } = require('../utils/guildContext');
+const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 // cache: `${guildId}:${userId}:${stage}` -> { '3':[], '0':[], 'advancing':[] }
 const cache = new Map();
 
-// ===============================
-// DB helpers
-// ===============================
-async function loadTeamsFromDB(pool, guildId) {
-  const [rows] = await pool.query(
-    `SELECT name
-     FROM teams
-     WHERE guild_id = ?
-       AND active = 1
-     ORDER BY name ASC`,
-    [guildId]
+/* ===============================
+   DB HELPERS
+   =============================== */
+async function loadTeamsFromDB(db, guildId) {
+  const [rows] = await safeQuery(
+    db,
+    `
+    SELECT name
+    FROM teams
+    WHERE guild_id = ?
+      AND active = 1
+    ORDER BY name ASC
+    `,
+    [guildId],
+    { guildId, scope: 'submitSwiss', label: 'load teams' }
   );
   return rows.map(r => r.name);
 }
 
-// ===============================
-// HANDLER
-// ===============================
+/* ===============================
+   HANDLER
+   =============================== */
 module.exports = async (interaction) => {
-  const customId = interaction.customId;
+  const { customId } = interaction;
   const userId = interaction.user.id;
-  const guildId = interaction.guildId;
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
 
-  const pool = db.getPoolForGuild(guildId);
-
   logger.debug('submit', 'Interaction received', {
-    guildId,
+    guildId: interaction.guildId,
     userId,
     customId
   });
 
-  // ===============================
-  // STAGE (stage1 / stage2 / stage3)
-  // ===============================
+  /* ===============================
+     STAGE (stage1 / stage2 / stage3)
+     =============================== */
   const stageMatch = customId.match(/stage([123])/);
   const stage = stageMatch ? `stage${stageMatch[1]}` : null;
 
   if (!stage) {
-    logger.warn('submit', 'Stage not recognized', { guildId, userId, customId });
+    logger.warn('submit', 'Stage not recognized', {
+      guildId: interaction.guildId,
+      userId,
+      customId
+    });
     return interaction.reply({
       content: '❌ Nie udało się rozpoznać etapu Swiss.',
       ephemeral: true
     });
   }
 
-  const cacheKey = `${guildId}:${userId}:${stage}`;
+  const cacheKey = `${interaction.guildId}:${userId}:${stage}`;
 
-  // ===============================
-  // 1) DROPDOWNS
-  // ===============================
+  /* ===============================
+     1) DROPDOWNS
+     =============================== */
   if (interaction.isStringSelectMenu()) {
     await interaction.deferUpdate();
 
@@ -71,7 +77,11 @@ module.exports = async (interaction) => {
     else if (typeRaw === '0') type = '0';
     else if (typeRaw === 'advancing') type = 'advancing';
     else {
-      logger.warn('submit', 'Unknown dropdown type', { guildId, userId, customId });
+      logger.warn('submit', 'Unknown dropdown type', {
+        guildId: interaction.guildId,
+        userId,
+        customId
+      });
       return interaction.followUp({
         content: '❌ Nie udało się rozpoznać typu wyboru.',
         ephemeral: true
@@ -80,11 +90,10 @@ module.exports = async (interaction) => {
 
     if (!cache.has(cacheKey)) cache.set(cacheKey, {});
     const data = cache.get(cacheKey);
-
     data[type] = interaction.values;
 
     logger.debug('submit', 'Dropdown updated', {
-      guildId,
+      guildId: interaction.guildId,
       userId,
       stage,
       type,
@@ -97,9 +106,9 @@ module.exports = async (interaction) => {
     });
   }
 
-  // ===============================
-  // 2) CONFIRM BUTTON
-  // ===============================
+  /* ===============================
+     2) CONFIRM BUTTON
+     =============================== */
   const isConfirm =
     interaction.isButton() &&
     (customId === `confirm_${stage}` || customId === `confirm_swiss_${stage}`);
@@ -108,75 +117,86 @@ module.exports = async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  // ✅ P0 gate
-  const gate = await assertPredictionsAllowed({ guildId, kind: 'SWISS', stage });
-  if (!gate.allowed) {
-    return interaction.editReply(gate.message || '❌ Typowanie jest zamknięte.');
-  }
+  await withGuild(interaction, async (db, guildId) => {
+    /* ===============================
+       GATE
+       =============================== */
+    const gate = await assertPredictionsAllowed({
+      guildId,
+      kind: 'SWISS',
+      stage
+    });
 
-  const data = cache.get(cacheKey) || {};
+    if (!gate.allowed) {
+      return interaction.editReply(
+        gate.message || '❌ Typowanie jest zamknięte.'
+      );
+    }
 
-  if (!data['3'] || !data['0'] || !data['advancing']) {
-    return interaction.editReply(
-      '❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.'
-    );
-  }
+    const data = cache.get(cacheKey) || {};
 
-  // ===============================
-  // WALIDACJA ILOŚCI
-  // ===============================
-  if (
-    data['3'].length !== 2 ||
-    data['0'].length !== 2 ||
-    data['advancing'].length !== 6
-  ) {
-    return interaction.editReply(
-      `⚠️ Nieprawidłowa liczba drużyn:\n` +
-      `• 3-0: ${data['3'].length}/2\n` +
-      `• 0-3: ${data['0'].length}/2\n` +
-      `• awansujące: ${data['advancing'].length}/6`
-    );
-  }
+    if (!data['3'] || !data['0'] || !data['advancing']) {
+      return interaction.editReply(
+        '❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.'
+      );
+    }
 
-  const all = [...data['3'], ...data['0'], ...data['advancing']];
-  if (new Set(all).size !== all.length) {
-    return interaction.editReply(
-      '⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.'
-    );
-  }
+    /* ===============================
+       WALIDACJA ILOŚCI
+       =============================== */
+    if (
+      data['3'].length !== 2 ||
+      data['0'].length !== 2 ||
+      data['advancing'].length !== 6
+    ) {
+      return interaction.editReply(
+        `⚠️ Nieprawidłowa liczba drużyn:\n` +
+        `• 3-0: ${data['3'].length}/2\n` +
+        `• 0-3: ${data['0'].length}/2\n` +
+        `• awansujące: ${data['advancing'].length}/6`
+      );
+    }
 
-  // ===============================
-  // WALIDACJA TEAMÓW
-  // ===============================
-  const validTeams = await loadTeamsFromDB(pool, guildId);
-  const invalid = all.filter(t => !validTeams.includes(t));
+    const all = [...data['3'], ...data['0'], ...data['advancing']];
+    if (new Set(all).size !== all.length) {
+      return interaction.editReply(
+        '⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.'
+      );
+    }
 
-  if (invalid.length) {
-    return interaction.editReply(
-      `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
-    );
-  }
+    /* ===============================
+       WALIDACJA DRUŻYN
+       =============================== */
+    const validTeams = await loadTeamsFromDB(db, guildId);
+    const invalid = all.filter(t => !validTeams.includes(t));
 
-  // ===============================
-  // 3) ZAPIS DO DB
-  // ===============================
-  try {
+    if (invalid.length) {
+      return interaction.editReply(
+        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
+      );
+    }
+
+    /* ===============================
+       ZAPIS DO DB (STRINGI)
+       =============================== */
     const pick3 = data['3'].join(', ');
     const pick0 = data['0'].join(', ');
     const advancing = data['advancing'].join(', ');
 
-    const [result] = await pool.query(
+    await safeQuery(
+      db,
       `
       INSERT INTO swiss_predictions
         (guild_id, user_id, username, displayname, stage,
          pick_3_0, pick_0_3, advancing, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
       ON DUPLICATE KEY UPDATE
-        pick_3_0    = VALUES(pick_3_0),
-        pick_0_3    = VALUES(pick_0_3),
-        advancing   = VALUES(advancing),
-        displayname = VALUES(displayname),
-        active      = 1
+        pick_3_0     = VALUES(pick_3_0),
+        pick_0_3     = VALUES(pick_0_3),
+        advancing    = VALUES(advancing),
+        displayname  = VALUES(displayname),
+        active       = 1,
+        submitted_at = CURRENT_TIMESTAMP
       `,
       [
         guildId,
@@ -187,7 +207,8 @@ module.exports = async (interaction) => {
         pick3,
         pick0,
         advancing
-      ]
+      ],
+      { guildId, scope: 'submitSwiss', label: 'upsert swiss_predictions' }
     );
 
     cache.delete(cacheKey);
@@ -195,23 +216,11 @@ module.exports = async (interaction) => {
     logger.info('submit', 'Swiss submit saved', {
       guildId,
       userId,
-      stage,
-      affectedRows: result.affectedRows
+      stage
     });
 
     return interaction.editReply(
       '✅ Twoje typy dla tej fazy Swiss zostały zapisane!'
     );
-  } catch (err) {
-    logger.error('submit', 'Swiss submit failed', {
-      guildId,
-      userId,
-      stage,
-      message: err.message
-    });
-
-    return interaction.editReply(
-      '❌ Wystąpił błąd zapisu typów. Spróbuj ponownie później.'
-    );
-  }
+  });
 };

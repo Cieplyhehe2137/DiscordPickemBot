@@ -1,25 +1,12 @@
-// utils/guildContext.js
-const { AsyncLocalStorage } = require('async_hooks');
+const pool = require('../db');
 
-const als = new AsyncLocalStorage();
+async function withGuild(interaction, fn) {
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    throw new Error('Brak guildId (DM albo błąd interakcji)');
+  }
 
-function withGuild(guildId, fn) {
-  const gid = String(guildId || '').trim();
-  if (!gid) throw new Error('withGuild: guildId is required');
-  return als.run({ guildId: gid }, fn);
+  return fn(pool, guildId);
 }
 
-function getCurrentGuildId() {
-  return als.getStore()?.guildId || null;
-}
-
-// Alias (gdyby inne pliki używały starych nazw)
-function getGuildId() {
-  return getCurrentGuildId();
-}
-
-module.exports = {
-  withGuild,
-  getCurrentGuildId,
-  getGuildId, // alias
-};
+module.exports = { withGuild };

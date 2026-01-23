@@ -1,5 +1,7 @@
 // handlers/submitPlayinDropdown.js
-const db = require('../db');
+
+const { withGuild } = require('../utils/guildContext');
+const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
@@ -14,121 +16,123 @@ module.exports = async (interaction) => {
 
   const cacheKey = `${guildId}:${userId}`;
 
-  // ===============================
-  // SELECT MENU – wybór drużyn
-  // ===============================
+  /* ===============================
+     SELECT MENU – wybór drużyn
+     =============================== */
   if (interaction.isStringSelectMenu() && interaction.customId === 'playin_select') {
     cache.set(cacheKey, interaction.values.map(String));
 
-    logger.info('playin', 'User selected play-in teams', {
+    logger.debug('submit', 'Play-In dropdown updated', {
       guildId,
       userId,
       count: interaction.values.length,
-      teams: interaction.values,
+      teams: interaction.values
     });
 
     try { await interaction.deferUpdate(); } catch (_) {}
     return;
   }
 
-  // ===============================
-  // BUTTON – zatwierdzenie
-  // ===============================
-  if (interaction.isButton() && interaction.customId === 'confirm_playin') {
+  /* ===============================
+     CONFIRM BUTTON
+     =============================== */
+  if (!interaction.isButton() || interaction.customId !== 'confirm_playin') return;
+
+  await interaction.deferReply({ ephemeral: true });
+
+  await withGuild(interaction, async (db, guildId) => {
+    /* ===============================
+       GATE
+       =============================== */
     const gate = await assertPredictionsAllowed({
       guildId,
-      kind: 'PLAYIN',
+      kind: 'PLAYIN'
     });
 
     if (!gate.allowed) {
-      return interaction.reply({
-        content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
-        ephemeral: true,
-      });
+      return interaction.editReply(
+        gate.message || '❌ Typowanie jest aktualnie zamknięte.'
+      );
     }
 
     const picked = cache.get(cacheKey);
 
+    /* ===============================
+       WALIDACJA
+       =============================== */
     if (!Array.isArray(picked) || picked.length !== 8) {
-      return interaction.reply({
-        content: '❌ Musisz wybrać **dokładnie 8 drużyn**.',
-        ephemeral: true,
-      });
+      return interaction.editReply(
+        '❌ Musisz wybrać **dokładnie 8 drużyn**.'
+      );
     }
 
     if (new Set(picked).size !== 8) {
-      return interaction.reply({
-        content: '❌ Drużyny nie mogą się powtarzać.',
-        ephemeral: true,
-      });
+      return interaction.editReply(
+        '❌ Drużyny nie mogą się powtarzać.'
+      );
     }
 
-    const pool = db.getPoolForGuild(guildId);
+    /* ===============================
+       WALIDACJA DRUŻYN Z DB
+       =============================== */
+    const [rows] = await safeQuery(
+      db,
+      `
+      SELECT name
+      FROM teams
+      WHERE guild_id = ?
+        AND active = 1
+      `,
+      [guildId],
+      { guildId, scope: 'submitPlayin', label: 'load teams' }
+    );
 
-    try {
-      // 🔎 Walidacja względem aktywnych drużyn w DB
-      const [rows] = await pool.query(
-        `SELECT name
-         FROM teams
-         WHERE guild_id = ?
-           AND active = 1`,
-        [guildId]
+    const allowed = new Set(rows.map(r => String(r.name)));
+    const invalid = picked.filter(t => !allowed.has(t));
+
+    if (invalid.length) {
+      return interaction.editReply(
+        `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`
       );
-
-      const allowed = new Set(rows.map(r => String(r.name)));
-      const invalid = picked.filter(t => !allowed.has(t));
-
-      if (invalid.length) {
-        return interaction.reply({
-          content: `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`,
-          ephemeral: true,
-        });
-      }
-
-      // ✅ ZAPIS DO DB (JEDNA BAZA → guild_id OBOWIĄZKOWE)
-      await pool.query(
-        `INSERT INTO playin_predictions
-         (guild_id, user_id, username, displayname, teams, active, submitted_at)
-         VALUES (?, ?, ?, ?, ?, 1, NOW())
-         ON DUPLICATE KEY UPDATE
-           teams = VALUES(teams),
-           displayname = VALUES(displayname),
-           active = 1,
-           submitted_at = NOW()`,
-        [
-          guildId,
-          userId,
-          username,
-          displayName,
-          picked.join(', ')
-        ]
-      );
-
-      cache.delete(cacheKey);
-
-      logger.info('playin', 'Saved play-in picks', {
-        guildId,
-        userId,
-        teams: picked,
-      });
-
-      return interaction.reply({
-        content: '✅ Twoje typy Play-In zostały zapisane!',
-        ephemeral: true,
-      });
-    } catch (err) {
-      logger.error('playin', 'DB error while saving play-in picks', {
-        guildId,
-        userId,
-        code: err.code,
-        message: err.message,
-        sql: err.sql,
-      });
-
-      return interaction.reply({
-        content: '❌ Błąd zapisu typów do bazy.',
-        ephemeral: true,
-      });
     }
-  }
+
+    /* ===============================
+       ZAPIS DO DB (STRINGI)
+       =============================== */
+    const teamsString = picked.join(', ');
+
+    await safeQuery(
+      db,
+      `
+      INSERT INTO playin_predictions
+        (guild_id, user_id, username, displayname, teams, active, submitted_at)
+      VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+      ON DUPLICATE KEY UPDATE
+        teams         = VALUES(teams),
+        displayname   = VALUES(displayname),
+        active        = 1,
+        submitted_at = CURRENT_TIMESTAMP
+      `,
+      [
+        guildId,
+        userId,
+        username,
+        displayName,
+        teamsString
+      ],
+      { guildId, scope: 'submitPlayin', label: 'upsert playin_predictions' }
+    );
+
+    cache.delete(cacheKey);
+
+    logger.info('submit', 'Play-In predictions saved', {
+      guildId,
+      userId,
+      teams: teamsString
+    });
+
+    return interaction.editReply(
+      '✅ Twoje typy Play-In zostały zapisane!'
+    );
+  });
 };
