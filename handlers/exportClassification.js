@@ -157,7 +157,7 @@ sheetMapsSummary.columns = [
 
 
   // === Punkty Swiss
-  const [swissRows] = await pool.query(`SELECT user_id, displayname, stage, points AS score FROM swiss_scores`);
+  const [swissRows] = await pool.query(`SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ?`, [guildId]);
   for (const row of swissRows) {
     const id = row.user_id;
     if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
@@ -167,7 +167,7 @@ sheetMapsSummary.columns = [
   }
 
   // === Typy Swiss
-  const [swissPredictions] = await pool.query(`SELECT * FROM swiss_predictions`);
+  const [swissPredictions] = await pool.query(`SELECT * FROM swiss_predictions WHERE guild_id = ?`, [guildId]);
   for (const row of swissPredictions) {
     const id = row.user_id;
     if (!users[id]) users[id] = {
@@ -187,14 +187,14 @@ sheetMapsSummary.columns = [
   }
 
   // === Playoffs
-  const [playoffRows] = await pool.query(`SELECT user_id, displayname, points FROM playoffs_scores`);
+  const [playoffRows] = await pool.query(`SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`, [guildId]);
   for (const row of playoffRows) {
     const id = row.user_id;
     if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
     users[id].playoffs = row.points || 0;
   }
 
-  const [playoffPreds] = await pool.query(`SELECT * FROM playoffs_predictions`);
+  const [playoffPreds] = await pool.query(`SELECT * FROM playoffs_predictions WHERE guild_id = ?`, [guildId]);
   for (const row of playoffPreds) {
     const id = row.user_id;
     if (!users[id]) users[id] = {
@@ -214,14 +214,14 @@ sheetMapsSummary.columns = [
   }
 
   // === Double Elim
-  const [doubleRows] = await pool.query(`SELECT user_id, displayname, points FROM doubleelim_scores`);
+  const [doubleRows] = await pool.query(`SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`, [guildId]);
   for (const row of doubleRows) {
     const id = row.user_id;
     if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
     users[id].double = row.points || 0;
   }
 
-  const [doublePreds] = await pool.query(`SELECT * FROM doubleelim_predictions`);
+  const [doublePreds] = await pool.query(`SELECT * FROM doubleelim_predictions WHERE guild_id = ?`, [guildId]);
   for (const row of doublePreds) {
     const id = row.user_id;
     if (!users[id]) users[id] = {
@@ -241,14 +241,14 @@ sheetMapsSummary.columns = [
   }
 
   // === Play-In
-  const [playinRows] = await pool.query(`SELECT user_id, displayname, points FROM playin_scores`);
+  const [playinRows] = await pool.query(`SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`, [guildId]);
   for (const row of playinRows) {
     const id = row.user_id;
     if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
     users[id].playin = row.points || 0;
   }
 
-  const [playinPreds] = await pool.query(`SELECT * FROM playin_predictions`);
+  const [playinPreds] = await pool.query(`SELECT * FROM playin_predictions WHERE guild_id = ?`, [guildId]);
   for (const row of playinPreds) {
     const id = row.user_id;
     if (!users[id]) {
@@ -269,8 +269,9 @@ sheetMapsSummary.columns = [
     const [matchPointRows] = await pool.query(`
     SELECT user_id, SUM(points) AS points
     FROM match_points
+    WHERE guild_id = ?
     GROUP BY user_id
-  `);
+  `, [guildId]);
 
     for (const row of matchPointRows) {
       const id = row.user_id;
@@ -307,7 +308,10 @@ sheetMapsSummary.columns = [
     return { user_id, displayname: u.displayname, playin: u.playin, swiss1, swiss2, swiss3, playoffs: u.playoffs, double: u.double, matches, total };
   });
 
-  summary.sort((a, b) => b.total - a.total);
+  summary.sort((a, b) => {
+  if (b.total !== a.total) return b.total - a.total;
+  return a.displayname.localeCompare(b.displayname);
+});
   summary.forEach(row => sheetMain.addRow(row));
   prettifySheet(sheetMain);
   sheetMain.columns.forEach(col => {
@@ -611,10 +615,11 @@ sheetMapsSummary.columns = [
     p.pred_b,
     pts.points
   FROM matches m
-  JOIN match_predictions p
-    ON p.match_id = m.id
-  LEFT JOIN match_results r
-    ON r.match_id = m.id
+JOIN match_predictions p
+  ON p.match_id = m.id AND p.guild_id = m.guild_id
+LEFT JOIN match_results r
+  ON r.match_id = m.id AND r.guild_id = m.guild_id
+WHERE m.guild_id = ?
   LEFT JOIN (
     SELECT match_id, user_id, SUM(points) AS points
     FROM match_points
