@@ -139,7 +139,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       if (customId === 'calculate_scores') {
         await interaction.deferReply({ ephemeral: true });
         try {
-          await fn(client);
+          await fn(interaction.guildId);
           await interaction.followUp({ content: '✅ Punkty zostały przeliczone!', ephemeral: true });
         } catch (err) {
           logger.error('interaction', 'Calculate scores failed', {

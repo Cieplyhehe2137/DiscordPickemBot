@@ -6,7 +6,7 @@ module.exports = {
   'clear_user_picks': 'clearDatabaseHandler',
   'full_reset': 'clearDatabaseHandler',
   'clear_only_results_confirm': 'clearDatabaseHandler',
-  'calculate_scores': 'calculateScores',
+  'calculate_scores': 'calculateScoresButton',
   'export_ranking': 'exportClassification',
   'export_full_summary': 'buttonExportFullSummary',
   'submit_playin_results': 'setPlayinResults',
