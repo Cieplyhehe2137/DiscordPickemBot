@@ -5,70 +5,13 @@ const { loadGuildConfigsOnce, getGuildConfig } = require('./guildRegistry');
 const { getCurrentGuildId } = require('./guildContext');
 
 // =====================================================
-// HELPERS – SQL PARSING (ZOSTAWIONE, BO SĄ OK)
+// HELPERS – SQL PARSING (ZOSTAWIONE)
 // =====================================================
 
 function isEscaped(sql, i) {
   let cnt = 0;
   for (let j = i - 1; j >= 0 && sql[j] === '\\'; j--) cnt++;
   return (cnt % 2) === 1;
-}
-
-function splitBySemicolonTopLevel(sqlText) {
-  const sql = String(sqlText || '').replace(/\r\n/g, '\n');
-  const out = [];
-
-  let stmt = '';
-  let inSingle = false;
-  let inDouble = false;
-  let inBacktick = false;
-
-  for (let i = 0; i < sql.length; i++) {
-    const ch = sql[i];
-    const next = sql[i + 1] || '';
-
-    if (!inDouble && !inBacktick && ch === "'") {
-      if (inSingle) {
-        const escaped = isEscaped(sql, i);
-        if (!escaped && next === "'") {
-          stmt += "''";
-          i++;
-          continue;
-        }
-        if (!escaped) inSingle = false;
-      } else {
-        inSingle = true;
-      }
-      stmt += ch;
-      continue;
-    }
-
-    if (!inSingle && !inBacktick && ch === '"') {
-      if (inDouble) {
-        const escaped = isEscaped(sql, i);
-        if (!escaped) inDouble = false;
-      } else inDouble = true;
-      stmt += ch;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && ch === '`') {
-      inBacktick = !inBacktick;
-      stmt += ch;
-      continue;
-    }
-
-    if (!inSingle && !inDouble && !inBacktick && ch === ';') {
-      if (stmt.trim()) out.push(stmt.trim());
-      stmt = '';
-      continue;
-    }
-
-    stmt += ch;
-  }
-
-  if (stmt.trim()) out.push(stmt.trim());
-  return out;
 }
 
 function splitSqlStatements(sqlText) {
@@ -85,13 +28,12 @@ function splitSqlStatements(sqlText) {
 
     if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
-        const escaped = isEscaped(sql, i);
-        if (!escaped && next === "'") {
+        if (!isEscaped(sql, i) && next === "'") {
           stmt += "''";
           i++;
           continue;
         }
-        if (!escaped) inSingle = false;
+        if (!isEscaped(sql, i)) inSingle = false;
       } else inSingle = true;
       stmt += ch;
       continue;
@@ -99,8 +41,7 @@ function splitSqlStatements(sqlText) {
 
     if (!inSingle && !inBacktick && ch === '"') {
       if (inDouble) {
-        const escaped = isEscaped(sql, i);
-        if (!escaped) inDouble = false;
+        if (!isEscaped(sql, i)) inDouble = false;
       } else inDouble = true;
       stmt += ch;
       continue;
@@ -125,14 +66,23 @@ function splitSqlStatements(sqlText) {
   return out;
 }
 
-function shouldSkipStatement(s) {
-  const t = s.trim().toUpperCase();
-  return (
-    t.startsWith('LOCK TABLES') ||
-    t.startsWith('UNLOCK TABLES') ||
-    t.startsWith('START TRANSACTION') ||
-    t === 'COMMIT'
-  );
+// =====================================================
+// 🔥 KLUCZ: CO SKIPUJEMY
+// =====================================================
+
+function shouldSkipStatement(stmt) {
+  const s = stmt.trim();
+
+  // ❌ runtime / volatile
+  if (/INSERT\s+INTO\s+`?active_panels`?/i.test(s)) return true;
+
+  // ❌ dump noise
+  if (/^LOCK TABLES/i.test(s)) return true;
+  if (/^UNLOCK TABLES/i.test(s)) return true;
+  if (/^START TRANSACTION/i.test(s)) return true;
+  if (/^COMMIT$/i.test(s)) return true;
+
+  return false;
 }
 
 // =====================================================
@@ -160,7 +110,7 @@ function getDbConfig(guildId) {
 }
 
 // =====================================================
-// 🔒 KLUCZ: CZYSZCZENIE TYLKO JEDNEGO GUILDA
+// 🔒 GUILD SAFE – CZYŚCIMY TYLKO DANE HISTORYCZNE
 // =====================================================
 
 async function clearGuildData(connection, guildId) {
@@ -192,65 +142,15 @@ async function clearGuildData(connection, guildId) {
 }
 
 // =====================================================
-// EXECUTION HELPERS
+// EXEC
 // =====================================================
-
-
-
-
-
-function sanitizeActivePanelsInsert(sql) {
-  if (!/INSERT\s+INTO\s+`?active_panels`?/i.test(sql)) {
-    return sql;
-  }
-
-  // usuń `id` i `stage_key` z listy kolumn
-  sql = sql.replace(
-    /\(\s*`id`\s*,/i,
-    '('
-  );
-
-  sql = sql.replace(
-    /,\s*`stage_key`\s*/i,
-    ''
-  );
-
-  // usuń pierwszą wartość (id) z VALUES (...)
-  sql = sql.replace(
-    /VALUES\s*\(\s*\d+\s*,/i,
-    'VALUES ('
-  );
-
-  // usuń ostatnią wartość stage_key jeśli była
-  sql = sql.replace(
-    /,\s*'[^']*'\s*\)\s*;?$/i,
-    ')'
-  );
-
-  return sql;
-}
-
-
 
 async function execStatement(connection, stmt) {
-  try {
-    await connection.query(stmt);
-  } catch (err) {
-    const parts = splitBySemicolonTopLevel(stmt);
-    if (parts.length > 1) {
-      for (const p of parts) {
-        if (p.trim()) await connection.query(p);
-      }
-      return;
-    }
-    throw err;
-  }
+  await connection.query(stmt);
 }
 
-
-
 // =====================================================
-// MAIN – GUILD SAFE RESTORE
+// MAIN – RESTORE
 // =====================================================
 
 module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
@@ -276,22 +176,18 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     charset: 'utf8mb4',
   });
 
-  let fkDisabled = false;
-
   try {
     console.log(`[RESTORE] start guildId=${guildId}`);
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    fkDisabled = true;
 
-    console.log('[RESTORE] clearing ONLY guild data...');
+    console.log('[RESTORE] clearing guild data...');
     await clearGuildData(connection, guildId);
 
-    console.log('[RESTORE] parsing dump...');
     const statements = splitSqlStatements(dump)
       .filter(s => s && !shouldSkipStatement(s));
 
-    console.log(`[RESTORE] statements: ${statements.length}`);
+    console.log(`[RESTORE] executing ${statements.length} statements`);
 
     for (const stmt of statements) {
       await execStatement(connection, stmt);
@@ -302,14 +198,7 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
-    try {
-      if (fkDisabled) {
-        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
-      }
-    } catch (_) {}
-
-    try {
-      await connection.end();
-    } catch (_) {}
+    try { await connection.query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
+    try { await connection.end(); } catch (_) {}
   }
 };
