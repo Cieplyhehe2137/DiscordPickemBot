@@ -56,7 +56,7 @@ async function loadTeamsFromDB(pool, guildId) {
   return rows.map(r => r.name);
 }
 
-async function getCurrentSwiss(pool, guildId, stage) {
+async function getCurrentSwiss(pool, guildId, stageDb) {
   const [rows] = await pool.query(
     `
     SELECT correct_3_0, correct_0_3, correct_advancing
@@ -67,7 +67,7 @@ async function getCurrentSwiss(pool, guildId, stage) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId, stage]
+    [guildId, stageDb]
   );
 
   if (!rows.length) {
@@ -82,10 +82,10 @@ async function getCurrentSwiss(pool, guildId, stage) {
 }
 
 /* =======================
-   MAIN BUILDER
+   UI BUILDER
 ======================= */
 
-function buildSwissComponents(stage, teams, cur) {
+function buildSwissComponents(stageLabel, stageDb, teams, cur) {
   const left30 = Math.max(0, 2 - cur.x3_0.length);
   const left03 = Math.max(0, 2 - cur.x0_3.length);
   const leftA  = Math.max(0, 6 - cur.adv.length);
@@ -98,13 +98,6 @@ function buildSwissComponents(stage, teams, cur) {
     .filter(t => !used.has(String(t).toLowerCase()))
     .map(t => ({ label: t, value: t }));
 
-  if (baseOptions.length > 25) {
-    logger.warn('interaction', 'Swiss results dropdown chunked', {
-      stage,
-      options: baseOptions.length
-    });
-  }
-
   const optionChunks = chunk(baseOptions, 25);
   const components = [];
 
@@ -113,7 +106,7 @@ function buildSwissComponents(stage, teams, cur) {
       components.push(
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`official_swiss_${type}:${stage}:p${idx}`)
+            .setCustomId(`official_swiss_${type}:${stageDb}:p${idx}`)
             .setPlaceholder(
               left > 0
                 ? `${label} (część ${idx + 1})`
@@ -135,14 +128,14 @@ function buildSwissComponents(stage, teams, cur) {
   components.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`confirm_swiss_results:${stage}`)
+        .setCustomId(`confirm_swiss_results:${stageDb}`)
         .setLabel('✅ Zatwierdź (dopisz)')
         .setStyle(ButtonStyle.Success)
     )
   );
 
   const embed = new EmbedBuilder()
-    .setTitle(`📌 Oficjalne wyniki – SWISS ${stage.toUpperCase()}`)
+    .setTitle(`📌 Oficjalne wyniki – SWISS ${stageLabel.toUpperCase()}`)
     .setDescription([
       'Ustawiaj wyniki **inkrementalnie**:',
       `• 🔥 3-0: ${cur.x3_0.length}/2 – ${cur.x3_0.join(', ') || '—'}`,
@@ -160,25 +153,36 @@ function buildSwissComponents(stage, teams, cur) {
    HANDLER
 ======================= */
 
-module.exports = async (interaction) => {
+module.exports = async (interaction, client, ctx = {}) => {
   const guildId = interaction.guildId;
-  const stage = interaction.customId.split(':')[1];
+  const stage = ctx.stage; // swiss1 / swiss2 / swiss3
 
-  if (!stage) {
-    return interaction.editReply({
-      content: '❌ Brak etapu Swiss (stage).',
+  const STAGE_MAP = {
+    swiss1: 'stage1',
+    swiss2: 'stage2',
+    swiss3: 'stage3'
+  };
+
+  const stageDb = STAGE_MAP[stage];
+
+  if (!stageDb) {
+    logger.warn('interaction', 'Invalid Swiss stage', { guildId, stage });
+    return interaction.reply({
+      content: '❌ Nieprawidłowy etap Swiss.',
       ephemeral: true
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
 
   const pool = db.getPoolForGuild(guildId);
 
   const teams = await loadTeamsFromDB(pool, guildId);
-  const cur = await getCurrentSwiss(pool, guildId, stage);
+  const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
-  const { embed, components } = buildSwissComponents(stage, teams, cur);
+  const { embed, components } = buildSwissComponents(stage, stageDb, teams, cur);
 
   await interaction.editReply({
     embeds: [embed],

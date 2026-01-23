@@ -76,7 +76,10 @@ if (!interaction.deferred && !interaction.replied) {
 const proxied = proxyCustomId(interaction, targetCustomId);
 
 // dalej normalnie
-await handler(proxied, client);
+await handler(proxied, client, {
+  stage: value.replace('results:', '')
+});
+
 
   } catch (err) {
     logger.error('panel', 'panelSelectAction failed', {
