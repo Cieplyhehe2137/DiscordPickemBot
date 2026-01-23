@@ -26,19 +26,25 @@ module.exports = async (interaction) => {
 
   const guildId = interaction.guildId;
   if (!guildId) {
-    return interaction.reply({
-      content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
-      ephemeral: true
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+    return interaction.editReply({
+      content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).'
     });
+  }
+
+  // ✅ defer jeśli trzeba
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
   }
 
   return withGuild(guildId, async () => {
     const files = getBackupFiles(guildId);
 
     if (files.length === 0) {
-      return interaction.reply({
-        content: '❌ Brak dostępnych backupów dla tego serwera.',
-        ephemeral: true
+      return interaction.editReply({
+        content: '❌ Brak dostępnych backupów dla tego serwera.'
       });
     }
 
@@ -54,10 +60,9 @@ module.exports = async (interaction) => {
 
     const row = new ActionRowBuilder().addComponents(select);
 
-    await interaction.reply({
+    await interaction.editReply({
       content: '📦 Wybierz backup do przywrócenia:',
-      components: [row],
-      ephemeral: true
+      components: [row]
     });
   });
 };
