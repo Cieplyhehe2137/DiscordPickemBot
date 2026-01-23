@@ -47,10 +47,6 @@ function proxyCustomId(interaction, forcedCustomId) {
 
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
   try {
-    // ⛔ NIE DEFERUJEMY
-    // ⛔ NIE UPDATE’UJEMY WIADOMOŚCI
-    // ⛔ NIE EDITUJEMY PANELU
-
     const value = interaction.values?.[0];
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
 
@@ -74,13 +70,9 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
 
     const proxied = proxyCustomId(interaction, targetCustomId);
 
-await withGuild(proxied, async () => {
-  await handler(proxied, client);
-});
+    // ✅ BEZ withGuild
+    await handler(proxied, client);
 
-
-
-    // ⏱ zamykamy interakcję bez UI zmian
     if (!interaction.replied) {
       await interaction.deferUpdate();
     }
