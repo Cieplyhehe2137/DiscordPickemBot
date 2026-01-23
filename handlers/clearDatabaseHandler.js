@@ -13,12 +13,7 @@ module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
   const guildId = interaction.guildId;
-  if (!guildId) {
-    return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true,
-    });
-  }
+  if (!guildId) return;
 
   // 🔒 ADMIN ONLY
   if (!isAdmin(interaction)) {
@@ -28,10 +23,10 @@ module.exports = async (interaction) => {
       customId: interaction.customId,
     });
 
-    return interaction.reply({
+    return interaction.followUp({
       content: '❌ Brak uprawnień do tej operacji.',
       ephemeral: true,
-    });
+    }).catch(() => {});
   }
 
   const pool = db.getPoolForGuild(guildId);
@@ -45,12 +40,6 @@ module.exports = async (interaction) => {
 
   logger.warn('clear', 'Clear database interaction triggered', userMeta);
 
-  try {
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.deferUpdate();
-    }
-  } catch (_) {}
-
   const aliasMap = {
     clear_user_picks: 'clear_db_confirm',
     full_reset: 'clear_db_with_results',
@@ -59,25 +48,22 @@ module.exports = async (interaction) => {
 
   const action = aliasMap[interaction.customId] || interaction.customId;
 
-  async function safeFollowUp(payload) {
-    try {
-      return await interaction.followUp({ ephemeral: true, ...payload });
-    } catch (_) {
-      try {
-        return await interaction.followUp({
-          ephemeral: true,
-          content: '❌ Wystąpił błąd.',
-        });
-      } catch (_) {}
-    }
-  }
+  // =========================
+  // HELPERS
+  // =========================
+
+  const panelUpdate = (payload) =>
+    interaction.update(payload).catch(() => {});
+
+  const panelMessage = (payload) =>
+    interaction.followUp({ ephemeral: true, ...payload }).catch(() => {});
 
   // =========================
-  // CONFIRMS
+  // CONFIRMS (UPDATE PANEL)
   // =========================
 
   if (action === 'clear_db_confirm') {
-    return safeFollowUp({
+    return panelUpdate({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Czy na pewno chcesz wyczyścić bazę?')
@@ -100,7 +86,7 @@ module.exports = async (interaction) => {
   }
 
   if (action === 'clear_db_with_results') {
-    return safeFollowUp({
+    return panelUpdate({
       embeds: [
         new EmbedBuilder()
           .setTitle('💣 PEŁNY RESET — na pewno?')
@@ -123,7 +109,7 @@ module.exports = async (interaction) => {
   }
 
   if (action === 'clear_only_results_confirm') {
-    return safeFollowUp({
+    return panelUpdate({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Usunąć tylko oficjalne wyniki?')
@@ -146,33 +132,37 @@ module.exports = async (interaction) => {
   }
 
   // =========================
-  // EXECUTION (GUILD SAFE)
+  // EXECUTION (FOLLOWUP)
   // =========================
 
   const del = (sql, label) =>
-    safeQuery(pool, sql, [guildId], { guild_id: guildId, scope: 'clear', label });
+    safeQuery(pool, sql, [guildId], {
+      guild_id: guildId,
+      scope: 'clear',
+      label,
+    });
 
   if (action === 'clear_db_yes') {
     try {
       await pool.query('START TRANSACTION');
 
-      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'delete swiss_predictions');
-      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'delete playoffs_predictions');
-      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'delete doubleelim_predictions');
-      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'delete playin_predictions');
-      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
-      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
-      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
-      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
+      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'swiss_predictions');
+      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'playoffs_predictions');
+      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'doubleelim_predictions');
+      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'playin_predictions');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'playin_scores');
 
       await pool.query('COMMIT');
 
       logger.info('clear', 'User picks cleared', userMeta);
-      return safeFollowUp({ content: '🧹 Usunięto typy użytkowników.' });
+      return panelMessage({ content: '🧹 Usunięto typy użytkowników.' });
     } catch (err) {
       await pool.query('ROLLBACK');
       logger.error('clear', 'Clear user picks failed', { ...userMeta, message: err.message });
-      return safeFollowUp({ content: '❌ Błąd czyszczenia.' });
+      return panelMessage({ content: '❌ Błąd czyszczenia.' });
     }
   }
 
@@ -180,28 +170,28 @@ module.exports = async (interaction) => {
     try {
       await pool.query('START TRANSACTION');
 
-      await del('DELETE FROM active_panels WHERE guild_id = ?', 'delete active_panels');
-      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'delete swiss_predictions');
-      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'delete playoffs_predictions');
-      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'delete doubleelim_predictions');
-      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'delete playin_predictions');
-      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'delete swiss_results');
-      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'delete playoffs_results');
-      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'delete doubleelim_results');
-      await del('DELETE FROM playin_results WHERE guild_id = ?', 'delete playin_results');
-      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
-      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
-      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
-      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
+      await del('DELETE FROM active_panels WHERE guild_id = ?', 'active_panels');
+      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'swiss_predictions');
+      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'playoffs_predictions');
+      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'doubleelim_predictions');
+      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'playin_predictions');
+      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'swiss_results');
+      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'playoffs_results');
+      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'doubleelim_results');
+      await del('DELETE FROM playin_results WHERE guild_id = ?', 'playin_results');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'playin_scores');
 
       await pool.query('COMMIT');
 
       logger.warn('clear', 'FULL RESET completed', userMeta);
-      return safeFollowUp({ content: '💣 Wykonano pełny reset.' });
+      return panelMessage({ content: '💣 Wykonano pełny reset.' });
     } catch (err) {
       await pool.query('ROLLBACK');
       logger.error('clear', 'FULL RESET failed', { ...userMeta, message: err.message });
-      return safeFollowUp({ content: '❌ Błąd pełnego resetu.' });
+      return panelMessage({ content: '❌ Błąd pełnego resetu.' });
     }
   }
 
@@ -209,31 +199,31 @@ module.exports = async (interaction) => {
     try {
       await pool.query('START TRANSACTION');
 
-      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'delete swiss_results');
-      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'delete playoffs_results');
-      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'delete doubleelim_results');
-      await del('DELETE FROM playin_results WHERE guild_id = ?', 'delete playin_results');
-      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
-      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
-      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
-      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
+      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'swiss_results');
+      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'playoffs_results');
+      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'doubleelim_results');
+      await del('DELETE FROM playin_results WHERE guild_id = ?', 'playin_results');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'playin_scores');
 
       await pool.query('COMMIT');
 
       logger.info('clear', 'Official results cleared', userMeta);
-      return safeFollowUp({ content: '🧹 Usunięto oficjalne wyniki.' });
+      return panelMessage({ content: '🧹 Usunięto oficjalne wyniki.' });
     } catch (err) {
       await pool.query('ROLLBACK');
       logger.error('clear', 'Clear results failed', { ...userMeta, message: err.message });
-      return safeFollowUp({ content: '❌ Błąd usuwania wyników.' });
+      return panelMessage({ content: '❌ Błąd usuwania wyników.' });
     }
   }
 
   if (action.endsWith('_no')) {
     logger.info('clear', 'Clear action cancelled', userMeta);
-    return safeFollowUp({ content: '✅ Anulowano.' });
+    return panelMessage({ content: '✅ Anulowano.' });
   }
 
   logger.warn('clear', 'Unknown clear action', { ...userMeta, action });
-  return safeFollowUp({ content: `❌ Nieznana akcja: ${action}` });
+  return panelMessage({ content: `❌ Nieznana akcja: ${action}` });
 };
