@@ -18,14 +18,33 @@ function formatLeft(deadlineUtc, nowUtc) {
 }
 
 async function safeEditFooter(message, baseEmbed, footerText) {
-  const currentFooter = baseEmbed?.data?.footer?.text || '';
-  if (currentFooter === footerText) return; // nic się nie zmienia — oszczędzamy edycję
+  try {
+    if (!message || typeof message.edit !== 'function') {
+      logger.warn('deadline', 'safeEditFooter: message is not editable');
+      return;
+    }
 
-  const updated = EmbedBuilder.from(baseEmbed || new EmbedBuilder()).setFooter({ text: footerText });
-  await message.edit({ embeds: [updated] });
+    const currentFooter = baseEmbed?.data?.footer?.text || '';
+    if (currentFooter === footerText) return;
+
+    const updated = EmbedBuilder
+      .from(baseEmbed || new EmbedBuilder())
+      .setFooter({ text: footerText });
+
+    await message.edit({ embeds: [updated] });
+
+  } catch (err) {
+    logger.warn('deadline', 'safeEditFooter failed', {
+      message: err.message
+    });
+  }
 }
 
 async function disableAllButtons(message, baseEmbed) {
+  if (!message || typeof message.edit !== 'function') {
+    logger.warn('deadline', 'disableAllButtons: message is not editable');
+    return;
+  }
   try {
     const newComponents = (message.components || []).map((row) => {
       const r = ActionRowBuilder.from(row);
@@ -87,7 +106,8 @@ function startDeadlineReminder(client, guildId) {
           `SELECT phase, stage, channel_id, message_id, deadline, reminded
            FROM active_panels
            WHERE active = 1
-             AND deadline IS NOT NULL`
+             AND deadline IS NOT NULL
+             AND guild_id = ?`
         );
 
         for (const panel of panels) {
