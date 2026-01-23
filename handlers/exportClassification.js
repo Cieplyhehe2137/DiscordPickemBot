@@ -98,6 +98,16 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
   
   const logger = require('../utils/logger');
+  const guildId = interaction?.guildId;
+
+  if (!guildId) {
+    const error = new Error('exportClassification called without guild context');
+    logger.error('export', 'exportClassification called without guild context', {});
+    if (interaction?.editReply) {
+      await interaction.editReply({ content: '❌ Błąd: brak kontekstu serwera.' });
+    }
+    throw error;
+  }
 
   
   logger.info('export', 'Starting classification export', { guildId });
