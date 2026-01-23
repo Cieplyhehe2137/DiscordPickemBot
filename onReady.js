@@ -25,8 +25,6 @@ module.exports = async function onReady(client) {
 
         startDeadlineReminder(client, guildId);
         startMatchLockWatcher(client, guildId);
-
-        await checkDatabaseSize();
       });
 
       logger.info('ready', 'Guild boot OK', { guildId });
