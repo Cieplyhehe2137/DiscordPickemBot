@@ -51,35 +51,32 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
 
     if (!targetCustomId) {
-      return interaction.reply({
-        content: '❌ Nieznana akcja.',
-        ephemeral: true
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        return interaction.reply({
+          content: '❌ Nieznana akcja.',
+          ephemeral: true
+        });
+      }
+      return;
     }
 
     const handlerName = resolveHandlerName(maps?.buttonMap, targetCustomId);
     const handler = handlers?.[handlerName];
 
     if (!handler) {
-      logger.warn('panel', 'Missing handler', { value, targetCustomId });
-      return interaction.reply({
-        content: '❌ Brak handlera dla tej akcji.',
-        ephemeral: true
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        return interaction.reply({
+          content: '❌ Brak handlera dla tej akcji.',
+          ephemeral: true
+        });
+      }
+      return;
     }
 
-    // 🔒 ZABEZPIECZENIE INTERAKCJI (NAJWAŻNIEJSZE)
-if (!interaction.deferred && !interaction.replied) {
-  await interaction.deferReply({ ephemeral: true });
-}
+    const proxied = proxyCustomId(interaction, targetCustomId);
 
-const proxied = proxyCustomId(interaction, targetCustomId);
-
-// dalej normalnie
-await handler(proxied, client, {
-  stage: value.replace('results:', '')
-});
-
+    // ❗ ZERO deferReply TUTAJ
+    await handler(proxied, client);
 
   } catch (err) {
     logger.error('panel', 'panelSelectAction failed', {
@@ -87,7 +84,7 @@ await handler(proxied, client, {
       stack: err.stack
     });
 
-    if (!interaction.replied) {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: '❌ Błąd panelu.',
         ephemeral: true
