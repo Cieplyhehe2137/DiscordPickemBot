@@ -107,7 +107,8 @@ function startDeadlineReminder(client, guildId) {
            FROM active_panels
            WHERE active = 1
              AND deadline IS NOT NULL
-             AND guild_id = ?`
+             AND guild_id = ?`,
+        [guildId]
         );
 
         for (const panel of panels) {
