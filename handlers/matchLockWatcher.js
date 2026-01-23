@@ -1,4 +1,3 @@
-const db = require('../db');
 const logger = require('../utils/logger');
 const { getLockBeforeSec } = require('../utils/matchLock');
 const { disableAllComponents } = require('../utils/disableAllComponents');
@@ -33,7 +32,7 @@ function startMatchLockWatcher(client, guildId) {
     running = true;
 
     try {
-      await withGuild(guildId, async () => {
+      await withGuild(guildId, async (pool) => {
         const pool = db.getPoolForGuild(guildId);
         const lockBeforeSec = getLockBeforeSec();
 
