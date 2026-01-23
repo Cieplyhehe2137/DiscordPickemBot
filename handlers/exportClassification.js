@@ -2,7 +2,8 @@ const ExcelJS = require('exceljs');
 const calculateScores = require('./calculateScores');
 const path = require('path');
 const fs = require('fs');
-
+const { withGuild } = require('../utils/guildContext');
+const db = require('../db')
 function parseList(input) {
   if (!input) return [];
   try {
@@ -94,39 +95,35 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 }
 
 
+
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
   const logger = require('../utils/logger');
 
-if (!interaction?.__guildContext) {
-  throw new Error('exportClassification called without guild context');
-}
+  const guildId = interaction?.guildId;
+  if (!guildId) {
+    throw new Error('exportClassification called without guildId');
+  }
 
-const { pool, guildId } = interaction.__guildContext;
+  await withGuild(guildId, async () => {
+    const pool = db.getPoolForGuild(guildId);
 
-  logger.info('export', 'Starting classification export', { guildId });
+    logger.info('export', 'Starting classification export', { guildId });
 
-  await calculateScores(guildId);
+    await calculateScores(guildId);
 
-  const workbook = new ExcelJS.Workbook();
-  
+    // ⬇️⬇️⬇️ TU DOPIERO
+    const workbook = new ExcelJS.Workbook();
 
-
-
-    // ⬇️ CAŁA RESZTA KODU BEZ ZMIAN ⬇️
-    // wszystkie pool.query(...) zostają
-
-
-  const sheetMain = workbook.addWorksheet('Klasyfikacja ogólna');
-  const sheetSwiss1 = workbook.addWorksheet('Swiss Stage 1');
-  const sheetSwiss2 = workbook.addWorksheet('Swiss Stage 2');
-  const sheetSwiss3 = workbook.addWorksheet('Swiss Stage 3');
-  const sheetPlayoffs = workbook.addWorksheet('Playoffs');
-  const sheetDouble = workbook.addWorksheet('Double Elim');
-  const sheetPlayIn = workbook.addWorksheet('Play-In');
-  const sheetMatches = workbook.addWorksheet('Mecze');
-  const sheetMaps = workbook.addWorksheet('Mapy')
-  const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)')
-
+    const sheetMain = workbook.addWorksheet('Klasyfikacja ogólna');
+    const sheetSwiss1 = workbook.addWorksheet('Swiss Stage 1');
+    const sheetSwiss2 = workbook.addWorksheet('Swiss Stage 2');
+    const sheetSwiss3 = workbook.addWorksheet('Swiss Stage 3');
+    const sheetPlayoffs = workbook.addWorksheet('Playoffs');
+    const sheetDouble = workbook.addWorksheet('Double Elim');
+    const sheetPlayIn = workbook.addWorksheet('Play-In');
+    const sheetMatches = workbook.addWorksheet('Mecze');
+    const sheetMaps = workbook.addWorksheet('Mapy');
+    const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)');
   const users = {};
 
   sheetMaps.columns = [
@@ -837,4 +834,5 @@ ORDER BY
   if (!interaction) {
     console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
   }
+});
 };
