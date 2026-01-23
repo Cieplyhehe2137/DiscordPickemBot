@@ -30,14 +30,20 @@ function resolveHandlerName(map, customId) {
 }
 
 function proxyCustomId(interaction, forcedCustomId) {
-  return new Proxy(interaction, {
+  const proxied = new Proxy(interaction, {
     get(target, prop) {
       if (prop === 'customId') return forcedCustomId;
       const v = target[prop];
       return typeof v === 'function' ? v.bind(target) : v;
     }
   });
+
+  // 🔑 KLUCZOWA LINIA
+  proxied.__guildContext = interaction.__guildContext;
+
+  return proxied;
 }
+
 
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
   try {
