@@ -8,7 +8,7 @@ const startExportPanel = require('./utils/startExportPanel');
 
 const { startMatchLockWatcher } = require('./handlers/matchLockWatcher');
 const { startDeadlineReminder } = require('./handlers/deadlineReminder');
-const { checkDatabaseSize } = require('./utils/checkDatabaseSize');
+
 
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();
