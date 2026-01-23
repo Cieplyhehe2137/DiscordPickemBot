@@ -6,9 +6,14 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
 } = require('discord.js');
-const pool = require('../db');
+
 const logger = require('../utils/logger');
+const { withGuild } = require('../utils/guildContext');
 const userState = require('../utils/matchUserState');
+
+/* ===============================
+   HELPERS
+   =============================== */
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -17,21 +22,36 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
+async function getUserDefaults(pool, matchId, userId, maxMaps, mapNo) {
   if (maxMaps === 1) {
     const [[p]] = await pool.query(
-      `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
-      [matchId, userId]
+      `
+      SELECT pred_exact_a, pred_exact_b
+      FROM match_predictions
+      WHERE guild_id = ?
+        AND match_id = ?
+        AND user_id = ?
+      LIMIT 1
+      `,
+      [pool.__guildId, matchId, userId]
     );
+
     return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
   }
 
   const [[p]] = await pool.query(
-    `SELECT pred_exact_a, pred_exact_b
-     FROM match_map_predictions
-     WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
-    [matchId, userId, mapNo]
+    `
+    SELECT pred_exact_a, pred_exact_b
+    FROM match_map_predictions
+    WHERE guild_id = ?
+      AND match_id = ?
+      AND user_id = ?
+      AND map_no = ?
+    LIMIT 1
+    `,
+    [pool.__guildId, matchId, userId, mapNo]
   );
+
   return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
 }
 
@@ -68,34 +88,9 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
   return modal;
 }
 
-function buildSeriesSelect(match, maxMaps) {
-  const a = match.team_a;
-  const b = match.team_b;
-
-  const options =
-    maxMaps === 3
-      ? [
-        { label: `${a} 2-0`, value: `2|0` },
-        { label: `${a} 2-1`, value: `2|1` },
-        { label: `${b} 2-1`, value: `1|2` },
-        { label: `${b} 2-0`, value: `0|2` },
-      ]
-      : [
-        { label: `${a} 3-0`, value: `3|0` },
-        { label: `${a} 3-1`, value: `3|1` },
-        { label: `${a} 3-2`, value: `3|2` },
-        { label: `${b} 3-2`, value: `2|3` },
-        { label: `${b} 3-1`, value: `1|3` },
-        { label: `${b} 3-0`, value: `0|3` },
-      ];
-
-  const select = new StringSelectMenuBuilder()
-    .setCustomId('match_series_select')
-    .setPlaceholder('Wybierz wynik serii (żeby wiedzieć ile map wpisać)')
-    .addOptions(options);
-
-  return new ActionRowBuilder().addComponents(select);
-}
+/* ===============================
+   HANDLER
+   =============================== */
 
 module.exports = async function matchUserExactOpen(interaction) {
   try {
@@ -107,57 +102,92 @@ module.exports = async function matchUserExactOpen(interaction) {
       });
     }
 
-    const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of, is_locked FROM matches WHERE id=? LIMIT 1`,
-      [ctx.matchId]
-    );
+    await withGuild(interaction, async (pool, guildId) => {
+      // 👇 mały trick, żeby helper wiedział jaki guild_id
+      pool.__guildId = guildId;
 
-    if (!match) {
-      userState.clear(interaction.guildId, interaction.user.id);
-      return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
-    }
-    if (match.is_locked) {
-      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany.', ephemeral: true });
-    }
+      const [[match]] = await pool.query(
+        `
+        SELECT id, team_a, team_b, best_of, is_locked
+        FROM matches
+        WHERE guild_id = ?
+          AND id = ?
+        LIMIT 1
+        `,
+        [guildId, ctx.matchId]
+      );
 
-    const maxMaps = maxMapsFromBo(match.best_of);
+      if (!match) {
+        userState.clear(guildId, interaction.user.id);
+        return interaction.reply({
+          content: '❌ Mecz nie istnieje.',
+          ephemeral: true
+        });
+      }
 
-    // ustal mapNo (z ctx)
-    let mapNo = Number(ctx.mapNo || 0);
-    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
-      mapNo = 1;
-      userState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo });
-    }
+      if (match.is_locked) {
+        return interaction.reply({
+          content: '🔒 Ten mecz jest zablokowany.',
+          ephemeral: true
+        });
+      }
 
-    const effectiveMapNo = maxMaps === 1 ? 1 : mapNo;
+      const maxMaps = maxMapsFromBo(match.best_of);
 
-    // === NOWE: jeśli BO3/BO5 i jesteśmy na mapie #1 i nie ma requiredMaps -> pokaż wybór wyniku serii
-    if (maxMaps > 1 && effectiveMapNo === 1 && !ctx?.requiredMaps) {
-      return interaction.reply({
-        content: '🎯 Najpierw wybierz wynik serii w dropdownie **„Wybierz swój typ…”** (nad przyciskiem).',
-        ephemeral: true,
+      let mapNo = Number(ctx.mapNo || 0);
+      if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
+        mapNo = 1;
+        userState.set(guildId, interaction.user.id, { ...ctx, mapNo });
+      }
+
+      const effectiveMapNo = maxMaps === 1 ? 1 : mapNo;
+
+      if (maxMaps > 1 && effectiveMapNo === 1 && !ctx?.requiredMaps) {
+        return interaction.reply({
+          content:
+            '🎯 Najpierw wybierz wynik serii w dropdownie **„Wybierz swój typ…”**.',
+          ephemeral: true,
+        });
+      }
+
+      if (maxMaps > 1 && effectiveMapNo === 1) {
+        userState.set(guildId, interaction.user.id, {
+          ...ctx,
+          matchId: match.id,
+          mapNo: 1,
+          mapWinsA: 0,
+          mapWinsB: 0,
+        });
+      }
+
+      const defaults = await getUserDefaults(
+        pool,
+        match.id,
+        interaction.user.id,
+        maxMaps,
+        effectiveMapNo
+      );
+
+      const modal = buildModal({
+        match,
+        maxMaps,
+        mapNo: effectiveMapNo,
+        defaults
       });
-    }
 
-
-    // reset liczników na starcie (żeby nie mieszało między próbami)
-    if (maxMaps > 1 && effectiveMapNo === 1) {
-      userState.set(interaction.guildId, interaction.user.id, {
-        ...ctx,
-        matchId: match.id,
-        mapNo: 1,
-        mapWinsA: 0,
-        mapWinsB: 0,
-        // requiredMaps zostaje (jeśli już ustawione)
-      });
-    }
-
-    const defaults = await getUserDefaults(match.id, interaction.user.id, maxMaps, effectiveMapNo);
-    const modal = buildModal({ match, maxMaps, mapNo: effectiveMapNo, defaults });
-
-    return interaction.showModal(modal);
+      return interaction.showModal(modal);
+    });
   } catch (err) {
-    logger?.error?.('matches', 'matchUserExactOpen failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => { });
+    logger.error('matches', 'matchUserExactOpen failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction
+      .reply({
+        content: '❌ Nie udało się otworzyć modala.',
+        ephemeral: true
+      })
+      .catch(() => {});
   }
 };
