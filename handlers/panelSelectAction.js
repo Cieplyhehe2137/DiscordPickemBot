@@ -1,5 +1,7 @@
 // handlers/panelSelectAction.js
 const logger = require('../utils/logger');
+const { withGuild } = require('../utils/guildContext');
+
 
 const VALUE_TO_TARGET_CUSTOM_ID = {
   'results:export': 'export_ranking',
