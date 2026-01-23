@@ -74,12 +74,25 @@ module.exports = async function panelOpenMenu(interaction) {
     if (!menu) return;
 
     const row = new ActionRowBuilder().addComponents(menu);
-
-    // 🔥 KLUCZ: ZAWSZE update (panel zostaje)
-    return interaction.update({
+    const payload = {
       content: 'Wybierz akcję:',
-      components: [row]
-    });
+      components: [row],
+      ephemeral: true
+    };
+
+    // 🔑 KLUCZ: update jeśli to kliknięcie w panel
+    if (interaction.deferred || interaction.replied) {
+  return interaction.followUp(payload);
+}
+
+return interaction.reply(payload);
+
+    // fallback (np. slash)
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply(payload);
+    }
+
+    return interaction.reply(payload);
 
   } catch (err) {
     logger.error('interaction', 'panelOpenMenu failed', {
