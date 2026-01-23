@@ -72,7 +72,10 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
     // - followUp
     // - send()
     // ALE NIE MOŻE edytować panelu
-    await handler(proxied, client);
+    await withGuild(interaction, async () => {
+  await handler(proxied, client);
+});
+
 
     // ⏱ zamykamy interakcję bez UI zmian
     if (!interaction.replied) {
