@@ -297,6 +297,7 @@ LIMIT 1
            ON last.user_id = p.user_id
           AND last.ms = p.submitted_at
           WHERE p.guild_id = ?
+          AND p.active = 1
         `,
         [guildId, guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_predictions' }
