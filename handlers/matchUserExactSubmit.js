@@ -127,7 +127,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
        pred_exact_a=VALUES(pred_exact_a),
        pred_exact_b=VALUES(pred_exact_b),
        updated_at=CURRENT_TIMESTAMP`,
-        [match.id, interaction.user.id, predA, predB, exactA, exactB]
+        [interaction.guildId, match.id, interaction.user.id, predA, predB, exactA, exactB]
       );
     }
 
