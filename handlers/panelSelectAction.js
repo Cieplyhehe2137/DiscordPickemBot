@@ -72,15 +72,11 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       });
     }
 
-    // 🔁 FAKE interaction z podmienionym customId
     const proxied = proxyCustomId(interaction, targetCustomId);
 
-    // ✅ handler może:
-    // - showModal
-    // - followUp
-    // - send()
-    // ALE NIE MOŻE edytować panelu
-     await handler(proxied, client);
+await withGuild(proxied, async () => {
+  await handler(proxied, client);
+});
 
 
 
