@@ -49,33 +49,15 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
   try {
     const value = interaction.values?.[0];
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
+    if (!targetCustomId) return;
 
-    if (!targetCustomId) {
-      if (!interaction.replied && !interaction.deferred) {
-        return interaction.reply({
-          content: '❌ Nieznana akcja.',
-          ephemeral: true
-        });
-      }
-      return;
-    }
-
-    const handlerName = resolveHandlerName(maps?.buttonMap, targetCustomId);
+    const handlerName = maps?.buttonMap?.[targetCustomId];
     const handler = handlers?.[handlerName];
-
-    if (!handler) {
-      if (!interaction.replied && !interaction.deferred) {
-        return interaction.reply({
-          content: '❌ Brak handlera dla tej akcji.',
-          ephemeral: true
-        });
-      }
-      return;
-    }
+    if (!handler) return;
 
     const proxied = proxyCustomId(interaction, targetCustomId);
 
-    // ❗ ZERO deferReply TUTAJ
+    // ❗ NIE deferReply, NIE reply
     await handler(proxied, client);
 
   } catch (err) {
@@ -83,12 +65,6 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       message: err.message,
       stack: err.stack
     });
-
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: '❌ Błąd panelu.',
-        ephemeral: true
-      });
-    }
   }
 };
+
