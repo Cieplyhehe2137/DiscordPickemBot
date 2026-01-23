@@ -81,12 +81,11 @@ module.exports = async function panelOpenMenu(interaction) {
     };
 
     // 🔑 KLUCZ: update jeśli to kliknięcie w panel
-    if (interaction.isButton() || interaction.isStringSelectMenu()) {
-      if (interaction.deferred || interaction.replied) {
-        return interaction.editReply(payload);
-      }
-      return interaction.update(payload);
-    }
+    if (interaction.deferred || interaction.replied) {
+  return interaction.followUp(payload);
+}
+
+return interaction.reply(payload);
 
     // fallback (np. slash)
     if (interaction.deferred || interaction.replied) {
