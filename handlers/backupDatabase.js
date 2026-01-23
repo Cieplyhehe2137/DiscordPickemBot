@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 
 module.exports = async function backupDatabase(interaction) {
   const guildId = interaction.guildId;
-  
+
   if (!guildId) {
     return interaction.reply({
       content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
@@ -15,12 +15,15 @@ module.exports = async function backupDatabase(interaction) {
     });
   }
 
+  // ✅ defer tylko jeśli trzeba
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
+
   return withGuild(guildId, async () => {
     try {
-      // Powiadomienie przed rozpoczęciem
-      await interaction.reply({
-        content: '💽 **Tworzę kopię zapasową...** Trzymaj kciuki, żeby nie wybuchło! 💥',
-        ephemeral: true
+      await interaction.editReply({
+        content: '💽 **Tworzę kopię zapasową...** Trzymaj kciuki, żeby nie wybuchło! 💥'
       });
 
       const cfg = getGuildConfig(guildId);
@@ -30,7 +33,6 @@ module.exports = async function backupDatabase(interaction) {
         });
       }
 
-      // ✅ Użyj guild-specific backup directory
       ensureGuildDirs(guildId);
       const { backupDir } = getGuildPaths(guildId);
 
@@ -38,7 +40,6 @@ module.exports = async function backupDatabase(interaction) {
       const fileName = `backup_${timestamp}.sql`;
       const filePath = path.join(backupDir, fileName);
 
-      // ✅ Użyj guild-specific database credentials
       await mysqldump({
         connection: {
           host: cfg.DB_HOST,
@@ -52,7 +53,6 @@ module.exports = async function backupDatabase(interaction) {
 
       logger.info('backup', 'Backup created', { guildId, fileName, filePath });
 
-      // Po zakończeniu
       await interaction.editReply({
         content: `✅ Backup zakończony! Plik zapisany jako \`${fileName}\`\n📦 Twoje dane są teraz zabezpieczone jak w skarbcu FBI 🔐`,
       });
@@ -63,13 +63,10 @@ module.exports = async function backupDatabase(interaction) {
         message: error.message,
         stack: error.stack,
       });
-      try {
-        await interaction.editReply({
-          content: '❌ Coś poszło nie tak przy backupie... Może Gremliny w kablach? 🐭💥',
-        });
-      } catch (err2) {
-        console.error('❌ Błąd przy edytowaniu wiadomości (interakcja już wygasła)');
-      }
+
+      await interaction.editReply({
+        content: '❌ Coś poszło nie tak przy backupie... Może Gremliny w kablach? 🐭💥',
+      });
     }
   });
 };
