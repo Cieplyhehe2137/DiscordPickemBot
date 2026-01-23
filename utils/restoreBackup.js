@@ -196,11 +196,36 @@ async function clearGuildData(connection, guildId) {
 // EXECUTION HELPERS
 // =====================================================
 
+function stripGeneratedColumns(sql) {
+  // tylko INSERT do active_panels
+  if (!/INSERT\s+INTO\s+`?active_panels`?/i.test(sql)) {
+    return sql;
+  }
+
+  // usuń `stage_key` z listy kolumn
+  sql = sql.replace(
+    /,\s*`stage_key`\s*/i,
+    ''
+  );
+
+  // usuń odpowiadającą wartość w VALUES
+  // zakładamy, że stage_key jest OSTATNI (jak w dumpie)
+  sql = sql.replace(
+    /,\s*'[^']*'\s*\)\s*;?$/i,
+    ')'
+  );
+
+  return sql;
+}
+
+
 async function execStatement(connection, stmt) {
+  const cleanedStmt = stripGeneratedColumns(stmt);
+
   try {
-    await connection.query(stmt);
+    await connection.query(cleanedStmt);
   } catch (err) {
-    const parts = splitBySemicolonTopLevel(stmt);
+    const parts = splitBySemicolonTopLevel(cleanedStmt);
     if (parts.length > 1) {
       for (const p of parts) {
         if (p.trim()) await connection.query(p);
@@ -210,6 +235,7 @@ async function execStatement(connection, stmt) {
     throw err;
   }
 }
+
 
 // =====================================================
 // MAIN – GUILD SAFE RESTORE
