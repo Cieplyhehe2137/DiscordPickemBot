@@ -196,20 +196,29 @@ async function clearGuildData(connection, guildId) {
 // EXECUTION HELPERS
 // =====================================================
 
-function stripGeneratedColumns(sql) {
-  // tylko INSERT do active_panels
+function sanitizeActivePanelsInsert(sql) {
   if (!/INSERT\s+INTO\s+`?active_panels`?/i.test(sql)) {
     return sql;
   }
 
-  // usuń `stage_key` z listy kolumn
+  // usuń `id` i `stage_key` z listy kolumn
+  sql = sql.replace(
+    /\(\s*`id`\s*,/i,
+    '('
+  );
+
   sql = sql.replace(
     /,\s*`stage_key`\s*/i,
     ''
   );
 
-  // usuń odpowiadającą wartość w VALUES
-  // zakładamy, że stage_key jest OSTATNI (jak w dumpie)
+  // usuń pierwszą wartość (id) z VALUES (...)
+  sql = sql.replace(
+    /VALUES\s*\(\s*\d+\s*,/i,
+    'VALUES ('
+  );
+
+  // usuń ostatnią wartość stage_key jeśli była
   sql = sql.replace(
     /,\s*'[^']*'\s*\)\s*;?$/i,
     ')'
@@ -219,8 +228,9 @@ function stripGeneratedColumns(sql) {
 }
 
 
+
 async function execStatement(connection, stmt) {
-  const cleanedStmt = stripGeneratedColumns(stmt);
+  const cleanedStmt = sanitizeActivePanelsInsert(stmt);
 
   try {
     await connection.query(cleanedStmt);
