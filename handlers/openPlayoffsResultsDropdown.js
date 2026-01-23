@@ -28,7 +28,9 @@ module.exports = async (interaction) => {
   try {
     if (interaction.customId !== 'open_results_playoffs') return;
 
-    await interaction.deferReply({ ephemeral: true });
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
 
     const guildId = interaction.guildId;
     const teams = await loadTeamsFromDB(guildId);
