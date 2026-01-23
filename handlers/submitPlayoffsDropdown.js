@@ -1,75 +1,79 @@
-const pool = require('../db');
-const sendPredictionEmbed = require('../utils/sendPredictionEmbeds');
+// handlers/submitPlayoffsDropdown.js
+const db = require('../db');
 const logger = require('../logger');
-const teams = require('../teams.json');
+const sendPredictionEmbed = require('../utils/sendPredictionEmbeds');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 module.exports = async (interaction) => {
   const { user, customId, values } = interaction;
+  if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+
   const userId = user.id;
-  const guildId = interaction.guildId || 'dm';
+  const guildId = interaction.guildId;
   const username = user.username;
   const displayName = interaction.member?.displayName || username;
 
-  // cache per guild + user (żeby nie mieszało na wielu serwerach)
+  // ===============================
+  // CACHE per GUILD + USER
+  // ===============================
   if (!interaction.client._playoffsCache) interaction.client._playoffsCache = {};
   if (!interaction.client._playoffsCache[guildId]) interaction.client._playoffsCache[guildId] = {};
-  if (!interaction.client._playoffsCache[guildId][userId]) interaction.client._playoffsCache[guildId][userId] = {};
+  if (!interaction.client._playoffsCache[guildId][userId]) {
+    interaction.client._playoffsCache[guildId][userId] = {};
+  }
 
-  // === Dropdowny ===
+  const cache = interaction.client._playoffsCache[guildId][userId];
+
+  // ===============================
+  // SELECT MENUS
+  // ===============================
   if (interaction.isStringSelectMenu()) {
     if (!customId.startsWith('playoffs_')) return;
 
-    // zamiast split('_') bierzemy całe "co po playoffs_"
-    let type = customId.slice('playoffs_'.length); // np. semifinalists / finalists / winner / third / third_place_winner
-
-    // alias: jeśli gdzieś masz w customId "third_place_winner", mapujemy na "third"
+    let type = customId.slice('playoffs_'.length);
     if (type === 'third_place_winner') type = 'third';
 
-    logger.info(
-      `[Playoffs] ${username} (${userId}) [${guildId}] wybrał ${values.length} drużyn dla ${type}: ${values.join(', ')}`
-    );
+    cache[type] = values;
 
-    interaction.client._playoffsCache[guildId][userId][type] = values;
+    logger.info(
+      `[Playoffs] ${username} (${userId}) [${guildId}] selected ${type}: ${values.join(', ')}`
+    );
 
     await interaction.deferUpdate();
     return;
   }
 
-  // === Zatwierdzenie ===
+  // ===============================
+  // CONFIRM BUTTON
+  // ===============================
   if (interaction.isButton() && customId === 'confirm_playoffs') {
     await interaction.deferUpdate();
 
-    // ✅ P0: gate
+    // 🔒 Gate
     const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYOFFS' });
     if (!gate.allowed) {
-      return interaction.followUp({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
-    }
-
-    const picks = interaction.client._playoffsCache[guildId]?.[userId] || {};
-
-    // spójne pole dla 3. miejsca (może być third albo third_place_winner)
-    const thirdPick = picks.third || picks.third_place_winner || [];
-
-    logger.info(`[Playoffs] ${username} (${userId}) [${guildId}] zatwierdza typy`);
-    logger.info(`- Półfinaliści: ${picks.semifinalists?.join(', ') || 'brak'}`);
-    logger.info(`- Finaliści: ${picks.finalists?.join(', ') || 'brak'}`);
-    logger.info(`- Zwycięzca: ${picks.winner?.[0] || 'brak'}`);
-    logger.info(`- 3. miejsce: ${thirdPick?.[0] || 'brak'}`);
-
-    if (!picks?.semifinalists || !picks?.finalists || !picks?.winner) {
       return interaction.followUp({
-        content: '❌ Wybierz wszystkie pozycje przed zatwierdzeniem (półfinaliści, finaliści, zwycięzca).',
-        ephemeral: true,
+        content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
+        ephemeral: true
       });
     }
 
-    // Walidacja liczby drużyn
+    const picks = cache || {};
+    const thirdPick = picks.third || [];
+
+    // === Walidacja kompletności ===
+    if (!picks.semifinalists || !picks.finalists || !picks.winner) {
+      return interaction.followUp({
+        content: '❌ Wybierz półfinalistów, finalistów oraz zwycięzcę.',
+        ephemeral: true
+      });
+    }
+
     if (
       picks.semifinalists.length !== 4 ||
       picks.finalists.length !== 2 ||
       picks.winner.length !== 1 ||
-      (thirdPick && thirdPick.length > 1)
+      (thirdPick.length > 1)
     ) {
       return interaction.followUp({
         content:
@@ -77,86 +81,111 @@ module.exports = async (interaction) => {
           `• półfinaliści (${picks.semifinalists.length}/4)\n` +
           `• finaliści (${picks.finalists.length}/2)\n` +
           `• zwycięzca (${picks.winner.length}/1)`,
-        ephemeral: true,
+        ephemeral: true
       });
     }
 
-    // Unikalność w półfinalistach
-    const semifinalistsSet = new Set(picks.semifinalists);
-    if (semifinalistsSet.size !== picks.semifinalists.length) {
+    // === Walidacja unikalności ===
+    const allSelected = [
+      ...picks.semifinalists,
+      ...picks.finalists,
+      picks.winner[0],
+      ...(thirdPick[0] ? [thirdPick[0]] : [])
+    ];
+
+    if (new Set(allSelected).size !== allSelected.length) {
       return interaction.followUp({
-        content: '⚠️ Te same drużyny nie mogą być wybrane więcej niż raz w półfinalistach.',
-        ephemeral: true,
+        content: '⚠️ Ta sama drużyna nie może wystąpić więcej niż raz.',
+        ephemeral: true
       });
     }
 
-    // Walidacja względem teams.json
-    const allSelectedTeams = [...picks.semifinalists, ...picks.finalists, picks.winner[0]];
-    if (thirdPick?.[0]) allSelectedTeams.push(thirdPick[0]);
+    // ===============================
+    // DB
+    // ===============================
+    const pool = db.getPoolForGuild(guildId);
 
-    const invalidTeams = allSelectedTeams.filter((t) => !teams.includes(t));
-    if (invalidTeams.length > 0) {
+    // Walidacja drużyn z DB (PER GUILD)
+    const [rows] = await pool.query(
+      `SELECT name FROM teams WHERE guild_id = ? AND active = 1`,
+      [guildId]
+    );
+    const allowedTeams = rows.map(r => r.name);
+
+    const invalid = allSelected.filter(t => !allowedTeams.includes(t));
+    if (invalid.length) {
       return interaction.followUp({
-        content: `⚠️ Wykryto nieznane drużyny: ${invalidTeams.join(', ')}. Sprawdź poprawność nazw.`,
-        ephemeral: true,
+        content: `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`,
+        ephemeral: true
       });
     }
 
     try {
-      // Dezaktywuj stare typy
-      await pool.query(`UPDATE playoffs_predictions SET active = 0 WHERE user_id = ?`, [userId]);
+      // Dezaktywuj stare typy TYLKO DLA TEGO GUILD
+      await pool.query(
+        `UPDATE playoffs_predictions
+         SET active = 0
+         WHERE guild_id = ? AND user_id = ?`,
+        [guildId, userId]
+      );
 
-      // Zapisz nowe typy z active = 1
-      const [result] = await pool.query(
+      // Upsert
+      await pool.query(
         `
-          INSERT INTO playoffs_predictions (user_id, username, displayname, semifinalists, finalists, winner, third_place_winner, active)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-          ON DUPLICATE KEY UPDATE
-            semifinalists = VALUES(semifinalists),
-            finalists = VALUES(finalists),
-            winner = VALUES(winner),
-            third_place_winner = VALUES(third_place_winner),
-            displayname = VALUES(displayname),
-            active = VALUES(active)
+        INSERT INTO playoffs_predictions
+          (guild_id, user_id, username, displayname,
+           semifinalists, finalists, winner, third_place_winner, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON DUPLICATE KEY UPDATE
+          semifinalists = VALUES(semifinalists),
+          finalists = VALUES(finalists),
+          winner = VALUES(winner),
+          third_place_winner = VALUES(third_place_winner),
+          displayname = VALUES(displayname),
+          active = 1
         `,
         [
+          guildId,
           userId,
           username,
           displayName,
           picks.semifinalists.join(', '),
           picks.finalists.join(', '),
           picks.winner[0],
-          thirdPick?.[0] || null,
+          thirdPick[0] || null
         ]
       );
 
-      // Czyszczenie cache po zapisie (per guild + user)
+      // cleanup cache
       delete interaction.client._playoffsCache[guildId][userId];
-      if (Object.keys(interaction.client._playoffsCache[guildId]).length === 0) {
+      if (!Object.keys(interaction.client._playoffsCache[guildId]).length) {
         delete interaction.client._playoffsCache[guildId];
       }
 
-      logger.info(`[Playoffs] ${username} (${userId}) [${guildId}] zapisał typy:`);
-      logger.info(`- Półfinaliści: ${picks.semifinalists.join(', ')}`);
-      logger.info(`- Finaliści: ${picks.finalists.join(', ')}`);
-      logger.info(`- Zwycięzca: ${picks.winner[0]}`);
-      if (thirdPick?.[0]) logger.info(`- 3. miejsce: ${thirdPick[0]}`);
-      logger.info(`- Wynik zapytania: ${result.affectedRows} wierszy zmodyfikowano`);
+      logger.info(
+        `[Playoffs] ${username} (${userId}) [${guildId}] saved predictions`
+      );
 
-      // Wyślij embed z typami na kanał
+      // embed podsumowujący
       await sendPredictionEmbed(interaction.client, guildId, 'playoffs', userId, {
         semifinalists: picks.semifinalists,
         finalists: picks.finalists,
         winner: picks.winner[0],
-        third_place_winner: thirdPick?.[0] || null,
+        third_place_winner: thirdPick[0] || null
       });
 
-      await interaction.followUp({ content: '✅ Twoje typy zostały zapisane!', ephemeral: true });
-    } catch (error) {
-      logger.error(`[Playoffs] Błąd przy zapisie typów dla ${username} (${userId}) [${guildId}]:`, error);
-      await interaction.followUp({
-        content: '❌ Wystąpił błąd podczas zapisu typów. Spróbuj ponownie.',
-        ephemeral: true,
+      return interaction.followUp({
+        content: '✅ Twoje typy Playoffs zostały zapisane!',
+        ephemeral: true
+      });
+    } catch (err) {
+      logger.error(
+        `[Playoffs] DB error ${username} (${userId}) [${guildId}]`,
+        err
+      );
+      return interaction.followUp({
+        content: '❌ Wystąpił błąd podczas zapisu typów.',
+        ephemeral: true
       });
     }
   }

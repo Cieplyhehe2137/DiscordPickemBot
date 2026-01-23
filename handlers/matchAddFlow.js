@@ -272,16 +272,16 @@ async function onTeamBSelect(interaction) {
 
   // AUTO match_no
   const [[next]] = await pool.query(
-    `SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo FROM matches WHERE phase = ?`,
-    [st.phase]
+    `SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo FROM matches WHERE guild_id = ? AND phase = ?`,
+    [interaction.guildId, st.phase]
   );
   const matchNo = Number(next?.nextNo || 1);
 
   try {
     const [res] = await pool.query(
-      `INSERT INTO matches (phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
-       VALUES (?, ?, ?, ?, ?, NULL, 0)`,
-      [st.phase, matchNo, st.teamA, teamB, st.bestOf]
+      `INSERT INTO matches (guild_id, phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, 0)`,
+      [interaction.guildId, st.phase, matchNo, st.teamA, teamB, st.bestOf]
     );
 
     const matchId = res.insertId;

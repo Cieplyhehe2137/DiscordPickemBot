@@ -1,7 +1,7 @@
 // handlers/matchAdminResultSelect.js
-const pool = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
-const { computePoints } = require('../utils/matchScoring'); // upewnij się, że eksportujesz computePoints
+const { computeTotalPoints } = require('../utils/matchScoring');
 
 module.exports = async function matchAdminResultSelect(interaction) {
   const picked = interaction.values?.[0];
@@ -12,47 +12,71 @@ module.exports = async function matchAdminResultSelect(interaction) {
   const resA = Number(resAStr);
   const resB = Number(resBStr);
 
-  if (!matchId || Number.isNaN(resA) || Number.isNaN(resB)) {
+  if (!interaction.guildId || !matchId || Number.isNaN(resA) || Number.isNaN(resB)) {
     return interaction.update({ content: '❌ Niepoprawne dane wyniku.', components: [] });
   }
 
-  // 1) upsert wyniku
+  const pool = db.getPoolForGuild(interaction.guildId);
+
+  // 1️⃣ upsert wyniku
   await pool.query(
     `
-    INSERT INTO match_results (match_id, res_a, res_b)
-    VALUES (?, ?, ?)
-    ON DUPLICATE KEY UPDATE res_a = VALUES(res_a), res_b = VALUES(res_b)
+    INSERT INTO match_results (guild_id, match_id, res_a, res_b)
+    VALUES (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      res_a = VALUES(res_a),
+      res_b = VALUES(res_b)
     `,
-    [matchId, resA, resB]
+    [interaction.guildId, matchId, resA, resB]
   );
 
-  // 2) przelicz punkty (kasujemy stare, liczymy na nowo)
-  await pool.query(`DELETE FROM match_points WHERE match_id = ?`, [matchId]);
+  // 2️⃣ usuń stare punkty
+  await pool.query(
+    `DELETE FROM match_points WHERE guild_id = ? AND match_id = ?`,
+    [interaction.guildId, matchId]
+  );
 
+  // 3️⃣ pobierz predykcje
   const [preds] = await pool.query(
-    `SELECT user_id, pred_a, pred_b FROM match_predictions WHERE match_id = ?`,
-    [matchId]
+    `
+    SELECT user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
+    FROM match_predictions
+    WHERE guild_id = ? AND match_id = ?
+    `,
+    [interaction.guildId, matchId]
   );
 
   if (preds.length) {
     const values = preds.map(p => {
-      const points = computePoints({
+      const points = computeTotalPoints({
         predA: Number(p.pred_a),
         predB: Number(p.pred_b),
         resA,
-        resB
+        resB,
+        predExactA: p.pred_exact_a ?? null,
+        predExactB: p.pred_exact_b ?? null,
+        exactA: null,
+        exactB: null
       });
-      return [matchId, p.user_id, points];
+      return [interaction.guildId, matchId, p.user_id, points];
     });
 
-    // batch insert
     await pool.query(
-      `INSERT INTO match_points (match_id, user_id, points) VALUES ?`,
+      `
+      INSERT INTO match_points (guild_id, match_id, user_id, points)
+      VALUES ?
+      `,
       [values]
     );
   }
 
-  logger?.info?.('matches', 'Match result set', { matchId, resA, resB, by: interaction.user.id });
+  logger.info('matches', 'Match result set', {
+    guildId: interaction.guildId,
+    matchId,
+    resA,
+    resB,
+    by: interaction.user.id
+  });
 
   return interaction.update({
     content: `✅ Ustawiono wynik meczu **#${matchId}**: **${resA}:${resB}**\nPunkty zostały przeliczone.`,

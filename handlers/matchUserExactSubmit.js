@@ -1,6 +1,6 @@
 // handlers/matchUserExactSubmit.js
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const pool = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { isMatchLocked } = require('../utils/matchLock');
@@ -14,6 +14,7 @@ function maxMapsFromBo(bestOf) {
 }
 
 module.exports = async function matchUserExactSubmit(interaction) {
+  const pool = db.getPoolForGuild(interaction.guildId)
   try {
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
@@ -38,8 +39,8 @@ module.exports = async function matchUserExactSubmit(interaction) {
     }
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of, is_locked, start_time_utc FROM matches WHERE id=? LIMIT 1`,
-      [ctx.matchId]
+      `SELECT id, team_a, team_b, best_of, is_locked, start_time_utc FROM matches WHERE guild_id = ? AND id = ? LIMIT 1`,
+      [interaction.guildId, ctx.matchId]
     );
 
     if (!match) {
@@ -77,13 +78,13 @@ module.exports = async function matchUserExactSubmit(interaction) {
     if (maxMaps > 1) {
       try {
         await pool.query(
-          `INSERT INTO match_map_predictions (match_id, user_id, map_no, pred_exact_a, pred_exact_b)
-         VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO match_map_predictions (guild_id, match_id, user_id, map_no, pred_exact_a, pred_exact_b)
+         VALUES (?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
            pred_exact_a=VALUES(pred_exact_a),
            pred_exact_b=VALUES(pred_exact_b),
            updated_at=CURRENT_TIMESTAMP`,
-          [match.id, interaction.user.id, mapNo, exactA, exactB]
+          [interaction.guildId, match.id, interaction.user.id, mapNo, exactA, exactB]
         );
       } catch (e) {
         // Jeśli ktoś nie ma tej tabeli w DB, nie ubijamy całego flow.
@@ -118,8 +119,8 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const predB = exactB > exactA ? 1 : 0;
 
       await pool.query(
-        `INSERT INTO match_predictions (match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-     VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO match_predictions (guild_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
        pred_a=VALUES(pred_a),
        pred_b=VALUES(pred_b),

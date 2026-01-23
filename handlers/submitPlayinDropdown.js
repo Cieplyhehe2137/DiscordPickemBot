@@ -3,8 +3,8 @@ const db = require('../db');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-// Pamięć wyboru per (guild + user)
-const cache = new Map(); // key: `${guildId}:${userId}` -> [teams]
+// cache: `${guildId}:${userId}` -> [teams]
+const cache = new Map();
 
 module.exports = async (interaction) => {
   const guildId = interaction.guildId;
@@ -12,27 +12,34 @@ module.exports = async (interaction) => {
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
 
-  const key = `${guildId}:${userId}`;
+  const cacheKey = `${guildId}:${userId}`;
 
-  // ===== SELECT MENU =====
+  // ===============================
+  // SELECT MENU – wybór drużyn
+  // ===============================
   if (interaction.isStringSelectMenu() && interaction.customId === 'playin_select') {
-    cache.set(key, interaction.values);
+    cache.set(cacheKey, interaction.values.map(String));
 
-    logger.info('playin', 'User selected teams', {
+    logger.info('playin', 'User selected play-in teams', {
       guildId,
       userId,
       count: interaction.values.length,
       teams: interaction.values,
     });
 
-    // ACK bez spamu w czacie
-    try { await interaction.deferUpdate(); } catch (_) { }
+    try { await interaction.deferUpdate(); } catch (_) {}
     return;
   }
 
-  // ===== CONFIRM BUTTON =====
+  // ===============================
+  // BUTTON – zatwierdzenie
+  // ===============================
   if (interaction.isButton() && interaction.customId === 'confirm_playin') {
-    const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYIN' });
+    const gate = await assertPredictionsAllowed({
+      guildId,
+      kind: 'PLAYIN',
+    });
+
     if (!gate.allowed) {
       return interaction.reply({
         content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
@@ -40,9 +47,9 @@ module.exports = async (interaction) => {
       });
     }
 
-    const picked = cache.get(key);
+    const picked = cache.get(cacheKey);
 
-    if (!picked || picked.length !== 8) {
+    if (!Array.isArray(picked) || picked.length !== 8) {
       return interaction.reply({
         content: '❌ Musisz wybrać **dokładnie 8 drużyn**.',
         ephemeral: true,
@@ -59,7 +66,7 @@ module.exports = async (interaction) => {
     const pool = db.getPoolForGuild(guildId);
 
     try {
-      // Walidacja: czy user nie wybrał czegoś spoza aktywnych teamów w DB
+      // 🔎 Walidacja względem aktywnych drużyn w DB
       const [rows] = await pool.query(
         `SELECT name
          FROM teams
@@ -68,38 +75,49 @@ module.exports = async (interaction) => {
         [guildId]
       );
 
-      const allowed = new Set(rows.map(r => r.name));
+      const allowed = new Set(rows.map(r => String(r.name)));
       const invalid = picked.filter(t => !allowed.has(t));
 
       if (invalid.length) {
         return interaction.reply({
-          content: `❌ Nieznane drużyny: **${invalid.join(', ')}**`,
+          content: `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`,
           ephemeral: true,
         });
       }
 
-      // Zapis (bez guild_id — bo masz osobną bazę per guild)
+      // ✅ ZAPIS DO DB (JEDNA BAZA → guild_id OBOWIĄZKOWE)
       await pool.query(
-        `INSERT INTO playin_predictions (user_id, username, displayname, teams, active, submitted_at)
-   VALUES (?, ?, ?, ?, 1, NOW())
-   ON DUPLICATE KEY UPDATE
-     teams = VALUES(teams),
-     displayname = VALUES(displayname),
-     active = 1,
-     submitted_at = NOW()`,
-        [userId, username, displayName, picked.join(', ')]
+        `INSERT INTO playin_predictions
+         (guild_id, user_id, username, displayname, teams, active, submitted_at)
+         VALUES (?, ?, ?, ?, ?, 1, NOW())
+         ON DUPLICATE KEY UPDATE
+           teams = VALUES(teams),
+           displayname = VALUES(displayname),
+           active = 1,
+           submitted_at = NOW()`,
+        [
+          guildId,
+          userId,
+          username,
+          displayName,
+          picked.join(', ')
+        ]
       );
 
-      cache.delete(key);
+      cache.delete(cacheKey);
 
-      logger.info('playin', 'Saved play-in picks', { guildId, userId });
+      logger.info('playin', 'Saved play-in picks', {
+        guildId,
+        userId,
+        teams: picked,
+      });
 
       return interaction.reply({
-        content: '✅ Twoje typy zostały zapisane!',
+        content: '✅ Twoje typy Play-In zostały zapisane!',
         ephemeral: true,
       });
     } catch (err) {
-      logger.error('playin', 'DB error while saving picks', {
+      logger.error('playin', 'DB error while saving play-in picks', {
         guildId,
         userId,
         code: err.code,

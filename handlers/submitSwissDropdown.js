@@ -1,77 +1,64 @@
 // handlers/submitSwissDropdown.js
 
-const pool = require('../db.js');
-const logger = require('../utils/logger.js');
-const fs = require('fs');
-const path = require('path');
-const { assertPredictionsAllowed } = require('../utils/protectionsGuards.js');
+const db = require('../db');
+const logger = require('../utils/logger');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-// cache: klucz = `${guildId}:${userId}:${stage}`, wartość = { '3': [...], '0': [...], 'advancing': [...] }
+// cache: `${guildId}:${userId}:${stage}` -> { '3':[], '0':[], 'advancing':[] }
 const cache = new Map();
 
-function loadTeams() {
-  try {
-    const raw = fs.readFileSync(
-      path.join(__dirname, '..', 'teams.json'),
-      'utf8'
-    );
-    const parsed = JSON.parse(raw);
-
-    if (Array.isArray(parsed)) {
-      if (parsed.length === 0) return [];
-      if (typeof parsed[0] === 'string') return parsed;
-      if (typeof parsed[0] === 'object') {
-        return parsed
-          .map(t => t.name || t.label || t.value)
-          .filter(Boolean);
-      }
-    }
-    return [];
-  } catch (err) {
-    logger.error("submit", "Failed to load teams.json", {
-      message: err.message,
-      stack: err.stack
-    });
-    return [];
-  }
+// ===============================
+// DB helpers
+// ===============================
+async function loadTeamsFromDB(pool, guildId) {
+  const [rows] = await pool.query(
+    `SELECT name
+     FROM teams
+     WHERE guild_id = ?
+       AND active = 1
+     ORDER BY name ASC`,
+    [guildId]
+  );
+  return rows.map(r => r.name);
 }
 
+// ===============================
+// HANDLER
+// ===============================
 module.exports = async (interaction) => {
   const customId = interaction.customId;
   const userId = interaction.user.id;
-  const guildId = interaction.guildId || 'dm'; // <-- NOWE
+  const guildId = interaction.guildId;
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
 
-  logger.debug("submit", "Interaction received", {
-    guildId, // <-- NOWE
+  const pool = db.getPoolForGuild(guildId);
+
+  logger.debug('submit', 'Interaction received', {
+    guildId,
     userId,
-    username,
     customId
   });
 
-  // Rozpoznanie etapu: stage1 / stage2 / stage3
+  // ===============================
+  // STAGE (stage1 / stage2 / stage3)
+  // ===============================
   const stageMatch = customId.match(/stage([123])/);
   const stage = stageMatch ? `stage${stageMatch[1]}` : null;
 
   if (!stage) {
-    logger.warn("submit", "Stage not recognized", {
-      guildId, // <-- NOWE
-      userId,
-      customId
-    });
-
+    logger.warn('submit', 'Stage not recognized', { guildId, userId, customId });
     return interaction.reply({
       content: '❌ Nie udało się rozpoznać etapu Swiss.',
       ephemeral: true
     });
   }
 
-  const cacheKey = `${guildId}:${userId}:${stage}`; // <-- ZMIANA (BYŁO `${userId}:${stage}`)
+  const cacheKey = `${guildId}:${userId}:${stage}`;
 
-  // ==================================================
-  // 1) DROPDOWN — zapamiętywanie wyborów
-  // ==================================================
+  // ===============================
+  // 1) DROPDOWNS
+  // ===============================
   if (interaction.isStringSelectMenu()) {
     await interaction.deferUpdate();
 
@@ -84,13 +71,7 @@ module.exports = async (interaction) => {
     else if (typeRaw === '0') type = '0';
     else if (typeRaw === 'advancing') type = 'advancing';
     else {
-      logger.warn("submit", "Unknown dropdown type", {
-        guildId, // <-- NOWE
-        userId,
-        stage,
-        customId
-      });
-
+      logger.warn('submit', 'Unknown dropdown type', { guildId, userId, customId });
       return interaction.followUp({
         content: '❌ Nie udało się rozpoznać typu wyboru.',
         ephemeral: true
@@ -102,8 +83,8 @@ module.exports = async (interaction) => {
 
     data[type] = interaction.values;
 
-    logger.debug("submit", "Dropdown updated", {
-      guildId, // <-- NOWE
+    logger.debug('submit', 'Dropdown updated', {
+      guildId,
       userId,
       stage,
       type,
@@ -111,143 +92,110 @@ module.exports = async (interaction) => {
     });
 
     return interaction.followUp({
-      content: '📝 Zapisano wybór (jeszcze nie zatwierdzono).',
+      content: '📝 Zapisano wybór (jeszcze niezatwierdzony).',
       ephemeral: true
     });
   }
 
-  // ==================================================
-  // 2) PRZYCISK „ZATWIERDŹ”
-  // ==================================================
-  const isConfirmButton =
+  // ===============================
+  // 2) CONFIRM BUTTON
+  // ===============================
+  const isConfirm =
     interaction.isButton() &&
     (customId === `confirm_${stage}` || customId === `confirm_swiss_${stage}`);
 
-  if (!isConfirmButton) return;
+  if (!isConfirm) return;
 
   await interaction.deferReply({ ephemeral: true });
 
-  // ✅ P0: globalny gate (tournament_state) + zgodność fazy Swiss z panelem
+  // ✅ P0 gate
   const gate = await assertPredictionsAllowed({ guildId, kind: 'SWISS', stage });
   if (!gate.allowed) {
-    return interaction.editReply(gate.message || '❌ Typowanie jest aktualnie zamknięte.');
+    return interaction.editReply(gate.message || '❌ Typowanie jest zamknięte.');
   }
-
-  logger.info("submit", "Submit started", {
-    guildId, // <-- NOWE
-    userId,
-    username,
-    stage
-  });
 
   const data = cache.get(cacheKey) || {};
 
   if (!data['3'] || !data['0'] || !data['advancing']) {
-    logger.warn("submit", "Submit blocked – incomplete selections", {
-      guildId, // <-- NOWE
-      userId,
-      stage
-    });
-
     return interaction.editReply(
-      '❌ Najpierw wybierz wszystkie drużyny (3-0, 0-3 i awansujące).'
+      '❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.'
     );
   }
 
-  const len3 = data['3'].length;
-  const len0 = data['0'].length;
-  const lenAdv = data['advancing'].length;
-
-  if (len3 !== 2 || len0 !== 2 || lenAdv !== 6) {
-    logger.warn("submit", "Invalid picks count", {
-      guildId, // <-- NOWE
-      userId,
-      stage,
-      "3-0": len3,
-      "0-3": len0,
-      advancing: lenAdv
-    });
-
+  // ===============================
+  // WALIDACJA ILOŚCI
+  // ===============================
+  if (
+    data['3'].length !== 2 ||
+    data['0'].length !== 2 ||
+    data['advancing'].length !== 6
+  ) {
     return interaction.editReply(
       `⚠️ Nieprawidłowa liczba drużyn:\n` +
-      `• 3-0: ${len3}/2\n` +
-      `• 0-3: ${len0}/2\n` +
-      `• awansujące: ${lenAdv}/6`
+      `• 3-0: ${data['3'].length}/2\n` +
+      `• 0-3: ${data['0'].length}/2\n` +
+      `• awansujące: ${data['advancing'].length}/6`
     );
   }
 
-  const allTeams = [...data['3'], ...data['0'], ...data['advancing']];
-  const uniqueTeams = new Set(allTeams);
-
-  if (allTeams.length !== uniqueTeams.size) {
-    logger.warn("submit", "Duplicate teams detected", {
-      guildId, // <-- NOWE
-      userId,
-      stage
-    });
-
+  const all = [...data['3'], ...data['0'], ...data['advancing']];
+  if (new Set(all).size !== all.length) {
     return interaction.editReply(
-      '⚠️ Ta sama drużyna nie może być wybrana w więcej niż jednej kategorii.'
+      '⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.'
     );
   }
 
-  const validTeams = loadTeams();
-  const invalidTeams = allTeams.filter(t => !validTeams.includes(t));
+  // ===============================
+  // WALIDACJA TEAMÓW
+  // ===============================
+  const validTeams = await loadTeamsFromDB(pool, guildId);
+  const invalid = all.filter(t => !validTeams.includes(t));
 
-  if (invalidTeams.length > 0) {
-    logger.warn("submit", "Invalid team names detected", {
-      guildId, // <-- NOWE
-      userId,
-      stage,
-      invalidTeams
-    });
-
+  if (invalid.length) {
     return interaction.editReply(
-      `⚠️ Wykryto nieznane drużyny: ${invalidTeams.join(', ')}`
+      `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
     );
   }
 
-  // ==================================================
-  // 3) ZAPIS DO BAZY
-  // ==================================================
+  // ===============================
+  // 3) ZAPIS DO DB
+  // ===============================
   try {
-    logger.info("submit", "Saving picks to database", {
-      guildId, // <-- NOWE
-      userId,
-      stage
-    });
-
     const pick3 = data['3'].join(', ');
     const pick0 = data['0'].join(', ');
-    const adv = data['advancing'].join(', ');
+    const advancing = data['advancing'].join(', ');
 
     const [result] = await pool.query(
       `
-        INSERT INTO swiss_predictions 
-          (user_id, username, displayname, stage, pick_3_0, pick_0_3, advancing, active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-        ON DUPLICATE KEY UPDATE
-          pick_3_0   = VALUES(pick_3_0),
-          pick_0_3   = VALUES(pick_0_3),
-          advancing  = VALUES(advancing),
-          displayname = VALUES(displayname),
-          active     = 1
+      INSERT INTO swiss_predictions
+        (guild_id, user_id, username, displayname, stage,
+         pick_3_0, pick_0_3, advancing, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+      ON DUPLICATE KEY UPDATE
+        pick_3_0    = VALUES(pick_3_0),
+        pick_0_3    = VALUES(pick_0_3),
+        advancing   = VALUES(advancing),
+        displayname = VALUES(displayname),
+        active      = 1
       `,
-      [userId, username, displayName, stage, pick3, pick0, adv]
+      [
+        guildId,
+        userId,
+        username,
+        displayName,
+        stage,
+        pick3,
+        pick0,
+        advancing
+      ]
     );
 
     cache.delete(cacheKey);
 
-    logger.info("submit", "Submit successful", {
-      guildId, // <-- NOWE
+    logger.info('submit', 'Swiss submit saved', {
+      guildId,
       userId,
-      username,
       stage,
-      picks: {
-        "3-0": data['3'],
-        "0-3": data['0'],
-        advancing: data['advancing']
-      },
       affectedRows: result.affectedRows
     });
 
@@ -255,17 +203,15 @@ module.exports = async (interaction) => {
       '✅ Twoje typy dla tej fazy Swiss zostały zapisane!'
     );
   } catch (err) {
-    logger.error("submit", "Submit failed", {
-      guildId, // <-- NOWE
+    logger.error('submit', 'Swiss submit failed', {
+      guildId,
       userId,
-      username,
       stage,
-      message: err.message,
-      stack: err.stack
+      message: err.message
     });
 
     return interaction.editReply(
-      '❌ Wystąpił błąd podczas zapisu typów. Spróbuj ponownie później.'
+      '❌ Wystąpił błąd zapisu typów. Spróbuj ponownie później.'
     );
   }
 };

@@ -39,8 +39,8 @@ module.exports = async function calculateScores() {
   try {
     const [swissResultsRows] = await safeQuery(
       pool,
-      `SELECT * FROM swiss_results WHERE active = 1`,
-      [],
+      `SELECT * FROM swiss_results WHERE guild_id = ? AND active = 1`,
+      [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select swiss_results' }
     );
 
@@ -67,8 +67,8 @@ module.exports = async function calculateScores() {
 
       const [swissPredictions] = await safeQuery(
         pool,
-        `SELECT * FROM swiss_predictions WHERE stage = ?`,
-        [stageRaw],
+        `SELECT * FROM swiss_predictions WHERE guild_id = ? AND stage = ?`,
+        [guildId, stageRaw],
         { guildId, scope: 'cron:calculateScores', label: 'select swiss_predictions' }
       );
 
@@ -77,11 +77,12 @@ module.exports = async function calculateScores() {
         `
         SELECT user_id, displayname
         FROM swiss_predictions
-        WHERE stage = ?
+        WHERE guild_id = ?
+          AND stage = ?
           AND displayname IS NOT NULL
           AND displayname != ''
         `,
-        [stageRaw],
+        [guildId, stageRaw],
         { guildId, scope: 'cron:calculateScores', label: 'preload swiss displaynames' }
       );
 
@@ -110,6 +111,7 @@ module.exports = async function calculateScores() {
         });
 
         swissScoreRows.push([
+          guildId,
           user_id,
           stage, // ✅ stage1/stage2/stage3
           displayname,
@@ -121,7 +123,7 @@ module.exports = async function calculateScores() {
         await safeQuery(
           pool,
           `
-          INSERT INTO swiss_scores (user_id, stage, displayname, points)
+          INSERT INTO swiss_scores (guild_id, user_id, stage, displayname, points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             displayname = VALUES(displayname),
@@ -154,8 +156,8 @@ module.exports = async function calculateScores() {
   try {
     const [playoffsResultsRows] = await safeQuery(
       pool,
-      `SELECT * FROM playoffs_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
-      [],
+      `SELECT * FROM playoffs_results WHERE guild_id = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
+      [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select playoffs_results' }
     );
 
@@ -174,8 +176,8 @@ module.exports = async function calculateScores() {
 
       const [playoffsPredictions] = await safeQuery(
         pool,
-        `SELECT * FROM playoffs_predictions WHERE active = 1`,
-        [],
+        `SELECT * FROM playoffs_predictions WHERE guild_id = ? AND active = 1`,
+        [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select playoffs_predictions' }
       );
 
@@ -184,10 +186,11 @@ module.exports = async function calculateScores() {
         `
         SELECT user_id, displayname
         FROM playoffs_predictions
-        WHERE displayname IS NOT NULL
+        WHERE guild_id = ?
+          AND displayname IS NOT NULL
           AND displayname != ''
         `,
-        [],
+        [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'preload playoffs displaynames' }
       );
 
@@ -215,6 +218,7 @@ module.exports = async function calculateScores() {
         if (pred.third_place_winner === correctPlayoffs.correct_third_place_winner) score += 2;
 
         playoffsScoreRows.push([
+          guildId,
           user_id,
           displayname,
           score,
@@ -225,7 +229,7 @@ module.exports = async function calculateScores() {
         await safeQuery(
           pool,
           `
-          INSERT INTO playoffs_scores (user_id, displayname, points)
+          INSERT INTO playoffs_scores (guild_id, user_id, displayname, points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             displayname = VALUES(displayname),
@@ -257,8 +261,8 @@ module.exports = async function calculateScores() {
   try {
     const [doubleResultsRows] = await safeQuery(
       pool,
-      `SELECT * FROM doubleelim_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
-      [],
+      `SELECT * FROM doubleelim_results WHERE guild_id = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
+      [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_results' }
     );
 
@@ -278,8 +282,12 @@ module.exports = async function calculateScores() {
         JOIN (
           SELECT user_id, MAX(submitted_at) AS ms
           FROM doubleelim_predictions
+          WHERE guild_id = ?
           GROUP BY user_id
-        ) last ON last.user_id = p.user_id AND last.ms = p.submitted_at
+          ) last
+           ON last.user_id = p.user_id
+          AND last.ms = p.submitted_at
+          WHERE p.guild_id = ?
         `,
         [],
         { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_predictions' }
@@ -290,10 +298,11 @@ module.exports = async function calculateScores() {
         `
         SELECT user_id, displayname
         FROM doubleelim_predictions
-        WHERE displayname IS NOT NULL
+        WHERE guild_id = ?
+          AND displayname IS NOT NULL
           AND displayname != ''
         `,
-        [],
+        [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'preload doubleelim displaynames' }
       );
 
@@ -325,6 +334,7 @@ module.exports = async function calculateScores() {
         });
 
         doubleElimScoreRows.push([
+          guildId,
           user_id,
           displayname,
           score,
@@ -335,7 +345,7 @@ module.exports = async function calculateScores() {
         await safeQuery(
           pool,
           `
-          INSERT INTO doubleelim_scores (user_id, displayname, points)
+          INSERT INTO doubleelim_scores (guild_id, user_id, displayname, points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             displayname = VALUES(displayname),
@@ -367,8 +377,8 @@ module.exports = async function calculateScores() {
   try {
     const [playinResultsRows] = await safeQuery(
       pool,
-      `SELECT * FROM playin_results WHERE active = 1 ORDER BY id DESC LIMIT 1`,
-      [],
+      `SELECT * FROM playin_results WHERE guild_id = ? and ACTIVE = 1 ORDER BY id DESC LIMIT 1`,
+      [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select playin_results' }
     );
 
@@ -382,7 +392,7 @@ module.exports = async function calculateScores() {
 
       const [playinPredictions] = await safeQuery(
         pool,
-        `SELECT * FROM playin_predictions WHERE active = 1`,
+        `SELECT * FROM playin_predictions WHERE guild_id = ? AND active = 1`,
         [],
         { guildId, scope: 'cron:calculateScores', label: 'select playin_predictions' }
       );
@@ -392,10 +402,11 @@ module.exports = async function calculateScores() {
         `
         SELECT user_id, displayname
         FROM playin_predictions
-        WHERE displayname IS NOT NULL
+        WHERE guild_id = ?
+        AND displayname IS NOT NULL
           AND displayname != ''
         `,
-        [],
+        [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'preload playin displaynames' }
       );
 
@@ -419,6 +430,7 @@ module.exports = async function calculateScores() {
         });
 
         playinScoreRows.push([
+          guildId,
           user_id,
           displayname,
           score,
@@ -429,7 +441,7 @@ module.exports = async function calculateScores() {
         await safeQuery(
           pool,
           `
-          INSERT INTO playin_scores (user_id, displayname, points)
+          INSERT INTO playin_scores (guild_id, user_id, displayname, points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             displayname = VALUES(displayname),
@@ -467,10 +479,12 @@ module.exports = async function calculateScores() {
         r.res_a, r.res_b,
         r.exact_a, r.exact_b
       FROM matches m
-      JOIN match_results r ON r.match_id = m.id
-      ORDER BY m.id ASC
+      JOIN match_results r
+        ON r.match_id = m.id
+        AND r.guild_id = m.guild_id
+      WHERE m.guild_id = ?
       `,
-      [],
+      [guildId],
       { guildId, scope: 'cron:calculateScores', label: 'select matches with results' }
     );
 
@@ -487,9 +501,10 @@ module.exports = async function calculateScores() {
         `
         SELECT match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
         FROM match_predictions
-        WHERE match_id IN (?)
+        WHERE guild_id = ?
+          AND match_id IN (?)
         `,
-        [matchIds],
+        [guildId, matchIds],
         { guildId, scope: 'cron:calculateScores', label: 'select match_predictions bulk' }
       );
 
@@ -515,7 +530,7 @@ module.exports = async function calculateScores() {
             exactB: m.exact_b ?? null
           });
 
-          matchPointRows.push([m.match_id, p.user_id, pts]);
+          matchPointRows.push([guildId, m.match_id, p.user_id, pts]);
         }
       }
 
@@ -523,7 +538,7 @@ module.exports = async function calculateScores() {
         await safeQuery(
           pool,
           `
-          INSERT INTO match_points (match_id, user_id, points)
+          INSERT INTO match_points (guild_id, match_id, user_id, points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             points = VALUES(points),

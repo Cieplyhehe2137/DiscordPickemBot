@@ -1,4 +1,4 @@
-const pool = require('../db');
+const db = require('../db');
 const logger = require('../logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
@@ -15,6 +15,7 @@ const uniq = (arr) => Array.from(new Set(arr));
 const cache = new Map();
 
 async function loadTeamsFromDB(guildId) {
+  const pool = db.getPoolForGuild(guildId);
   const [rows] = await pool.query(
     `SELECT name
      FROM teams
@@ -143,6 +144,7 @@ module.exports = async (interaction) => {
     }
 
     try {
+      const pool = db.getPoolForGuild(guildId);
       await pool.query(
         `INSERT INTO doubleelim_predictions
          (guild_id, user_id, username, displayname,
@@ -153,7 +155,8 @@ module.exports = async (interaction) => {
            lower_final_a = VALUES(lower_final_a),
            upper_final_b = VALUES(upper_final_b),
            lower_final_b = VALUES(lower_final_b),
-           displayname   = VALUES(displayname)`,
+           displayname   = VALUES(displayname),
+           submitted_at = CURRENT_TIMESTAMP`,
         [
           guildId,
           userId,

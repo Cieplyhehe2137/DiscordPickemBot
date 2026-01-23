@@ -92,13 +92,16 @@ module.exports = {
 
       // 🔎 znajdź aktywny panel dla fazy(+etapu) (nie zakładaj, że komenda jest odpalana w tym samym kanale!)
       const [rows] = await pool.query(
-        `SELECT id, channel_id, message_id
-         FROM active_panels
-         WHERE phase = ? AND stage <=> ? AND active = 1
-         ORDER BY id DESC
-         LIMIT 1`,
-        [phase, stage]
-      );
+  `SELECT id, channel_id, message_id
+   FROM active_panels
+   WHERE guild_id = ?
+     AND phase = ?
+     AND stage <=> ?
+     AND active = 1
+   ORDER BY id DESC
+   LIMIT 1`,
+  [guildId, phase, stage]
+);
 
       const row = rows?.[0];
       if (!row?.message_id || !row?.channel_id) {
@@ -121,9 +124,10 @@ module.exports = {
         if (code === 10008) {
           await pool.query(
             `UPDATE active_panels
-             SET active = 0, closed = 1, closed_at = NOW()
-             WHERE id = ?`,
-            [row.id]
+SET active = 0, closed = 1, closed_at = NOW()
+WHERE id = ? AND guild_id = ?
+`,
+            [row.id, guildId]
           );
 
           return interaction.reply({
@@ -152,16 +156,18 @@ module.exports = {
 
       // 📝 UPSERT: zapisz deadline (do kanału panelu, nie do kanału komendy!)
       await pool.query(
-        `INSERT INTO active_panels (phase, stage, channel_id, message_id, deadline, reminded, closed, active)
-         VALUES (?, ?, ?, ?, ?, 0, 0, 1)
-         ON DUPLICATE KEY UPDATE
-           deadline = VALUES(deadline),
-           reminded = 0,
-           closed = 0,
-           active = 1,
-           channel_id = VALUES(channel_id),
-           message_id = VALUES(message_id)`,
-        [phase, stage, panelChannel.id, message.id, deadlineUTC]
+        `INSERT INTO active_panels
+        (guild_id, phase, stage, channel_id, message_id, deadline, reminded, closed, active)
+        VALUES(?, ?, ?, ?, ?, ?, 0, 0, 1)
+        ON DUPLICATE KEY UPDATE
+  deadline = VALUES(deadline),
+  reminded = 0,
+  closed = 0,
+  active = 1,
+  channel_id = VALUES(channel_id),
+  message_id = VALUES(message_id)
+`,
+        [guildId, phase, stage, panelChannel.id, message.id, deadlineUTC]
       );
 
       // 🕒 ustaw/odśwież footer z czasem do deadline
@@ -186,8 +192,8 @@ module.exports = {
         await message.edit({ embeds: [closedEmbed], components: [disabledRow] });
 
         await pool.query(
-          `UPDATE active_panels SET closed = 1 WHERE id = ?`,
-          [row.id]
+          `UPDATE active_panels SET closed = 1 WHERE id = ? AND guild_id = ?`,
+          [row.id, guildId]
         );
 
         return interaction.reply({ ephemeral: true, content: '🔒 Deadline już minął – panel zamknięty.' });

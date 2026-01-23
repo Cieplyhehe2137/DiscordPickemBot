@@ -2,7 +2,19 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFl
 const pool = require('../db.js');
 
 module.exports = async (interaction) => {
-  if (!interaction.isStringSelectMenu()) return;
+  if (!interaction.deferred && !interaction.replied) {
+  await interaction.deferReply({ ephemeral: true });
+}
+const perms = interaction.memberPermissions;
+if (
+  !perms?.has(PermissionFlagsBits.ManageGuild) &&
+  !perms?.has(PermissionFlagsBits.Administrator)
+) {
+  return interaction.editReply({
+    content: '🚫 Nie masz uprawnień do utworzenia panelu.'
+  });
+}
+
 
   const raw = interaction.values[0]; // np. swiss_stage_1
   const stage = raw.replace('swiss_stage_', 'stage'); // stage1
@@ -43,17 +55,19 @@ module.exports = async (interaction) => {
     });
 
     await pool.query(
-      `INSERT INTO active_panels (phase, stage, message_id, channel_id, reminded, closed)
-       VALUES (?, ?, ?, ?, false, false)
-       ON DUPLICATE KEY UPDATE
-         message_id = VALUES(message_id),
-         channel_id = VALUES(channel_id),
-         reminded = false,
-         closed = false`,
-      [phase, stage, sentMessage.id, sentMessage.channel.id]
+      `INSERT INTO active_panels
+      (guild_id, phase, stage, message_id, channel_id, reminded, closed, active)
+      VALUES (?, ?, ?, ?, ?, false, false, 1)
+      ON DUPLICATE KEY UPDATE
+        message_id = VALUES(message_id),
+        channel_id = VALUES(channel_id),
+        reminded = false,
+        closed = false,
+        active = 1`,
+        [interaction.guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
     );
 
-    await interaction.reply({
+    await interaction.editReply({
       content:
         canMentionEveryone
           ? `✅ Wysłano panel Swiss (${stage.toUpperCase()}) z pingiem **@everyone**.`
@@ -63,7 +77,7 @@ module.exports = async (interaction) => {
   } catch (err) {
     console.error('Błąd wysyłania panelu Swiss:', err);
     if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌ Nie udało się wysłać panelu.', ephemeral: true });
+      await interaction.editReply({ content: '❌ Nie udało się wysłać panelu.', ephemeral: true });
     }
   }
 };

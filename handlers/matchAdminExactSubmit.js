@@ -1,6 +1,6 @@
 // handlers/matchAdminExactSubmit.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const pool = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 
@@ -11,11 +11,11 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getDefaults(matchId, maxMaps, mapNo) {
+async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
   if (maxMaps === 1) {
     const [[r]] = await pool.query(
-      `SELECT exact_a, exact_b FROM match_results WHERE match_id=? LIMIT 1`,
-      [matchId]
+      `SELECT exact_a, exact_b FROM match_results WHERE guild_id = ? AND match_id = ? LIMIT 1`,
+      [guildId, matchId]
     );
     return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
   }
@@ -23,8 +23,9 @@ async function getDefaults(matchId, maxMaps, mapNo) {
   const [[r]] = await pool.query(
     `SELECT exact_a, exact_b
      FROM match_map_results
-     WHERE match_id=? AND map_no=? LIMIT 1`,
-    [matchId, mapNo]
+     WHERE guild_id = ?
+     AND match_id= ? AND map_no= ? LIMIT 1`,
+    [guildId, matchId, mapNo]
   );
   return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
 }
@@ -59,6 +60,7 @@ function buildModal(match, maxMaps, mapNo, defaults) {
 }
 
 module.exports = async function matchAdminExactSubmit(interaction) {
+  const pool = db.getPoolForGuild(interaction.guildId);
   try {
     const ctx = adminState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
@@ -70,8 +72,8 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     }
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of FROM matches WHERE id=? LIMIT 1`,
-      [ctx.matchId]
+      `SELECT id, team_a, team_b, best_of FROM matches WHERE id=? AND guild_id = ? LIMIT 1`,
+      [ctx.matchId, interaction.guildId]
     );
     if (!match) return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
 
@@ -83,18 +85,18 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     if (maxMaps === 1) {
       // BO1 – zapis do match_results
       await pool.query(
-        `INSERT INTO match_results (match_id, res_a, res_b, exact_a, exact_b)
-         VALUES (?, NULL, NULL, ?, ?)
+        `INSERT INTO match_results (guild_id, match_id, res_a, res_b, exact_a, exact_b)
+         VALUES (?, ?, NULL, NULL, ?, ?)
          ON DUPLICATE KEY UPDATE exact_a=VALUES(exact_a), exact_b=VALUES(exact_b)`,
-        [match.id, exactA, exactB]
+        [interaction.guildId, match.id, exactA, exactB]
       );
     } else {
       // BO3/BO5 – zapis per mapa
       await pool.query(
-        `INSERT INTO match_map_results (match_id, map_no, exact_a, exact_b)
+        `INSERT INTO match_map_results (guild_id, match_id, map_no, exact_a, exact_b)
          VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE exact_a=VALUES(exact_a), exact_b=VALUES(exact_b), updated_at=CURRENT_TIMESTAMP`,
-        [match.id, mapNo, exactA, exactB]
+        [interaction.guildId, match.id, mapNo, exactA, exactB]
       );
     }
 
@@ -104,7 +106,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
       const nextMapNo = mapNo + 1;
       adminState.set(interaction.guildId, interaction.user.id, { ...ctx, mapNo: nextMapNo });
 
-      const defaults = await getDefaults(match.id, maxMaps, nextMapNo);
+      const defaults = await getDefaults(pool, interaction.guildId, match.id, maxMaps, nextMapNo);
       const modal = buildModal(match, maxMaps, nextMapNo, defaults);
 
       try {
