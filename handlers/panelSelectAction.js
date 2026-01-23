@@ -68,14 +68,15 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       });
     }
 
-    const proxied = proxyCustomId(interaction, targetCustomId);
+    // 🔒 ZABEZPIECZENIE INTERAKCJI (NAJWAŻNIEJSZE)
+if (!interaction.deferred && !interaction.replied) {
+  await interaction.deferReply({ ephemeral: true });
+}
 
-    // ✅ BEZ withGuild
-    await handler(proxied, client);
+const proxied = proxyCustomId(interaction, targetCustomId);
 
-    if (!interaction.replied) {
-      await interaction.deferUpdate();
-    }
+// dalej normalnie
+await handler(proxied, client);
 
   } catch (err) {
     logger.error('panel', 'panelSelectAction failed', {
