@@ -1,5 +1,4 @@
 // handlers/deadlineReminder.js
-const pool = require('../db.js');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { DateTime } = require('luxon');
 const logger = require('../utils/logger.js');
@@ -101,7 +100,7 @@ function startDeadlineReminder(client, guildId) {
   setInterval(async () => {
     try {
       // ✅ Użyj withGuild aby zapewnić właściwy kontekst bazy danych
-      await withGuild(guildId, async () => {
+      await withGuild(guildId, async (pool) => {
         const [panels] = await pool.query(
           `SELECT phase, stage, channel_id, message_id, deadline, reminded
            FROM active_panels
