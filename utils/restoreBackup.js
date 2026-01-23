@@ -165,7 +165,6 @@ function getDbConfig(guildId) {
 
 async function clearGuildData(connection, guildId) {
   const tables = [
-    'active_panels',
     'matches',
 
     'swiss_predictions',
@@ -195,6 +194,20 @@ async function clearGuildData(connection, guildId) {
 // =====================================================
 // EXECUTION HELPERS
 // =====================================================
+
+
+
+function shouldSkipStatement(s) {
+  const t = s.trim().toUpperCase();
+
+  if (t.includes('INSERT INTO `ACTIVE_PANELS`')) return true;
+  if (t.startsWith('LOCK TABLES')) return true;
+  if (t.startsWith('UNLOCK TABLES')) return true;
+  if (t.startsWith('START TRANSACTION')) return true;
+  if (t === 'COMMIT') return true;
+
+  return false;
+}
 
 function sanitizeActivePanelsInsert(sql) {
   if (!/INSERT\s+INTO\s+`?active_panels`?/i.test(sql)) {
