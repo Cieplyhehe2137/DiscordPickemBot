@@ -165,7 +165,7 @@ module.exports = async (interaction) => {
   const stage = interaction.customId.split(':')[1];
 
   if (!stage) {
-    return interaction.reply({
+    return interaction.editReply({
       content: '❌ Brak etapu Swiss (stage).',
       ephemeral: true
     });
