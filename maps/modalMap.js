@@ -6,5 +6,6 @@ module.exports = {
   // ===== TEAMS MANAGER =====
   'teams:add_modal': 'teamsAddSubmit',
   'teams:rename_modal': 'teamsRenameSubmit',
-  'teams:import_modal': 'teamsImportSubmit'
+  'teams:import_modal': 'teamsImportSubmit',
+  'teams:add:submit': 'teamsAddSubmit'
 }
