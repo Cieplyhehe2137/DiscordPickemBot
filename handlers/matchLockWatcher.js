@@ -33,7 +33,6 @@ function startMatchLockWatcher(client, guildId) {
 
     try {
       await withGuild(guildId, async (pool) => {
-        const pool = db.getPoolForGuild(guildId);
         const lockBeforeSec = getLockBeforeSec();
 
         const timeCond =
