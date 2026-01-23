@@ -96,7 +96,7 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 
 
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
-  const { getGuildId } = require('../utils/guildContext');
+  
   const logger = require('../utils/logger');
 
   // ✅ Walidacja: upewnij się, że jesteśmy w kontekście guilda

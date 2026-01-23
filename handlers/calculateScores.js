@@ -1,5 +1,4 @@
 const db = require('../db');
-const { getGuildId } = require('../utils/guildContext');
 const logger = require('../utils/logger');
 const { safeQuery } = require('../utils/safeQuery');
 const { computeTotalPoints } = require('../utils/matchScoring'); // ✅
