@@ -1,8 +1,14 @@
 let presenceStarted = false;
+let presenceInterval = null;
 
 module.exports = (client) => {
   if (presenceStarted) return;
   presenceStarted = true;
+
+  if (!client?.user) {
+    console.warn('[presence] client.user not ready, skipping presence setup');
+    return;
+  }
 
   const activities = [
     "Sprawdza twoje typy Pick'Em 🎯",
@@ -19,20 +25,26 @@ module.exports = (client) => {
     "😎 Pewniaczki Seby"
   ];
 
-  let i = 0;
+  // losowy start
+  let i = Math.floor(Math.random() * activities.length);
 
-  // ustaw od razu, nie czekaj 30s
-  client.user.setPresence({
-    activities: [{ name: activities[0], type: 4 }],
-    status: 'online'
-  });
+  const setStatus = (text) => {
+    try {
+      client.user.setPresence({
+        activities: [{ name: text, type: 4 }], // Custom status
+        status: 'online',
+      });
+    } catch (err) {
+      console.warn('[presence] Failed to set presence:', err.message);
+    }
+  };
 
-  setInterval(() => {
-    const status = activities[i % activities.length];
-    client.user.setPresence({
-      activities: [{ name: status, type: 4 }],
-      status: 'online'
-    });
+  // ustaw od razu
+  setStatus(activities[i % activities.length]);
+  i++;
+
+  presenceInterval = setInterval(() => {
+    setStatus(activities[i % activities.length]);
     i++;
   }, 30_000);
 };

@@ -2,29 +2,53 @@
 //
 // Jeden, spójny logger dla całego bota.
 // - Bazuje na pino (../logger.js)
-// - Zachowuje "stary" interfejs: logger.info(scope, message, data)
-//   żeby nie trzeba było przerabiać wszystkich handlerów.
+// - Zachowuje stary interfejs: logger.info(scope, message, data)
 
 const base = require('../logger');
 
+const LEVELS = new Set(['info', 'warn', 'error', 'debug']);
+
+function normalizeError(err) {
+  if (!(err instanceof Error)) return err;
+  return {
+    err: {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    },
+  };
+}
+
 function normalizeData(data) {
   if (!data) return undefined;
+
   if (data instanceof Error) {
-    return { err: { message: data.message, stack: data.stack, name: data.name } };
+    return normalizeError(data);
   }
+
   return data;
 }
 
 function log(level, scope, message, data) {
+  const lvl = LEVELS.has(level) ? level : 'info';
+  const scp = scope ? String(scope) : 'app';
+
+  // przypadek: logger.error('x', err)
+  if (message instanceof Error) {
+    const extra = normalizeError(message);
+    return base[lvl]({ scope: scp, ...extra }, message.message);
+  }
+
   const extra = normalizeData(data);
-  // pino: logger.info(obj, msg)
-  if (extra) return base[level]({ scope, ...extra }, message);
-  return base[level]({ scope }, message);
+
+  if (extra) {
+    return base[lvl]({ scope: scp, ...extra }, message);
+  }
+
+  return base[lvl]({ scope: scp }, message);
 }
 
 module.exports = {
-  // zgodne z dotychczasowym użyciem w plikach typu:
-  // logger.info('interaction', '... ', { a: 1 })
   info(scope, message, data) {
     log('info', scope, message, data);
   },
@@ -35,10 +59,14 @@ module.exports = {
     log('error', scope, message, data);
   },
   debug(scope, message, data) {
-    // debug tylko jeśli pino ma level debug
     log('debug', scope, message, data);
   },
 
-  // opcjonalnie: dostęp do surowego pino (np. logger.raw.child(...))
+  // 🔥 bardzo przydatne przy większych modułach
+  child(ctx = {}) {
+    return base.child(ctx);
+  },
+
+  // surowy pino (jak naprawdę potrzeba)
   raw: base,
 };

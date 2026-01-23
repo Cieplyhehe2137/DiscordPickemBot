@@ -14,12 +14,11 @@ module.exports = async (interaction) => {
 
   if (!interaction.guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze (nie w DM).',
+      content: '❌ Ta akcja działa tylko na serwerze.',
       ephemeral: true,
     });
   }
 
-  // Admin only
   if (!isAdmin(interaction)) {
     return interaction.reply({
       content: '❌ Brak uprawnień do użycia tego panelu.',
@@ -27,23 +26,23 @@ module.exports = async (interaction) => {
     });
   }
 
-  const pool = db.getPoolForGuild(interaction.guildId);
   const selected = interaction.values[0];
+  const pool = db.getPoolForGuild(interaction.guildId);
 
   try {
     await interaction.deferReply({ ephemeral: true });
 
-    // === SWISS ===
+    // ===== SWISS =====
     if (selected === 'swiss') {
       const embed = new EmbedBuilder()
         .setColor('Red')
         .setTitle('📌 Typowanie fazy Swiss')
         .setDescription(
           '**Typujesz:**\n' +
-            '• 🆙 **2 drużyny na 3-0**\n' +
-            '• 🆘 **2 drużyny na 0-3**\n' +
-            '• 🏅 **6 drużyn awansujących**\n\n' +
-            '🔽 Wybierz etap fazy Swiss do uruchomienia:'
+          '• 🆙 **2 drużyny na 3-0**\n' +
+          '• 🆘 **2 drużyny na 0-3**\n' +
+          '• 🏅 **6 drużyn awansujących**\n\n' +
+          '🔽 Wybierz etap fazy Swiss:'
         );
 
       const row = new ActionRowBuilder().addComponents(
@@ -51,18 +50,17 @@ module.exports = async (interaction) => {
           .setCustomId('admin_select_swiss_stage')
           .setPlaceholder('Wybierz etap Swiss...')
           .addOptions(
-            { label: 'Swiss Stage 1', value: 'swiss_stage_1' },
-            { label: 'Swiss Stage 2', value: 'swiss_stage_2' },
-            { label: 'Swiss Stage 3', value: 'swiss_stage_3' }
+            { label: 'Swiss Stage 1', value: 'swiss_stage1' },
+            { label: 'Swiss Stage 2', value: 'swiss_stage2' },
+            { label: 'Swiss Stage 3', value: 'swiss_stage3' }
           )
       );
 
-      await interaction.followUp({
+      return interaction.followUp({
         embeds: [embed],
         components: [row],
         ephemeral: true,
       });
-      return;
     }
 
     const phaseConfig = {
@@ -74,8 +72,7 @@ module.exports = async (interaction) => {
           '• 🏆 **4 półfinalistów**\n' +
           '• 🥈 **2 finalistów**\n' +
           '• 👑 **Zwycięzcę turnieju**\n' +
-          '• 🥉 **Zwycięzcę meczu o 3. miejsce (opcjonalnie)**\n\n' +
-          '🔴 **Deadline:** 15 min przed startem meczu',
+          '• 🥉 **3. miejsce (opcjonalnie)**',
         buttonId: 'open_playoffs_dropdown',
         buttonLabel: 'Typuj Playoffs',
       },
@@ -84,11 +81,10 @@ module.exports = async (interaction) => {
         title: '📌 Typowanie fazy Double Elim',
         description:
           '**Typujesz:**\n' +
-          '• 🔝 **2 drużyny z Upper Final A**\n' +
-          '• 🔻 **2 drużyny z Lower Final A**\n' +
-          '• 🔝 **2 drużyny z Upper Final B**\n' +
-          '• 🔻 **2 drużyny z Lower Final B**\n\n' +
-          '🔴 **Deadline:** 15 min przed startem meczu',
+          '• 🔝 Upper Final A (2)\n' +
+          '• 🔻 Lower Final A (2)\n' +
+          '• 🔝 Upper Final B (2)\n' +
+          '• 🔻 Lower Final B (2)',
         buttonId: 'open_doubleelim_modal',
         buttonLabel: 'Typuj Double Elim',
       },
@@ -97,8 +93,7 @@ module.exports = async (interaction) => {
         title: '📌 Typowanie fazy Play-In',
         description:
           '**Typujesz:**\n' +
-          '• 🎯 **8 drużyn, które awansują z fazy Play-In**\n\n' +
-          '🔴 **Deadline:** 15 min przed startem meczu',
+          '• 🎯 **8 drużyn awansujących**',
         buttonId: 'open_playin_dropdown',
         buttonLabel: 'Typuj Play-In',
       },
@@ -106,19 +101,10 @@ module.exports = async (interaction) => {
 
     const config = phaseConfig[selected];
     if (!config) {
-      await interaction.followUp({
+      return interaction.followUp({
         content: `❌ Nieznana faza: ${selected}`,
         ephemeral: true,
       });
-      return;
-    }
-
-    if (!interaction.channel) {
-      await interaction.followUp({
-        content: '❌ Nie można wysłać panelu — brak kanału.',
-        ephemeral: true,
-      });
-      return;
     }
 
     const embed = new EmbedBuilder()
@@ -126,7 +112,7 @@ module.exports = async (interaction) => {
       .setTitle(config.title)
       .setDescription(config.description);
 
-    const componentRow = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(config.buttonId)
         .setLabel(config.buttonLabel)
@@ -137,31 +123,31 @@ module.exports = async (interaction) => {
         .setStyle(ButtonStyle.Success)
     );
 
-    const message = await interaction.channel.send({
+    const msg = await interaction.channel.send({
       embeds: [embed],
-      components: [componentRow],
+      components: [row],
     });
 
     await pool.query(
       `
-        INSERT INTO active_panels (phase, channel_id, message_id)
-        VALUES (?, ?, ?)
-        ON DUPLICATE KEY UPDATE channel_id=VALUES(channel_id), message_id=VALUES(message_id)
+      INSERT INTO active_panels (guild_id, phase, channel_id, message_id)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        channel_id = VALUES(channel_id),
+        message_id = VALUES(message_id)
       `,
-      [selected, interaction.channel.id, message.id]
+      [interaction.guildId, selected, interaction.channel.id, msg.id]
     );
 
-    await interaction.followUp({
-      content: `✅ Panel dla fazy \`${selected}\` został opublikowany.`,
-      ephemeral: true,
+    await interaction.editReply({
+      content: `✅ Panel dla fazy **${selected}** został opublikowany.`,
     });
+
   } catch (err) {
     console.error('[select_pickem_phase]', err);
-
-    if (!interaction.replied) {
-      await interaction.reply({
+    if (interaction.deferred) {
+      await interaction.editReply({
         content: '❌ Wystąpił błąd podczas publikowania panelu.',
-        ephemeral: true,
       });
     }
   }

@@ -1,6 +1,6 @@
 // handlers/matchAdminPhaseSelect.js
-const { ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const pool = require('../db');
+const { ActionRowBuilder, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
+const db = require('../db');
 const logger = require('../utils/logger');
 
 function safeLabel(str) {
@@ -9,35 +9,80 @@ function safeLabel(str) {
   return s.length > 100 ? s.slice(0, 97) + '…' : s;
 }
 
+function hasAdminPerms(interaction) {
+  const perms = interaction.memberPermissions;
+  return perms?.has(PermissionFlagsBits.Administrator) ||
+         perms?.has(PermissionFlagsBits.ManageGuild);
+}
+
 module.exports = async function matchAdminPhaseSelect(interaction) {
-  const phase = interaction.values?.[0];
-  if (!phase) return interaction.update({ content: '❌ Nie wybrano fazy.', components: [] });
-
   try {
-    const [rows] = await pool.query(
-      `
-      SELECT
-        m.id, m.phase, m.match_no, m.team_a, m.team_b, m.best_of,
-        r.res_a, r.res_b
-      FROM matches m
-      LEFT JOIN match_results r ON r.match_id = m.id
-      WHERE m.phase = ?
-      ORDER BY COALESCE(m.match_no, 999999) ASC, m.id ASC
-      `,
-      [phase]
-    );
+    if (!interaction.guildId) {
+      return interaction.reply({
+        content: '❌ Ta akcja działa tylko na serwerze.',
+        ephemeral: true
+      });
+    }
 
-    if (!rows.length) {
+    if (!hasAdminPerms(interaction)) {
+      return interaction.reply({
+        content: '❌ Brak uprawnień.',
+        ephemeral: true
+      });
+    }
+
+    const phase = interaction.values?.[0];
+    if (!phase) {
       return interaction.update({
-        content: `ℹ️ Brak meczów w bazie dla fazy **${phase}**.\nDodaj je przyciskiem **➕ Dodaj mecz** w panelu.`,
+        content: '❌ Nie wybrano fazy.',
         components: []
       });
     }
 
-    // Discord limit: 25 opcji na select => pokaż max 25 (na start)
+    const pool = db.getPoolForGuild(interaction.guildId);
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        m.id,
+        m.phase,
+        m.match_no,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        r.res_a,
+        r.res_b
+      FROM matches m
+      LEFT JOIN match_results r
+        ON r.match_id = m.id
+       AND r.guild_id = m.guild_id
+      WHERE m.guild_id = ?
+        AND m.phase = ?
+      ORDER BY COALESCE(m.match_no, 999999) ASC, m.id ASC
+      `,
+      [interaction.guildId, phase]
+    );
+
+    if (!rows.length) {
+      return interaction.update({
+        content:
+          `ℹ️ Brak meczów w bazie dla fazy **${phase}**.\n` +
+          `Dodaj je przyciskiem **➕ Dodaj mecz** w panelu.`,
+        components: []
+      });
+    }
+
+    // Discord limit: max 25 opcji
     const options = rows.slice(0, 25).map(m => {
-      const score = (m.res_a === null || m.res_b === null) ? '—' : `${m.res_a}:${m.res_b}`;
-      const label = `#${m.match_no ?? '?'} ${m.team_a} vs ${m.team_b} (BO${m.best_of}) [${score}]`;
+      const score =
+        (m.res_a === null || m.res_b === null)
+          ? '—'
+          : `${m.res_a}:${m.res_b}`;
+
+      const label =
+        `#${m.match_no ?? '?'} ${m.team_a} vs ${m.team_b} ` +
+        `(BO${m.best_of}) [${score}]`;
+
       return {
         label: safeLabel(label),
         value: String(m.id),
@@ -56,8 +101,16 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
       content: `🎯 **Wyniki meczów** — faza: **${phase}**\nWybierz mecz:`,
       components: [row]
     });
-  } catch (e) {
-    logger?.error?.('matches', 'matchAdminPhaseSelect failed', { message: e.message, stack: e.stack });
-    return interaction.update({ content: '❌ Błąd przy pobieraniu meczów z bazy.', components: [] });
+
+  } catch (err) {
+    logger.error('matches', 'matchAdminPhaseSelect failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.update({
+      content: '❌ Błąd przy pobieraniu meczów z bazy.',
+      components: []
+    });
   }
 };

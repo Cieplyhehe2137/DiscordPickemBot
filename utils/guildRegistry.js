@@ -1,4 +1,3 @@
-// utils/guildRegistry.js
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
@@ -13,9 +12,8 @@ function _configDir() {
 
 function _listEnvFiles() {
   const configDir = _configDir();
-
-  // opcjonalnie: ręczna lista plików (po przecinku)
   const explicit = (process.env.GUILD_ENV_FILES || '').trim();
+
   let files = [];
 
   if (explicit) {
@@ -34,21 +32,31 @@ function _listEnvFiles() {
   return files.filter(f => fs.existsSync(f));
 }
 
+function _normalize(cfg) {
+  return {
+    ...cfg,
+    GUILD_ID: String(cfg.GUILD_ID).trim(),
+    DB_PORT: cfg.DB_PORT ? String(cfg.DB_PORT).trim() : '3306',
+  };
+}
+
 function _validate(cfg, filePath) {
   const required = [
     'GUILD_ID',
-    'DB_HOST', 'DB_USER', 'DB_PASS', 'DB_NAME',
-    'EXPORT_PANEL_CHANNEL_ID',
-    'ARCHIVE_CHANNEL_ID',
-    // LOG_CHANNEL_ID możesz zostawić jako required jeśli wszędzie używasz
-    // 'LOG_CHANNEL_ID',
+    'DB_HOST',
+    'DB_USER',
+    'DB_PASS',
+    'DB_NAME',
   ];
 
   const missing = required.filter(k => !cfg[k] || !String(cfg[k]).trim());
   if (missing.length) {
     const where = filePath ? ` (${path.basename(filePath)})` : '';
-    throw new Error(`Brak kluczy w configu guild${where}: ${missing.join(', ')}`);
+    throw new Error(
+      `Brak wymaganych kluczy w configu guild${where}: ${missing.join(', ')}`
+    );
   }
+
   return cfg;
 }
 
@@ -58,46 +66,49 @@ function loadGuildConfigsOnce() {
   const files = _listEnvFiles();
   const map = {};
 
-  // fallback single-guild (legacy)
+  // fallback single-guild
   if (!files.length) {
     if (process.env.GUILD_ID && process.env.DB_NAME) {
-      const cfg = _validate({
-        GUILD_ID: String(process.env.GUILD_ID),
+      const cfg = _normalize(_validate({
+        GUILD_ID: process.env.GUILD_ID,
         DB_HOST: process.env.DB_HOST,
-        DB_PORT: process.env.DB_PORT || '3306',
+        DB_PORT: process.env.DB_PORT,
         DB_USER: process.env.DB_USER,
-        DB_PASS: process.env.DB_PASS || process.env.DB_PASSWORD, // ✅ TU JEST FIX
+        DB_PASS: process.env.DB_PASS || process.env.DB_PASSWORD,
         DB_NAME: process.env.DB_NAME,
         EXPORT_PANEL_CHANNEL_ID: process.env.EXPORT_PANEL_CHANNEL_ID,
         ARCHIVE_CHANNEL_ID: process.env.ARCHIVE_CHANNEL_ID,
         LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID,
         PREDICTIONS_CHANNEL_ID: process.env.PREDICTIONS_CHANNEL_ID,
         SWISS_PREDICTIONS_CHANNEL_ID: process.env.SWISS_PREDICTIONS_CHANNEL_ID,
-      }, '.env');
+      }, '.env'));
 
-      map[String(cfg.GUILD_ID)] = cfg;
+      map[cfg.GUILD_ID] = cfg;
       _configsByGuild = map;
       _loaded = true;
       return _configsByGuild;
     }
 
-    throw new Error('Nie znaleziono config/*.env i brak fallbacku z root .env');
+    throw new Error(
+      `Nie znaleziono configów guild.\n` +
+      `Sprawdzono: ${_configDir()}/*.env oraz root .env`
+    );
   }
 
   for (const filePath of files) {
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = dotenv.parse(raw);
 
-    // aliasy / kompatybilność nazw
     parsed.DB_PASS = parsed.DB_PASS || parsed.DB_PASSWORD;
 
-    const cfg = _validate(parsed, filePath);
-    cfg.GUILD_ID = String(cfg.GUILD_ID).trim();
-    cfg.DB_PORT = cfg.DB_PORT ? String(cfg.DB_PORT).trim() : '3306';
+    const cfg = _normalize(_validate(parsed, filePath));
     cfg.__file = filePath;
 
     if (map[cfg.GUILD_ID]) {
-      throw new Error(`Duplikat GUILD_ID=${cfg.GUILD_ID} w: ${filePath} oraz ${map[cfg.GUILD_ID].__file}`);
+      throw new Error(
+        `Duplikat GUILD_ID=${cfg.GUILD_ID}\n` +
+        `- ${filePath}\n- ${map[cfg.GUILD_ID].__file}`
+      );
     }
 
     map[cfg.GUILD_ID] = cfg;

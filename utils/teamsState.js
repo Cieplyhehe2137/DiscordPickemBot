@@ -1,8 +1,20 @@
 // utils/teamsState.js
 const state = new Map();
 
+const DEFAULT_USER_STATE = () => ({
+  selectedTeamIds: [],
+  selectedTeamId: null, // legacy
+  page: 0,
+  teams: null,
+});
+
+function normalizeId(id, name) {
+  if (!id) throw new Error(`teamsState: missing ${name}`);
+  return String(id);
+}
+
 function ensureGuild(guildId) {
-  const gid = String(guildId);
+  const gid = normalizeId(guildId, 'guildId');
   if (!state.has(gid)) state.set(gid, {});
   return state.get(gid);
 }
@@ -11,18 +23,13 @@ function ensureGuild(guildId) {
  * Stan usera w danej guildii
  */
 function getState(guildId, userId) {
-  const gid = String(guildId);
-  const uid = String(userId);
+  const gid = normalizeId(guildId, 'guildId');
+  const uid = normalizeId(userId, 'userId');
 
   const guildState = ensureGuild(gid);
 
   if (!guildState[uid]) {
-    guildState[uid] = {
-      selectedTeamIds: [],
-      selectedTeamId: null, // legacy
-      page: 0,
-      teams: null
-    };
+    guildState[uid] = DEFAULT_USER_STATE();
   }
 
   return guildState[uid];
@@ -51,18 +58,26 @@ function clearSelection(guildId, userId) {
  * Unieważnia cache drużyn (jeśli gdzieś cachujesz listę)
  */
 function invalidateTeams(guildId) {
-  const gid = String(guildId);
-  if (!state.has(gid)) return;
-
+  const gid = normalizeId(guildId, 'guildId');
   const guildState = state.get(gid);
+  if (!guildState) return;
+
   for (const uid of Object.keys(guildState)) {
     guildState[uid].teams = null;
   }
 }
 
 /**
- * Legacy API dla starych handlerów:
- * teamsState.get(gid, uid) / teamsState.set(gid, uid, data)
+ * (opcjonalne, ale polecam)
+ * Czyści cały stan danej guildii
+ */
+function resetGuild(guildId) {
+  const gid = normalizeId(guildId, 'guildId');
+  state.delete(gid);
+}
+
+/**
+ * Legacy API
  */
 function get(guildId, userId) {
   return getState(guildId, userId);
@@ -76,6 +91,7 @@ module.exports = {
   setState,
   clearSelection,
   invalidateTeams,
+  resetGuild, // ⬅️ nowy, ale nie psuje nic
   get,
-  set
+  set,
 };

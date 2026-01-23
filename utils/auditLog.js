@@ -1,6 +1,19 @@
-const db = require("../db.js");
-const { withGuild } = require("./guildContext.js");
-const { ensureTournamentAuditLog } = require("./ensureTournamentTables.js");
+// utils/logTournamentAction.js
+const db = require('../db');
+const logger = require('./logger');
+const { ensureTournamentAuditLog } = require('./ensureTournamentTables');
+
+function normalize(val) {
+  if (val === undefined) return null;
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+}
 
 async function logTournamentAction({
   guildId,
@@ -11,18 +24,35 @@ async function logTournamentAction({
 }) {
   if (!guildId || !actorId || !action) return;
 
-  return withGuild(guildId, async () => {
+  try {
     const pool = db.getPoolForGuild(guildId);
 
     await ensureTournamentAuditLog(pool);
 
     await pool.query(
-      `INSERT INTO tournament_audit_log
-       (guild_id, actor_discord_id, action, old_value, new_value)
-       VALUES (?, ?, ?, ?, ?)`,
-      [guildId, actorId, action, oldValue, newValue]
+      `
+      INSERT INTO tournament_audit_log
+        (guild_id, actor_discord_id, action, old_value, new_value)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        guildId,
+        actorId,
+        action,
+        normalize(oldValue),
+        normalize(newValue),
+      ]
     );
-  });
+  } catch (err) {
+    // ❗ audit log NIE MOŻE wysypać głównej operacji
+    logger.error('audit', 'logTournamentAction failed', {
+      guildId,
+      actorId,
+      action,
+      message: err.message,
+      stack: err.stack,
+    });
+  }
 }
 
 module.exports = { logTournamentAction };

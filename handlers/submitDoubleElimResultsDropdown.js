@@ -1,9 +1,12 @@
 // handlers/submitDoubleElimResultsDropdown.js
+
 const db = require('../db');
-const logger = require('../logger');
+const logger = require('../utils/logger');
+const { PermissionFlagsBits } = require('discord.js');
 
 // cache per guild + admin
-// key: `${guildId}:${adminId}`
+// key: `${guildId}:${adminId}` -> { data, ts }
+const CACHE_TTL_MS = 15 * 60 * 1000;
 const adminCache = new Map();
 
 const ID_MAP = {
@@ -13,12 +16,27 @@ const ID_MAP = {
   official_doubleelim_lower_final_b: 'lower_final_b',
 };
 
+function isAdmin(interaction) {
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+}
+
+function getCache(key) {
+  const entry = adminCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    adminCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  adminCache.set(key, { data, ts: Date.now() });
+}
+
 async function loadTeams(pool, guildId) {
   const [rows] = await pool.query(
-    `SELECT name
-     FROM teams
-     WHERE guild_id = ?
-       AND active = 1`,
+    `SELECT name FROM teams WHERE guild_id = ? AND active = 1`,
     [guildId]
   );
   return rows.map(r => String(r.name));
@@ -28,152 +46,169 @@ module.exports = async (interaction) => {
   try {
     if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
 
+    // ===== guards =====
     const guildId = interaction.guildId;
+    if (!guildId) {
+      return interaction.reply({
+        content: '❌ Ta akcja działa tylko na serwerze.',
+        ephemeral: true
+      });
+    }
+
+    if (!isAdmin(interaction)) {
+      return interaction.reply({
+        content: '⛔ Tylko administracja może ustawiać oficjalne wyniki.',
+        ephemeral: true
+      });
+    }
+
     const adminId = interaction.user.id;
     const username = interaction.user.username;
     const cacheKey = `${guildId}:${adminId}`;
 
     const pool = db.getPoolForGuild(guildId);
 
-    if (!adminCache.has(cacheKey)) {
-      adminCache.set(cacheKey, {
+    let selection = getCache(cacheKey);
+    if (!selection) {
+      selection = {
         upper_final_a: [],
         lower_final_a: [],
         upper_final_b: [],
         lower_final_b: [],
-      });
+      };
+      setCache(cacheKey, selection);
     }
-
-    const selection = adminCache.get(cacheKey);
 
     // ===============================
     // SELECT – wybór drużyn
     // ===============================
     if (interaction.isStringSelectMenu() && ID_MAP[interaction.customId]) {
       const key = ID_MAP[interaction.customId];
-      const values = Array.isArray(interaction.values) ? interaction.values.map(String) : [];
+      const values = Array.from(new Set((interaction.values || []).map(String)));
 
-      selection[key] = Array.from(new Set(values));
-      adminCache.set(cacheKey, selection);
+      // backend guard
+      if (values.length > 2) {
+        return interaction.reply({
+          content: '⚠️ Możesz wybrać maksymalnie **2** drużyny.',
+          ephemeral: true
+        });
+      }
 
-      logger.info(
-        `[Double Elim Results] ${username} (${adminId}) [${guildId}] wybrał ${key}: ${selection[key].join(', ')}`
-      );
+      selection[key] = values;
+      setCache(cacheKey, selection);
 
-      await interaction.deferUpdate();
+      logger.debug('doubleelim_results', 'slot updated', {
+        guildId,
+        adminId,
+        key,
+        values
+      });
+
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate().catch(() => {});
+      }
       return;
     }
 
     // ===============================
     // BUTTON – zatwierdzenie wyników
     // ===============================
-    if (interaction.isButton() && interaction.customId === 'confirm_official_doubleelim') {
+    if (!interaction.isButton() || interaction.customId !== 'confirm_official_doubleelim') return;
+
+    if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ ephemeral: true });
-
-      const teams = await loadTeams(pool, guildId);
-      const isKnown = (t) => teams.includes(String(t));
-
-      const upper_final_a = selection.upper_final_a || [];
-      const lower_final_a = selection.lower_final_a || [];
-      const upper_final_b = selection.upper_final_b || [];
-      const lower_final_b = selection.lower_final_b || [];
-
-      const all = [
-        ...upper_final_a,
-        ...lower_final_a,
-        ...upper_final_b,
-        ...lower_final_b
-      ];
-
-      if (!all.length) {
-        return interaction.editReply('⚠️ Nic nie wybrano – dodaj przynajmniej jedną drużynę.');
-      }
-
-      if (new Set(all).size !== all.length) {
-        return interaction.editReply('⚠️ Te same drużyny nie mogą wystąpić w więcej niż jednym slocie.');
-      }
-
-      const invalid = all.filter(t => !isKnown(t));
-      if (invalid.length) {
-        return interaction.editReply(`⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`);
-      }
-
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
-
-        // ❗ dezaktywujemy TYLKO dla tego guilda
-        await conn.query(
-          `UPDATE doubleelim_results
-           SET active = 0
-           WHERE guild_id = ? AND active = 1`,
-          [guildId]
-        );
-
-        const [res] = await conn.query(
-          `INSERT INTO doubleelim_results
-           (guild_id, upper_final_a, lower_final_a, upper_final_b, lower_final_b, active, created_at)
-           VALUES (?, ?, ?, ?, ?, 1, NOW())`,
-          [
-            guildId,
-            upper_final_a.length ? upper_final_a.join(', ') : null,
-            lower_final_a.length ? lower_final_a.join(', ') : null,
-            upper_final_b.length ? upper_final_b.join(', ') : null,
-            lower_final_b.length ? lower_final_b.join(', ') : null,
-          ]
-        );
-
-        await conn.commit();
-        adminCache.delete(cacheKey);
-
-        logger.info('[Double Elim Results] ✔ Zapisano oficjalne wyniki', {
-          guildId,
-          adminId,
-          insertId: res.insertId
-        });
-
-        const mk = (arr) => (arr && arr.length ? arr.join(', ') : '—');
-        const full =
-          upper_final_a.length === 2 &&
-          lower_final_a.length === 2 &&
-          upper_final_b.length === 2 &&
-          lower_final_b.length === 2;
-
-        return interaction.editReply(
-          (full
-            ? '✅ Zapisano **komplet** oficjalnych wyników Double Elimination.\n'
-            : '💾 Zapisano **częściowe** oficjalne wyniki Double Elimination.\n') +
-          `UFA: ${mk(upper_final_a)} | LFA: ${mk(lower_final_a)} | ` +
-          `UFB: ${mk(upper_final_b)} | LFB: ${mk(lower_final_b)}`
-        );
-      } catch (e) {
-        await conn.rollback();
-        logger.error('[Double Elim Results] ❌ DB error', {
-          guildId,
-          adminId,
-          message: e?.sqlMessage || e?.message,
-          stack: e?.stack
-        });
-        return interaction.editReply(`❌ Błąd zapisu wyników: ${e.sqlMessage || e.message}`);
-      } finally {
-        conn.release();
-      }
     }
-  } catch (err) {
-    logger.error('[Double Elim Results] top-level error', err);
+
+    const teams = await loadTeams(pool, guildId);
+    const isKnown = (t) => teams.includes(t);
+
+    const {
+      upper_final_a = [],
+      lower_final_a = [],
+      upper_final_b = [],
+      lower_final_b = []
+    } = selection;
+
+    const all = [
+      ...upper_final_a,
+      ...lower_final_a,
+      ...upper_final_b,
+      ...lower_final_b
+    ];
+
+    if (!all.length) {
+      return interaction.editReply('⚠️ Nie wybrano żadnych drużyn.');
+    }
+
+    if (new Set(all).size !== all.length) {
+      return interaction.editReply(
+        '⚠️ Te same drużyny nie mogą wystąpić w więcej niż jednym slocie.'
+      );
+    }
+
+    const invalid = all.filter(t => !isKnown(t));
+    if (invalid.length) {
+      return interaction.editReply(
+        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
+      );
+    }
+
+    const conn = await pool.getConnection();
     try {
-      if (interaction.isRepliable()) {
-        if (!interaction.deferred && !interaction.replied) {
-          await interaction.reply({
-            content: '❌ Wystąpił błąd podczas zapisu wyników Double Elimination.',
-            ephemeral: true
-          });
-        } else if (interaction.deferred && !interaction.replied) {
-          await interaction.editReply({
-            content: '❌ Wystąpił błąd podczas zapisu wyników Double Elimination.'
-          });
-        }
-      }
-    } catch (_) {}
+      await conn.beginTransaction();
+
+      await conn.query(
+        `UPDATE doubleelim_results
+         SET active = 0
+         WHERE guild_id = ? AND active = 1`,
+        [guildId]
+      );
+
+      await conn.query(
+        `INSERT INTO doubleelim_results
+         (guild_id, upper_final_a, lower_final_a, upper_final_b, lower_final_b, active, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, NOW())`,
+        [
+          guildId,
+          upper_final_a.join(', ') || null,
+          lower_final_a.join(', ') || null,
+          upper_final_b.join(', ') || null,
+          lower_final_b.join(', ') || null,
+        ]
+      );
+
+      await conn.commit();
+      adminCache.delete(cacheKey);
+
+      logger.info('doubleelim_results', 'official results saved', {
+        guildId,
+        adminId
+      });
+
+      const mk = (arr) => arr.length ? arr.join(', ') : '—';
+
+      return interaction.editReply(
+        `✅ Zapisano oficjalne wyniki Double Elimination:\n` +
+        `UFA: ${mk(upper_final_a)} | LFA: ${mk(lower_final_a)}\n` +
+        `UFB: ${mk(upper_final_b)} | LFB: ${mk(lower_final_b)}`
+      );
+    } catch (e) {
+      await conn.rollback();
+      logger.error('doubleelim_results', 'DB error', {
+        guildId,
+        adminId,
+        message: e.message,
+        stack: e.stack
+      });
+      return interaction.editReply(`❌ Błąd zapisu wyników.`);
+    } finally {
+      conn.release();
+    }
+
+  } catch (err) {
+    logger.error('doubleelim_results', 'top-level error', {
+      message: err.message,
+      stack: err.stack
+    });
   }
 };

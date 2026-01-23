@@ -40,18 +40,24 @@ function startMatchLockWatcher(client, guildId) {
             ? `start_time_utc <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? SECOND)`
             : `start_time_utc <= UTC_TIMESTAMP()`;
 
-        const params = lockBeforeSec > 0 ? [lockBeforeSec] : [];
+        const params =
+          lockBeforeSec > 0
+            ? [guildId, lockBeforeSec]
+            : [guildId];
 
-        // 1) kandydaci do locka
+        // 1️⃣ kandydaci do locka — GUILD SAFE
         const [rows] = await safeQuery(
           pool,
-          `SELECT id, panel_channel_id, panel_message_id
-           FROM matches
-           WHERE is_locked = 0
-             AND start_time_utc IS NOT NULL
-             AND ${timeCond}
-           ORDER BY start_time_utc ASC
-           LIMIT 50`,
+          `
+          SELECT id, panel_channel_id, panel_message_id
+          FROM matches
+          WHERE guild_id = ?
+            AND is_locked = 0
+            AND start_time_utc IS NOT NULL
+            AND ${timeCond}
+          ORDER BY start_time_utc ASC
+          LIMIT 50
+          `,
           params,
           {
             guildId,
@@ -63,13 +69,17 @@ function startMatchLockWatcher(client, guildId) {
         if (!rows.length) return;
 
         for (const m of rows) {
-          // 2) race-safe lock
+          // 2️⃣ race-safe lock (guild-safe)
           const [res] = await safeQuery(
             pool,
-            `UPDATE matches
-             SET is_locked = 1
-             WHERE id = ? AND is_locked = 0`,
-            [m.id],
+            `
+            UPDATE matches
+            SET is_locked = 1
+            WHERE id = ?
+              AND guild_id = ?
+              AND is_locked = 0
+            `,
+            [m.id, guildId],
             {
               guildId,
               scope: 'cron:matchLockWatcher',
@@ -85,7 +95,7 @@ function startMatchLockWatcher(client, guildId) {
             lockBeforeSec,
           });
 
-          // 3) UI lock
+          // 3️⃣ UI lock
           if (!m.panel_channel_id || !m.panel_message_id) continue;
 
           try {

@@ -1,18 +1,30 @@
-// utils/guildContext.js
 const db = require('../db');
 
-async function withGuild(source, fn) {
-  // source może być: interaction ALBO string guildId
-  const guildId =
-    typeof source === 'string'
-      ? source
-      : source?.guildId;
 
-  if (!guildId) {
-    throw new Error('Brak guildId (DM albo błąd interakcji)');
+async function withGuild(source, fn) {
+  let guildId = null;
+
+  if (typeof source === 'string') {
+    guildId = source;
+  } else if (source?.guildId) {
+    guildId = source.guildId;
   }
 
+  if (!guildId) {
+    throw new Error(
+      `[withGuild] Brak guildId (DM / nieprawidłowe źródło): ${JSON.stringify(
+        source
+      )}`
+    );
+  }
+
+  guildId = String(guildId);
+
   const pool = db.getPoolForGuild(guildId);
+  if (!pool) {
+    throw new Error(`[withGuild] Brak poola DB dla guildId=${guildId}`);
+  }
+
   return fn(pool, guildId);
 }
 

@@ -2,13 +2,30 @@
 const db = require('../db');
 const logger = require('../logger');
 
-// GLOBAL CACHE per guild + admin
-if (!global._resultsPlayoffsCache) global._resultsPlayoffsCache = {};
-const cache = global._resultsPlayoffsCache;
+/* ===============================
+   CACHE (TTL, per guild + admin)
+=============================== */
+const CACHE_TTL = 15 * 60 * 1000; // 15 min
+const cache = new Map(); // key = `${guildId}:${adminId}`
 
-// ===============================
-// DB helpers
-// ===============================
+function getCache(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  cache.set(key, { ts: Date.now(), data });
+}
+
+/* ===============================
+   DB HELPERS
+=============================== */
 async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(
     `SELECT name
@@ -51,10 +68,10 @@ async function getCurrentPlayoffs(pool, guildId) {
   };
 }
 
-// ===============================
-// utils
-// ===============================
-function cleanList(arr = []) {
+/* ===============================
+   UTILS
+=============================== */
+function uniqueCaseInsensitive(arr = []) {
   const seen = new Set();
   return arr.filter(v => {
     const k = String(v).toLowerCase();
@@ -64,52 +81,49 @@ function cleanList(arr = []) {
   });
 }
 
-// cap = 1 → replace, reszta → merge z limitem
-function pickOrKeep(baseArr, addArr, cap) {
-  baseArr = baseArr || [];
-
+// cap = 1 → replace, >1 → merge z limitem
+function pickOrKeep(base = [], add = [], cap) {
   if (cap === 1) {
-    const pick = addArr?.length ? String(addArr.at(-1)) : baseArr[0];
+    const pick = add?.length ? String(add.at(-1)) : base[0];
     return { ok: true, merged: pick ? [pick] : [] };
   }
 
-  if (addArr?.length) {
-    const merged = cleanList([...baseArr, ...addArr]);
+  if (add?.length) {
+    const merged = uniqueCaseInsensitive([...base, ...add]);
     if (merged.length > cap) {
       return { ok: false, err: `Limit ${cap} (jest ${merged.length})` };
     }
     return { ok: true, merged };
   }
 
-  return { ok: true, merged: baseArr };
+  return { ok: true, merged: base };
 }
 
-// ===============================
-// HANDLER
-// ===============================
+/* ===============================
+   HANDLER
+=============================== */
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
 
   const guildId = interaction.guildId;
   const adminId = interaction.user.id;
   const username = interaction.user.username;
+  const cacheKey = `${guildId}:${adminId}`;
 
   const pool = db.getPoolForGuild(guildId);
+  const local = getCache(cacheKey) || {};
 
-  if (!cache[guildId]) cache[guildId] = {};
-  if (!cache[guildId][adminId]) cache[guildId][adminId] = {};
-
-  const local = cache[guildId][adminId];
-
-  // ===============================
-  // DROPDOWNS
-  // ===============================
+  /* ===============================
+     DROPDOWNS
+  =============================== */
   if (
     interaction.isStringSelectMenu() &&
     interaction.customId.startsWith('results_playoffs_')
   ) {
     const type = interaction.customId.replace('results_playoffs_', '');
     local[type] = interaction.values;
+
+    setCache(cacheKey, local);
 
     logger.info(
       `[Playoffs Results] ${username} (${adminId}) [${guildId}] ${type}: ${interaction.values.join(', ')}`
@@ -119,9 +133,9 @@ module.exports = async (interaction) => {
     return;
   }
 
-  // ===============================
-  // CONFIRM
-  // ===============================
+  /* ===============================
+     CONFIRM
+  =============================== */
   if (interaction.isButton() && interaction.customId === 'confirm_playoffs_results') {
     await interaction.deferReply({ ephemeral: true });
 
@@ -158,18 +172,21 @@ module.exports = async (interaction) => {
     if (invalid.length)
       return interaction.editReply(`⚠️ Nieznane drużyny: ${invalid.join(', ')}`);
 
-    // ===============================
-    // DB SAVE
-    // ===============================
+    /* ===============================
+       DB SAVE (TRANSAKCJA)
+    =============================== */
+    const conn = await pool.getConnection();
     try {
-      await pool.query(
+      await conn.beginTransaction();
+
+      await conn.query(
         `UPDATE playoffs_results
          SET active = 0
          WHERE guild_id = ?`,
         [guildId]
       );
 
-      await pool.query(
+      await conn.query(
         `INSERT INTO playoffs_results
           (guild_id, correct_semifinalists, correct_finalists,
            correct_winner, correct_third_place_winner, active)
@@ -183,8 +200,8 @@ module.exports = async (interaction) => {
         ]
       );
 
-      delete cache[guildId][adminId];
-      if (!Object.keys(cache[guildId]).length) delete cache[guildId];
+      await conn.commit();
+      cache.delete(cacheKey);
 
       return interaction.editReply(
         `✅ Zapisano wyniki Playoffs:\n` +
@@ -194,8 +211,11 @@ module.exports = async (interaction) => {
         `• 🥉: ${mThird.merged.join(', ') || '—'}`
       );
     } catch (err) {
+      await conn.rollback();
       logger.error('[Playoffs Results] DB error', err);
       return interaction.editReply('❌ Błąd zapisu wyników.');
+    } finally {
+      conn.release();
     }
   }
 };

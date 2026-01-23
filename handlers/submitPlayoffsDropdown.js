@@ -6,25 +6,39 @@ const logger = require('../utils/logger');
 const sendPredictionEmbed = require('../utils/sendPredictionEmbeds');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
+const CACHE_TTL = 15 * 60 * 1000; // 15 min
+
+function getCache(client, guildId, userId) {
+  const g = client._playoffsCache?.[guildId]?.[userId];
+  if (!g) return null;
+  if (Date.now() - g.ts > CACHE_TTL) {
+    delete client._playoffsCache[guildId][userId];
+    return null;
+  }
+  return g.data;
+}
+
+function setCache(client, guildId, userId, data) {
+  if (!client._playoffsCache) client._playoffsCache = {};
+  if (!client._playoffsCache[guildId]) client._playoffsCache[guildId] = {};
+  client._playoffsCache[guildId][userId] = {
+    ts: Date.now(),
+    data
+  };
+}
+
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
 
-  const { user, customId, values } = interaction;
+  const { user, customId } = interaction;
   const userId = user.id;
   const username = user.username;
   const displayName = interaction.member?.displayName || username;
   const guildId = interaction.guildId;
 
-  /* ===============================
-     CACHE (per guild + user)
-     =============================== */
-  if (!interaction.client._playoffsCache) interaction.client._playoffsCache = {};
-  if (!interaction.client._playoffsCache[guildId]) interaction.client._playoffsCache[guildId] = {};
-  if (!interaction.client._playoffsCache[guildId][userId]) {
-    interaction.client._playoffsCache[guildId][userId] = {};
-  }
+  if (!guildId) return;
 
-  const cache = interaction.client._playoffsCache[guildId][userId];
+  let cache = getCache(interaction.client, guildId, userId) || {};
 
   /* ===============================
      SELECT MENUS
@@ -32,10 +46,16 @@ module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu()) {
     if (!customId.startsWith('playoffs_')) return;
 
+    const values = Array.isArray(interaction.values)
+      ? interaction.values.map(String)
+      : [];
+
     let type = customId.slice('playoffs_'.length);
-    if (type === 'third_place_winner') type = 'third';
+    if (type === 'third_place') type = 'third';
 
     cache[type] = values;
+
+    setCache(interaction.client, guildId, userId, cache);
 
     logger.debug('submit', 'Playoffs dropdown updated', {
       guildId,
@@ -44,7 +64,7 @@ module.exports = async (interaction) => {
       values
     });
 
-    await interaction.deferUpdate();
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
@@ -56,23 +76,22 @@ module.exports = async (interaction) => {
   await interaction.deferReply({ ephemeral: true });
 
   await withGuild(interaction, async (db, guildId) => {
-    /* ===============================
-       GATE
-       =============================== */
     const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYOFFS' });
     if (!gate.allowed) {
-      return interaction.editReply(
-        gate.message || '❌ Typowanie jest aktualnie zamknięte.'
-      );
+      return interaction.editReply(gate.message || '❌ Typowanie zamknięte.');
     }
 
-    const picks = cache || {};
+    const picks = getCache(interaction.client, guildId, userId) || {};
     const thirdPick = picks.third || [];
 
     /* ===============================
        WALIDACJA KOMPLETNOŚCI
        =============================== */
-    if (!picks.semifinalists || !picks.finalists || !picks.winner) {
+    if (
+      !Array.isArray(picks.semifinalists) ||
+      !Array.isArray(picks.finalists) ||
+      !Array.isArray(picks.winner)
+    ) {
       return interaction.editReply(
         '❌ Wybierz półfinalistów, finalistów oraz zwycięzcę.'
       );
@@ -85,26 +104,32 @@ module.exports = async (interaction) => {
       thirdPick.length > 1
     ) {
       return interaction.editReply(
-        `⚠️ Nieprawidłowa liczba drużyn:\n` +
-        `• półfinaliści (${picks.semifinalists.length}/4)\n` +
-        `• finaliści (${picks.finalists.length}/2)\n` +
-        `• zwycięzca (${picks.winner.length}/1)`
+        '⚠️ Nieprawidłowa liczba drużyn w jednym z etapów.'
       );
     }
 
     /* ===============================
-       WALIDACJA UNIKALNOŚCI
+       WALIDACJA LOGIKI DRABINKI
        =============================== */
-    const allSelected = [
-      ...picks.semifinalists,
-      ...picks.finalists,
-      picks.winner[0],
-      ...(thirdPick[0] ? [thirdPick[0]] : [])
-    ];
+    const winner = picks.winner[0];
 
-    if (new Set(allSelected).size !== allSelected.length) {
+    if (!picks.finalists.includes(winner)) {
       return interaction.editReply(
-        '⚠️ Ta sama drużyna nie może wystąpić więcej niż raz.'
+        '⚠️ Zwycięzca musi być jednym z finalistów.'
+      );
+    }
+
+    for (const f of picks.finalists) {
+      if (!picks.semifinalists.includes(f)) {
+        return interaction.editReply(
+          '⚠️ Finaliści muszą pochodzić z półfinalistów.'
+        );
+      }
+    }
+
+    if (thirdPick[0] && [winner, ...picks.finalists].includes(thirdPick[0])) {
+      return interaction.editReply(
+        '⚠️ 3. miejsce nie może być finalistą ani zwycięzcą.'
       );
     }
 
@@ -113,19 +138,20 @@ module.exports = async (interaction) => {
        =============================== */
     const [rows] = await safeQuery(
       db,
-      `
-      SELECT name
-      FROM teams
-      WHERE guild_id = ?
-        AND active = 1
-      `,
+      `SELECT name FROM teams WHERE guild_id = ? AND active = 1`,
       [guildId],
       { guildId, scope: 'submitPlayoffs', label: 'load teams' }
     );
 
-    const allowedTeams = rows.map(r => r.name);
-    const invalid = allSelected.filter(t => !allowedTeams.includes(t));
+    const allowed = new Set(rows.map(r => r.name));
+    const all = [
+      ...picks.semifinalists,
+      ...picks.finalists,
+      winner,
+      ...(thirdPick[0] ? [thirdPick[0]] : [])
+    ];
 
+    const invalid = all.filter(t => !allowed.has(t));
     if (invalid.length) {
       return interaction.editReply(
         `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
@@ -133,13 +159,8 @@ module.exports = async (interaction) => {
     }
 
     /* ===============================
-       ZAPIS DO DB (STRINGI)
+       ZAPIS DO DB
        =============================== */
-    const semifinalistsStr = picks.semifinalists.join(', ');
-    const finalistsStr = picks.finalists.join(', ');
-    const winnerStr = picks.winner[0];
-    const thirdStr = thirdPick[0] || null;
-
     await safeQuery(
       db,
       `
@@ -148,48 +169,36 @@ module.exports = async (interaction) => {
          semifinalists, finalists, winner, third_place_winner, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
       ON DUPLICATE KEY UPDATE
-        semifinalists      = VALUES(semifinalists),
-        finalists          = VALUES(finalists),
-        winner             = VALUES(winner),
+        semifinalists = VALUES(semifinalists),
+        finalists = VALUES(finalists),
+        winner = VALUES(winner),
         third_place_winner = VALUES(third_place_winner),
-        displayname        = VALUES(displayname),
-        active             = 1,
-        submitted_at       = CURRENT_TIMESTAMP
+        displayname = VALUES(displayname),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
       `,
       [
         guildId,
         userId,
         username,
         displayName,
-        semifinalistsStr,
-        finalistsStr,
-        winnerStr,
-        thirdStr
+        picks.semifinalists.join(', '),
+        picks.finalists.join(', '),
+        winner,
+        thirdPick[0] || null
       ],
       { guildId, scope: 'submitPlayoffs', label: 'upsert playoffs_predictions' }
     );
 
-    /* ===============================
-       CLEANUP CACHE
-       =============================== */
     delete interaction.client._playoffsCache[guildId][userId];
-    if (!Object.keys(interaction.client._playoffsCache[guildId]).length) {
-      delete interaction.client._playoffsCache[guildId];
-    }
 
-    logger.info('submit', 'Playoffs predictions saved', {
-      guildId,
-      userId
-    });
+    logger.info('submit', 'Playoffs predictions saved', { guildId, userId });
 
-    /* ===============================
-       PODSUMOWANIE (EMBED)
-       =============================== */
     await sendPredictionEmbed(interaction.client, guildId, 'playoffs', userId, {
       semifinalists: picks.semifinalists,
       finalists: picks.finalists,
-      winner: winnerStr,
-      third_place_winner: thirdStr
+      winner,
+      third_place_winner: thirdPick[0] || null
     });
 
     return interaction.editReply(

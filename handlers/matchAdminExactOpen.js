@@ -1,8 +1,32 @@
-// handlers/matchAdminExactOpen.js
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const pool = require('../db');
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  PermissionFlagsBits
+} = require('discord.js');
+
+const db = require('../db');
 const logger = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
+
+// ===== GUARDS =====
+function requireGuild(interaction) {
+  if (!interaction.guildId) {
+    interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    }).catch(() => {});
+    return false;
+  }
+  return true;
+}
+
+function hasAdminPerms(interaction) {
+  const perms = interaction.memberPermissions;
+  return perms?.has(PermissionFlagsBits.Administrator) ||
+         perms?.has(PermissionFlagsBits.ManageGuild);
+}
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -11,12 +35,16 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getDefaults(matchId, maxMaps, mapNo) {
+// ===== DEFAULTS (GUILD-SAFE) =====
+async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
   try {
     if (maxMaps === 1) {
       const [[r]] = await pool.query(
-        `SELECT exact_a, exact_b FROM match_results WHERE match_id=? LIMIT 1`,
-        [matchId]
+        `SELECT exact_a, exact_b
+         FROM match_results
+         WHERE match_id = ? AND guild_id = ?
+         LIMIT 1`,
+        [matchId, guildId]
       );
       return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
     }
@@ -24,18 +52,26 @@ async function getDefaults(matchId, maxMaps, mapNo) {
     const [[r]] = await pool.query(
       `SELECT exact_a, exact_b
        FROM match_map_results
-       WHERE match_id=? AND map_no=? LIMIT 1`,
-      [matchId, mapNo]
+       WHERE match_id = ?
+         AND guild_id = ?
+         AND map_no = ?
+       LIMIT 1`,
+      [matchId, guildId, mapNo]
     );
     return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
-  } catch (e) {
+  } catch {
     return { a: '', b: '' };
   }
 }
 
 module.exports = async function matchAdminExactOpen(interaction) {
   try {
-    const ctx = adminState.get(interaction.guildId, interaction.user.id);
+    if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
+
+    const guildId = interaction.guildId;
+    const pool = db.getPoolForGuild(guildId);
+
+    const ctx = adminState.get(guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
         content: '❌ Brak wybranego meczu. Wybierz najpierw mecz z listy.',
@@ -44,34 +80,44 @@ module.exports = async function matchAdminExactOpen(interaction) {
     }
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of FROM matches WHERE id=? LIMIT 1`,
-      [ctx.matchId]
+      `SELECT id, team_a, team_b, best_of
+       FROM matches
+       WHERE id = ? AND guild_id = ?
+       LIMIT 1`,
+      [ctx.matchId, guildId]
     );
 
     if (!match) {
-      adminState.clear(interaction.guildId, interaction.user.id);
-      return interaction.reply({ content: '❌ Ten mecz nie istnieje już w bazie.', ephemeral: true });
+      adminState.clear(guildId, interaction.user.id);
+      return interaction.reply({
+        content: '❌ Ten mecz nie istnieje lub nie należy do tego serwera.',
+        ephemeral: true
+      });
     }
 
     const maxMaps = maxMapsFromBo(match.best_of);
 
-    // START wizard: jeśli BO3/BO5 i nie ma mapNo -> start od mapy 1
     let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 0);
-    if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
+    if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
       mapNo = 1;
-      adminState.set(interaction.guildId, interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
-    } else {
-      // odśwież ctx o pewne dane z DB (bezpiecznie)
-      adminState.set(interaction.guildId, interaction.user.id, { ...ctx, matchId: match.id, teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of, mapNo });
     }
 
-    const defaults = await getDefaults(match.id, maxMaps, mapNo);
+    adminState.set(guildId, interaction.user.id, {
+      ...ctx,
+      matchId: match.id,
+      teamA: match.team_a,
+      teamB: match.team_b,
+      bestOf: match.best_of,
+      mapNo
+    });
+
+    const defaults = await getDefaults(pool, guildId, match.id, maxMaps, mapNo);
 
     const modal = new ModalBuilder()
       .setCustomId('match_admin_exact_submit')
       .setTitle(
         maxMaps === 1
-          ? `Oficjalny dokładny wynik`
+          ? 'Oficjalny dokładny wynik'
           : `Oficjalny dokładny wynik — mapa #${mapNo}`
       );
 
@@ -95,8 +141,16 @@ module.exports = async function matchAdminExactOpen(interaction) {
     );
 
     return interaction.showModal(modal);
+
   } catch (err) {
-    logger?.error?.('matches', 'matchAdminExactOpen failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się otworzyć modala.', ephemeral: true }).catch(() => {});
+    logger.error('matches', 'matchAdminExactOpen failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.reply({
+      content: '❌ Nie udało się otworzyć modala.',
+      ephemeral: true
+    }).catch(() => {});
   }
 };

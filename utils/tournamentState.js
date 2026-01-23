@@ -1,44 +1,52 @@
-const db = require("../db.js");
-const { ensureTournamentState } = require("./ensureTournamentTables.js");
+const db = require('../db');
+const logger = require('./logger');
+const { ensureTournamentState } = require('./ensureTournamentTables');
 
-// Tabela tournament_state jest w bazie KAŻDEGO guilda (multi-guild)
+// tournament_state istnieje per-guild (multi-guild DB)
 async function getTournamentState(guildId) {
   if (!guildId) {
     return {
-      exists: false,
-      phase: "UNKNOWN",
+      ok: false,
+      phase: 'UNKNOWN',
       isOpen: false,
-      error: "Missing guildId"
+      error: 'Missing guildId',
     };
   }
 
   const pool = db.getPoolForGuild(guildId);
 
   try {
+    // self-heal
     await ensureTournamentState(pool);
 
     const [[row]] = await pool.query(
-      "SELECT phase, is_open FROM tournament_state WHERE id = 1"
+      'SELECT phase, is_open FROM tournament_state WHERE id = 1'
     );
 
     return {
-      exists: true,
-      phase: row?.phase ?? "UNKNOWN",
-      isOpen: !!row?.is_open
+      ok: true,
+      phase: row?.phase ?? 'UNKNOWN',
+      isOpen: !!row?.is_open,
     };
   } catch (err) {
+    logger.error('tournament', 'getTournamentState failed', {
+      guildId,
+      message: err.message,
+      stack: err.stack,
+    });
+
     return {
-      exists: false,
-      phase: "UNKNOWN",
+      ok: false,
+      phase: 'UNKNOWN',
       isOpen: false,
-      error: err?.message || err?.code
+      error: err.message,
     };
   }
 }
 
 async function isPredictionsOpen(guildId) {
-  const s = await getTournamentState(guildId);
-  return !!s.isOpen;
+  const state = await getTournamentState(guildId);
+  return state.ok && state.isOpen;
 }
 
 module.exports = {

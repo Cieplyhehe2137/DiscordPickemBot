@@ -3,26 +3,38 @@ const fs = require('fs');
 const path = require('path');
 const {
   ActionRowBuilder,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
+  PermissionFlagsBits
 } = require('discord.js');
 const { getGuildPaths, ensureGuildDirs } = require('../utils/guildRegistry');
-const { withGuild } = require('../utils/guildContext');
+
+function isAdmin(interaction) {
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+}
 
 function getBackupFiles(guildId) {
-  // ✅ Użyj guild-specific backup directory
   ensureGuildDirs(guildId);
   const { backupDir } = getGuildPaths(guildId);
 
   if (!fs.existsSync(backupDir)) return [];
 
   return fs.readdirSync(backupDir)
-    .filter(f => f.endsWith('.sql') || f.endsWith('.json'))
+    .filter(f =>
+      /^[\w.-]+\.(sql|json)$/.test(f) // ✅ whitelist nazw
+    )
     .sort()
     .reverse();
 }
 
 module.exports = async (interaction) => {
   if (interaction.customId !== 'restore_backup') return;
+
+  if (!isAdmin(interaction)) {
+    return interaction.reply({
+      content: '⛔ Tylko administrator może przywracać backup.',
+      ephemeral: true
+    });
+  }
 
   const guildId = interaction.guildId;
   if (!guildId) {
@@ -34,35 +46,37 @@ module.exports = async (interaction) => {
     });
   }
 
-  // ✅ defer jeśli trzeba
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  return withGuild(guildId, async () => {
-    const files = getBackupFiles(guildId);
+  const files = getBackupFiles(guildId);
 
-    if (files.length === 0) {
-      return interaction.editReply({
-        content: '❌ Brak dostępnych backupów dla tego serwera.'
-      });
-    }
-
-    const select = new StringSelectMenuBuilder()
-      .setCustomId('restore_backup_select')
-      .setPlaceholder('Wybierz backup do przywrócenia')
-      .addOptions(
-        files.slice(0, 25).map(f => ({
-          label: f,
-          value: f
-        }))
-      );
-
-    const row = new ActionRowBuilder().addComponents(select);
-
-    await interaction.editReply({
-      content: '📦 Wybierz backup do przywrócenia:',
-      components: [row]
+  if (files.length === 0) {
+    return interaction.editReply({
+      content: '❌ Brak dostępnych backupów dla tego serwera.'
     });
+  }
+
+  const visible = files.slice(0, 25);
+  const more = files.length - visible.length;
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('restore_backup_select')
+    .setPlaceholder('Wybierz backup do przywrócenia')
+    .addOptions(
+      visible.map(f => ({
+        label: f,
+        value: f
+      }))
+    );
+
+  const row = new ActionRowBuilder().addComponents(select);
+
+  return interaction.editReply({
+    content:
+      '📦 **Wybierz backup do przywrócenia**' +
+      (more > 0 ? `\n⚠️ Pokazano 25 z ${files.length} backupów.` : ''),
+    components: [row]
   });
 };

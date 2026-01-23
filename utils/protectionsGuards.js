@@ -1,51 +1,70 @@
 const { getTournamentState } = require('./tournamentState');
 
-// Mapujemy "stage1" -> "SWISS_STAGE_1"
-function swissStageToPhase(stage) {
-  const s = String(stage || '').toLowerCase();
-  if (s === 'stage1') return 'SWISS_STAGE_1';
-  if (s === 'stage2') return 'SWISS_STAGE_2';
-  if (s === 'stage3') return 'SWISS_STAGE_3';
+/* =========================
+   NORMALIZACJE
+   ========================= */
+
+function normalizePhase(phase) {
+  return String(phase || '')
+    .trim()
+    .toUpperCase()
+    .replace('-', '_');
+}
+
+function normalizeStage(stage) {
+  const s = String(stage || '').toLowerCase().trim();
+
+  if (['1', 'stage1', 'swiss1', 'swiss_1'].includes(s)) return 'STAGE1';
+  if (['2', 'stage2', 'swiss2', 'swiss_2'].includes(s)) return 'STAGE2';
+  if (['3', 'stage3', 'swiss3', 'swiss_3'].includes(s)) return 'STAGE3';
+
   return null;
 }
 
-function normalizePhase(phase) {
-  return String(phase || '').trim().toUpperCase();
+function swissStageToPhase(stage) {
+  const st = normalizeStage(stage);
+  if (st === 'STAGE1') return 'SWISS_STAGE_1';
+  if (st === 'STAGE2') return 'SWISS_STAGE_2';
+  if (st === 'STAGE3') return 'SWISS_STAGE_3';
+  return null;
 }
 
+/* =========================
+   CORE
+   ========================= */
+
 /**
- * Sprawdza czy użytkownik może typować w danym "kind".
- * Tabela tournament_state jest GLOBALNA (bez guild_id).
+ * Sprawdza czy użytkownik może typować.
+ * UWAGA: tournament_state jest GLOBALNY (bez guild_id).
  */
 async function assertPredictionsAllowed({ kind, stage }) {
-  const state = await getTournamentState(); 
+  const state = await getTournamentState();
   const phase = normalizePhase(state.phase);
 
-  // Jeśli tabela nie istnieje lub jest pusta → PRZEPUŚĆ
+  // fallback safety
   if (!state.exists) {
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // Globalny przełącznik otwarte/zamknięte
   if (!state.is_open) {
     return {
       allowed: false,
       state: { ...state, phase },
-      message: '❌ Typowanie jest aktualnie **zamknięte**.'
+      message: '❌ Typowanie jest aktualnie **zamknięte**.',
     };
   }
 
-  const k = String(kind || '').toUpperCase();
+  const k = normalizePhase(kind);
 
-  // SWISS
+  /* ===== SWISS ===== */
   if (k === 'SWISS') {
     const expected = swissStageToPhase(stage);
 
-    if (!['SWISS_STAGE_1', 'SWISS_STAGE_2', 'SWISS_STAGE_3'].includes(phase)) {
+    if (!phase.startsWith('SWISS_STAGE_')) {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza to **${phase}** — typowanie Swiss jest niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Swiss jest niedostępne.`,
       };
     }
 
@@ -53,50 +72,50 @@ async function assertPredictionsAllowed({ kind, stage }) {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Ten panel jest dla **${expected}**, a aktualna faza to **${phase}**.`
+        message: `❌ Ten panel jest dla **${expected}**, a aktualna faza to **${phase}**.`,
       };
     }
 
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // PLAYOFFS
+  /* ===== PLAYOFFS ===== */
   if (k === 'PLAYOFFS') {
     if (phase !== 'PLAYOFFS') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza to **${phase}** — typowanie Playoffs jest niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Playoffs jest niedostępne.`,
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // PLAY-IN
+  /* ===== PLAY-IN ===== */
   if (k === 'PLAYIN') {
     if (phase !== 'PLAYIN') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza to **${phase}** — typowanie Play-In jest niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Play-In jest niedostępne.`,
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // DOUBLE ELIM
-  if (['DOUBLE_ELIM', 'DOUBLEELIM', 'DOUBLE'].includes(k)) {
+  /* ===== DOUBLE ELIM ===== */
+  if (['DOUBLE', 'DOUBLEELIM', 'DOUBLE_ELIM'].includes(k)) {
     if (phase !== 'DOUBLE_ELIM') {
       return {
         allowed: false,
         state: { ...state, phase },
-        message: `❌ Aktualna faza to **${phase}** — typowanie Double Elim jest niedostępne.`
+        message: `❌ Aktualna faza to **${phase}** — typowanie Double Elim jest niedostępne.`,
       };
     }
     return { allowed: true, state: { ...state, phase } };
   }
 
-  // Domyślnie pozwalamy
+  // fallback
   return { allowed: true, state: { ...state, phase } };
 }
 

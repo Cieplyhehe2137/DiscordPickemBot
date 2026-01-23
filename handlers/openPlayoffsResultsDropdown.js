@@ -6,82 +6,112 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
-const pool = require('../db');
+const db = require('../db');
+const logger = require('../utils/logger');
 
-// ⬇️ pobieramy drużyny z BAZY, nie z JSON
 async function loadTeamsFromDB(guildId) {
+  const pool = db.getPoolForGuild(guildId);
   const [rows] = await pool.query(
-    `SELECT name FROM teams WHERE active = 1 ORDER BY name ASC`
+    `
+    SELECT name
+    FROM teams
+    WHERE guild_id = ?
+      AND active = 1
+    ORDER BY sort_order ASC, name ASC
+    `,
+    [guildId]
   );
   return rows.map(r => r.name);
 }
 
 module.exports = async (interaction) => {
-  // ⛔ NIE sprawdzamy isButton()
-  if (interaction.customId !== 'open_results_playoffs') return;
+  try {
+    if (interaction.customId !== 'open_results_playoffs') return;
 
-  const guildId = interaction.guildId;
-  const teams = await loadTeamsFromDB(guildId);
+    await interaction.deferReply({ ephemeral: true });
 
-  if (!teams.length) {
-    return interaction.followUp({
-      content: '❌ Brak aktywnych drużyn w bazie.',
-      ephemeral: true
+    const guildId = interaction.guildId;
+    const teams = await loadTeamsFromDB(guildId);
+
+    if (!teams.length) {
+      return interaction.editReply({
+        content: '❌ Brak aktywnych drużyn w bazie.'
+      });
+    }
+
+    if (teams.length > 25) {
+      return interaction.editReply({
+        content:
+          `⚠️ Jest **${teams.length} drużyn**, a Discord pozwala max **25 opcji** w dropdownie.\n` +
+          `Dodaj stronicowanie (jak w meczach).`
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Ustaw wyniki Playoffs')
+      .setDescription(
+        'Możesz **dodawać drużyny partiami** – dokładnie jak w Swiss.\n' +
+        'Dropdowny zapisują stan w bazie.'
+      )
+      .setColor('#ffcc00');
+
+    const makeOptions = () => teams.map(t => ({ label: t, value: t }));
+
+    const rows = [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('results_playoffs_semifinalists')
+          .setPlaceholder('Półfinaliści (max 4)')
+          .setMinValues(0)
+          .setMaxValues(4)
+          .addOptions(makeOptions())
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('results_playoffs_finalists')
+          .setPlaceholder('Finaliści (max 2)')
+          .setMinValues(0)
+          .setMaxValues(2)
+          .addOptions(makeOptions())
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('results_playoffs_winner')
+          .setPlaceholder('Zwycięzca')
+          .setMinValues(0)
+          .setMaxValues(1)
+          .addOptions(makeOptions())
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('results_playoffs_third_place_winner')
+          .setPlaceholder('3. miejsce (opcjonalnie)')
+          .setMinValues(0)
+          .setMaxValues(1)
+          .addOptions(makeOptions())
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('confirm_playoffs_results')
+          .setLabel('✅ Zatwierdź')
+          .setStyle(ButtonStyle.Success)
+      )
+    ];
+
+    return interaction.editReply({
+      embeds: [embed],
+      components: rows
     });
+
+  } catch (err) {
+    logger.error('playoffs', 'open_results_playoffs failed', {
+      guildId: interaction.guildId,
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.editReply({
+      content: '❌ Błąd podczas otwierania wyników Playoffs.'
+    }).catch(() => {});
   }
-
-  const embed = new EmbedBuilder()
-    .setTitle('🏆 Ustaw wyniki Playoffs')
-    .setDescription(
-      'Możesz **dodawać drużyny partiami** – dokładnie jak w Swiss.\n' +
-      'Dropdowny zapisują stan w bazie.'
-    )
-    .setColor('#ffcc00');
-
-  const rows = [
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('results_playoffs_semifinalists')
-        .setPlaceholder('Półfinaliści (max 4)')
-        .setMinValues(0)
-        .setMaxValues(4)
-        .addOptions(teams.map(t => ({ label: t, value: t })))
-    ),
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('results_playoffs_finalists')
-        .setPlaceholder('Finaliści (max 2)')
-        .setMinValues(0)
-        .setMaxValues(2)
-        .addOptions(teams.map(t => ({ label: t, value: t })))
-    ),
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('results_playoffs_winner')
-        .setPlaceholder('Zwycięzca')
-        .setMinValues(0)
-        .setMaxValues(1)
-        .addOptions(teams.map(t => ({ label: t, value: t })))
-    ),
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('results_playoffs_third_place_winner')
-        .setPlaceholder('3. miejsce (opcjonalnie)')
-        .setMinValues(0)
-        .setMaxValues(1)
-        .addOptions(teams.map(t => ({ label: t, value: t })))
-    ),
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('confirm_playoffs_results')
-        .setLabel('✅ Zatwierdź')
-        .setStyle(ButtonStyle.Success)
-    )
-  ];
-
-  return interaction.followUp({
-    embeds: [embed],
-    components: rows,
-    ephemeral: true
-  });
 };

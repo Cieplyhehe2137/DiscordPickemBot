@@ -5,33 +5,53 @@ const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-// utils
 const uniq = (arr) => Array.from(new Set(arr));
 
-// cache: `${guildId}:${userId}`
-// {
-//   upper_final_a: [],
-//   lower_final_a: [],
-//   upper_final_b: [],
-//   lower_final_b: []
-// }
+// cache: `${guildId}:${userId}` -> { data, ts }
+const CACHE_TTL_MS = 15 * 60 * 1000;
 const cache = new Map();
 
-/* ===============================
-   HANDLER
-   =============================== */
+function getCache(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCache(key, data) {
+  cache.set(key, { data, ts: Date.now() });
+}
+
+function slotLabel(k) {
+  return {
+    upper_final_a: 'Upper Final A',
+    lower_final_a: 'Lower Final A',
+    upper_final_b: 'Upper Final B',
+    lower_final_b: 'Lower Final B',
+  }[k] || k;
+}
+
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
 
   const { user, customId } = interaction;
   const userId = user.id;
   const username = user.username;
   const displayName = interaction.member?.displayName || username;
-  const guildId = interaction.guildId;
 
   const cacheKey = `${guildId}:${userId}`;
 
-  // mapowanie selectów -> klucze cache
   const selectMap = {
     doubleelim_upper_final_a: 'upper_final_a',
     doubleelim_lower_final_a: 'lower_final_a',
@@ -44,7 +64,9 @@ module.exports = async (interaction) => {
      =============================== */
   if (interaction.isStringSelectMenu()) {
     if (!selectMap[customId]) {
-      await interaction.deferUpdate();
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate().catch(() => {});
+      }
       return;
     }
 
@@ -58,11 +80,9 @@ module.exports = async (interaction) => {
       });
     }
 
-    if (!cache.has(cacheKey)) cache.set(cacheKey, {});
-    const data = cache.get(cacheKey);
-
+    const data = getCache(cacheKey) || {};
     data[key] = values.slice(0, 2);
-    cache.set(cacheKey, data);
+    setCache(cacheKey, data);
 
     logger.debug('submit', 'Double Elim dropdown updated', {
       guildId,
@@ -71,7 +91,9 @@ module.exports = async (interaction) => {
       values: data[key]
     });
 
-    await interaction.deferUpdate();
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
     return;
   }
 
@@ -80,12 +102,11 @@ module.exports = async (interaction) => {
      =============================== */
   if (!interaction.isButton() || customId !== 'confirm_doubleelim') return;
 
-  await interaction.deferReply({ ephemeral: true });
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
 
-  await withGuild(interaction, async (db, guildId) => {
-    /* ===============================
-       GATE
-       =============================== */
+  await withGuild(interaction, async (db) => {
     const gate = await assertPredictionsAllowed({
       guildId,
       kind: 'DOUBLE_ELIM'
@@ -97,7 +118,7 @@ module.exports = async (interaction) => {
       );
     }
 
-    const picks = cache.get(cacheKey) || {};
+    const picks = getCache(cacheKey) || {};
     const required = [
       'upper_final_a',
       'lower_final_a',
@@ -111,19 +132,11 @@ module.exports = async (interaction) => {
 
     if (missing.length) {
       return interaction.editReply(
-        `❌ Brakuje pełnych wyborów (po 2 drużyny) w: ${missing.join(', ')}.`
+        `❌ Brakuje wyborów w: **${missing.map(slotLabel).join(', ')}**.`
       );
     }
 
-    /* ===============================
-       WALIDACJA UNIKALNOŚCI
-       =============================== */
-    const all = [
-      ...picks.upper_final_a,
-      ...picks.lower_final_a,
-      ...picks.upper_final_b,
-      ...picks.lower_final_b
-    ];
+    const all = required.flatMap(k => picks[k]);
 
     if (new Set(all).size !== all.length) {
       return interaction.editReply(
@@ -131,9 +144,6 @@ module.exports = async (interaction) => {
       );
     }
 
-    /* ===============================
-       WALIDACJA DRUŻYN Z DB
-       =============================== */
     const [rows] = await safeQuery(
       db,
       `
@@ -151,13 +161,10 @@ module.exports = async (interaction) => {
 
     if (invalid.length) {
       return interaction.editReply(
-        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}.`
+        `⚠️ Nieaktywne lub nieznane drużyny: ${invalid.join(', ')}.`
       );
     }
 
-    /* ===============================
-       ZAPIS DO DB (STRINGI)
-       =============================== */
     await safeQuery(
       db,
       `

@@ -1,366 +1,225 @@
-// utils/validateConfig.js
-const fs = require("fs");
-const path = require("path");
-const pool = require("./db"); // mysql2/promise pool
-const { DateTime } = require("luxon");
+// utils/validateGuilds.js
+const fs = require('fs');
+const path = require('path');
+const { DateTime } = require('luxon');
 
-const REQUIRED_ENV = [
-  "DISCORD_TOKEN",
-  "CLIENT_ID",
-  "GUILD_ID",
-  "DB_HOST",
-  "DB_USER",
-  "DB_NAME",
-  "DB_PORT",
-  "EXPORT_CHANNEL_ID",
-  "LOG_CHANNEL_ID",
-  "EXPORT_PANEL_CHANNEL_ID",
-  "ADMIN_PIN",
+const db = require('../db');
+const logger = require('./logger');
+const {
+  getAllGuildIds,
+  getGuildConfig,
+} = require('./guildRegistry');
+
+/* ======================================================
+   KONFIG
+   ====================================================== */
+
+const REQUIRED_GUILD_CONFIG = [
+  'DB_HOST',
+  'DB_USER',
+  'DB_NAME',
+  'EXPORT_PANEL_CHANNEL_ID',
+  'ARCHIVE_CHANNEL_ID',
 ];
 
 const REQUIRED_TABLES = [
-  "swiss_predictions",
-  "swiss_results",
-  "swiss_scores",
-  "playoffs_predictions",
-  "playoffs_results",
-  "playoffs_scores",
-  "doubleelim_predictions",
-  "doubleelim_results",
-  "doubleelim_scores",
-  "playin_predictions",
-  "playin_results",
-  "playin_scores",
-  "active_panels",
+  'teams',
+
+  'tournament_state',
+  'tournament_audit_log',
+
+  'swiss_predictions',
+  'swiss_results',
+  'swiss_scores',
+
+  'playoffs_predictions',
+  'playoffs_results',
+  'playoffs_scores',
+
+  'doubleelim_predictions',
+  'doubleelim_results',
+  'doubleelim_scores',
+
+  'playin_predictions',
+  'playin_results',
+  'playin_scores',
+
+  'matches',
+  'match_predictions',
+  'match_results',
+  'match_points',
+
+  'active_panels',
 ];
 
-const MIN_COLUMNS = {
-  swiss_predictions: [
-    "user_id",
-    "stage",
-    "displayname",
-    "pick_3_0",
-    "pick_0_3",
-    "advancing",
-    "active",
-  ],
-  swiss_results: ["stage", "correct_3_0", "correct_0_3", "correct_advancing", "active"],
-  swiss_scores: ["user_id", "stage", "points"],
+const REQUIRED_COLUMNS = {
+  teams: ['id', 'guild_id', 'name', 'active', 'sort_order'],
 
-  playoffs_predictions: [
-    "user_id",
-    "semifinalists",
-    "finalists",
-    "winner",
-    "third_place_winner",
-    "displayname",
-    "active",
-  ],
-  // ✅ dopasowane do Twojego DDL:
-  playoffs_results: [
-    "correct_semifinalists",
-    "correct_finalists",
-    "correct_winner",
-    "correct_third_place_winner",
-    "active",
-  ],
-  playoffs_scores: ["user_id", "points"],
+  tournament_state: ['id', 'phase', 'is_open'],
+  tournament_audit_log: ['guild_id', 'actor_discord_id', 'action'],
 
-  doubleelim_predictions: [
-    "user_id",
-    "upper_final_a",
-    "lower_final_a",
-    "upper_final_b",
-    "lower_final_b",
-    "displayname",
-    "active",
-  ],
-  doubleelim_results: ["upper_final_a", "lower_final_a", "upper_final_b", "lower_final_b", "active"],
-  doubleelim_scores: ["user_id", "points"],
+  swiss_predictions: ['user_id', 'stage', 'pick_3_0', 'pick_0_3', 'advancing'],
+  swiss_results: ['stage', 'correct_3_0', 'correct_0_3', 'correct_advancing'],
+  swiss_scores: ['user_id', 'stage', 'points'],
 
-  playin_predictions: ["user_id", "teams", "displayname", "active"],
-  playin_results: ["correct_teams", "active"],
-  playin_scores: ["user_id", "points"],
+  playoffs_predictions: ['user_id', 'semifinalists', 'finalists', 'winner'],
+  playoffs_results: ['correct_semifinalists', 'correct_finalists', 'correct_winner'],
+  playoffs_scores: ['user_id', 'points'],
 
-  active_panels: ["phase", "message_id", "deadline", "reminded", "active"],
+  doubleelim_predictions: ['user_id', 'upper_final_a', 'lower_final_a'],
+  doubleelim_results: ['upper_final_a', 'lower_final_a'],
+  doubleelim_scores: ['user_id', 'points'],
+
+  playin_predictions: ['user_id', 'teams'],
+  playin_results: ['correct_teams'],
+  playin_scores: ['user_id', 'points'],
+
+  matches: ['id', 'guild_id', 'team_a', 'team_b', 'best_of'],
+  match_predictions: ['match_id', 'user_id', 'pred_a', 'pred_b'],
+  match_results: ['match_id', 'res_a', 'res_b'],
+  match_points: ['match_id', 'user_id', 'points'],
+
+  active_panels: ['phase', 'message_id', 'deadline', 'active'],
 };
 
-const MAX_DROPDOWN_OPTIONS = 25;
+/* ======================================================
+   HELPERS
+   ====================================================== */
 
-const PHASES = [
-  "swiss_stage1",
-  "swiss_stage2",
-  "swiss_stage3",
-  "playoffs",
-  "double_elim",
-  "playin",
-];
-
-function normalizeTeam(name, officials) {
-  if (!name || typeof name !== "string") return name;
-  const low = name.toLowerCase().trim();
-  for (const off of officials) {
-    if (typeof off === "string" && off.toLowerCase() === low) return off;
-  }
-  return name;
-}
-
-async function ensureTableExists(table) {
-  const [rows] = await pool.query("SHOW TABLES LIKE ?", [table]);
+async function tableExists(pool, table) {
+  const [rows] = await pool.query('SHOW TABLES LIKE ?', [table]);
   return rows.length > 0;
 }
 
-async function getColumns(table) {
+async function getColumns(pool, table) {
   const [rows] = await pool.query(`SHOW COLUMNS FROM \`${table}\``);
-  return rows.map((r) => r.Field);
+  return rows.map(r => r.Field);
 }
 
-async function distinctTeamsFromResults() {
-  const collected = new Set();
-
-  const addFrom = (val) => {
-    if (!val) return;
-    try {
-      if (typeof val === "string") {
-        if (val.trim().startsWith("[")) {
-          const arr = JSON.parse(val);
-          if (Array.isArray(arr))
-            arr.forEach((v) => typeof v === "string" && collected.add(v));
-        } else {
-          val
-            .split(",")
-            .map((s) => s.trim())
-            .forEach((v) => v && collected.add(v));
-        }
-      } else if (Array.isArray(val)) {
-        val.forEach((v) => typeof v === "string" && collected.add(v));
-      }
-    } catch {}
-  };
-
+async function checkChannel(client, guildId, channelId) {
   try {
-    const [rows] = await pool.query(
-      "SELECT correct_3_0, correct_0_3, correct_advancing FROM swiss_results WHERE active=1"
-    );
-    for (const r of rows) {
-      addFrom(r.correct_3_0);
-      addFrom(r.correct_0_3);
-      addFrom(r.correct_advancing);
+    const ch = await client.channels.fetch(channelId);
+    if (!ch) return { ok: false, reason: 'not found' };
+    if (ch.guildId && String(ch.guildId) !== String(guildId)) {
+      return { ok: false, reason: 'belongs to another guild' };
     }
-  } catch {}
-
-  try {
-    const [rows] = await pool.query(
-      "SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner FROM playoffs_results WHERE active=1"
-    );
-    for (const r of rows) {
-      addFrom(r.correct_semifinalists);
-      addFrom(r.correct_finalists);
-      addFrom(r.correct_winner);
-      addFrom(r.correct_third_place_winner);
-    }
-  } catch {}
-
-  try {
-    const [rows] = await pool.query(
-      "SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b FROM doubleelim_results WHERE active=1"
-    );
-    for (const r of rows) {
-      addFrom(r.upper_final_a);
-      addFrom(r.lower_final_a);
-      addFrom(r.upper_final_b);
-      addFrom(r.lower_final_b);
-    }
-  } catch {}
-
-  try {
-    const [rows] = await pool.query(
-      "SELECT correct_teams FROM playin_results WHERE active=1"
-    );
-    for (const r of rows) addFrom(r.correct_teams);
-  } catch {}
-
-  return Array.from(collected);
-}
-
-async function validateActivePanels() {
-  const [rows] = await pool.query("SELECT * FROM active_panels WHERE active=1");
-  return rows;
-}
-
-async function checkGuildChannels(client, ids) {
-  const results = {};
-  for (const key of Object.keys(ids)) {
-    const id = ids[key];
-    if (!id) {
-      results[key] = { ok: false, reason: "brak ID" };
-      continue;
-    }
-    try {
-      const ch = await client.channels.fetch(id);
-      results[key] = { ok: !!ch, type: ch?.type ?? "unknown" };
-    } catch (e) {
-      results[key] = { ok: false, reason: e.message || "fetch error" };
-    }
+    return { ok: true, type: ch.type };
+  } catch (e) {
+    return { ok: false, reason: e.message };
   }
-  return results;
 }
 
-module.exports = async function runValidator(client) {
+/* ======================================================
+   WALIDACJA JEDNEGO GUILDA
+   ====================================================== */
+
+async function validateGuild(client, guildId) {
   const ok = [];
   const warn = [];
   const fail = [];
-  const extraNotes = [];
 
-  let teams = [];
-  const teamsPath = path.join(__dirname, "../teams.json");
-  try {
-    const raw = fs.readFileSync(teamsPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === "string")) {
-      fail.push("teams.json: musi zawierać tablicę stringów (nazw drużyn).");
+  const cfg = getGuildConfig(guildId);
+  if (!cfg) {
+    fail.push('Brak configu guilda');
+    return { guildId, ok, warn, fail, summary: '❌ brak configu' };
+  }
+
+  // --- config
+  for (const k of REQUIRED_GUILD_CONFIG) {
+    if (!cfg[k] || !String(cfg[k]).trim()) {
+      fail.push(`Config: brak ${k}`);
+    }
+  }
+  if (!fail.length) ok.push('Config guilda: OK');
+
+  // --- channels
+  for (const key of ['EXPORT_PANEL_CHANNEL_ID', 'ARCHIVE_CHANNEL_ID']) {
+    const res = await checkChannel(client, guildId, cfg[key]);
+    if (res.ok) ok.push(`Kanał ${key}: OK`);
+    else fail.push(`Kanał ${key}: ${res.reason}`);
+  }
+
+  // --- DB
+  const pool = db.getPoolForGuild(guildId);
+
+  for (const table of REQUIRED_TABLES) {
+    const exists = await tableExists(pool, table);
+    if (!exists) {
+      fail.push(`DB: brak tabeli ${table}`);
+      continue;
+    }
+
+    ok.push(`DB: tabela ${table} istnieje`);
+
+    const mustCols = REQUIRED_COLUMNS[table];
+    if (!mustCols) continue;
+
+    const cols = await getColumns(pool, table);
+    const missing = mustCols.filter(c => !cols.includes(c));
+    if (missing.length) {
+      fail.push(`DB: ${table} brak kolumn: ${missing.join(', ')}`);
     } else {
-      teams = parsed;
-
-      const seen = new Map();
-      const dups = [];
-      for (const t of teams) {
-        const k = t.toLowerCase();
-        if (seen.has(k)) dups.push(`"${t}" ~ "${seen.get(k)}"`);
-        else seen.set(k, t);
-      }
-      if (dups.length) {
-        fail.push(`teams.json: duplikaty nazw (case-insensitive) → ${dups.join(", ")}`);
-      } else {
-        ok.push(`teams.json: ${teams.length} drużyn, brak duplikatów.`);
-      }
-
-      if (teams.length > MAX_DROPDOWN_OPTIONS) {
-        warn.push(
-          `teams.json: ${teams.length} opcji > ${MAX_DROPDOWN_OPTIONS}. Rozważ podział na kilka dropdownów/paginację.`
-        );
-      } else {
-        ok.push(`Dropdown-ready: ${teams.length} ≤ ${MAX_DROPDOWN_OPTIONS}.`);
-      }
+      ok.push(`DB: ${table} kolumny OK`);
     }
-  } catch (e) {
-    fail.push(`teams.json: błąd odczytu/parsingu – ${e.message}`);
   }
 
-  const missingEnv = REQUIRED_ENV.filter(
-    (k) => !process.env[k] || String(process.env[k]).trim() === ""
-  );
-  if (missingEnv.length) {
-    fail.push(`.env: brak zmiennych → ${missingEnv.join(", ")}`);
-  } else {
-    ok.push(".env: wszystkie kluczowe zmienne obecne.");
-  }
-
-  const channelChecks = await checkGuildChannels(client, {
-    EXPORT_CHANNEL_ID: process.env.EXPORT_CHANNEL_ID,
-    LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID,
-    EXPORT_PANEL_CHANNEL_ID: process.env.EXPORT_PANEL_CHANNEL_ID,
-  });
-  for (const [key, res] of Object.entries(channelChecks)) {
-    if (res.ok) ok.push(`Kanał ${key}: OK (typ: ${res.type})`);
-    else fail.push(`Kanał ${key}: NIEZNALAZIONY – ${res.reason || "brak"}`);
-  }
-
+  // --- active_panels sanity
   try {
-    const notFound = [];
-    for (const t of REQUIRED_TABLES) {
-      const exists = await ensureTableExists(t);
-      if (!exists) notFound.push(t);
-    }
-    if (notFound.length) {
-      fail.push(`DB: brak wymaganych tabel → ${notFound.join(", ")}`);
-    } else {
-      ok.push("DB: wszystkie wymagane tabele istnieją.");
+    const [rows] = await pool.query(
+      `SELECT phase, deadline FROM active_panels WHERE active = 1`
+    );
 
-      for (const [table, mustCols] of Object.entries(MIN_COLUMNS)) {
-        const cols = await getColumns(table);
-        const missing = mustCols.filter((c) => !cols.includes(c));
-        if (missing.length) {
-          fail.push(`DB: tabela \`${table}\` – brak kolumn: ${missing.join(", ")}`);
-        } else {
-          ok.push(`DB: \`${table}\` – minimalny zestaw kolumn OK.`);
-        }
-      }
-    }
-  } catch (e) {
-    fail.push(`DB: błąd sprawdzania schematu – ${e.message}`);
-  }
-
-  try {
-    const distinct = await distinctTeamsFromResults();
-    if (distinct.length) {
-      const officialsLower = new Set(teams.map((t) => t.toLowerCase()));
-      const notInList = distinct
-        .filter((x) => !officialsLower.has(String(x).toLowerCase()))
-        .sort((a, b) => String(a).localeCompare(String(b)));
-
-      if (notInList.length) {
-        warn.push(`Wyniki zawierają drużyny, których nie ma w teams.json → ${notInList.join(", ")}`);
-        extraNotes.push("Wskazówka: zaktualizuj teams.json lub znormalizuj aliasy przed zapisem wyników.");
-      } else {
-        ok.push("Wyniki: wszystkie drużyny znajdują się w teams.json.");
-      }
-    } else {
-      warn.push("Wyniki: brak aktywnych wpisów do porównania (OK jeśli turniej jeszcze nie trwa).");
-    }
-  } catch (e) {
-    fail.push(`Wyniki vs teams.json: błąd odczytu – ${e.message}`);
-  }
-
-  try {
-    const rows = await validateActivePanels();
-    const byPhase = new Map();
+    const byPhase = {};
     for (const r of rows) {
-      const phase = String(r.phase);
-      if (!byPhase.has(phase)) byPhase.set(phase, []);
-      byPhase.get(phase).push(r);
+      byPhase[r.phase] = (byPhase[r.phase] || 0) + 1;
+      if (!r.deadline) warn.push(`active_panels ${r.phase}: brak deadline`);
+      else if (DateTime.fromJSDate(r.deadline) < DateTime.now())
+        warn.push(`active_panels ${r.phase}: deadline w przeszłości`);
     }
 
-    for (const phase of PHASES) {
-      const arr = byPhase.get(phase) || [];
-      if (arr.length === 0) {
-        warn.push(`active_panels: faza "${phase}" nie ma aktywnego panelu (OK jeśli jeszcze nie startowała).`);
-        continue;
-      }
-      if (arr.length > 1) {
-        fail.push(`active_panels: faza "${phase}" ma >1 aktywny panel (${arr.length}) – scal/wyłącz duplikaty.`);
-      }
-
-      for (const p of arr) {
-        const dl = p.deadline ? DateTime.fromJSDate(p.deadline) : null;
-        if (!dl) {
-          fail.push(`active_panels: "${phase}" – brak deadline.`);
-        } else if (dl < DateTime.now()) {
-          warn.push(`active_panels: "${phase}" – deadline jest w przeszłości (${dl.toISO()}).`);
-        } else {
-          ok.push(`active_panels: "${phase}" – deadline OK (${dl.toISO()}).`);
-        }
-
-        if (typeof p.reminded !== "number" && typeof p.reminded !== "boolean") {
-          warn.push(`active_panels: "${phase}" – nietypowy typ kolumny reminded (${typeof p.reminded}).`);
-        }
-      }
+    for (const [phase, n] of Object.entries(byPhase)) {
+      if (n > 1) fail.push(`active_panels: ${phase} ma ${n} aktywne panele`);
     }
   } catch (e) {
-    fail.push(`active_panels: błąd weryfikacji – ${e.message}`);
+    warn.push(`active_panels: błąd sprawdzania (${e.message})`);
   }
 
-  if (teams.length > MAX_DROPDOWN_OPTIONS) {
-    warn.push(`Dropdowny: ${teams.length} > 25 – rozbij listę na kilka selectów lub dodaj paginację (np. A–L, M–Z).`);
-  } else {
-    ok.push("Dropdowny: limity opcji wyglądałyby OK dla pojedynczego selecta.");
+  const summary =
+    fail.length
+      ? `❌ ${fail.length} błędów / ⚠️ ${warn.length} ostrzeżeń / ✅ ${ok.length} OK`
+      : warn.length
+        ? `⚠️ ${warn.length} ostrzeżeń / ✅ ${ok.length} OK`
+        : `✅ Wszystko OK (${ok.length})`;
+
+  return { guildId, ok, warn, fail, summary };
+}
+
+/* ======================================================
+   PUBLIC API
+   ====================================================== */
+
+module.exports = async function validateAllGuilds(client) {
+  const reports = [];
+
+  for (const guildId of getAllGuildIds()) {
+    try {
+      const r = await validateGuild(client, guildId);
+      reports.push(r);
+    } catch (e) {
+      logger.error('validator', 'Guild validation failed', {
+        guildId,
+        message: e.message,
+        stack: e.stack,
+      });
+      reports.push({
+        guildId,
+        ok: [],
+        warn: [],
+        fail: [`Validator crash: ${e.message}`],
+        summary: '❌ validator crash',
+      });
+    }
   }
 
-  const summary = fail.length
-    ? `❌ ${fail.length} błędów / ⚠️ ${warn.length} ostrzeżeń / ✅ ${ok.length} OK`
-    : warn.length
-      ? `⚠️ ${warn.length} ostrzeżeń / ✅ ${ok.length} OK`
-      : `✅ Wszystko wygląda zdrowo (${ok.length} testów OK)`;
-
-  return { ok, warn, fail, summary, extraNotes };
+  return reports;
 };

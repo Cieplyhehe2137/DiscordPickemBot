@@ -1,25 +1,49 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  PermissionFlagsBits
+} = require('discord.js');
 const pool = require('../db.js');
 
 module.exports = async (interaction) => {
+  // guard: tylko select
+  if (!interaction.isStringSelectMenu()) return;
+
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
+
   if (!interaction.deferred && !interaction.replied) {
-  await interaction.deferReply({ ephemeral: true });
-}
-const perms = interaction.memberPermissions;
-if (
-  !perms?.has(PermissionFlagsBits.ManageGuild) &&
-  !perms?.has(PermissionFlagsBits.Administrator)
-) {
-  return interaction.editReply({
-    content: '🚫 Nie masz uprawnień do utworzenia panelu.'
-  });
-}
+    await interaction.deferReply({ ephemeral: true });
+  }
 
+  const perms = interaction.memberPermissions;
+  if (
+    !perms?.has(PermissionFlagsBits.ManageGuild) &&
+    !perms?.has(PermissionFlagsBits.Administrator)
+  ) {
+    return interaction.editReply({
+      content: '🚫 Nie masz uprawnień do utworzenia panelu.'
+    });
+  }
 
-  const raw = interaction.values[0]; // np. swiss_stage_1
+  const raw = interaction.values?.[0]; // np. swiss_stage_1
+  if (!raw) {
+    return interaction.editReply({
+      content: '❌ Nie wybrano etapu.',
+      ephemeral: true
+    });
+  }
+
   const stage = raw.replace('swiss_stage_', 'stage'); // stage1
   const phase = 'swiss';
-  const matchPhaseKey = `swiss_${stage}`; // np. swiss_stage1
+  const matchPhaseKey = `swiss_${stage}`; // swiss_stage1
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (${stage.toUpperCase()})`)
@@ -40,44 +64,39 @@ if (
   );
 
   try {
-    // 🔥 sprawdzamy uprawnienie do @everyone
     const canMentionEveryone = interaction.guild.members.me
       .permissionsIn(interaction.channel)
       .has(PermissionFlagsBits.MentionEveryone);
 
-    // const pingText = canMentionEveryone ? '@everyone ' : ''; 
-    
     const sentMessage = await interaction.channel.send({
-      // content: `${pingText}🔔 Nowy panel typowania Swiss (${stage.toUpperCase()})`,
       embeds: [embed],
       components: [row],
-      // allowedMentions: { parse: canMentionEveryone ? ['everyone'] : [] } 
     });
 
     await pool.query(
       `INSERT INTO active_panels
-      (guild_id, phase, stage, message_id, channel_id, reminded, closed, active)
-      VALUES (?, ?, ?, ?, ?, false, false, 1)
-      ON DUPLICATE KEY UPDATE
-        message_id = VALUES(message_id),
-        channel_id = VALUES(channel_id),
-        reminded = false,
-        closed = false,
-        active = 1`,
-        [interaction.guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
+       (guild_id, phase, stage, message_id, channel_id, reminded, closed, active)
+       VALUES (?, ?, ?, ?, ?, false, false, 1)
+       ON DUPLICATE KEY UPDATE
+         message_id = VALUES(message_id),
+         channel_id = VALUES(channel_id),
+         reminded = false,
+         closed = false,
+         active = 1`,
+      [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
     );
 
     await interaction.editReply({
-      content:
-        canMentionEveryone
-          ? `✅ Wysłano panel Swiss (${stage.toUpperCase()}) z pingiem **@everyone**.`
-          : `⚠️ Panel Swiss (${stage.toUpperCase()}) wysłany, ale **bot nie ma permisji Mention Everyone** – brak pingu.`,
+      content: canMentionEveryone
+        ? `✅ Wysłano panel Swiss (${stage.toUpperCase()}) z pingiem **@everyone**.`
+        : `⚠️ Panel Swiss (${stage.toUpperCase()}) wysłany, ale **bot nie ma permisji Mention Everyone** – brak pingu.`,
       ephemeral: true
     });
   } catch (err) {
     console.error('Błąd wysyłania panelu Swiss:', err);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.editReply({ content: '❌ Nie udało się wysłać panelu.', ephemeral: true });
-    }
+    await interaction.editReply({
+      content: '❌ Nie udało się wysłać panelu.',
+      ephemeral: true
+    });
   }
 };

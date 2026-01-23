@@ -8,17 +8,30 @@ const {
 } = require('discord.js');
 
 module.exports = async function teamsAddOpen(interaction) {
+  // tylko serwer
+  if (!interaction.guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
+
+  // tylko admin
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: '⛔ Tylko administracja.', ephemeral: true });
+    return interaction.reply({
+      content: '⛔ Tylko administracja.',
+      ephemeral: true
+    });
   }
 
   const modal = new ModalBuilder()
-    .setCustomId('teams:add_modal')
-    .setTitle('Dodaj drużynę');
+    .setCustomId('teams:add:submit') // spójne, czytelne ID
+    .setTitle('➕ Dodaj drużynę');
 
   const nameInput = new TextInputBuilder()
     .setCustomId('team_name')
     .setLabel('Nazwa drużyny')
+    .setPlaceholder('np. Natus Vincere')
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setMaxLength(100);
@@ -26,6 +39,7 @@ module.exports = async function teamsAddOpen(interaction) {
   const shortInput = new TextInputBuilder()
     .setCustomId('team_short')
     .setLabel('Skrót (opcjonalnie)')
+    .setPlaceholder('np. NAVI')
     .setStyle(TextInputStyle.Short)
     .setRequired(false)
     .setMaxLength(30);

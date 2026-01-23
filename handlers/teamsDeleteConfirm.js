@@ -1,5 +1,11 @@
 // handlers/teamsDeleteConfirm.js
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionFlagsBits
+} = require('discord.js');
+
 const logger = require('../utils/logger');
 const teamsState = require('../utils/teamsState');
 const { deleteTeams, listTeams } = require('../utils/teamsStore');
@@ -11,29 +17,57 @@ function getSelectedIds(st) {
 }
 
 module.exports = async function teamsDeleteConfirm(interaction) {
+  const guildId = interaction.guildId;
+  const userId = interaction.user?.id;
+
   try {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: '⛔ Tylko administracja.', ephemeral: true });
+    // tylko serwer
+    if (!guildId) {
+      return interaction.reply({
+        content: '❌ Ta akcja działa tylko na serwerze.',
+        ephemeral: true
+      });
     }
 
-    const guildId = interaction.guildId;
-    const userId = interaction.user.id;
+    // tylko admin
+    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({
+        content: '⛔ Tylko administracja.',
+        ephemeral: true
+      });
+    }
 
-    const st = teamsState.getState(guildId, userId);
-    const ids = getSelectedIds(st).map(Number).filter(n => Number.isFinite(n) && n > 0);
+    const st = teamsState.getState(guildId, userId) || {};
+    const ids = getSelectedIds(st)
+      .map(Number)
+      .filter(n => Number.isFinite(n) && n > 0);
 
     if (!ids.length) {
-      const payload = { content: '⚠️ Brak zaznaczonych drużyn.', components: [] };
-      return interaction.isRepliable() ? interaction.reply({ ...payload, ephemeral: true }) : interaction.update(payload);
+      const payload = {
+        content: '⚠️ Nie wybrano żadnych drużyn do usunięcia.',
+        components: []
+      };
+
+      if (interaction.isButton() || interaction.isStringSelectMenu()) {
+        return interaction.update(payload);
+      }
+      return interaction.reply({ ...payload, ephemeral: true });
     }
 
+    // pobierz nazwy przed usunięciem (do podglądu)
     const all = await listTeams(guildId, { includeInactive: true });
     const byId = new Map(all.map(t => [Number(t.id), t.name]));
     const names = ids.map(id => byId.get(id) || `ID:${id}`);
 
+    // USUWANIE
     await deleteTeams(guildId, ids);
 
-    teamsState.setState(guildId, userId, { page: st?.page || 0, selectedTeamIds: [], selectedTeamId: null });
+    // reset stanu selekcji
+    teamsState.setState(guildId, userId, {
+      page: st.page || 0,
+      selectedTeamIds: [],
+      selectedTeamId: null
+    });
 
     const backRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -43,16 +77,38 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     );
 
     const preview = names.slice(0, 10).map(n => `• ${n}`).join('\n');
-    const extra = names.length > 10 ? `\n… i jeszcze **${names.length - 10}**` : '';
+    const extra =
+      names.length > 10
+        ? `\n… i jeszcze **${names.length - 10}**`
+        : '';
+
+    logger.info('teams', 'teams deleted', {
+      guildId,
+      userId,
+      count: ids.length,
+      ids
+    });
 
     return interaction.update({
-      content: `✅ Usunięto **${ids.length}** drużyn.\n\n${preview}${extra}`,
+      content:
+        `✅ Usunięto **${ids.length}** drużyn:\n\n` +
+        `${preview}${extra}`,
       components: [backRow]
     });
+
   } catch (err) {
-    logger.error('teams', 'teamsDeleteConfirm failed', { message: err.message, stack: err.stack });
+    logger.error('teams', 'teamsDeleteConfirm failed', {
+      guildId,
+      userId,
+      message: err.message,
+      stack: err.stack
+    });
+
     if (!interaction.replied && !interaction.deferred) {
-      return interaction.reply({ content: '❌ Nie udało się usunąć drużyn.', ephemeral: true });
+      return interaction.reply({
+        content: '❌ Nie udało się usunąć drużyn.',
+        ephemeral: true
+      });
     }
   }
 };

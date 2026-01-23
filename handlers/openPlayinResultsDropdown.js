@@ -5,22 +5,49 @@ const {
   ButtonBuilder,
   ButtonStyle
 } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const logger = require('../logger');
-const teams = require('../teams.json');
+
+const db = require('../db');
+const logger = require('../utils/logger');
 
 module.exports = async (interaction) => {
+  const guildId = interaction.guildId;
   const userId = interaction.user.id;
-  const username = interaction.user.username;
-  
-//   logger.info(`[Play-in Results] ${username} (${userId}) otwiera panel oficjalnych wyników Play-In`); 
-  
+
   try {
+    await interaction.deferReply({ ephemeral: true });
+
+    const pool = db.getPoolForGuild(guildId);
+    const [rows] = await pool.query(
+      `
+      SELECT name
+      FROM teams
+      WHERE guild_id = ?
+        AND active = 1
+      ORDER BY sort_order ASC, name ASC
+      `,
+      [guildId]
+    );
+
+    const teams = rows.map(r => r.name);
+
+    if (teams.length === 0) {
+      return interaction.editReply({
+        content: '❌ Brak aktywnych drużyn w bazie. Dodaj je w panelu admina.'
+      });
+    }
+
+    if (teams.length > 25) {
+      return interaction.editReply({
+        content: `⚠️ Jest ${teams.length} drużyn, a Discord pozwala max 25 opcji w dropdownie.\nDodaj stronicowanie.`
+      });
+    }
 
     const embed = new EmbedBuilder()
       .setTitle('📌 Oficjalne wyniki – Play-In')
-      .setDescription('Wybierz **8 drużyn**, które awansowały z fazy Play-In.\n\nPo wyborze kliknij Zatwierdź, aby zapisać.')
+      .setDescription(
+        'Wybierz **8 drużyn**, które awansowały z fazy **Play-In**.\n\n' +
+        'Po wyborze kliknij **Zatwierdź wyniki**.'
+      )
       .setColor('#32CD32');
 
     const select = new StringSelectMenuBuilder()
@@ -35,25 +62,30 @@ module.exports = async (interaction) => {
         }))
       );
 
-    const row = new ActionRowBuilder().addComponents(select);
+    const rowSelect = new ActionRowBuilder().addComponents(select);
 
-    const confirmButton = new ButtonBuilder()
-      .setCustomId('confirm_playin_results')
-      .setLabel('✅ Zatwierdź wyniki')
-      .setStyle(ButtonStyle.Success);
+    const rowConfirm = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('confirm_playin_results')
+        .setLabel('✅ Zatwierdź wyniki')
+        .setStyle(ButtonStyle.Success)
+    );
 
-    const buttonRow = new ActionRowBuilder().addComponents(confirmButton);
-
-    await interaction.reply({
+    return interaction.editReply({
       embeds: [embed],
-      components: [row, buttonRow],
-      ephemeral: true
+      components: [rowSelect, rowConfirm]
     });
+
   } catch (err) {
-    logger.error(`[Play-in Results] Błąd przy otwieraniu dropdowna Play-In dla ${username} (${userId}):`, err);
-    await interaction.reply({
-      content: '❌ Wystąpił błąd podczas generowania dropdowna Play-In.',
-      ephemeral: true
+    logger.error('playin', 'open official play-in results failed', {
+      guildId,
+      userId,
+      message: err.message,
+      stack: err.stack
     });
+
+    return interaction.editReply({
+      content: '❌ Wystąpił błąd podczas otwierania panelu Play-In.'
+    }).catch(() => {});
   }
 };

@@ -1,80 +1,127 @@
-const { 
-  ActionRowBuilder, 
-  StringSelectMenuBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  EmbedBuilder 
+const {
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder
 } = require('discord.js');
-const fs = require('fs');
+
+const db = require('../db');
+const logger = require('../utils/logger');
+
+async function loadTeamsWithFlags(guildId) {
+  const pool = db.getPoolForGuild(guildId);
+
+  const [rows] = await pool.query(
+    `
+    SELECT name, flag
+    FROM teams
+    WHERE guild_id = ?
+      AND active = 1
+    ORDER BY sort_order ASC, name ASC
+    `,
+    [guildId]
+  );
+
+  return rows.map(r => ({
+    name: r.name,
+    label: `${r.flag || ''} ${r.name}`.trim()
+  }));
+}
 
 module.exports = async (interaction) => {
   try {
-    const stage = interaction.customId.split('_').pop(); // np. stage1, stage2, stage3
+    const stage = interaction.customId.split(':')[1]; // np. stage1
 
-    const teams = JSON.parse(fs.readFileSync('./teams.json', 'utf8'));
-    const flags = JSON.parse(fs.readFileSync('./data/teamFlags.json', 'utf8'));
+    if (!stage) {
+      return interaction.reply({
+        content: '❌ Brak stage w customId.',
+        ephemeral: true
+      });
+    }
 
-    // 🔥 jedna drużyna pod drugą z flagą
-    const teamList = teams
-      .map(t => `${flags[t] || ''} ${t}`)
-      .join('\n');
+    await interaction.deferReply({ ephemeral: true });
+
+    const guildId = interaction.guildId;
+    const teams = await loadTeamsWithFlags(guildId);
+
+    if (!teams.length) {
+      return interaction.editReply({
+        content: '❌ Brak aktywnych drużyn w bazie.'
+      });
+    }
+
+    if (teams.length > 25) {
+      return interaction.editReply({
+        content:
+          `⚠️ Jest **${teams.length} drużyn**, a Discord pozwala max **25 opcji** w dropdownie.\n` +
+          `Dodaj stronicowanie (jak w meczach).`
+      });
+    }
+
+    const teamList = teams.map(t => t.label).join('\n');
 
     const embed = new EmbedBuilder()
       .setTitle(`📋 Typowanie – SWISS (${stage.toUpperCase()})`)
-      .setDescription('Wybierz swoje typy w dropdownach poniżej i kliknij **Zatwierdź typy**.')
+      .setDescription('Wybierz swoje typy i kliknij **Zatwierdź typy**.')
       .addFields({
         name: '📌 Dostępne drużyny:',
         value: teamList
       })
       .setColor('#0099ff');
 
-    // 🔥 dropdowny z flagami
-    const buildOptions = () =>
-      teams.map(team => ({
-        label: `${flags[team] || ''} ${team}`,
-        value: team
-      }));
+    const options = teams.map(t => ({
+      label: t.label,
+      value: t.name
+    }));
 
-    const dropdowns = [
-      new StringSelectMenuBuilder()
-        .setCustomId(`swiss_3_0_${stage}`)
-        .setPlaceholder('🔥 Wybierz 2 drużyny 3-0')
-        .setMinValues(2)
-        .setMaxValues(2)
-        .addOptions(buildOptions()),
-
-      new StringSelectMenuBuilder()
-        .setCustomId(`swiss_0_3_${stage}`)
-        .setPlaceholder('💀 Wybierz 2 drużyny 0-3')
-        .setMinValues(2)
-        .setMaxValues(2)
-        .addOptions(buildOptions()),
-
-      new StringSelectMenuBuilder()
-        .setCustomId(`swiss_advancing_${stage}`)
-        .setPlaceholder('🚀 Wybierz 6 drużyn 3-1 lub 3-2')
-        .setMinValues(6)
-        .setMaxValues(6)
-        .addOptions(buildOptions())
+    const rows = [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`swiss_3_0:${stage}`)
+          .setPlaceholder('🔥 Wybierz 2 drużyny 3-0')
+          .setMinValues(2)
+          .setMaxValues(2)
+          .addOptions(options)
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`swiss_0_3:${stage}`)
+          .setPlaceholder('💀 Wybierz 2 drużyny 0-3')
+          .setMinValues(2)
+          .setMaxValues(2)
+          .addOptions(options)
+      ),
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`swiss_advancing:${stage}`)
+          .setPlaceholder('🚀 Wybierz 6 drużyn 3-1 / 3-2')
+          .setMinValues(6)
+          .setMaxValues(6)
+          .addOptions(options)
+      ),
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`confirm_swiss:${stage}`)
+          .setLabel('✅ Zatwierdź typy')
+          .setStyle(ButtonStyle.Success)
+      )
     ];
 
-    const rows = dropdowns.map(menu => new ActionRowBuilder().addComponents(menu));
-
-    const confirmButton = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`confirm_${stage}`)
-        .setLabel('✅ Zatwierdź typy')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    await interaction.reply({
-      content: `🔽 Wybierz swoje typy SWISS (${stage.toUpperCase()})`,
+    return interaction.editReply({
       embeds: [embed],
-      components: [...rows, confirmButton],
-      ephemeral: true
+      components: rows
     });
+
   } catch (err) {
-    console.error('❌ Błąd w openSwissDropdown:', err);
-    await interaction.reply({ content: '❌ Wystąpił błąd podczas generowania dropdownów.', ephemeral: true });
+    logger.error('swiss', 'openSwissDropdown failed', {
+      guildId: interaction.guildId,
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.editReply({
+      content: '❌ Wystąpił błąd podczas generowania Swiss.'
+    }).catch(() => {});
   }
 };

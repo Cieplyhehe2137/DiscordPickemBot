@@ -21,7 +21,7 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'db:backup': 'backup_database',
   'db:restore': 'restore_backup',
 
-  // DANGER -> stare customId (klikane dopiero w potwierdzeniu)
+  // DANGER
   'danger:clearPicks': 'clear_db_confirm',
   'danger:clearOfficial': 'clear_only_results_confirm',
   'danger:fullReset': 'clear_db_with_results',
@@ -29,8 +29,14 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
 };
 
 function resolveHandlerName(buttonMap, customId) {
-  if (buttonMap?.[customId]) return buttonMap[customId];
-  const key = Object.keys(buttonMap || {}).find(k => customId.startsWith(k));
+  if (!buttonMap) return null;
+  if (buttonMap[customId]) return buttonMap[customId];
+
+  // bezpieczniej: najdłuższy pasujący klucz
+  const key = Object.keys(buttonMap)
+    .sort((a, b) => b.length - a.length)
+    .find(k => customId.startsWith(k));
+
   return key ? buttonMap[key] : null;
 }
 
@@ -47,7 +53,7 @@ function proxyCustomId(interaction, forcedCustomId) {
 function buildConfirmRow(targetCustomId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(targetCustomId) // <-- klucz: tu idzie STARE customId jako button
+      .setCustomId(targetCustomId)
       .setLabel('✅ Potwierdzam')
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
@@ -55,6 +61,17 @@ function buildConfirmRow(targetCustomId) {
       .setLabel('❌ Anuluj')
       .setStyle(ButtonStyle.Secondary),
   );
+}
+
+async function safeUpdate(interaction, payload) {
+  try {
+    if (interaction.deferred || interaction.replied) {
+      return await interaction.editReply(payload);
+    }
+    return await interaction.update(payload);
+  } catch {
+    return interaction.reply({ ...payload, ephemeral: true }).catch(() => {});
+  }
 }
 
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
@@ -66,17 +83,20 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       return interaction.reply({ content: '❌ Nieznana akcja.', ephemeral: true });
     }
 
-    // === DANGER: pokazujemy potwierdzenie zamiast wykonywać od razu ===
+    // === DANGER ===
     if (value.startsWith('danger:')) {
-      return interaction.update({
-        content: '⚠️ Potwierdź operację (nieodwracalne):',
-        components: [buildConfirmRow(targetCustomId)]
+      return safeUpdate(interaction, {
+        content: '⚠️ **Potwierdź operację (nieodwracalne)**:',
+        components: [buildConfirmRow(targetCustomId)],
+        ephemeral: true
       });
     }
 
-    // === NORMAL: odpalamy stary handler (jakby to był button) ===
+    // === NORMAL ===
     const handlerName = resolveHandlerName(maps?.buttonMap, targetCustomId);
-    if (!handlerName || !handlers?.[handlerName]) {
+    const handler = handlers?.[handlerName];
+
+    if (!handler) {
       logger.warn('interaction', 'panelSelectAction missing handler', {
         value,
         targetCustomId,
@@ -85,15 +105,17 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       return interaction.reply({ content: '❌ Brak handlera dla tej akcji.', ephemeral: true });
     }
 
-    // 🔥 KLUCZOWE
     await interaction.deferUpdate();
 
     const proxied = proxyCustomId(interaction, targetCustomId);
-    await handlers[handlerName](proxied, client);
-
+    await handler(proxied, client);
 
   } catch (err) {
-    logger.error('interaction', 'panelSelectAction failed', { message: err.message, stack: err.stack });
+    logger.error('interaction', 'panelSelectAction failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({ content: '❌ Błąd panelu.', ephemeral: true });
     }

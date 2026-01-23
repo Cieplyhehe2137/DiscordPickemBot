@@ -5,31 +5,75 @@ const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-// cache: `${guildId}:${userId}` -> [teams]
+// cache: `${guildId}:${userId}` -> { teams: [], ts }
+const CACHE_TTL_MS = 15 * 60 * 1000;
 const cache = new Map();
+
+function getCache(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.teams;
+}
+
+function setCache(key, teams) {
+  cache.set(key, { teams, ts: Date.now() });
+}
 
 module.exports = async (interaction) => {
   const guildId = interaction.guildId;
-  const userId = interaction.user.id;
+  const userId = interaction.user?.id;
+
+  // ===== guards =====
+  if (!guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
+
+  if (!userId) return;
+
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
-
   const cacheKey = `${guildId}:${userId}`;
 
   /* ===============================
      SELECT MENU – wybór drużyn
      =============================== */
   if (interaction.isStringSelectMenu() && interaction.customId === 'playin_select') {
-    cache.set(cacheKey, interaction.values.map(String));
+    const values = (interaction.values || []).map(String);
+
+    // backend guard (P0)
+    if (values.length !== 8) {
+      return interaction.reply({
+        content: '❌ Musisz wybrać **dokładnie 8 drużyn**.',
+        ephemeral: true
+      });
+    }
+
+    if (new Set(values).size !== 8) {
+      return interaction.reply({
+        content: '❌ Drużyny nie mogą się powtarzać.',
+        ephemeral: true
+      });
+    }
+
+    setCache(cacheKey, values);
 
     logger.debug('submit', 'Play-In dropdown updated', {
       guildId,
       userId,
-      count: interaction.values.length,
-      teams: interaction.values
+      count: values.length,
+      teams: values
     });
 
-    try { await interaction.deferUpdate(); } catch (_) {}
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => {});
+    }
     return;
   }
 
@@ -38,7 +82,9 @@ module.exports = async (interaction) => {
      =============================== */
   if (!interaction.isButton() || interaction.customId !== 'confirm_playin') return;
 
-  await interaction.deferReply({ ephemeral: true });
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
 
   await withGuild(interaction, async (db, guildId) => {
     /* ===============================
@@ -55,7 +101,7 @@ module.exports = async (interaction) => {
       );
     }
 
-    const picked = cache.get(cacheKey);
+    const picked = getCache(cacheKey);
 
     /* ===============================
        WALIDACJA
@@ -63,12 +109,6 @@ module.exports = async (interaction) => {
     if (!Array.isArray(picked) || picked.length !== 8) {
       return interaction.editReply(
         '❌ Musisz wybrać **dokładnie 8 drużyn**.'
-      );
-    }
-
-    if (new Set(picked).size !== 8) {
-      return interaction.editReply(
-        '❌ Drużyny nie mogą się powtarzać.'
       );
     }
 
@@ -97,7 +137,7 @@ module.exports = async (interaction) => {
     }
 
     /* ===============================
-       ZAPIS DO DB (STRINGI)
+       ZAPIS DO DB
        =============================== */
     const teamsString = picked.join(', ');
 
@@ -111,7 +151,7 @@ module.exports = async (interaction) => {
         teams         = VALUES(teams),
         displayname   = VALUES(displayname),
         active        = 1,
-        submitted_at = CURRENT_TIMESTAMP
+        submitted_at  = CURRENT_TIMESTAMP
       `,
       [
         guildId,

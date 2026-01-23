@@ -5,9 +5,8 @@ const {
   ButtonBuilder,
   ButtonStyle
 } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-const pool = require('../db');
+
+const db = require('../db');
 const logger = require('../utils/logger');
 
 /* =======================
@@ -42,16 +41,33 @@ function parseList(input) {
     .filter(Boolean);
 }
 
-async function getCurrentSwiss(stage) {
+async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(
     `
-      SELECT correct_3_0, correct_0_3, correct_advancing
-      FROM swiss_results
-      WHERE active = 1 AND stage = ?
-      ORDER BY id DESC
-      LIMIT 1
+    SELECT name
+    FROM teams
+    WHERE guild_id = ?
+      AND active = 1
+    ORDER BY sort_order ASC, name ASC
     `,
-    [stage]
+    [guildId]
+  );
+
+  return rows.map(r => r.name);
+}
+
+async function getCurrentSwiss(pool, guildId, stage) {
+  const [rows] = await pool.query(
+    `
+    SELECT correct_3_0, correct_0_3, correct_advancing
+    FROM swiss_results
+    WHERE guild_id = ?
+      AND stage = ?
+      AND active = 1
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [guildId, stage]
   );
 
   if (!rows.length) {
@@ -83,7 +99,7 @@ function buildSwissComponents(stage, teams, cur) {
     .map(t => ({ label: t, value: t }));
 
   if (baseOptions.length > 25) {
-    logger.warn("interaction", "Swiss results dropdown chunked", {
+    logger.warn('interaction', 'Swiss results dropdown chunked', {
       stage,
       options: baseOptions.length
     });
@@ -94,22 +110,17 @@ function buildSwissComponents(stage, teams, cur) {
 
   function makeSelectRows(type, left, label) {
     optionChunks.forEach((opts, idx) => {
-      // Discord API rule:
-      // minValues >= 1, maxValues >= 1
-      const min = 1;
-      const max = left > 0 ? Math.min(left, opts.length) : 1;
-
       components.push(
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`official_swiss_${type}_${stage}_p${idx}`)
+            .setCustomId(`official_swiss_${type}:${stage}:p${idx}`)
             .setPlaceholder(
               left > 0
                 ? `${label} (część ${idx + 1})`
                 : `${label} uzupełnione`
             )
-            .setMinValues(min)
-            .setMaxValues(max)
+            .setMinValues(0)
+            .setMaxValues(left > 0 ? Math.min(left, opts.length) : 1)
             .setDisabled(left === 0)
             .addOptions(opts)
         )
@@ -124,7 +135,7 @@ function buildSwissComponents(stage, teams, cur) {
   components.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`confirm_swiss_results_${stage}`)
+        .setCustomId(`confirm_swiss_results:${stage}`)
         .setLabel('✅ Zatwierdź (dopisz)')
         .setStyle(ButtonStyle.Success)
     )
@@ -150,23 +161,35 @@ function buildSwissComponents(stage, teams, cur) {
 ======================= */
 
 module.exports = async (interaction) => {
-  const stage = interaction.customId.split('_').pop();
+  const guildId = interaction.guildId;
+  const stage = interaction.customId.split(':')[1];
 
-  const teams = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '..', 'teams.json'), 'utf8')
-  );
+  if (!stage) {
+    return interaction.reply({
+      content: '❌ Brak etapu Swiss (stage).',
+      ephemeral: true
+    });
+  }
 
-  const cur = await getCurrentSwiss(stage);
+  await interaction.deferReply({ ephemeral: true });
+
+  const pool = db.getPoolForGuild(guildId);
+
+  const teams = await loadTeamsFromDB(pool, guildId);
+  const cur = await getCurrentSwiss(pool, guildId, stage);
+
   const { embed, components } = buildSwissComponents(stage, teams, cur);
 
-  await interaction.reply({
+  await interaction.editReply({
     embeds: [embed],
-    components,
-    ephemeral: true
+    components
   });
 };
 
-// eksporty pomocnicze
+/* =======================
+   EXPORTY
+======================= */
+
 module.exports.buildSwissComponents = buildSwissComponents;
 module.exports.parseList = parseList;
 module.exports.getCurrentSwiss = getCurrentSwiss;

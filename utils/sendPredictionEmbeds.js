@@ -1,171 +1,160 @@
 // utils/sendPredictionEmbeds.js
-const { EmbedBuilder } = require('discord.js');
-const { getGuildConfig, getAllGuildIds } = require('./guildRegistry');
+const { EmbedBuilder, ChannelType } = require('discord.js');
+const { getGuildConfig } = require('./guildRegistry');
 const logger = require('./logger');
 
 /**
- * Backward compatible:
- * - old: sendPredictionEmbed(client, typeIn, userId, data)
- * - new: sendPredictionEmbed(client, guildId, typeIn, userId, data)
+ * OBSŁUGA:
+ * - sendPredictionEmbed(client, type, userId, data)  ❌ DEPRECATED
+ * - sendPredictionEmbed(client, guildId, type, userId, data) ✅
  */
 module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
   let guildId, typeIn, userId, data;
 
-  const knownTypes = new Set(['swiss', 'playoffs', 'double', 'playin']);
-  const aNorm = String(a || '').toLowerCase();
-
-  if (knownTypes.has(aNorm) || aNorm.startsWith('swiss_stage_')) {
-    // old signature
-    guildId = d?.guildId ? String(d.guildId) : null;
-    typeIn = a;
-    userId = b;
-    data = c || {};
-  } else {
-    // new signature
-    guildId = a ? String(a) : null;
+  // ---- normalize args
+  if (typeof a === 'string' && typeof b === 'string' && typeof c === 'string') {
+    guildId = a;
     typeIn = b;
     userId = c;
     data = d || {};
+  } else {
+    logger.warn(
+      'prediction_embed',
+      'Deprecated call without guildId – embed NOT sent',
+      { args: [a, b, c] }
+    );
+    return;
   }
 
-  const typeRaw = String(typeIn || '').toLowerCase();
-  const isSwiss = typeRaw === 'swiss' || typeRaw.startsWith('swiss_stage_');
-  const type = isSwiss ? 'swiss' : typeRaw;
+  if (!guildId || !typeIn || !userId) {
+    logger.warn('prediction_embed', 'Missing required params', {
+      guildId,
+      typeIn,
+      userId,
+    });
+    return;
+  }
 
-  // --- resolve guildId safely
-  if (!guildId) {
-    // jeśli jest dokładnie 1 guild w konfiguracji, można bezpiecznie zgadnąć
-    const ids = getAllGuildIds();
-    if (ids.length === 1) {
-      guildId = ids[0];
-    } else {
-      logger.warn('prediction_embed', 'Brak guildId – pomijam wysyłkę embedów (żeby nie wysłać na zły serwer).', {
-        type,
-        userId,
-        configuredGuilds: ids.length,
-      });
-      return;
-    }
+  const typeRaw = String(typeIn).toLowerCase();
+  const type =
+    typeRaw.startsWith('swiss') ? 'swiss'
+      : typeRaw.startsWith('double') ? 'double'
+      : typeRaw === 'playoffs' ? 'playoffs'
+      : typeRaw === 'playin' ? 'playin'
+      : null;
+
+  if (!type) {
+    logger.warn('prediction_embed', 'Unknown prediction type', {
+      guildId,
+      typeIn,
+    });
+    return;
   }
 
   const cfg = getGuildConfig(guildId);
   if (!cfg) {
-    logger.warn('prediction_embed', 'Brak configu dla guildId – pomijam embed.', { guildId, type, userId });
+    logger.warn('prediction_embed', 'Missing guild config', { guildId });
     return;
   }
 
-  // --- channel selection (bez hardcode)
+  // ---- channel resolve
   const channelId =
-    (type === 'swiss'
-      ? (cfg.SWISS_PREDICTIONS_CHANNEL_ID || cfg.PREDICTIONS_CHANNEL_ID || cfg.EXPORT_PANEL_CHANNEL_ID || cfg.LOG_CHANNEL_ID)
-      : (cfg.PREDICTIONS_CHANNEL_ID || cfg.LOG_CHANNEL_ID || cfg.EXPORT_PANEL_CHANNEL_ID));
+    type === 'swiss'
+      ? (cfg.SWISS_PREDICTIONS_CHANNEL_ID || cfg.PREDICTIONS_CHANNEL_ID)
+      : cfg.PREDICTIONS_CHANNEL_ID;
 
   if (!channelId) {
-    logger.warn('prediction_embed', 'Brak channelId w configu – nie mam gdzie wysłać embeda.', { guildId, type });
+    logger.warn('prediction_embed', 'No channel configured', { guildId, type });
     return;
   }
 
-  // --- get displayName (best effort)
+  // ---- resolve displayName
   let displayName = 'Unknown';
-  const mention = `<@${userId}>`;
-
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
     displayName = member.displayName || member.user.username;
-  } catch (err) {
+  } catch {
     try {
       const user = await client.users.fetch(userId);
-      displayName = user.username || displayName;
-    } catch (_) {}
+      displayName = user.username;
+    } catch {}
   }
 
-  const typujacyField = `${displayName} - ${mention}`;
+  const mention = `<@${userId}>`;
+  const toStr = (v) =>
+    Array.isArray(v) ? (v.length ? v.join(', ') : '—')
+      : v == null || String(v).trim() === '' ? '—'
+      : String(v);
 
-  const toStr = (v) => {
-    if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
-    if (v == null) return '—';
-    const s = String(v).trim();
-    return s.length ? s : '—';
-  };
+  const embed = new EmbedBuilder()
+    .setTimestamp()
+    .addFields({ name: 'Typujący', value: `${displayName} – ${mention}` });
 
-  const embed = new EmbedBuilder().setTimestamp();
-
+  // ---- build embed per type
   if (type === 'swiss') {
-    let stage =
-      (data.stage && String(data.stage)) ||
-      (typeRaw.startsWith('swiss_stage_')
-        ? typeRaw.replace('swiss_stage_', 'stage_')
-        : null);
-
-    const pick3_0 = data.pick3_0 || data.threeZero || data['3_0'] || data['3-0'] || [];
-    const pick0_3 = data.pick0_3 || data.zeroThree || data['0_3'] || data['0-3'] || [];
-    const advancing = data.advancing || data.advance || data.awans || [];
-
     embed
-      .setColor('#3366ff')
-      .setTitle(`🔄 Nowe typy na fazę Swiss${stage ? ` – ${String(stage).toUpperCase()}` : ''}!`)
+      .setColor(0x3366ff)
+      .setTitle('🔄 Nowe typy – Swiss')
       .addFields(
-        { name: 'Typujący', value: typujacyField },
-        { name: '🔥 3-0', value: toStr(pick3_0), inline: true },
-        { name: '💀 0-3', value: toStr(pick0_3), inline: true },
-        { name: '🚀 Awansujące', value: toStr(advancing), inline: false }
+        { name: '🔥 3-0', value: toStr(data.pick_3_0), inline: true },
+        { name: '💀 0-3', value: toStr(data.pick_0_3), inline: true },
+        { name: '🚀 Awansujące', value: toStr(data.advancing), inline: false },
       );
-
-  } else if (type === 'playoffs') {
-    const semifinals = data.semis ?? data.semifinalists ?? [];
-    const finals     = data.finals ?? data.finalists ?? [];
-    const winner     = data.winner ?? '—';
-    const third      = data.third ?? data.third_place_winner ?? '—';
-
-    embed
-      .setColor('#00ff99')
-      .setTitle('🎯 Nowe typy na fazę Playoffs!')
-      .addFields(
-        { name: 'Typujący', value: typujacyField },
-        { name: '🏆 Półfinaliści', value: toStr(semifinals), inline: false },
-        { name: '🥈 Finaliści', value: toStr(finals), inline: false },
-        { name: '🥇 Zwycięzca', value: toStr(winner), inline: true },
-        { name: '🥉 3. miejsce', value: toStr(third), inline: true }
-      );
-
-  } else if (type === 'double') {
-    embed
-      .setColor('#ff6600')
-      .setTitle('⚔️ Nowe typy na fazę Double Elimination!')
-      .addFields(
-        { name: 'Typujący', value: typujacyField },
-        { name: '🔵 Upper Final A', value: toStr(data.ua), inline: true },
-        { name: '🔵 Upper Final B', value: toStr(data.ub), inline: true },
-        { name: '🔴 Lower Final A', value: toStr(data.la), inline: true },
-        { name: '🔴 Lower Final B', value: toStr(data.lb), inline: true }
-      );
-
-  } else if (type === 'playin') {
-    embed
-      .setColor('#0099ff')
-      .setTitle('🎯 Nowe typy na fazę Play-In!')
-      .addFields(
-        { name: 'Typujący', value: typujacyField },
-        { name: 'Drużyny awansujące z Play-In', value: toStr(data.teams), inline: false }
-      );
-
-  } else {
-    logger.warn('prediction_embed', 'Nieznany typ embeda – pomijam.', { guildId, typeIn, userId });
-    return;
   }
 
+  if (type === 'playoffs') {
+    embed
+      .setColor(0x00ff99)
+      .setTitle('🎯 Nowe typy – Playoffs')
+      .addFields(
+        { name: '🏆 Półfinaliści', value: toStr(data.semifinalists) },
+        { name: '🥈 Finaliści', value: toStr(data.finalists) },
+        { name: '🥇 Zwycięzca', value: toStr(data.winner), inline: true },
+        { name: '🥉 3. miejsce', value: toStr(data.third_place_winner), inline: true },
+      );
+  }
+
+  if (type === 'double') {
+    embed
+      .setColor(0xff6600)
+      .setTitle('⚔️ Nowe typy – Double Elimination')
+      .addFields(
+        { name: 'Upper A', value: toStr(data.upper_final_a), inline: true },
+        { name: 'Lower A', value: toStr(data.lower_final_a), inline: true },
+        { name: 'Upper B', value: toStr(data.upper_final_b), inline: true },
+        { name: 'Lower B', value: toStr(data.lower_final_b), inline: true },
+      );
+  }
+
+  if (type === 'playin') {
+    embed
+      .setColor(0x0099ff)
+      .setTitle('🎯 Nowe typy – Play-In')
+      .addFields({
+        name: 'Drużyny awansujące',
+        value: toStr(data.teams),
+      });
+  }
+
+  // ---- send
   try {
-    const channel = await client.channels.fetch(String(channelId));
-    if (!channel) throw new Error('Kanał nie istnieje / brak dostępu');
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || channel.type !== ChannelType.GuildText) {
+      throw new Error('Invalid channel type');
+    }
 
     await channel.send({ embeds: [embed] });
-    logger.info('prediction_embed', 'Wysłano embed z typami', { guildId, type, channelId: String(channelId), userId });
-  } catch (err) {
-    logger.error('prediction_embed', 'Nie udało się wysłać embeda', {
+    logger.info('prediction_embed', 'Embed sent', {
       guildId,
       type,
-      channelId: String(channelId),
+      channelId,
+      userId,
+    });
+  } catch (err) {
+    logger.error('prediction_embed', 'Failed to send embed', {
+      guildId,
+      channelId,
       message: err.message,
     });
   }

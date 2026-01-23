@@ -1,6 +1,6 @@
 // handlers/matchUserSeriesSelect.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const pool = require('../db');
+const db = require('../db');
 const logger = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
@@ -12,11 +12,14 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
+async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
   if (maxMaps === 1) {
     const [[p]] = await pool.query(
-      `SELECT pred_exact_a, pred_exact_b FROM match_predictions WHERE match_id=? AND user_id=? LIMIT 1`,
-      [matchId, userId]
+      `SELECT pred_exact_a, pred_exact_b
+       FROM match_predictions
+       WHERE guild_id = ? AND match_id = ? AND user_id = ?
+       LIMIT 1`,
+      [guildId, matchId, userId]
     );
     return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
   }
@@ -24,8 +27,9 @@ async function getUserDefaults(matchId, userId, maxMaps, mapNo) {
   const [[p]] = await pool.query(
     `SELECT pred_exact_a, pred_exact_b
      FROM match_map_predictions
-     WHERE match_id=? AND user_id=? AND map_no=? LIMIT 1`,
-    [matchId, userId, mapNo]
+     WHERE guild_id = ? AND match_id = ? AND user_id = ? AND map_no = ?
+     LIMIT 1`,
+    [guildId, matchId, userId, mapNo]
   );
   return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
 }
@@ -43,17 +47,17 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
     .setCustomId('exact_a')
     .setLabel(`${match.team_a} — wynik`)
     .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('np. 13')
-    .setValue(defaults.a === '' ? '' : String(defaults.a));
+    .setRequired(true);
+
+  if (defaults.a !== '') inA.setValue(String(defaults.a));
 
   const inB = new TextInputBuilder()
     .setCustomId('exact_b')
     .setLabel(`${match.team_b} — wynik`)
     .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setPlaceholder('np. 8')
-    .setValue(defaults.b === '' ? '' : String(defaults.b));
+    .setRequired(true);
+
+  if (defaults.b !== '') inB.setValue(String(defaults.b));
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(inA),
@@ -67,40 +71,44 @@ module.exports = async function matchUserSeriesSelect(interaction) {
   try {
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
-      return interaction.reply({ content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.', ephemeral: true });
+      return interaction.reply({ content: '❌ Brak kontekstu meczu.', ephemeral: true });
     }
 
-    // ✅ P0: gate
-    const gate = await assertPredictionsAllowed({ guildId: interaction.guildId, kind: 'MATCHES' });
+    const gate = await assertPredictionsAllowed({
+      guildId: interaction.guildId,
+      kind: 'MATCHES'
+    });
     if (!gate.allowed) {
-      return interaction.reply({ content: gate.message || '❌ Typowanie jest aktualnie zamknięte.', ephemeral: true });
+      return interaction.reply({ content: gate.message, ephemeral: true });
     }
+
+    const pool = db.getPoolForGuild(interaction.guildId);
 
     const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of, is_locked FROM matches WHERE id=? LIMIT 1`,
-      [ctx.matchId]
+      `SELECT id, team_a, team_b, best_of, is_locked
+       FROM matches
+       WHERE id = ? AND guild_id = ?
+       LIMIT 1`,
+      [ctx.matchId, interaction.guildId]
     );
 
-    if (!match) {
+    if (!match || match.is_locked) {
       userState.clear(interaction.guildId, interaction.user.id);
-      return interaction.reply({ content: '❌ Mecz nie istnieje.', ephemeral: true });
+      return interaction.reply({ content: '🔒 Mecz jest zablokowany.', ephemeral: true });
     }
-    if (match.is_locked) {
-      return interaction.reply({ content: '🔒 Ten mecz jest zablokowany.', ephemeral: true });
+
+    // FORMAT: guildId|matchId|2:1
+    const raw = interaction.values?.[0];
+    const [, , score] = raw.split('|');
+    const [winA, winB] = score.split(':').map(Number);
+
+    if (!Number.isInteger(winA) || !Number.isInteger(winB)) {
+      return interaction.reply({ content: '❌ Niepoprawny wynik serii.', ephemeral: true });
     }
 
     const maxMaps = maxMapsFromBo(match.best_of);
-
-    const raw = interaction.values?.[0] || '';
-    const [winA, winB] = raw.split('|').map(Number);
-
-    if (!Number.isFinite(winA) || !Number.isFinite(winB) || winA < 0 || winB < 0) {
-      return interaction.reply({ content: '❌ Niepoprawny wybór wyniku serii.', ephemeral: true });
-    }
-
     const requiredMaps = Math.min(winA + winB, maxMaps);
 
-    // ustaw state pod submit
     userState.set(interaction.guildId, interaction.user.id, {
       ...ctx,
       matchId: match.id,
@@ -112,13 +120,27 @@ module.exports = async function matchUserSeriesSelect(interaction) {
       mapWinsB: 0,
     });
 
-    // od razu otwórz modal mapy #1
-    const defaults = await getUserDefaults(match.id, interaction.user.id, maxMaps, 1);
-    const modal = buildModal({ match, maxMaps, mapNo: 1, defaults });
+    const defaults = await getUserDefaults(
+      pool,
+      interaction.guildId,
+      match.id,
+      interaction.user.id,
+      maxMaps,
+      1
+    );
 
+    const modal = buildModal({ match, maxMaps, mapNo: 1, defaults });
     return interaction.showModal(modal);
+
   } catch (err) {
-    logger?.error?.('matches', 'matchUserSeriesSelect failed', { message: err.message, stack: err.stack });
-    return interaction.reply({ content: '❌ Nie udało się ustawić wyniku serii.', ephemeral: true }).catch(() => {});
+    logger.error('matches', 'matchUserSeriesSelect failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    return interaction.reply({
+      content: '❌ Nie udało się ustawić wyniku serii.',
+      ephemeral: true
+    }).catch(() => {});
   }
 };

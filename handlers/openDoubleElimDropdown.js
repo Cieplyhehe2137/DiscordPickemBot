@@ -6,10 +6,9 @@ const {
   ButtonStyle
 } = require('discord.js');
 
-const pool = require('../db');
 const { withGuild } = require('../utils/guildContext');
 
-async function loadTeamsFromDB(guildId) {
+async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(
     `SELECT name
      FROM teams
@@ -25,17 +24,20 @@ async function loadTeamsFromDB(guildId) {
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
   if (interaction.customId !== 'open_doubleelim_modal') return;
-  
 
-  await withGuild(interaction.guildId, async () => {
-    const teams = await loadTeamsFromDB(interaction.guildId);
+  await withGuild(interaction.guildId, async (pool, guildId) => {
+    const teams = await loadTeamsFromDB(pool, guildId);
 
     if (!teams.length) {
-      await interaction.reply({
+      const err = {
         content: '⚠️ Brak drużyn w bazie. Najpierw dodaj drużyny w managerze.',
         ephemeral: true
-      });
-      return;
+      };
+
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply(err);
+      }
+      return interaction.reply(err);
     }
 
     const options = teams.map(t => ({
@@ -100,10 +102,16 @@ module.exports = async (interaction) => {
         .setStyle(ButtonStyle.Success)
     );
 
-    await interaction.reply({
+    const payload = {
       embeds: [embed],
       components: [row1, row2, row3, row4, row5],
       ephemeral: true
-    });
+    };
+
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply(payload);
+    }
+
+    return interaction.reply(payload);
   });
 };

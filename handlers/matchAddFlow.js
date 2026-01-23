@@ -1,4 +1,3 @@
-// handlers/matchAddFlow.js
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
@@ -10,17 +9,30 @@ const {
 const db = require('../db');
 const logger = require('../utils/logger');
 
-const PAGE_SIZE = 24; // 24 + 1 = Next/Prev w limicie 25
+const PAGE_SIZE = 24;
 const state = new Map(); // key: `${guildId}:${userId}` -> { phase, bestOf, teamA }
 
-const stateKey = (interaction) => `${interaction.guildId || 'dm'}:${interaction.user.id}`;
+const stateKey = (interaction) => `${interaction.guildId}:${interaction.user.id}`;
+
+// ===== GUARDS =====
+function requireGuild(interaction) {
+  if (!interaction.guildId) {
+    interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    }).catch(() => {});
+    return false;
+  }
+  return true;
+}
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
-  return perms?.has(PermissionFlagsBits.Administrator) || perms?.has(PermissionFlagsBits.ManageGuild);
+  return perms?.has(PermissionFlagsBits.Administrator) ||
+         perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
-// ✅ Teams z DB (per guild)
+// ===== DB =====
 async function loadTeamsFromDb(guildId) {
   const pool = db.getPoolForGuild(guildId);
   const [rows] = await pool.query(
@@ -34,6 +46,7 @@ async function loadTeamsFromDb(guildId) {
   return rows.map(r => r.name).filter(Boolean);
 }
 
+// ===== UI HELPERS =====
 function safeLabel(str) {
   if (!str) return 'team';
   const s = String(str);
@@ -58,17 +71,16 @@ function buildTeamSelect({ customId, placeholder, teams, page, includePrevNext }
   );
 }
 
-function buildCancelRow() {
-  return new ActionRowBuilder().addComponents(
+const buildCancelRow = () =>
+  new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('match_add_cancel')
       .setLabel('✖️ Anuluj')
       .setStyle(ButtonStyle.Secondary)
   );
-}
 
-function buildAgainRow() {
-  return new ActionRowBuilder().addComponents(
+const buildAgainRow = () =>
+  new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('match_add_again')
       .setLabel('➕ Dodaj kolejny (ta sama faza/BO)')
@@ -78,28 +90,23 @@ function buildAgainRow() {
       .setLabel('✅ Zakończ')
       .setStyle(ButtonStyle.Success)
   );
-}
 
-function buildSetStartRow(matchId) {
-  return new ActionRowBuilder().addComponents(
+const buildSetStartRow = (matchId) =>
+  new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`match_admin_start_open:${matchId}`)
       .setLabel('🕒 Ustaw start (opcjonalnie)')
       .setStyle(ButtonStyle.Secondary)
   );
-}
 
-// === SELECT: faza ===
+// ===== HANDLERS =====
 async function onPhaseSelect(interaction) {
-  if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-  }
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
 
   const phase = interaction.values?.[0];
   if (!phase) return interaction.update({ content: '❌ Nie wybrano fazy.', components: [] });
 
-  const key = stateKey(interaction);
-  state.set(key, { phase, bestOf: null, teamA: null });
+  state.set(stateKey(interaction), { phase, bestOf: null, teamA: null });
 
   const row = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
@@ -108,7 +115,7 @@ async function onPhaseSelect(interaction) {
       .addOptions([
         { label: 'BO1', value: '1' },
         { label: 'BO3', value: '3' },
-        { label: 'BO5', value: '5' },
+        { label: 'BO5', value: '5' }
       ])
   );
 
@@ -118,244 +125,140 @@ async function onPhaseSelect(interaction) {
   });
 }
 
-// === SELECT: BO ===
 async function onBoSelect(interaction) {
-  if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-  }
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
 
   const bo = Number(interaction.values?.[0]);
-  if (![1, 3, 5].includes(bo)) return interaction.update({ content: '❌ Niepoprawne BO.', components: [] });
+  if (![1, 3, 5].includes(bo)) {
+    return interaction.update({ content: '❌ Niepoprawne BO.', components: [] });
+  }
 
-  const key = stateKey(interaction);
-  const st = state.get(key);
-  if (!st?.phase) return interaction.update({ content: '❌ Sesja wygasła. Kliknij jeszcze raz ➕ Dodaj mecz.', components: [] });
+  const st = state.get(stateKey(interaction));
+  if (!st?.phase) {
+    return interaction.update({ content: '❌ Sesja wygasła.', components: [] });
+  }
 
   st.bestOf = bo;
   st.teamA = null;
-  state.set(key, st);
 
-  // ✅ Teams z DB
   const teams = await loadTeamsFromDb(interaction.guildId);
   if (!teams.length) {
     return interaction.update({
-      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
+      content: '❌ Brak aktywnych drużyn w bazie.',
       components: [buildCancelRow()]
     });
   }
 
-  const row = buildTeamSelect({
-    customId: 'match_add_team_a_select',
-    placeholder: 'Wybierz Team A…',
-    teams,
-    page: 0,
-    includePrevNext: teams.length > PAGE_SIZE
-  });
-
   return interaction.update({
-    content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nWybierz **Team A**:`,
-    components: [row, buildCancelRow()]
+    content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${bo}**\nWybierz **Team A**:`,
+    components: [
+      buildTeamSelect({
+        customId: 'match_add_team_a_select',
+        placeholder: 'Wybierz Team A…',
+        teams,
+        page: 0,
+        includePrevNext: teams.length > PAGE_SIZE
+      }),
+      buildCancelRow()
+    ]
   });
 }
 
-// === SELECT: Team A (z paginacją) ===
 async function onTeamASelect(interaction) {
-  if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-  }
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
 
-  const key = stateKey(interaction);
-  const st = state.get(key);
+  const st = state.get(stateKey(interaction));
   if (!st?.phase || !st?.bestOf) {
-    return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
+    return interaction.update({ content: '❌ Sesja wygasła.', components: [] });
   }
 
-  const picked = interaction.values?.[0];
-  if (!picked) return interaction.update({ content: '❌ Nie wybrano opcji.', components: [] });
-
-  const [type, payload] = picked.split('|');
-
+  const [type, payload] = interaction.values[0].split('|');
   const teamsAll = await loadTeamsFromDb(interaction.guildId);
-  if (!teamsAll.length) {
-    return interaction.update({
-      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
-      components: [buildCancelRow()]
-    });
-  }
 
   if (type === 'PAGE') {
-    const page = Number(payload || 0);
-    const row = buildTeamSelect({
-      customId: 'match_add_team_a_select',
-      placeholder: 'Wybierz Team A…',
-      teams: teamsAll,
-      page,
-      includePrevNext: teamsAll.length > PAGE_SIZE
-    });
     return interaction.update({
       content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nWybierz **Team A**:`,
-      components: [row, buildCancelRow()]
+      components: [
+        buildTeamSelect({
+          customId: 'match_add_team_a_select',
+          placeholder: 'Wybierz Team A…',
+          teams: teamsAll,
+          page: Number(payload),
+          includePrevNext: teamsAll.length > PAGE_SIZE
+        }),
+        buildCancelRow()
+      ]
     });
   }
 
-  if (type !== 'TEAM') return interaction.update({ content: '❌ Nieznana opcja.', components: [] });
-
   st.teamA = payload;
-  state.set(key, st);
+  state.set(stateKey(interaction), st);
 
-  // Team B = wszystkie oprócz Team A
-  const teamsB = teamsAll.filter(t => t !== st.teamA);
-
-  const row = buildTeamSelect({
-    customId: 'match_add_team_b_select',
-    placeholder: 'Wybierz Team B…',
-    teams: teamsB,
-    page: 0,
-    includePrevNext: teamsB.length > PAGE_SIZE
-  });
+  const teamsB = teamsAll.filter(t => t !== payload);
 
   return interaction.update({
-    content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nTeam A: **${st.teamA}**\nWybierz **Team B**:`,
-    components: [row, buildCancelRow()]
+    content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nTeam A: **${payload}**\nWybierz **Team B**:`,
+    components: [
+      buildTeamSelect({
+        customId: 'match_add_team_b_select',
+        placeholder: 'Wybierz Team B…',
+        teams: teamsB,
+        page: 0,
+        includePrevNext: teamsB.length > PAGE_SIZE
+      }),
+      buildCancelRow()
+    ]
   });
 }
 
-// === SELECT: Team B (z paginacją) + INSERT do DB ===
 async function onTeamBSelect(interaction) {
-  if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-  }
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
 
   const key = stateKey(interaction);
   const st = state.get(key);
   if (!st?.phase || !st?.bestOf || !st?.teamA) {
-    return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
+    return interaction.update({ content: '❌ Sesja wygasła.', components: [] });
   }
 
-  const picked = interaction.values?.[0];
-  if (!picked) return interaction.update({ content: '❌ Nie wybrano opcji.', components: [] });
-
-  const [type, payload] = picked.split('|');
-
-  const teamsAll = (await loadTeamsFromDb(interaction.guildId)).filter(t => t !== st.teamA);
-  if (!teamsAll.length) {
-    return interaction.update({
-      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
-      components: [buildCancelRow()]
-    });
-  }
-
-  if (type === 'PAGE') {
-    const page = Number(payload || 0);
-    const row = buildTeamSelect({
-      customId: 'match_add_team_b_select',
-      placeholder: 'Wybierz Team B…',
-      teams: teamsAll,
-      page,
-      includePrevNext: teamsAll.length > PAGE_SIZE
-    });
-    return interaction.update({
-      content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nTeam A: **${st.teamA}**\nWybierz **Team B**:`,
-      components: [row, buildCancelRow()]
-    });
-  }
-
-  if (type !== 'TEAM') return interaction.update({ content: '❌ Nieznana opcja.', components: [] });
-
-  const teamB = payload;
-  if (teamB === st.teamA) {
-    return interaction.update({ content: '❌ Team B nie może być taki sam jak Team A.', components: [buildCancelRow()] });
-  }
-
-  // ✅ pool per-guild dla matches
+  const [, teamB] = interaction.values[0].split('|');
   const pool = db.getPoolForGuild(interaction.guildId);
 
-  // AUTO match_no
   const [[next]] = await pool.query(
-    `SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo FROM matches WHERE guild_id = ? AND phase = ?`,
+    `SELECT COALESCE(MAX(match_no),0)+1 AS nextNo
+     FROM matches WHERE guild_id=? AND phase=?`,
     [interaction.guildId, st.phase]
   );
-  const matchNo = Number(next?.nextNo || 1);
 
-  try {
-    const [res] = await pool.query(
-      `INSERT INTO matches (guild_id, phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, 0)`,
-      [interaction.guildId, st.phase, matchNo, st.teamA, teamB, st.bestOf]
-    );
+  const [res] = await pool.query(
+    `INSERT INTO matches (guild_id, phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked)
+     VALUES (?, ?, ?, ?, ?, ?, NULL, 0)`,
+    [interaction.guildId, st.phase, next.nextNo, st.teamA, teamB, st.bestOf]
+  );
 
-    const matchId = res.insertId;
+  state.delete(key); // ✅ cleanup
 
-    logger.info('matches', 'Match added', {
-      guildId: interaction.guildId,
-      phase: st.phase,
-      matchNo,
-      teamA: st.teamA,
-      teamB,
-      bestOf: st.bestOf,
-      by: interaction.user.id
-    });
+  logger.info('matches', 'Match added', {
+    guildId: interaction.guildId,
+    phase: st.phase,
+    teamA: st.teamA,
+    teamB,
+    bestOf: st.bestOf
+  });
 
-    return interaction.update({
-      content: `✅ Dodano mecz: **${st.teamA} vs ${teamB}** (BO${st.bestOf})\nFaza: **${st.phase}**, match_no: **#${matchNo}**`,
-      components: [
-        buildAgainRow(),
-        buildSetStartRow(matchId)
-      ]
-    });
-  } catch (e) {
-    logger.error('matches', 'Match insert failed', { message: e.message, stack: e.stack });
-
-    const msg = (e.code === 'ER_DUP_ENTRY')
-      ? '❌ Taki mecz już istnieje (duplikat).'
-      : '❌ Nie udało się dodać meczu (błąd DB).';
-
-    return interaction.update({ content: msg, components: [buildAgainRow()] });
-  }
+  return interaction.update({
+    content: `✅ Dodano mecz: **${st.teamA} vs ${teamB}** (BO${st.bestOf})`,
+    components: [buildAgainRow(), buildSetStartRow(res.insertId)]
+  });
 }
 
-// === BUTTON: cancel / again ===
 async function onCancel(interaction) {
-  const key = stateKey(interaction);
-  state.delete(key);
+  state.delete(stateKey(interaction));
   return interaction.update({ content: '✅ Anulowano dodawanie meczu.', components: [] });
 }
 
 async function onAgain(interaction) {
-  if (!hasAdminPerms(interaction)) {
-    return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-  }
-
-  const key = stateKey(interaction);
-  const st = state.get(key);
-  if (!st?.phase || !st?.bestOf) {
-    return interaction.update({ content: '❌ Sesja wygasła. Kliknij ➕ Dodaj mecz.', components: [] });
-  }
-
-  st.teamA = null;
-  state.set(key, st);
-
-  // ✅ Teams z DB
-  const teams = await loadTeamsFromDb(interaction.guildId);
-  if (!teams.length) {
-    return interaction.update({
-      content: '❌ Brak aktywnych drużyn w bazie (Teams manager).',
-      components: []
-    });
-  }
-
-  const row = buildTeamSelect({
-    customId: 'match_add_team_a_select',
-    placeholder: 'Wybierz Team A…',
-    teams,
-    page: 0,
-    includePrevNext: teams.length > PAGE_SIZE
-  });
-
-  return interaction.update({
-    content: `➕ Dodawanie meczu — faza: **${st.phase}**, BO: **${st.bestOf}**\nWybierz **Team A**:`,
-    components: [row, buildCancelRow()]
-  });
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
+  return onPhaseSelect(interaction);
 }
 
 module.exports = {

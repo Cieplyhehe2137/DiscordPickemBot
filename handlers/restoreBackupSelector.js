@@ -2,22 +2,50 @@
 const {
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  PermissionFlagsBits
 } = require('discord.js');
+
+function isAdmin(interaction) {
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+}
+
+function isSafeFilename(name) {
+  return typeof name === 'string' && /^[\w.-]+\.(sql|json)$/.test(name);
+}
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
   if (interaction.customId !== 'restore_backup_select') return;
 
   try {
-    const file = interaction.values[0];
+    if (!interaction.guildId) {
+      return interaction.reply({
+        content: '❌ Operacja dostępna tylko na serwerze.',
+        ephemeral: true
+      });
+    }
 
-    console.log('Selected backup:', file);
+    if (!isAdmin(interaction)) {
+      return interaction.reply({
+        content: '⛔ Tylko administrator może przywracać backup.',
+        ephemeral: true
+      });
+    }
+
+    const file = interaction.values?.[0];
+
+    if (!isSafeFilename(file)) {
+      return interaction.reply({
+        content: '❌ Nieprawidłowa nazwa pliku backupu.',
+        ephemeral: true
+      });
+    }
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`confirm_restore_backup:${file}`)
-        .setLabel('✅ Potwierdź przywracanie')
+        .setLabel('⚠️ Potwierdź przywracanie')
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId('cancel_restore_backup')
@@ -25,10 +53,12 @@ module.exports = async (interaction) => {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    await interaction.reply({
-      content: `⚠️ Czy na pewno chcesz przywrócić backup:\n**${file}**`,
-      components: [row],
-      ephemeral: true
+    // 🔥 update zamiast reply
+    await interaction.update({
+      content:
+        '⚠️ **UWAGA: operacja nieodwracalna**\n\n' +
+        `Czy na pewno chcesz przywrócić backup:\n**${file}**`,
+      components: [row]
     });
 
   } catch (err) {

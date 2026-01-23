@@ -5,27 +5,32 @@ const logger = require('../utils/logger.js');
 
 const BASE_ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum');
 
+function ensureDir(dir) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
 module.exports = async (interaction) => {
-  const selected = interaction.values?.[0]; // np. "STARLADDER_BUDAPEST_MAJOR_2025.xlsx"
+  const selected = interaction.values?.[0];
   const guildId = interaction.guildId;
 
-  // jeżeli select byłby "martwy"
+  // martwy / pusty select
   if (!selected || selected === '__none__') {
-    if (!interaction.replied && !interaction.deferred) {
+    if (!interaction.deferred && !interaction.replied) {
       await interaction.deferUpdate().catch(() => {});
     }
     return;
   }
 
-  // to działa tylko na serwerze (panel jest na kanale, ale guard zostawiamy)
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
+      content: '❌ Ta funkcja działa tylko na serwerze.',
       ephemeral: true
     });
   }
 
-  // minimalna walidacja: value ma być nazwą pliku, bez ścieżek
+  // zabezpieczenie przed ../
   const safeName = path.basename(String(selected));
   if (safeName !== selected) {
     return interaction.reply({
@@ -34,11 +39,18 @@ module.exports = async (interaction) => {
     });
   }
 
-  // ✅ per-guild folder
-  const archivePath = path.join(BASE_ARCHIVE_DIR, String(guildId), safeName);
-
   try {
-    await interaction.deferReply({ ephemeral: true });
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
+    // upewnij się, że katalog istnieje
+    ensureDir(BASE_ARCHIVE_DIR);
+
+    const guildArchiveDir = path.join(BASE_ARCHIVE_DIR, String(guildId));
+    ensureDir(guildArchiveDir);
+
+    const archivePath = path.join(guildArchiveDir, safeName);
 
     if (!fs.existsSync(archivePath)) {
       return interaction.editReply({
@@ -46,12 +58,13 @@ module.exports = async (interaction) => {
       });
     }
 
-    await interaction.editReply({
+    return interaction.editReply({
       content: `📥 Oto plik archiwum: **${safeName}**`,
       files: [{ attachment: archivePath, name: safeName }]
     });
+
   } catch (err) {
-    logger.error("archive", "Send archive file failed", {
+    logger.error('archive', 'Send archive file failed', {
       guildId,
       userId: interaction.user?.id,
       username: interaction.user?.username,
@@ -61,9 +74,14 @@ module.exports = async (interaction) => {
     });
 
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({ content: '❌ Wystąpił błąd podczas wysyłania pliku.' }).catch(() => {});
+      await interaction.editReply({
+        content: '❌ Wystąpił błąd podczas wysyłania pliku.'
+      }).catch(() => {});
     } else {
-      await interaction.reply({ content: '❌ Wystąpił błąd podczas wysyłania pliku.', ephemeral: true }).catch(() => {});
+      await interaction.reply({
+        content: '❌ Wystąpił błąd podczas wysyłania pliku.',
+        ephemeral: true
+      }).catch(() => {});
     }
   }
 };

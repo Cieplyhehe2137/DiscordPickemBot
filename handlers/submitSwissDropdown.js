@@ -5,12 +5,31 @@ const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-// cache: `${guildId}:${userId}:${stage}` -> { '3':[], '0':[], 'advancing':[] }
+/* ===============================
+   CACHE (TTL)
+   key = `${guildId}:${userId}:${stage}`
+=============================== */
+const CACHE_TTL = 15 * 60 * 1000; // 15 min
 const cache = new Map();
+
+function getCache(key) {
+  const e = cache.get(key);
+  if (!e) return null;
+
+  if (Date.now() - e.ts > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return e.data;
+}
+
+function setCache(key, data) {
+  cache.set(key, { ts: Date.now(), data });
+}
 
 /* ===============================
    DB HELPERS
-   =============================== */
+=============================== */
 async function loadTeamsFromDB(db, guildId) {
   const [rows] = await safeQuery(
     db,
@@ -24,90 +43,66 @@ async function loadTeamsFromDB(db, guildId) {
     [guildId],
     { guildId, scope: 'submitSwiss', label: 'load teams' }
   );
+
   return rows.map(r => r.name);
 }
 
 /* ===============================
    HANDLER
-   =============================== */
+=============================== */
 module.exports = async (interaction) => {
   const { customId } = interaction;
+  const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const username = interaction.user.username;
   const displayName = interaction.member?.displayName || username;
 
-  logger.debug('submit', 'Interaction received', {
-    guildId: interaction.guildId,
-    userId,
-    customId
-  });
-
   /* ===============================
-     STAGE (stage1 / stage2 / stage3)
+     STAGE
      =============================== */
-  const stageMatch = customId.match(/stage([123])/);
-  const stage = stageMatch ? `stage${stageMatch[1]}` : null;
+  const m = customId.match(/stage([123])/);
+  const stage = m ? `stage${m[1]}` : null;
 
   if (!stage) {
-    logger.warn('submit', 'Stage not recognized', {
-      guildId: interaction.guildId,
-      userId,
-      customId
-    });
     return interaction.reply({
       content: '❌ Nie udało się rozpoznać etapu Swiss.',
       ephemeral: true
     });
   }
 
-  const cacheKey = `${interaction.guildId}:${userId}:${stage}`;
+  const cacheKey = `${guildId}:${userId}:${stage}`;
+  const local = getCache(cacheKey) || {};
 
   /* ===============================
-     1) DROPDOWNS
+     DROPDOWNS
      =============================== */
   if (interaction.isStringSelectMenu()) {
-    await interaction.deferUpdate();
-
-    // swiss_3_0_stage1 / swiss_0_3_stage1 / swiss_advancing_stage1
+    // customId: swiss_3_0_stage1 | swiss_0_3_stage1 | swiss_advancing_stage1
     const parts = customId.split('_');
-    const typeRaw = parts[1];
 
     let type;
-    if (typeRaw === '3') type = '3';
-    else if (typeRaw === '0') type = '0';
-    else if (typeRaw === 'advancing') type = 'advancing';
-    else {
-      logger.warn('submit', 'Unknown dropdown type', {
-        guildId: interaction.guildId,
-        userId,
-        customId
-      });
-      return interaction.followUp({
-        content: '❌ Nie udało się rozpoznać typu wyboru.',
-        ephemeral: true
-      });
-    }
+    if (parts[1] === '3') type = '3';
+    else if (parts[1] === '0') type = '0';
+    else if (parts[1] === 'advancing') type = 'advancing';
+    else return interaction.deferUpdate();
 
-    if (!cache.has(cacheKey)) cache.set(cacheKey, {});
-    const data = cache.get(cacheKey);
-    data[type] = interaction.values;
+    local[type] = interaction.values.map(String);
+    setCache(cacheKey, local);
 
-    logger.debug('submit', 'Dropdown updated', {
-      guildId: interaction.guildId,
+    logger.debug('submit', 'Swiss dropdown updated', {
+      guildId,
       userId,
       stage,
       type,
-      count: interaction.values.length
+      values: local[type]
     });
 
-    return interaction.followUp({
-      content: '📝 Zapisano wybór (jeszcze niezatwierdzony).',
-      ephemeral: true
-    });
+    await interaction.deferUpdate();
+    return;
   }
 
   /* ===============================
-     2) CONFIRM BUTTON
+     CONFIRM BUTTON
      =============================== */
   const isConfirm =
     interaction.isButton() &&
@@ -133,7 +128,7 @@ module.exports = async (interaction) => {
       );
     }
 
-    const data = cache.get(cacheKey) || {};
+    const data = getCache(cacheKey) || {};
 
     if (!data['3'] || !data['0'] || !data['advancing']) {
       return interaction.editReply(
@@ -153,7 +148,7 @@ module.exports = async (interaction) => {
         `⚠️ Nieprawidłowa liczba drużyn:\n` +
         `• 3-0: ${data['3'].length}/2\n` +
         `• 0-3: ${data['0'].length}/2\n` +
-        `• awansujące: ${data['advancing'].length}/6`
+        `• awans: ${data['advancing'].length}/6`
       );
     }
 
@@ -177,12 +172,8 @@ module.exports = async (interaction) => {
     }
 
     /* ===============================
-       ZAPIS DO DB (STRINGI)
+       DB SAVE
        =============================== */
-    const pick3 = data['3'].join(', ');
-    const pick0 = data['0'].join(', ');
-    const advancing = data['advancing'].join(', ');
-
     await safeQuery(
       db,
       `
@@ -204,16 +195,16 @@ module.exports = async (interaction) => {
         username,
         displayName,
         stage,
-        pick3,
-        pick0,
-        advancing
+        data['3'].join(', '),
+        data['0'].join(', '),
+        data['advancing'].join(', ')
       ],
       { guildId, scope: 'submitSwiss', label: 'upsert swiss_predictions' }
     );
 
     cache.delete(cacheKey);
 
-    logger.info('submit', 'Swiss submit saved', {
+    logger.info('submit', 'Swiss predictions saved', {
       guildId,
       userId,
       stage

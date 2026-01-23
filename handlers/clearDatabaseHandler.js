@@ -23,7 +23,7 @@ module.exports = async (interaction) => {
   // 🔒 ADMIN ONLY
   if (!isAdmin(interaction)) {
     logger.warn('clear', 'Unauthorized clear attempt', {
-      guildId,
+      guild_id: guildId,
       userId: interaction.user.id,
       customId: interaction.customId,
     });
@@ -37,7 +37,7 @@ module.exports = async (interaction) => {
   const pool = db.getPoolForGuild(guildId);
 
   const userMeta = {
-    guildId,
+    guild_id: guildId,
     userId: interaction.user.id,
     username: interaction.user.tag,
     customId: interaction.customId,
@@ -146,21 +146,24 @@ module.exports = async (interaction) => {
   }
 
   // =========================
-  // EXECUTION
+  // EXECUTION (GUILD SAFE)
   // =========================
+
+  const del = (sql, label) =>
+    safeQuery(pool, sql, [guildId], { guild_id: guildId, scope: 'clear', label });
 
   if (action === 'clear_db_yes') {
     try {
       await pool.query('START TRANSACTION');
 
-      await safeQuery(pool, 'DELETE FROM swiss_predictions', [], { guildId, scope: 'clear', label: 'delete swiss_predictions' });
-      await safeQuery(pool, 'DELETE FROM playoffs_predictions', [], { guildId, scope: 'clear', label: 'delete playoffs_predictions' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_predictions', [], { guildId, scope: 'clear', label: 'delete doubleelim_predictions' });
-      await safeQuery(pool, 'DELETE FROM playin_predictions', [], { guildId, scope: 'clear', label: 'delete playin_predictions' });
-      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
-      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
-      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
+      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'delete swiss_predictions');
+      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'delete playoffs_predictions');
+      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'delete doubleelim_predictions');
+      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'delete playin_predictions');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
 
       await pool.query('COMMIT');
 
@@ -177,19 +180,19 @@ module.exports = async (interaction) => {
     try {
       await pool.query('START TRANSACTION');
 
-      await safeQuery(pool, 'DELETE FROM active_panels', [], { guildId, scope: 'clear', label: 'delete active_panels' });
-      await safeQuery(pool, 'DELETE FROM swiss_predictions', [], { guildId, scope: 'clear', label: 'delete swiss_predictions' });
-      await safeQuery(pool, 'DELETE FROM playoffs_predictions', [], { guildId, scope: 'clear', label: 'delete playoffs_predictions' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_predictions', [], { guildId, scope: 'clear', label: 'delete doubleelim_predictions' });
-      await safeQuery(pool, 'DELETE FROM playin_predictions', [], { guildId, scope: 'clear', label: 'delete playin_predictions' });
-      await safeQuery(pool, 'DELETE FROM swiss_results', [], { guildId, scope: 'clear', label: 'delete swiss_results' });
-      await safeQuery(pool, 'DELETE FROM playoffs_results', [], { guildId, scope: 'clear', label: 'delete playoffs_results' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_results', [], { guildId, scope: 'clear', label: 'delete doubleelim_results' });
-      await safeQuery(pool, 'DELETE FROM playin_results', [], { guildId, scope: 'clear', label: 'delete playin_results' });
-      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
-      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
-      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
+      await del('DELETE FROM active_panels WHERE guild_id = ?', 'delete active_panels');
+      await del('DELETE FROM swiss_predictions WHERE guild_id = ?', 'delete swiss_predictions');
+      await del('DELETE FROM playoffs_predictions WHERE guild_id = ?', 'delete playoffs_predictions');
+      await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?', 'delete doubleelim_predictions');
+      await del('DELETE FROM playin_predictions WHERE guild_id = ?', 'delete playin_predictions');
+      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'delete swiss_results');
+      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'delete playoffs_results');
+      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'delete doubleelim_results');
+      await del('DELETE FROM playin_results WHERE guild_id = ?', 'delete playin_results');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
 
       await pool.query('COMMIT');
 
@@ -206,14 +209,14 @@ module.exports = async (interaction) => {
     try {
       await pool.query('START TRANSACTION');
 
-      await safeQuery(pool, 'DELETE FROM swiss_results', [], { guildId, scope: 'clear', label: 'delete swiss_results' });
-      await safeQuery(pool, 'DELETE FROM playoffs_results', [], { guildId, scope: 'clear', label: 'delete playoffs_results' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_results', [], { guildId, scope: 'clear', label: 'delete doubleelim_results' });
-      await safeQuery(pool, 'DELETE FROM playin_results', [], { guildId, scope: 'clear', label: 'delete playin_results' });
-      await safeQuery(pool, 'DELETE FROM swiss_scores', [], { guildId, scope: 'clear', label: 'delete swiss_scores' });
-      await safeQuery(pool, 'DELETE FROM playoffs_scores', [], { guildId, scope: 'clear', label: 'delete playoffs_scores' });
-      await safeQuery(pool, 'DELETE FROM doubleelim_scores', [], { guildId, scope: 'clear', label: 'delete doubleelim_scores' });
-      await safeQuery(pool, 'DELETE FROM playin_scores', [], { guildId, scope: 'clear', label: 'delete playin_scores' });
+      await del('DELETE FROM swiss_results WHERE guild_id = ?', 'delete swiss_results');
+      await del('DELETE FROM playoffs_results WHERE guild_id = ?', 'delete playoffs_results');
+      await del('DELETE FROM doubleelim_results WHERE guild_id = ?', 'delete doubleelim_results');
+      await del('DELETE FROM playin_results WHERE guild_id = ?', 'delete playin_results');
+      await del('DELETE FROM swiss_scores WHERE guild_id = ?', 'delete swiss_scores');
+      await del('DELETE FROM playoffs_scores WHERE guild_id = ?', 'delete playoffs_scores');
+      await del('DELETE FROM doubleelim_scores WHERE guild_id = ?', 'delete doubleelim_scores');
+      await del('DELETE FROM playin_scores WHERE guild_id = ?', 'delete playin_scores');
 
       await pool.query('COMMIT');
 

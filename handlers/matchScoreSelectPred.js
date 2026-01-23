@@ -21,7 +21,14 @@ module.exports = async function matchScoreSelectPred(interaction) {
       return interaction.update({ content: '❌ Nie wybrano typu.', components: [] });
     }
 
-    const [matchIdRaw, scoreRaw] = picked.split('|');
+    const [guildIdFromValue, matchIdRaw, scoreRaw] = picked.split('|');
+
+    if (guildIdFromValue !== interaction.guildId) {
+      return interaction.update({
+        content: '❌ Błędny kontekst serwera.',
+        components: []
+      });
+    }
     const matchId = Number(matchIdRaw);
     const [winAraw, winBraw] = String(scoreRaw || '').split(':');
     const winA = Number(winAraw);
@@ -116,6 +123,6 @@ module.exports = async function matchScoreSelectPred(interaction) {
     return interaction.update({
       content: '❌ Błąd przy wyborze typu.',
       components: []
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };

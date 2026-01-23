@@ -14,8 +14,17 @@ module.exports = async function matchScoreSelect(interaction) {
     const val = interaction.values?.[0];
     if (!val) return interaction.update({ content: '❌ Nie wybrano wyniku.', components: [] });
 
-    const [matchIdStr, scoreStr] = val.split('|');
+    const [guildIdFromValue, matchIdStr, scoreStr] = val.split('|');
+
+    if (guildIdFromValue !== interaction.guildId) {
+      return interaction.update({
+        content: '❌ Błędny kontekst serwera.',
+        components: []
+      });
+    }
+
     const matchId = Number(matchIdStr);
+
     const [aStr, bStr] = scoreStr.split(':');
     const a = Number(aStr);
     const b = Number(bStr);
@@ -134,6 +143,6 @@ module.exports = async function matchScoreSelect(interaction) {
     return interaction.update({
       content: '❌ Błąd przy zapisie wyniku.',
       components: []
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };

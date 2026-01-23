@@ -15,7 +15,7 @@ const { safeQuery } = require('./safeQuery');
 let withGuild = null;
 try {
   ({ withGuild } = require('./guildContext'));
-} catch (_) {}
+} catch (_) { }
 
 async function withGuildContext(guildId, fn) {
   if (typeof withGuild === 'function') {
@@ -72,7 +72,7 @@ function getCountQueryForPhase(phaseRaw = '', stageFromPanel = null) {
   if (p.includes('playoffs')) {
     return {
       confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions WHERE active = 1`, params: [] },
-      any:       { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions`, params: [] },
+      any: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions`, params: [] },
       stageNorm: null,
     };
   }
@@ -80,7 +80,7 @@ function getCountQueryForPhase(phaseRaw = '', stageFromPanel = null) {
   if (p.includes('playin') || p.includes('play-in') || p.includes('play_in')) {
     return {
       confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playin_predictions WHERE active = 1`, params: [] },
-      any:       { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playin_predictions`, params: [] },
+      any: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playin_predictions`, params: [] },
       stageNorm: null,
     };
   }
@@ -96,6 +96,7 @@ async function sendTrendsAfterDeadline(client, panelRow) {
     const phaseLower = String(panelRow.phase || '').toLowerCase();
 
     const stats = await calculatePopularityForPanel({
+      guildId: panelRow.guild_id,
       phase: phaseLower,
       stage: panelRow.stage || null,
       onlyActive: false,
@@ -118,7 +119,7 @@ async function sendTrendsAfterDeadline(client, panelRow) {
       phaseGroup:
         phaseLower.includes('playoffs') ? 'playoffs'
           : phaseLower.includes('playin') ? 'playin'
-          : 'swiss',
+            : 'swiss',
       topPerBucket: 30,
       order,
       showEmptyBuckets: false,
@@ -194,7 +195,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
             );
             count = r?.c || 0;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         const noun = count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osób');
         const phaseLabel =

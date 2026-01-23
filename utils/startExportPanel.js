@@ -4,32 +4,31 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ChannelType,
 } = require('discord.js');
 
 const logger = require('./logger');
 const { getGuildConfig } = require('./guildRegistry');
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
+const PANEL_MARKER = 'export-panel-v1'; // 🔒 marker bezpieczeństwa
 
 async function findExistingPanelMessage(channel, clientUserId) {
   if (!clientUserId) return null;
 
   try {
-    const messages = await channel.messages.fetch({ limit: 20 });
+    const messages = await channel.messages.fetch({ limit: 25 });
 
-    const found = messages
-      .filter(m => m.author?.id === clientUserId)
-      .find(m => {
-        const e = m.embeds?.[0];
-        return e && e.title === PANEL_TITLE;
-      });
+    return messages.find(m => {
+      if (m.author?.id !== clientUserId) return false;
+      const e = m.embeds?.[0];
+      return e?.title === PANEL_TITLE && e?.footer?.text === PANEL_MARKER;
+    }) || null;
 
-    return found || null;
   } catch (err) {
-    logger.error('panel', 'Failed to fetch messages for panel lookup', {
+    logger.warn('panel', 'Cannot fetch messages for panel lookup (permissions?)', {
       channelId: channel.id,
       message: err.message,
-      stack: err.stack,
     });
     return null;
   }
@@ -46,7 +45,8 @@ function buildPanelPayload() {
       '• Wykonać backup / przywrócić bazę\n' +
       '• Wyczyścić dane / zrobić reset\n\n' +
       '⚠️ **Dostęp tylko dla Administracji serwera**'
-    );
+    )
+    .setFooter({ text: PANEL_MARKER });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -81,44 +81,53 @@ function buildPanelPayload() {
 module.exports = async function startExportPanel(client, guildId) {
   const gid = String(guildId || '').trim();
   if (!gid) {
-    logger.error('panel', 'startExportPanel called without guildId', {});
+    logger.error('panel', 'startExportPanel called without guildId');
+    return;
+  }
+
+  if (!client?.user) {
+    logger.warn('panel', 'Client not ready – skipping export panel', { guildId: gid });
     return;
   }
 
   const cfg = getGuildConfig(gid);
   if (!cfg) {
-    logger.error('panel', 'Missing guild config for startExportPanel', { guildId: gid });
+    logger.error('panel', 'Missing guild config', { guildId: gid });
     return;
   }
 
   const channelId = String(cfg.EXPORT_PANEL_CHANNEL_ID || '').trim();
   if (!channelId) {
-    logger.error('panel', 'Missing EXPORT_PANEL_CHANNEL_ID in guild config', { guildId: gid });
+    logger.error('panel', 'Missing EXPORT_PANEL_CHANNEL_ID', { guildId: gid });
     return;
   }
 
   try {
     const channel = await client.channels.fetch(channelId);
 
-    if (!channel || !channel.isTextBased?.()) {
-      logger.error('panel', 'Export panel channel not found or not text-based', {
+    if (
+      !channel ||
+      channel.type !== ChannelType.GuildText ||
+      !channel.isSendable?.()
+    ) {
+      logger.error('panel', 'Invalid export panel channel', {
         guildId: gid,
         channelId,
+        type: channel?.type,
       });
       return;
     }
 
-    if (channel.guildId && String(channel.guildId) !== String(gid)) {
+    if (String(channel.guildId) !== gid) {
       logger.error('panel', 'EXPORT_PANEL_CHANNEL_ID points to another guild', {
         guildId: gid,
-        channelId,
         channelGuildId: channel.guildId,
       });
       return;
     }
 
     const payload = buildPanelPayload();
-    const existing = await findExistingPanelMessage(channel, client.user?.id);
+    const existing = await findExistingPanelMessage(channel, client.user.id);
 
     if (existing) {
       await existing.edit(payload);
@@ -136,6 +145,7 @@ module.exports = async function startExportPanel(client, guildId) {
       channelId,
       messageId: sent.id,
     });
+
   } catch (err) {
     logger.error('panel', 'startExportPanel failed', {
       guildId: gid,

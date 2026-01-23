@@ -4,7 +4,6 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-  StringSelectMenuBuilder,
 } = require('discord.js');
 
 const logger = require('../utils/logger');
