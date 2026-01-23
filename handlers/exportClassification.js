@@ -1,4 +1,3 @@
-const { withGuild } = require('../utils/guildContext');
 const ExcelJS = require('exceljs');
 const calculateScores = require('./calculateScores');
 const path = require('path');
@@ -98,14 +97,20 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
   const logger = require('../utils/logger');
 
-  return withGuild(interaction, async ({ pool, guildId }) => {
+if (!interaction?.__guildContext) {
+  throw new Error('exportClassification called without guild context');
+}
 
-    logger.info('export', 'Starting classification export', { guildId });
+const { pool, guildId } = interaction.__guildContext;
 
-    await calculateScores(guildId);
+  logger.info('export', 'Starting classification export', { guildId });
 
-    const workbook = new ExcelJS.Workbook();
-    
+  await calculateScores(guildId);
+
+  const workbook = new ExcelJS.Workbook();
+  
+
+
 
     // ⬇️ CAŁA RESZTA KODU BEZ ZMIAN ⬇️
     // wszystkie pool.query(...) zostają
@@ -832,5 +837,4 @@ ORDER BY
   if (!interaction) {
     console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
   }
-});
 };
