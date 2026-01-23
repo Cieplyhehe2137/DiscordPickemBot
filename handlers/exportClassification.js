@@ -114,7 +114,7 @@ module.exports = async function exportClassification(interaction = null, outputP
 
 
 
-  await calculateScores();
+  await calculateScores(guildId);
   const workbook = new ExcelJS.Workbook();
 
   const sheetMain = workbook.addWorksheet('Klasyfikacja ogólna');
@@ -602,41 +602,41 @@ sheetMapsSummary.columns = [
     // --- Query dla SERII (bez map)
     const [matchRows] = await pool.query(`
   SELECT
-  m.id AS match_id,
-  m.phase,
-  m.match_no,
-  m.team_a,
-  m.team_b,
-  m.best_of,
-  r.res_a,
-  r.res_b,
-  p.user_id,
-  p.pred_a,
-  p.pred_b,
-  pts.points
-FROM matches m
-JOIN match_predictions p
-  ON p.match_id = m.id
- AND p.guild_id = m.guild_id
-LEFT JOIN match_results r
-  ON r.match_id = m.id
- AND r.guild_id = m.guild_id
-LEFT JOIN (
-  SELECT match_id, user_id, SUM(points) AS points
-  FROM match_points
-  WHERE guild_id = ?
-  GROUP BY match_id, user_id
-) pts
-  ON pts.match_id = m.id
- AND pts.user_id = p.user_id
-WHERE m.guild_id = ?
-ORDER BY
-  m.phase,
-  COALESCE(m.match_no, 999999),
-  m.id,
-  p.user_id;
+    m.id AS match_id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    r.res_a,
+    r.res_b,
+    p.user_id,
+    p.pred_a,
+    p.pred_b,
+    pts.points
+  FROM matches m
+  JOIN match_predictions p
+    ON p.match_id = m.id
+   AND p.guild_id = m.guild_id
+  LEFT JOIN match_results r
+    ON r.match_id = m.id
+   AND r.guild_id = m.guild_id
+  LEFT JOIN (
+    SELECT match_id, user_id, SUM(points) AS points
+    FROM match_points
+    WHERE guild_id = ?
+    GROUP BY match_id, user_id
+  ) pts
+    ON pts.match_id = m.id
+   AND pts.user_id = p.user_id
+  WHERE m.guild_id = ?
+  ORDER BY
+    m.phase,
+    COALESCE(m.match_no, 999999),
+    m.id,
+    p.user_id;
+`, [guildId, guildId]);
 
-`);
 
 
     // === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
