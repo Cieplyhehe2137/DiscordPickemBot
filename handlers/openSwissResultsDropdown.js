@@ -173,12 +173,24 @@ module.exports = async (interaction, client, ctx = {}) => {
 
   // 2️⃣ fallback: customId (ZGODNE Z MAPAMI)
   if (!stageDb && interaction.customId) {
-    const match = interaction.customId.match(/:(stage[123])/);
+  // format: ...:stage1
+  let match = interaction.customId.match(/:(stage[123])/);
+
+  // format: set_results_swiss_stage1
+  if (!match) {
+    match = interaction.customId.match(/_stage([123])$/);
     if (match) {
-      stageDb = match[1];      // stage1 / stage2 / stage3
-      stageLabel = match[1];   // do embeda
+      match[1] = `stage${match[1]}`;
     }
   }
+
+  if (match) {
+    stageDb = match[1];      // stage1 / stage2 / stage3
+    stageLabel = match[1];
+  }
+}
+
+
 
   // 3️⃣ walidacja
   if (!stageDb) {
