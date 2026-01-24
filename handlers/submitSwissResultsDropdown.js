@@ -71,6 +71,7 @@ module.exports = async (interaction) => {
 
   const guildId = interaction.guildId;
   const adminId = interaction.user.id;
+  const username = interaction.user.username;
 
   const pool = db.getPoolForGuild(guildId);
 
@@ -126,7 +127,11 @@ module.exports = async (interaction) => {
       });
     }
 
-    if (!sel.add3.length && !sel.add0.length && !sel.addA.length) {
+    if (
+      !sel.add3.length &&
+      !sel.add0.length &&
+      !sel.addA.length
+    ) {
       return interaction.reply({
         ephemeral: true,
         content: '⚠️ Nic nie wybrano w dropdownach.'

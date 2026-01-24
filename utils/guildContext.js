@@ -1,5 +1,6 @@
 const db = require('../db');
 
+
 async function withGuild(source, fn) {
   let guildId = null;
 
@@ -10,7 +11,11 @@ async function withGuild(source, fn) {
   }
 
   if (!guildId) {
-    throw new Error('[withGuild] Brak guildId (DM / nieprawidłowe źródło).');
+    throw new Error(
+      `[withGuild] Brak guildId (DM / nieprawidłowe źródło): ${JSON.stringify(
+        source
+      )}`
+    );
   }
 
   guildId = String(guildId);

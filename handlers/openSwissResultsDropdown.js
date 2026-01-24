@@ -9,20 +9,6 @@ const {
 const db = require('../db');
 const logger = require('../utils/logger');
 
-function resolveStageDb(customId = '') {
-  const id = String(customId);
-
-  // legacy: set_results_swiss:stage1
-  if (id.includes(':')) {
-    const maybe = id.split(':')[1];
-    if (/^stage[123]$/i.test(maybe)) return maybe.toLowerCase();
-  }
-
-  const m = id.match(/stage\s*[_-]?\s*([123])/i) || id.match(/stage([123])/i);
-  if (m) return `stage${m[1]}`;
-  return null;
-}
-
 /* =======================
    HELPERS
 ======================= */
@@ -99,8 +85,7 @@ async function getCurrentSwiss(pool, guildId, stageDb) {
    UI BUILDER
 ======================= */
 
-function buildSwissComponents(stageDb, teams, cur) {
-  const stageLabel = String(stageDb || '').replace(/stage([123])/i, 'Stage $1');
+function buildSwissComponents(stageLabel, stageDb, teams, cur) {
   const left30 = Math.max(0, 2 - cur.x3_0.length);
   const left03 = Math.max(0, 2 - cur.x0_3.length);
   const leftA  = Math.max(0, 6 - cur.adv.length);
@@ -121,8 +106,7 @@ function buildSwissComponents(stageDb, teams, cur) {
       components.push(
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            // customId: official_swiss_3_0_stage1_p0 (router używa baseId bez _pX)
-            .setCustomId(`official_swiss_${type}_${stageDb}_p${idx}`)
+            .setCustomId(`official_swiss_${type}:${stageDb}:p${idx}`)
             .setPlaceholder(
               left > 0
                 ? `${label} (część ${idx + 1})`
@@ -144,7 +128,7 @@ function buildSwissComponents(stageDb, teams, cur) {
   components.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`confirm_swiss_results_${stageDb}`)
+        .setCustomId(`confirm_swiss_results:${stageDb}`)
         .setLabel('✅ Zatwierdź (dopisz)')
         .setStyle(ButtonStyle.Success)
     )
@@ -169,16 +153,24 @@ function buildSwissComponents(stageDb, teams, cur) {
    HANDLER
 ======================= */
 
-module.exports = async (interaction) => {
+module.exports = async (interaction, client, ctx = {}) => {
   const guildId = interaction.guildId;
-  const stageDb = resolveStageDb(interaction.customId);
+  const stage = ctx.stage; // swiss1 / swiss2 / swiss3
+
+  const STAGE_MAP = {
+    swiss1: 'stage1',
+    swiss2: 'stage2',
+    swiss3: 'stage3'
+  };
+
+  const stageDb = STAGE_MAP[stage];
 
   if (!stageDb) {
-    logger.warn('interaction', 'Invalid Swiss stage (cannot resolve stageDb)', {
-      guildId,
-      customId: interaction.customId,
+    logger.warn('interaction', 'Invalid Swiss stage', { guildId, stage });
+    return interaction.reply({
+      content: '❌ Nieprawidłowy etap Swiss.',
+      ephemeral: true
     });
-    return interaction.reply({ content: '❌ Nieprawidłowy etap Swiss.', ephemeral: true });
   }
 
   if (!interaction.deferred && !interaction.replied) {
@@ -190,7 +182,7 @@ module.exports = async (interaction) => {
   const teams = await loadTeamsFromDB(pool, guildId);
   const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
-  const { embed, components } = buildSwissComponents(stageDb, teams, cur);
+  const { embed, components } = buildSwissComponents(stage, stageDb, teams, cur);
 
   await interaction.editReply({
     embeds: [embed],

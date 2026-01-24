@@ -1,4 +1,3 @@
-// commands/endPickem.js
 const {
   SlashCommandBuilder,
   ActionRowBuilder,
@@ -7,186 +6,204 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
   ComponentType,
-  StringSelectMenuBuilder,
-  UserSelectMenuBuilder,
-  RoleSelectMenuBuilder,
-  MentionableSelectMenuBuilder,
-  ChannelSelectMenuBuilder,
+  StringSelectMenuBuilder
 } = require('discord.js');
-
+const pool = require('../db');
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
 
-// Admin role IDs (opcjonalnie)
 const ALLOWED_ROLES = ['1164253439417659456', '1301530484479758407', '1386396019339825363'];
 const ADMIN_USER_ID = process.env.PICKEM_ADMIN_ID || null;
 
-function isAuthorized(interaction) {
-  if (!interaction?.guildId) return false;
-  if (ADMIN_USER_ID && interaction.user?.id === ADMIN_USER_ID) return true;
-
-  const perms = interaction.memberPermissions;
-  if (perms?.has(PermissionFlagsBits.ManageGuild) || perms?.has(PermissionFlagsBits.Administrator)) return true;
-
-  const memberRoles = interaction.member?.roles?.cache;
-  if (!memberRoles) return false;
-  return ALLOWED_ROLES.some((id) => memberRoles.has(id));
-}
-
-function parsePhaseStage(closeKey) {
-  if (closeKey?.startsWith('swiss_stage_')) {
-    const n = String(closeKey).replace('swiss_stage_', '');
-    return { phase: 'swiss', stage: `stage${n}` };
-  }
-  return { phase: closeKey, stage: null };
-}
-
-function disableAllMessageComponents(message) {
-  const disabledRows = [];
-
-  for (const row of message.components || []) {
-    const newRow = new ActionRowBuilder();
-
-    for (const c of row.components || []) {
-      if (c.type === ComponentType.Button) newRow.addComponents(ButtonBuilder.from(c).setDisabled(true));
-      else if (c.type === ComponentType.StringSelect) newRow.addComponents(StringSelectMenuBuilder.from(c).setDisabled(true));
-      else if (c.type === ComponentType.UserSelect) newRow.addComponents(UserSelectMenuBuilder.from(c).setDisabled(true));
-      else if (c.type === ComponentType.RoleSelect) newRow.addComponents(RoleSelectMenuBuilder.from(c).setDisabled(true));
-      else if (c.type === ComponentType.MentionableSelect) newRow.addComponents(MentionableSelectMenuBuilder.from(c).setDisabled(true));
-      else if (c.type === ComponentType.ChannelSelect) newRow.addComponents(ChannelSelectMenuBuilder.from(c).setDisabled(true));
-      else newRow.addComponents(c);
-    }
-
-    disabledRows.push(newRow);
-  }
-
-  return disabledRows;
-}
+// Prefiksy przycisków typowania
+const TYPING_BUTTON_PREFIXES = ['open_', 'typuj_'];
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('end_pickem')
-    .setDescription('Zamyka typowanie (dezaktywuje przyciski na panelu) dla wybranej fazy')
+    .setDescription('🛑 Ręcznie zamyka fazę Pick\'Em i dezaktywuje przyciski typowania')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    const guildId = interaction.guildId;
-    if (!guildId) {
-      return interaction.reply({ content: '❌ Ta komenda działa tylko na serwerze (nie w DM).', ephemeral: true });
-    }
+    try {
+      const isGuildOwner = interaction.guild?.ownerId === interaction.user.id;
+      const isEnvAdmin = ADMIN_USER_ID && ADMIN_USER_ID === interaction.user.id;
+      const hasRole = interaction.member?.roles?.cache?.some(r => ALLOWED_ROLES.includes(r.id));
 
-    if (!isAuthorized(interaction)) {
-      return interaction.reply({ content: '❌ Brak uprawnień.', ephemeral: true });
-    }
+      if (!(isGuildOwner || isEnvAdmin || hasRole)) {
+        return interaction.reply({
+          content: '❌ Nie masz uprawnień do użycia tej komendy.',
+          ephemeral: true,
+        });
+      }
 
-    const embed = new EmbedBuilder()
-      .setTitle('🛑 Zamykanie typowania (Pick’Em)')
-      .setDescription('Wybierz fazę do zamknięcia. Bot wyłączy komponenty na panelu i oznaczy go jako zamknięty w bazie.')
-      .setColor(0xEF4444);
+      const embed = new EmbedBuilder()
+        .setTitle('🛑 Zamykanie fazy Pick\'Em')
+        .setDescription('Kliknij fazę, którą chcesz zamknąć.\nPrzyciski typowania zostaną dezaktywowane, a faza oznaczona jako `closed = 1`.')
+        .setColor('Red');
 
-    const row1 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('close_phase_swiss_stage_1').setLabel('Zamknij Swiss 1').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('close_phase_swiss_stage_2').setLabel('Zamknij Swiss 2').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('close_phase_swiss_stage_3').setLabel('Zamknij Swiss 3').setStyle(ButtonStyle.Danger),
-    );
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('close_phase_swiss_stage_1').setLabel('Zamknij Swiss 1').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('close_phase_swiss_stage_2').setLabel('Zamknij Swiss 2').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('close_phase_swiss_stage_3').setLabel('Zamknij Swiss 3').setStyle(ButtonStyle.Danger),
+      );
 
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('close_phase_playoffs').setLabel('Zamknij Playoffs').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('close_phase_doubleelim').setLabel('Zamknij Double Elim').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('close_phase_playin').setLabel('Zamknij Play-In').setStyle(ButtonStyle.Danger),
-    );
+      const row2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('close_phase_playoffs').setLabel('Zamknij Playoffs').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('close_phase_doubleelim').setLabel('Zamknij Double Elim').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('close_phase_playin').setLabel('Zamknij Play-In').setStyle(ButtonStyle.Danger),
+      );
 
-    const msg = await interaction.reply({
-      embeds: [embed],
-      components: [row1, row2],
-      ephemeral: true,
-      fetchReply: true,
-    });
+      await interaction.reply({
+        embeds: [embed],
+        components: [row1, row2],
+        ephemeral: true,
+      });
 
-    const collector = msg.createMessageComponentCollector({
-      componentType: ComponentType.Button,
-      time: 1000 * 60 * 10,
-    });
+      const collector = interaction.channel.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        time: 300_000,
+        filter: (i) =>
+          i.customId?.startsWith('close_phase_') &&
+          i.user.id === interaction.user.id &&
+          i.message?.interaction?.id === interaction.id,
+      });
 
-    collector.on('collect', async (i) => {
-      try {
-        if (i.user.id !== interaction.user.id) {
-          return i.reply({ content: 'To nie jest Twój panel.', ephemeral: true });
+      collector.on('collect', async (i) => {
+        const guildId = i.guildId;
+        if (!guildId) {
+          return i.followUp({
+            content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
+            ephemeral: true
+          });
         }
-        if (!i.customId?.startsWith('close_phase_')) return;
 
-        const closeKey = String(i.customId).replace('close_phase_', '');
-        const { phase, stage } = parsePhaseStage(closeKey);
+        return withGuild(guildId, async () => {
+          try {
+            await i.deferUpdate();
+            const phase = String(i.customId).replace('close_phase_', '');
 
-        await i.deferUpdate();
-
-        await withGuild(guildId, async (pool) => {
-          const [rows] = await pool.query(
-            `
-            SELECT id, channel_id, message_id
-            FROM active_panels
-            WHERE guild_id = ?
-              AND phase = ?
-              AND stage <=> ?
-              AND active = 1
-            ORDER BY id DESC
-            LIMIT 1
-            `,
-            [guildId, phase, stage]
+            const [rows] = await pool.query(
+            `SELECT message_id, channel_id FROM active_panels WHERE phase = ? AND closed = 0 ORDER BY id DESC LIMIT 1`,
+            [phase]
           );
 
-          const panel = rows?.[0];
-          if (!panel?.message_id || !panel?.channel_id) {
-            return i.followUp({
-              content: `⚠️ Nie znaleziono aktywnego panelu dla fazy **${phase}**${stage ? ` (${stage})` : ''}.`,
-              ephemeral: true,
-            });
+          const messageId = rows?.[0]?.message_id;
+          const channelId = rows?.[0]?.channel_id;
+          let editOk = false;
+
+          if (messageId && channelId) {
+            try {
+  const channel = await i.client.channels.fetch(channelId);
+  const panelMsg = await channel.messages.fetch(messageId);
+
+  // 1) Debug: wypisz realne customId
+  console.log('--- [DEBUG] end_pickem: komponenty w panelu ---');
+  for (const row of panelMsg.components) {
+    for (const c of row.components) console.log('customId:', c.customId);
+  }
+  console.log('-----------------------------------------------');
+
+  // 2) Solidny matcher REGEX dla każdej fazy
+  const PHASE_REGEX = {
+    swiss_stage_1: /(swiss(?:[_\- ]*stage)?[_\- ]*1|swiss1|stage[_\- ]*1|s1)/i,
+    swiss_stage_2: /(swiss(?:[_\- ]*stage)?[_\- ]*2|swiss2|stage[_\- ]*2|s2)/i,
+    swiss_stage_3: /(swiss(?:[_\- ]*stage)?[_\- ]*3|swiss3|stage[_\- ]*3|s3)/i,
+    playoffs: /(playoffs?|final|semi|quarter)/i,
+    doubleelim: /(double|de[_\- ]|upper|lower|elim)/i,
+    playin: /(play[-_ ]?in|pi[_\- ])/i
+  };
+  const phaseRe = PHASE_REGEX[phase] || new RegExp(phase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+  const isTypingId = (id) => TYPING_BUTTON_PREFIXES.some(p => String(id).startsWith(p));
+  const matchesPhase = (id) => phaseRe.test(String(id));
+
+  let disabledCount = 0;
+
+  // 3) PRZEBUDUJ komponenty (najpierw próbujemy precyzyjnie po fazie)
+  let updatedComponents = panelMsg.components.map((row) => {
+    const newRow = new ActionRowBuilder();
+    const rebuilt = row.components.map((component) => {
+      const id = component.customId || '';
+
+      const shouldDisable = isTypingId(id) && matchesPhase(id);
+
+      if (component.type === 2) { // Button
+        const btn = ButtonBuilder.from(component);
+        if (shouldDisable) {
+          disabledCount++;
+          return btn.setLabel('Typowanie zakończone').setStyle(ButtonStyle.Secondary).setDisabled(true);
+        }
+        return btn;
+      }
+      if (component.type === 3) { // StringSelect
+        const sel = StringSelectMenuBuilder.from(component);
+        if (shouldDisable) {
+          disabledCount++;
+          return sel.setDisabled(true);
+        }
+        return sel;
+      }
+      return component;
+    });
+    newRow.addComponents(...rebuilt);
+    return newRow;
+  });
+
+  // 4) FALLBACK: jeśli nic nie zostało wyłączone, wyłącz WSZYSTKIE “typujące” komponenty (prefiksy),
+  //    bo i tak zamykasz tę fazę i nie chcesz, żeby ktoś dalej klikał.
+  if (disabledCount === 0) {
+    console.warn('[end_pickem] Fallback: nie znaleziono komponentów fazy — wyłączam wszystkie typujące.');
+    updatedComponents = panelMsg.components.map((row) => {
+      const newRow = new ActionRowBuilder();
+      const rebuilt = row.components.map((component) => {
+        const id = component.customId || '';
+        const shouldDisable = isTypingId(id);
+
+        if (component.type === 2) {
+          const btn = ButtonBuilder.from(component);
+          return shouldDisable
+            ? btn.setLabel('Typowanie zakończone').setStyle(ButtonStyle.Secondary).setDisabled(true)
+            : btn;
+        }
+        if (component.type === 3) {
+          const sel = StringSelectMenuBuilder.from(component);
+          return shouldDisable ? sel.setDisabled(true) : sel;
+        }
+        return component;
+      });
+      newRow.addComponents(...rebuilt);
+      return newRow;
+    });
+  }
+
+  await panelMsg.edit({ components: updatedComponents });
+  editOk = true;
+} catch (e) {
+  console.warn('[end_pickem] Nie udało się edytować panelu:', e?.message || e);
+}
           }
 
-          const channel = await i.client.channels.fetch(panel.channel_id).catch(() => null);
-          if (!channel || !channel.isTextBased?.()) {
-            await pool.query(
-              `UPDATE active_panels
-               SET active = 0, closed = 1, closed_at = NOW()
-               WHERE id = ? AND guild_id = ?`,
-              [panel.id, guildId]
-            );
-            return i.followUp({ content: `⚠️ Kanał panelu nie istnieje / brak dostępu. Panel zamknięty w DB.`, ephemeral: true });
-          }
-
-          const panelMsg = await channel.messages.fetch(panel.message_id).catch(() => null);
-          if (!panelMsg) {
-            await pool.query(
-              `UPDATE active_panels
-               SET active = 0, closed = 1, closed_at = NOW()
-               WHERE id = ? AND guild_id = ?`,
-              [panel.id, guildId]
-            );
-            return i.followUp({ content: `⚠️ Wiadomość panelu nie istnieje. Panel zamknięty w DB.`, ephemeral: true });
-          }
-
-          await panelMsg.edit({ components: disableAllMessageComponents(panelMsg) });
 
           await pool.query(
-            `UPDATE active_panels
-             SET active = 0, closed = 1, closed_at = NOW()
-             WHERE id = ? AND guild_id = ?`,
-            [panel.id, guildId]
+            `UPDATE active_panels SET closed = 1, closed_at = NOW() WHERE phase = ? AND closed = 0`,
+            [phase]
           );
 
-          logger.info('endPickem', 'Phase closed', { guildId, phase, stage: stage || null, actor: i.user.id });
-
-          return i.followUp({ content: `✅ Zamknięto fazę **${phase}**${stage ? ` (${stage})` : ''}.`, ephemeral: true });
+            await i.followUp({
+              ephemeral: true,
+              content: editOk
+                ? `✅ Faza \`${phase}\` została zamknięta i przyciski typowania dezaktywowane.`
+                : `✅ Faza \`${phase}\` została zamknięta. (Nie znaleziono przycisków do dezaktywacji lub brak uprawnień do wiadomości).`,
+            });
+          } catch (err) {
+            console.error('[end_pickem] Błąd w collect handler:', err);
+            await i.followUp({ ephemeral: true, content: '❌ Błąd podczas zamykania fazy Pick\'Em.' });
+          }
         });
-
-      } catch (err) {
-        logger.error('endPickem', 'Error while closing phase', { guildId, error: err?.message });
-        try { await i.followUp({ content: '⚠️ Błąd przy zamykaniu panelu.', ephemeral: true }); } catch (_) {}
-      }
-    });
-
-    collector.on('end', async () => {
-      try { await interaction.editReply({ components: [] }); } catch (_) {}
-    });
+      });
+    } catch (err) {
+      console.error('[end_pickem] Błąd główny:', err);
+      await interaction.reply({ ephemeral: true, content: '❌ Wystąpił błąd podczas uruchamiania komendy.' });
+    }
   },
 };

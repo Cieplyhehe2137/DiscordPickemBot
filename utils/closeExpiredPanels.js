@@ -14,18 +14,33 @@ const { safeQuery } = require('./safeQuery');
 // ALS / guild context
 let withGuild = null;
 try {
-  withGuild = require('./guildContext')?.withGuild;
-} catch (_) {}
+  ({ withGuild } = require('./guildContext'));
+} catch (_) { }
 
 async function withGuildContext(guildId, fn) {
-  if (withGuild) return withGuild(guildId, fn);
+  if (typeof withGuild === 'function') {
+    return withGuild(String(guildId), fn);
+  }
   return fn();
 }
 
-/**
- * Liczba uczestników dla fazy (per guild!)
- */
-function getCountQueryForPhase(guildId, phaseRaw = '', stageFromPanel = null) {
+/* ======================================================
+   🧯 ANTY-OVERLAP
+   ====================================================== */
+let _closeExpiredPanelsRunningGlobal = false;
+const _closeExpiredPanelsRunningByGuild = new Set();
+
+/* ====================================================== */
+
+function prettyPhase(phaseRaw = '') {
+  const p = String(phaseRaw || '').toLowerCase();
+  if (!p) return 'Panel';
+  if (p.includes('playoffs')) return 'Playoffs';
+  if (p.includes('playin') || p.includes('play-in') || p.includes('play_in')) return 'Play-In';
+  return (phaseRaw || '').toString().toUpperCase();
+}
+
+function getCountQueryForPhase(phaseRaw = '', stageFromPanel = null) {
   const p = String(phaseRaw || '').toLowerCase();
 
   let stageNorm = null;
@@ -41,14 +56,14 @@ function getCountQueryForPhase(guildId, phaseRaw = '', stageFromPanel = null) {
       confirmed: {
         sql: `SELECT COUNT(DISTINCT user_id) AS c
               FROM swiss_predictions
-              WHERE guild_id = ? AND active = 1 AND stage = ?`,
-        params: [guildId, stageNorm || 'stage1'],
+              WHERE active = 1 AND stage = ?`,
+        params: [stageNorm || 'stage1'],
       },
       any: {
         sql: `SELECT COUNT(DISTINCT user_id) AS c
               FROM swiss_predictions
-              WHERE guild_id = ? AND stage = ?`,
-        params: [guildId, stageNorm || 'stage1'],
+              WHERE stage = ?`,
+        params: [stageNorm || 'stage1'],
       },
       stageNorm: stageNorm || 'stage1',
     };
@@ -56,36 +71,16 @@ function getCountQueryForPhase(guildId, phaseRaw = '', stageFromPanel = null) {
 
   if (p.includes('playoffs')) {
     return {
-      confirmed: {
-        sql: `SELECT COUNT(DISTINCT user_id) AS c
-              FROM playoffs_predictions
-              WHERE guild_id = ? AND active = 1`,
-        params: [guildId],
-      },
-      any: {
-        sql: `SELECT COUNT(DISTINCT user_id) AS c
-              FROM playoffs_predictions
-              WHERE guild_id = ?`,
-        params: [guildId],
-      },
+      confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions WHERE active = 1`, params: [] },
+      any: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playoffs_predictions`, params: [] },
       stageNorm: null,
     };
   }
 
   if (p.includes('playin') || p.includes('play-in') || p.includes('play_in')) {
     return {
-      confirmed: {
-        sql: `SELECT COUNT(DISTINCT user_id) AS c
-              FROM playin_predictions
-              WHERE guild_id = ? AND active = 1`,
-        params: [guildId],
-      },
-      any: {
-        sql: `SELECT COUNT(DISTINCT user_id) AS c
-              FROM playin_predictions
-              WHERE guild_id = ?`,
-        params: [guildId],
-      },
+      confirmed: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playin_predictions WHERE active = 1`, params: [] },
+      any: { sql: `SELECT COUNT(DISTINCT user_id) AS c FROM playin_predictions`, params: [] },
       stageNorm: null,
     };
   }
@@ -111,23 +106,30 @@ async function sendTrendsAfterDeadline(client, panelRow) {
     let order = 'byConfidence';
 
     if (phaseLower.includes('swiss')) {
-      title = `📊 Trendy po Swiss (${panelRow.stage || 'stage'})`;
-      order = 'byPickRate';
+      title = `📊 Trendy po deadline • Swiss (${(panelRow.stage || '').toUpperCase() || 'STAGE'})`;
+      order = 'byStageThenConfidence';
+    } else if (phaseLower.includes('playoffs')) {
+      title = '📊 Trendy po deadline • Playoffs';
+    } else if (phaseLower.includes('playin')) {
+      title = '📊 Trendy po deadline • Play-In';
     }
 
-    const embed = buildPopularityEmbedGrouped(stats, { title, order });
-    await channel.send({ embeds: [embed] }).catch(() => {});
+    const embed = buildPopularityEmbedGrouped(stats, {
+      title,
+      phaseGroup:
+        phaseLower.includes('playoffs') ? 'playoffs'
+          : phaseLower.includes('playin') ? 'playin'
+            : 'swiss',
+      topPerBucket: 30,
+      order,
+      showEmptyBuckets: false,
+    });
+
+    await channel.send({ embeds: [embed] });
   } catch (err) {
     console.warn('Błąd przy wysyłaniu trendów:', err.message);
   }
 }
-
-/* ======================================================
-   🧯 ANTY-OVERLAP
-   ====================================================== */
-
-let _closeExpiredPanelsRunningGlobal = false;
-const _closeExpiredPanelsRunningByGuild = new Set();
 
 async function closeExpiredPanelsForGuild(client, guildId) {
   guildId = String(guildId);
@@ -139,13 +141,12 @@ async function closeExpiredPanelsForGuild(client, guildId) {
   try {
     const [rows] = await safeQuery(
       pool,
-      `SELECT id, message_id, channel_id, phase, stage, deadline, guild_id
+      `SELECT id, message_id, channel_id, phase, stage, deadline
        FROM active_panels
        WHERE active = 1
          AND deadline IS NOT NULL
-         AND NOW() >= deadline
-         AND guild_id = ?`,
-      [guildId],
+         AND NOW() >= deadline`,
+      [],
       {
         guildId,
         scope: 'cron:closeExpiredPanels',
@@ -161,10 +162,8 @@ async function closeExpiredPanelsForGuild(client, guildId) {
         if (!channel) {
           await safeQuery(
             pool,
-            `UPDATE active_panels
-             SET active = 0, closed = 1, closed_at = NOW()
-             WHERE id = ? AND guild_id = ?`,
-            [panel.id, guildId],
+            `UPDATE active_panels SET active = 0 WHERE id = ?`,
+            [panel.id],
             { guildId, scope: 'cron:closeExpiredPanels', label: 'deactivate missing channel' }
           );
           continue;
@@ -174,21 +173,18 @@ async function closeExpiredPanelsForGuild(client, guildId) {
         if (!msg) {
           await safeQuery(
             pool,
-            `UPDATE active_panels
-             SET active = 0, closed = 1, closed_at = NOW()
-             WHERE id = ? AND guild_id = ?`,
-            [panel.id, guildId],
+            `UPDATE active_panels SET active = 0 WHERE id = ?`,
+            [panel.id],
             { guildId, scope: 'cron:closeExpiredPanels', label: 'deactivate missing message' }
           );
           continue;
         }
 
-        // policz uczestników (per guild)
+        // liczenie uczestników
         let count = 0;
         let stageNormUsed = null;
-
         try {
-          const { any, stageNorm } = getCountQueryForPhase(panel.guild_id, panel.phase, panel.stage);
+          const { any, stageNorm } = getCountQueryForPhase(panel.phase, panel.stage);
           stageNormUsed = stageNorm;
           if (any.sql) {
             const [[r]] = await safeQuery(
@@ -199,13 +195,19 @@ async function closeExpiredPanelsForGuild(client, guildId) {
             );
             count = r?.c || 0;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         const noun = count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osób');
+        const phaseLabel =
+          panel.phase.toLowerCase().includes('swiss')
+            ? `Swiss (${(panel.stage || stageNormUsed || '').toUpperCase()})`
+            : prettyPhase(panel.phase);
 
-        const embed = (msg.embeds?.[0] ? EmbedBuilder.from(msg.embeds[0]) : new EmbedBuilder())
-          .setColor(0x6B7280)
-          .setFooter({ text: `⏱ Typowanie zamknięte • ${count} ${noun}` });
+        const embed = new EmbedBuilder()
+          .setColor('Red')
+          .setTitle(`🔴 Etap ${phaseLabel}`)
+          .setDescription(`Typowanie zostało zakończone. Wzięło udział **${count}** ${noun}.`)
+          .setFooter({ text: `⏱ Typowanie zamknięte • ${count} zgłoszeń` });
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -216,14 +218,11 @@ async function closeExpiredPanelsForGuild(client, guildId) {
         );
 
         await msg.edit({ embeds: [embed], components: [row] });
-
         await safeQuery(
           pool,
-          `UPDATE active_panels
-           SET active = 0, closed = 1, closed_at = NOW()
-           WHERE id = ? AND guild_id = ?`,
-          [panel.id, guildId],
-          { guildId, scope: 'cron:closeExpiredPanels', label: 'close panel row' }
+          `UPDATE active_panels SET active = 0 WHERE id = ?`,
+          [panel.id],
+          { guildId, scope: 'cron:closeExpiredPanels', label: 'deactivate panel' }
         );
 
         await sendTrendsAfterDeadline(client, panel);

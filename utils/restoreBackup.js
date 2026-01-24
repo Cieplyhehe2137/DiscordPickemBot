@@ -5,7 +5,7 @@ const { loadGuildConfigsOnce, getGuildConfig } = require('./guildRegistry');
 const { getCurrentGuildId } = require('./guildContext');
 
 // =====================================================
-// HELPERS – SQL PARSING
+// HELPERS – SQL PARSING (ZOSTAWIONE)
 // =====================================================
 
 function isEscaped(sql, i) {
@@ -67,44 +67,22 @@ function splitSqlStatements(sqlText) {
 }
 
 // =====================================================
-// SKIP ŚMIECI Z DUMPA
+// 🔥 KLUCZ: CO SKIPUJEMY
 // =====================================================
 
 function shouldSkipStatement(stmt) {
   const s = stmt.trim();
 
+  // ❌ runtime / volatile
   if (/INSERT\s+INTO\s+`?active_panels`?/i.test(s)) return true;
 
+  // ❌ dump noise
   if (/^LOCK TABLES/i.test(s)) return true;
   if (/^UNLOCK TABLES/i.test(s)) return true;
   if (/^START TRANSACTION/i.test(s)) return true;
   if (/^COMMIT$/i.test(s)) return true;
 
   return false;
-}
-
-// =====================================================
-// WALIDACJA GUILD_ID W DUMPIE
-// =====================================================
-
-function validateDumpForGuild(dump, guildId) {
-  const guildRegex = /guild_id\s*=\s*['"]?(\d+)['"]?/gi;
-  const found = new Set();
-
-  let m;
-  while ((m = guildRegex.exec(dump)) !== null) {
-    found.add(m[1]);
-  }
-
-  if (found.size === 0) {
-    throw new Error('Dump nie zawiera guild_id');
-  }
-
-  if (found.size > 1 || !found.has(String(guildId))) {
-    throw new Error(
-      `Dump zawiera inne guild_id (${[...found].join(', ')}) niż aktualny (${guildId})`
-    );
-  }
 }
 
 // =====================================================
@@ -132,7 +110,7 @@ function getDbConfig(guildId) {
 }
 
 // =====================================================
-// GUILD SAFE – CZYSZCZENIE DANYCH
+// 🔒 GUILD SAFE – CZYŚCIMY TYLKO DANE HISTORYCZNE
 // =====================================================
 
 async function clearGuildData(connection, guildId) {
@@ -159,15 +137,6 @@ async function clearGuildData(connection, guildId) {
     await connection.query(
       `DELETE FROM \`${table}\` WHERE guild_id = ?`,
       [guildId]
-    );
-  }
-}
-
-async function resetAutoIncrement(connection) {
-  const tables = ['matches'];
-  for (const table of tables) {
-    await connection.query(
-      `ALTER TABLE \`${table}\` AUTO_INCREMENT = 1`
     );
   }
 }
@@ -199,8 +168,6 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   const dump = fs.readFileSync(sqlFilePath, 'utf8');
   if (!dump.trim()) throw new Error('Plik backupu jest pusty');
 
-  validateDumpForGuild(dump, guildId);
-
   const dbCfg = getDbConfig(guildId);
 
   const connection = await mysql.createConnection({
@@ -213,32 +180,21 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     console.log(`[RESTORE] start guildId=${guildId}`);
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
-    await connection.beginTransaction();
 
     console.log('[RESTORE] clearing guild data...');
     await clearGuildData(connection, guildId);
-    await resetAutoIncrement(connection);
 
     const statements = splitSqlStatements(dump)
       .filter(s => s && !shouldSkipStatement(s));
 
     console.log(`[RESTORE] executing ${statements.length} statements`);
 
-    let i = 0;
     for (const stmt of statements) {
-      i++;
-      try {
-        await execStatement(connection, stmt);
-      } catch (e) {
-        e.message = `[RESTORE][${i}/${statements.length}] ${e.message}`;
-        throw e;
-      }
+      await execStatement(connection, stmt);
     }
 
-    await connection.commit();
     console.log('[RESTORE] SUCCESS');
   } catch (err) {
-    try { await connection.rollback(); } catch (_) {}
     console.error('[RESTORE] FAIL', err);
     throw err;
   } finally {
