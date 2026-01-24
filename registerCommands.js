@@ -6,8 +6,6 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const { getAllGuildIds } = require('./utils/guildRegistry');
-
 const commands = [];
 const commandsDir = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
@@ -26,30 +24,33 @@ for (const file of commandFiles) {
     const { DISCORD_TOKEN, CLIENT_ID, GUILD_ID } = process.env;
 
     if (!DISCORD_TOKEN || !CLIENT_ID) {
-      throw new Error('Brakuje DISCORD_TOKEN/CLIENT_ID w root .env');
+      throw new Error('Brakuje DISCORD_TOKEN / CLIENT_ID w .env');
     }
 
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
 
-    // Jeśli podamy GUILD_ID w root .env - zarejestruje tylko tam (debug/awaryjnie).
-    // W przeciwnym wypadku rejestrujemy po wszystkich guildach z config/*.env.
-    const guildIds = (GUILD_ID && String(GUILD_ID).trim())
-      ? [String(GUILD_ID).trim()]
-      : getAllGuildIds();
+    if (GUILD_ID && String(GUILD_ID).trim()) {
+      // 🧪 TRYB DEV – tylko jedna guilda
+      const gid = String(GUILD_ID).trim();
+      console.log(`🧪 Rejestruję komendy TYLKO dla guildId=${gid}`);
 
-    if (!guildIds.length) {
-      throw new Error('Nie znaleziono żadnych guildy do rejestracji (brak GUILD_ID w .env i brak config/*.env).');
-    }
-
-    console.log(`🚀 Rejestruję komendy dla ${guildIds.length} guild(y): ${guildIds.join(', ')}`);
-
-    for (const gid of guildIds) {
       await rest.put(
-        // ✅ POPRAWKA: tu musi być CLIENT_ID (application id), a nie GUILD_ID
         Routes.applicationGuildCommands(CLIENT_ID, gid),
         { body: commands }
       );
-      console.log(`✅ Komendy zarejestrowane dla guildId=${gid}`);
+
+      console.log('✅ Komendy zarejestrowane (DEV)');
+    } else {
+      // 🌍 TRYB PROD – GLOBALNE
+      console.log('🌍 Rejestruję GLOBALNE komendy aplikacji');
+
+      await rest.put(
+        Routes.applicationCommands(CLIENT_ID),
+        { body: commands }
+      );
+
+      console.log('✅ Globalne komendy zarejestrowane');
+      console.log('⏳ Uwaga: propagacja może potrwać do ~1h');
     }
 
     console.log('🎉 Done!');
