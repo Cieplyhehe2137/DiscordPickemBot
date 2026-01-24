@@ -98,7 +98,9 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 
 module.exports = async function exportClassification(interaction = null, outputPath = null) {
   const logger = require('../utils/logger');
-
+ if (interaction && !interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
   const guildId = interaction?.guildId;
   if (!guildId) {
     throw new Error('exportClassification called without guildId');
@@ -807,32 +809,30 @@ ORDER BY
 
 
 
-  // === Zapis pliku
   const buffer = await workbook.xlsx.writeBuffer();
 
-  if (outputPath && typeof outputPath === 'string') {
-    await fs.promises.writeFile(outputPath, buffer);
-    console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
-  } else {
-    const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
-    await fs.promises.writeFile(filePath, buffer);
-    console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
-  }
+if (outputPath && typeof outputPath === 'string') {
+  await fs.promises.writeFile(outputPath, buffer);
+  console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
+} else {
+  const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
+  await fs.promises.writeFile(filePath, buffer);
+  console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
+}
 
-  if (interaction?.followUp) {
-    try {
-      await interaction.followUp({
-        content: '📤 Oto najnowsza klasyfikacja (pełna historia):',
-        files: [{ attachment: buffer, name: 'klasyfikacja.xlsx' }],
-        ephemeral: true
-      });
-    } catch (err) {
-      console.error('❌ Błąd przy wysyłaniu pliku na Discorda:', err);
-    }
+if (interaction && (interaction.deferred || interaction.replied)) {
+  try {
+    await interaction.editReply({
+      content: '📤 Oto najnowsza klasyfikacja (pełna historia):',
+      files: [{ attachment: buffer, name: 'klasyfikacja.xlsx' }],
+    });
+  } catch (err) {
+    console.error('❌ Błąd przy wysyłaniu pliku na Discorda:', err);
   }
+}
 
-  if (!interaction) {
-    console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
-  }
-});
-};
+if (!interaction) {
+  console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
+}
+}); // <-- zamyka withGuild
+};  // <-- zamyka exportClassification
