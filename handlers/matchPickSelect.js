@@ -27,16 +27,8 @@ module.exports = async function matchPickSelect(interaction) {
             });
         }
 
+        // value: TYPE|PHASE|EXTRA
         const [type, phaseKey, third] = picked.split('|');
-        if (type === 'MATCH') {
-            const guildIdFromValue = phaseKey;
-            if (guildIdFromValue !== interaction.guildId) {
-                return interaction.update({
-                    content: '❌ Błędny kontekst serwera.',
-                    components: []
-                });
-            }
-        }
 
         // ===============================
         // PAGINACJA
@@ -60,20 +52,26 @@ module.exports = async function matchPickSelect(interaction) {
         }
 
         const matchId = Number(third);
+        if (!matchId) {
+            return interaction.update({
+                content: '❌ Nieprawidłowy mecz',
+                components: []
+            });
+        }
 
+        // ===============================
+        // KONTEKST GUILD (JEDYNE ŹRÓDŁO PRAWDY)
+        // ===============================
         await withGuild(interaction, async (pool, guildId) => {
-            // ===============================
-            // POBIERZ MECZ (PER GUILD)
-            // ===============================
             const [[match]] = await pool.query(
                 `
-        SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
-        FROM matches
-        WHERE guild_id = ?
-          AND id = ?
-          AND phase = ?
-        LIMIT 1
-        `,
+                SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
+                FROM matches
+                WHERE guild_id = ?
+                  AND id = ?
+                  AND phase = ?
+                LIMIT 1
+                `,
                 [guildId, matchId, phaseKey]
             );
 
@@ -117,22 +115,22 @@ module.exports = async function matchPickSelect(interaction) {
                     ? 'match_score_select_res'
                     : 'match_score_select_pred';
 
-            const row = new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId(scoreCustomId)
-                    .setPlaceholder(
-                        mode === 'res'
-                            ? 'Wybierz oficjalny wynik...'
-                            : 'Wybierz swój typ...'
-                    )
-                    .addOptions(scoreOptions)
-            );
+            const rows = [
+                new ActionRowBuilder().addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(scoreCustomId)
+                        .setPlaceholder(
+                            mode === 'res'
+                                ? 'Wybierz oficjalny wynik...'
+                                : 'Wybierz swój typ...'
+                        )
+                        .addOptions(scoreOptions)
+                )
+            ];
 
             // ===============================
             // DODATKOWY PRZYCISK (PRED)
             // ===============================
-            let extraRows = [];
-
             if (mode === 'pred') {
                 userState.set(guildId, interaction.user.id, {
                     matchId: match.id,
@@ -142,7 +140,7 @@ module.exports = async function matchPickSelect(interaction) {
                     phase: phaseKey
                 });
 
-                extraRows.push(
+                rows.push(
                     new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                             .setCustomId('match_user_exact_open')
@@ -157,7 +155,7 @@ module.exports = async function matchPickSelect(interaction) {
                     mode === 'res'
                         ? `🧾 Ustaw oficjalny wynik: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`
                         : `🎯 Typujesz mecz: **${match.team_a} vs ${match.team_b}** (Bo${match.best_of})`,
-                components: [row, ...extraRows]
+                components: rows
             });
         });
     } catch (err) {
@@ -171,6 +169,6 @@ module.exports = async function matchPickSelect(interaction) {
                 content: '❌ Błąd w wyborze meczu.',
                 components: []
             });
-        } catch (_) { }
+        } catch (_) {}
     }
 };
