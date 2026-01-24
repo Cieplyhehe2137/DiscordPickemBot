@@ -155,7 +155,6 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
 
 module.exports = async (interaction, client, ctx = {}) => {
   const guildId = interaction.guildId;
-  const stage = ctx.stage; // swiss1 / swiss2 / swiss3
 
   const STAGE_MAP = {
     swiss1: 'stage1',
@@ -163,26 +162,51 @@ module.exports = async (interaction, client, ctx = {}) => {
     swiss3: 'stage3'
   };
 
-  const stageDb = STAGE_MAP[stage];
+  let stageDb = null;
+  let stageLabel = null;
 
+  // 1️⃣ ctx.stage (jeśli przyszło)
+  if (ctx.stage && STAGE_MAP[ctx.stage]) {
+    stageDb = STAGE_MAP[ctx.stage];
+    stageLabel = ctx.stage;
+  }
+
+  // 2️⃣ fallback: customId (ZGODNE Z MAPAMI)
+  if (!stageDb && interaction.customId) {
+    const match = interaction.customId.match(/:(stage[123])/);
+    if (match) {
+      stageDb = match[1];      // stage1 / stage2 / stage3
+      stageLabel = match[1];   // do embeda
+    }
+  }
+
+  // 3️⃣ walidacja
   if (!stageDb) {
-    logger.warn('interaction', 'Invalid Swiss stage', { guildId, stage });
+    logger.warn('interaction', 'Invalid Swiss stage', {
+      guildId,
+      ctxStage: ctx.stage,
+      customId: interaction.customId
+    });
+
     return interaction.reply({
       content: '❌ Nieprawidłowy etap Swiss.',
       ephemeral: true
     });
   }
 
+  // 4️⃣ defer
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
   }
 
+  // 5️⃣ logika
   const pool = db.getPoolForGuild(guildId);
 
   const teams = await loadTeamsFromDB(pool, guildId);
   const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
-  const { embed, components } = buildSwissComponents(stage, stageDb, teams, cur);
+  const { embed, components } =
+    buildSwissComponents(stageLabel, stageDb, teams, cur);
 
   await interaction.editReply({
     embeds: [embed],
