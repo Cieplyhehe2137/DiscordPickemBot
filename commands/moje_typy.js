@@ -1,81 +1,65 @@
 // commands/moje_typy.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const db = require('../db.js'); // ✅ FIX: db manager, nie pool
 const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
 const { withGuild } = require('../utils/guildContext');
 
 // Helpery
 function parseList(input) {
-  if (input == null) return [];
-  if (Array.isArray(input)) {
-    if (input.length && typeof input[0] === 'object') {
-      return input.map(o => (o?.label ?? o?.value ?? '').toString().trim()).filter(Boolean);
-    }
-    return input.map(x => (x ?? '').toString().trim()).filter(Boolean);
-  }
+  if (!input) return [];
   try {
     const parsed = JSON.parse(input);
-    if (Array.isArray(parsed)) {
-      if (parsed.length && typeof parsed[0] === 'object') {
-        return parsed.map(o => (o?.label ?? o?.value ?? '').toString().trim()).filter(Boolean);
-      }
-      return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
-    }
-  } catch (_) {}
+    if (Array.isArray(parsed)) return parsed;
+  } catch (_) { }
   return String(input)
-    .replace(/[[\]"]/g, '')
-    .split(/[;,\n|]+/)
+    .replace(/[[\]"']/g, '')
+    .split(/[;,]+/)
     .map(s => s.trim())
     .filter(Boolean);
 }
 
 function joinOrDash(arr) {
-  return Array.isArray(arr) && arr.length ? arr.join(', ') : '—';
+  const a = Array.isArray(arr) ? arr : [];
+  return a.length ? a.join(', ') : '—';
 }
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('moje_typy')
-    .setDescription('Pokaż Twoje złożone typy — aktualna faza lub ostatnia, w której brałeś udział.')
+    .setDescription('Pokazuje Twoje zapisane typy')
     .addStringOption(opt =>
       opt.setName('faza')
         .setDescription('Wybierz fazę (opcjonalnie)')
-        .addChoices(...PHASE_CHOICES.filter(c => c.value !== 'total'))
+        .addChoices(...PHASE_CHOICES)
         .setRequired(false)
     ),
 
   async execute(interaction) {
     const guildId = interaction.guildId;
-    if (!guildId) {
-      return interaction.reply({
-        content: '❌ Ta komenda działa tylko na serwerze (nie w DM).',
-        ephemeral: true
-      });
-    }
+    if (!guildId) return interaction.reply({ ephemeral: true, content: '❌ Komenda działa tylko na serwerze.' });
 
-    return withGuild(guildId, async () => {
-      const pool = db.getPoolForGuild(guildId); // ✅ FIX: właściwy pool per guild
+    const userId = interaction.user.id;
+    const manualPhase = interaction.options.getString('faza');
 
-      const userId = interaction.user.id;
-      const manualPhase = interaction.options.getString('faza');
+    await interaction.deferReply({ ephemeral: true });
 
-      await interaction.deferReply({ ephemeral: true });
-
+    return withGuild(guildId, async (pool) => {
       try {
         // ============================================================
-        // 🔍 AUTO-DETEKCJA FAZY
+        // 🔍 AUTO-DETEKCJA FAZY (PER GUILD)
         // ============================================================
-
         let autoPhase = null;
         let autoStage = null;
 
-        // 1) aktywny panel
+        // 1) aktywny panel (per guild)
         const [activePanels] = await pool.query(
           `SELECT phase, stage
            FROM active_panels
-           WHERE active = 1
+           WHERE guild_id = ?
+             AND active = 1
+             AND (closed = 0 OR closed IS NULL)
            ORDER BY id DESC
-           LIMIT 1`
+           LIMIT 1`,
+          [guildId]
         );
 
         if (activePanels.length > 0) {
@@ -83,21 +67,32 @@ module.exports = {
           autoStage = activePanels[0].stage;
         }
 
-        // 2) jeśli brak aktywnego — ostatnia faza, w której user typował
+        // 2) jeśli brak aktywnego — ostatnia faza, w której user typował (per guild)
         if (!autoPhase) {
-          const [last] = await pool.query(`
+          const [last] = await pool.query(
+            `
             SELECT phase, stage FROM (
-              SELECT 'swiss' AS phase, stage, submitted_at FROM swiss_predictions WHERE user_id = ?
+              SELECT 'swiss' AS phase, stage, submitted_at
+              FROM swiss_predictions
+              WHERE guild_id = ? AND user_id = ?
               UNION ALL
-              SELECT 'playoffs', NULL AS stage, submitted_at FROM playoffs_predictions WHERE user_id = ?
+              SELECT 'playoffs', NULL AS stage, submitted_at
+              FROM playoffs_predictions
+              WHERE guild_id = ? AND user_id = ?
               UNION ALL
-              SELECT 'double_elim', NULL AS stage, submitted_at FROM doubleelim_predictions WHERE user_id = ?
+              SELECT 'double_elim', NULL AS stage, submitted_at
+              FROM doubleelim_predictions
+              WHERE guild_id = ? AND user_id = ?
               UNION ALL
-              SELECT 'playin', NULL AS stage, submitted_at FROM playin_predictions WHERE user_id = ?
+              SELECT 'playin', NULL AS stage, submitted_at
+              FROM playin_predictions
+              WHERE guild_id = ? AND user_id = ?
             ) t
             ORDER BY submitted_at DESC
             LIMIT 1
-          `, [userId, userId, userId, userId]);
+            `,
+            [guildId, userId, guildId, userId, guildId, userId, guildId, userId]
+          );
 
           if (last.length > 0) {
             autoPhase = last[0].phase;
@@ -105,7 +100,6 @@ module.exports = {
           }
         }
 
-        // 3) wybór finalnej fazy
         const phaseToShow = manualPhase || autoPhase;
 
         if (!phaseToShow) {
@@ -128,17 +122,18 @@ module.exports = {
           if (aliases.length) {
             const placeholders = aliases.map(() => '?').join(', ');
             whereStage = `AND stage IN (${placeholders})`;
-            params = [userId, ...aliases];
+            params = [guildId, userId, ...aliases];
           } else {
             whereStage = '';
-            params = [userId];
+            params = [guildId, userId];
           }
 
           [rows] = await pool.query(
             `SELECT *
              FROM swiss_predictions
-             WHERE user_id = ?
-             ${whereStage}
+             WHERE guild_id = ?
+               AND user_id = ?
+               ${whereStage}
              ORDER BY submitted_at DESC
              LIMIT 1`,
             params
@@ -146,9 +141,7 @@ module.exports = {
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [
-                embed.setDescription('Brak zapisanych typów dla tej fazy.')
-              ]
+              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')]
             });
           }
 
@@ -170,31 +163,27 @@ module.exports = {
           const [rows] = await pool.query(
             `SELECT *
              FROM playoffs_predictions
-             WHERE user_id = ?
+             WHERE guild_id = ?
+               AND user_id = ?
              ORDER BY submitted_at DESC
              LIMIT 1`,
-            [userId]
+            [guildId, userId]
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [
-                embed.setDescription('Brak zapisanych typów dla tej fazy.')
-              ]
+              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')]
             });
           }
 
           const r = rows[0];
-
           embed.addFields(
             { name: 'Półfinaliści (4)', value: joinOrDash(parseList(r.semifinalists)), inline: false },
             { name: 'Finaliści (2)', value: joinOrDash(parseList(r.finalists)), inline: false },
             { name: 'Zwycięzca', value: joinOrDash(parseList(r.winner)), inline: true },
             { name: '3. miejsce', value: joinOrDash(parseList(r.third_place_winner)), inline: true }
           );
-
           embed.setFooter({ text: `Ostatni zapis: ${r.submitted_at}` });
-
           return interaction.editReply({ embeds: [embed] });
         }
 
@@ -205,65 +194,55 @@ module.exports = {
           const [rows] = await pool.query(
             `SELECT *
              FROM doubleelim_predictions
-             WHERE user_id = ?
+             WHERE guild_id = ?
+               AND user_id = ?
              ORDER BY submitted_at DESC
              LIMIT 1`,
-            [userId]
+            [guildId, userId]
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [
-                embed.setDescription('Brak zapisanych typów dla tej fazy.')
-              ]
+              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')]
             });
           }
 
           const r = rows[0];
-
           embed.addFields(
             { name: 'Upper Final – Grupa A (2)', value: joinOrDash(parseList(r.upper_final_a)), inline: false },
             { name: 'Lower Final – Grupa A (2)', value: joinOrDash(parseList(r.lower_final_a)), inline: false },
             { name: 'Upper Final – Grupa B (2)', value: joinOrDash(parseList(r.upper_final_b)), inline: false },
             { name: 'Lower Final – Grupa B (2)', value: joinOrDash(parseList(r.lower_final_b)), inline: false }
           );
-
           embed.setFooter({ text: `Ostatni zapis: ${r.submitted_at}` });
-
           return interaction.editReply({ embeds: [embed] });
         }
 
         // ============================================================
-        // === PLAY-IN =================================================
+        // === PLAY-IN ================================================
         // ============================================================
         if (phaseToShow === 'playin') {
           const [rows] = await pool.query(
             `SELECT *
              FROM playin_predictions
-             WHERE user_id = ?
+             WHERE guild_id = ?
+               AND user_id = ?
              ORDER BY submitted_at DESC
              LIMIT 1`,
-            [userId]
+            [guildId, userId]
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [
-                embed.setDescription('Brak zapisanych typów dla tej fazy.')
-              ]
+              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')]
             });
           }
 
           const r = rows[0];
-
-          embed.addFields({
-            name: 'Wytypowane drużyny',
-            value: joinOrDash(parseList(r.teams)),
-            inline: false
-          });
-
+          embed.addFields(
+            { name: 'Zakwalifikowane drużyny', value: joinOrDash(parseList(r.teams)), inline: false }
+          );
           embed.setFooter({ text: `Ostatni zapis: ${r.submitted_at}` });
-
           return interaction.editReply({ embeds: [embed] });
         }
 
