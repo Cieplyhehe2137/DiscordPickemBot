@@ -46,7 +46,6 @@ module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu() && interaction.customId === 'playin_select') {
     const values = (interaction.values || []).map(String);
 
-    // backend guard (P0)
     if (values.length !== 8) {
       return interaction.reply({
         content: '❌ Musisz wybrać **dokładnie 8 drużyn**.',
@@ -85,7 +84,7 @@ module.exports = async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  await withGuild(interaction, async (db, guildId) => {
+  await withGuild(interaction, async ({ pool, guildId }) => {
     /* ===============================
        GATE
        =============================== */
@@ -102,9 +101,6 @@ module.exports = async (interaction) => {
 
     const picked = getCache(cacheKey);
 
-    /* ===============================
-       WALIDACJA
-       =============================== */
     if (!Array.isArray(picked) || picked.length !== 8) {
       return interaction.editReply(
         '❌ Musisz wybrać **dokładnie 8 drużyn**.'
@@ -115,15 +111,13 @@ module.exports = async (interaction) => {
        WALIDACJA DRUŻYN Z DB
        =============================== */
     const [rows] = await pool.query(
-      db,
       `
       SELECT name
       FROM teams
       WHERE guild_id = ?
         AND active = 1
       `,
-      [guildId],
-      { guildId, scope: 'submitPlayin', label: 'load teams' }
+      [guildId]
     );
 
     const allowed = new Set(rows.map(r => String(r.name)));
@@ -141,7 +135,6 @@ module.exports = async (interaction) => {
     const teamsString = picked.join(', ');
 
     await pool.query(
-      db,
       `
       INSERT INTO playin_predictions
         (guild_id, user_id, username, displayname, teams, active, submitted_at)
@@ -158,8 +151,7 @@ module.exports = async (interaction) => {
         username,
         displayName,
         teamsString
-      ],
-      { guildId, scope: 'submitPlayin', label: 'upsert playin_predictions' }
+      ]
     );
 
     cache.delete(cacheKey);
