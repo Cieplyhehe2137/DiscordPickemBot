@@ -36,7 +36,7 @@ async function respond(interaction, payload, isUpdate) {
 async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
   const offset = page * PAGE_SIZE;
 
-  return withGuild(interaction, async (pool, guildId) => {
+  return withGuild(interaction, async ({ pool, guildId }) => {
     const [rows] = await pool.query(
       `
       SELECT id, match_no, team_a, team_b, best_of, is_locked, start_time_utc
