@@ -1,7 +1,14 @@
 // handlers/deadlineReminder.js
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionFlagsBits
+} = require('discord.js');
 const { DateTime } = require('luxon');
 const logger = require('../utils/logger.js');
+const { withGuild } = require('../utils/guildContext');
 
 function formatLeft(deadlineUtc, nowUtc) {
   const diff = deadlineUtc.diff(nowUtc, ['days', 'hours', 'minutes']).toObject();
@@ -33,58 +40,15 @@ async function safeEditFooter(message, baseEmbed, footerText) {
   }
 }
 
-async function disableAllButtons(message, baseEmbed) {
-  if (!message || typeof message.edit !== 'function') return;
-
-  try {
-    const newComponents = (message.components || []).map(row => {
-      const r = ActionRowBuilder.from(row);
-      r.components = r.components.map(c => {
-        try {
-          return ButtonBuilder.from(c).setDisabled(true);
-        } catch {
-          return c;
-        }
-      });
-      return r;
-    });
-
-    if (!newComponents.length) {
-      newComponents.push(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('disabled_button')
-            .setLabel('Typowanie zamknięte')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true)
-        )
-      );
-    }
-
-    const closedEmbed = EmbedBuilder
-      .from(baseEmbed || new EmbedBuilder())
-      .setFooter({ text: '🔒 Typowanie zamknięte' });
-
-    await message.edit({ embeds: [closedEmbed], components: newComponents });
-  } catch (err) {
-    logger.error('deadline', 'disableAllButtons failed', {
-      message: err.message,
-      stack: err.stack,
-    });
-  }
-}
-
 function startDeadlineReminder(client, guildId) {
   if (!guildId) {
     logger.error('deadline', 'startDeadlineReminder called without guildId');
     return;
   }
 
-  const { withGuild } = require('../utils/guildContext');
-
   setInterval(async () => {
     try {
-      await withGuild(guildId, async (pool) => {
+      await withGuild(guildId, async ({ pool }) => {
         const [panels] = await pool.query(
           `
           SELECT phase, stage, channel_id, message_id, deadline, reminded
@@ -116,7 +80,7 @@ function startDeadlineReminder(client, guildId) {
             ? EmbedBuilder.from(message.embeds[0])
             : new EmbedBuilder();
 
-          // ⏳ update footera
+          // ⏳ aktualizacja footera
           const left = formatLeft(deadlineUtc, nowUtc);
           await safeEditFooter(
             message,
