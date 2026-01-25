@@ -2,7 +2,6 @@ const logger = require('../utils/logger');
 const { getLockBeforeSec } = require('../utils/matchLock');
 const { disableAllComponents } = require('../utils/disableAllComponents');
 const { withGuild } = require('../utils/guildContext');
-// const { safeQuery } = require('../utils/safeQuery');
 
 const _startedWatchers = new Set();
 
@@ -32,7 +31,7 @@ function startMatchLockWatcher(client, guildId) {
     running = true;
 
     try {
-      await withGuild(guildId, async (pool) => {
+      await withGuild(guildId, async ({ pool }) => {
         const lockBeforeSec = getLockBeforeSec();
 
         const timeCond =
@@ -45,9 +44,8 @@ function startMatchLockWatcher(client, guildId) {
             ? [guildId, lockBeforeSec]
             : [guildId];
 
-        // 1️⃣ kandydaci do locka — GUILD SAFE
+        // 1️⃣ Kandydaci do locka (guild-safe)
         const [rows] = await pool.query(
-          pool,
           `
           SELECT id, panel_channel_id, panel_message_id
           FROM matches
@@ -58,20 +56,14 @@ function startMatchLockWatcher(client, guildId) {
           ORDER BY start_time_utc ASC
           LIMIT 50
           `,
-          params,
-          {
-            guildId,
-            scope: 'cron:matchLockWatcher',
-            label: 'select lock candidates',
-          }
+          params
         );
 
         if (!rows.length) return;
 
         for (const m of rows) {
-          // 2️⃣ race-safe lock (guild-safe)
+          // 2️⃣ Race-safe lock
           const [res] = await pool.query(
-            pool,
             `
             UPDATE matches
             SET is_locked = 1
@@ -79,12 +71,7 @@ function startMatchLockWatcher(client, guildId) {
               AND guild_id = ?
               AND is_locked = 0
             `,
-            [m.id, guildId],
-            {
-              guildId,
-              scope: 'cron:matchLockWatcher',
-              label: 'lock match',
-            }
+            [m.id, guildId]
           );
 
           if (!res.affectedRows) continue;
