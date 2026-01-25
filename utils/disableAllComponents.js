@@ -9,7 +9,7 @@ const {
 
 const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
-const { safeQuery } = require('./safeQuery');
+// const { safeQuery } = require('./safeQuery');
 
 /* ======================================================
    🧯 ANTY-OVERLAP

@@ -1,6 +1,6 @@
 // utils/teamsRepo.js
 const db = require('../db');
-const { safeQuery } = require('./safeQuery');
+// const { safeQuery } = require('./safeQuery');
 const logger = require('./logger');
 
 async function getActiveTeams(guildId) {
