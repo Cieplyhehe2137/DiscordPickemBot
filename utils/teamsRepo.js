@@ -11,7 +11,7 @@ async function getActiveTeams(guildId) {
 
   const pool = db.getPoolForGuild(guildId);
 
-  const [rows] = await safeQuery(
+  const [rows] = await pool.query(
     pool,
     `
     SELECT name, short_name

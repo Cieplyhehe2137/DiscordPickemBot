@@ -7,7 +7,7 @@ const {
   EmbedBuilder,
 } = require('discord.js');
 const logger = require('../utils/logger');
-const { safeQuery } = require('../utils/safeQuery');
+// const { safeQuery } = require('../utils/safeQuery');
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;

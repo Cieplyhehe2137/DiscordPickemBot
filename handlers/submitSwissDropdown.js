@@ -1,7 +1,7 @@
 // handlers/submitSwissDropdown.js
 
 const { withGuild } = require('../utils/guildContext');
-const { safeQuery } = require('../utils/safeQuery');
+// const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
@@ -31,7 +31,7 @@ function setCache(key, data) {
    DB HELPERS
 =============================== */
 async function loadTeamsFromDB(db, guildId) {
-  const [rows] = await safeQuery(
+  const [rows] = await pool.query(
     db,
     `
     SELECT name
@@ -174,7 +174,7 @@ module.exports = async (interaction) => {
     /* ===============================
        DB SAVE
        =============================== */
-    await safeQuery(
+    await pool.query(
       db,
       `
       INSERT INTO swiss_predictions

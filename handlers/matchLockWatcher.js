@@ -2,7 +2,7 @@ const logger = require('../utils/logger');
 const { getLockBeforeSec } = require('../utils/matchLock');
 const { disableAllComponents } = require('../utils/disableAllComponents');
 const { withGuild } = require('../utils/guildContext');
-const { safeQuery } = require('../utils/safeQuery');
+// const { safeQuery } = require('../utils/safeQuery');
 
 const _startedWatchers = new Set();
 
@@ -46,7 +46,7 @@ function startMatchLockWatcher(client, guildId) {
             : [guildId];
 
         // 1️⃣ kandydaci do locka — GUILD SAFE
-        const [rows] = await safeQuery(
+        const [rows] = await pool.query(
           pool,
           `
           SELECT id, panel_channel_id, panel_message_id
@@ -70,7 +70,7 @@ function startMatchLockWatcher(client, guildId) {
 
         for (const m of rows) {
           // 2️⃣ race-safe lock (guild-safe)
-          const [res] = await safeQuery(
+          const [res] = await pool.query(
             pool,
             `
             UPDATE matches

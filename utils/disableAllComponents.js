@@ -144,7 +144,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
   const pool = db.getPoolForGuild(guildId);
 
   try {
-    const [rows] = await safeQuery(
+    const [rows] = await pool.query(
       pool,
       `
       SELECT id, message_id, channel_id, phase, stage, deadline
@@ -172,7 +172,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
 
         const q = getCountQueryForPhase(guildId, panel.phase, panel.stage);
         if (q?.any?.sql) {
-          const [[r]] = await safeQuery(pool, q.any.sql, q.any.params);
+          const [[r]] = await pool.query(pool, q.any.sql, q.any.params);
           count = r?.c || 0;
           stageNormUsed = q.stageNorm;
         }
@@ -202,7 +202,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
 
         await msg.edit({ embeds: [embed], components: [row] });
 
-        await safeQuery(
+        await pool.query(
           pool,
           `UPDATE active_panels SET active = 0 WHERE id = ?`,
           [panel.id]

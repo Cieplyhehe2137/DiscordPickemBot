@@ -1,7 +1,7 @@
 // handlers/submitPlayoffsDropdown.js
 
 const { withGuild } = require('../utils/guildContext');
-const { safeQuery } = require('../utils/safeQuery');
+// const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const sendPredictionEmbed = require('../utils/sendPredictionEmbeds');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
@@ -136,7 +136,7 @@ module.exports = async (interaction) => {
     /* ===============================
        WALIDACJA DRUŻYN Z DB
        =============================== */
-    const [rows] = await safeQuery(
+    const [rows] = await pool.query(
       db,
       `SELECT name FROM teams WHERE guild_id = ? AND active = 1`,
       [guildId],
@@ -161,7 +161,7 @@ module.exports = async (interaction) => {
     /* ===============================
        ZAPIS DO DB
        =============================== */
-    await safeQuery(
+    await pool.query(
       db,
       `
       INSERT INTO playoffs_predictions

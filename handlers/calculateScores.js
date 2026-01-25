@@ -1,6 +1,6 @@
 const db = require('../db');
 const logger = require('../utils/logger');
-const { safeQuery } = require('../utils/safeQuery');
+// const { safeQuery } = require('../utils/safeQuery');
 const { computeTotalPoints } = require('../utils/matchScoring'); // ✅
 
 const cleanList = (val) => {
@@ -39,7 +39,7 @@ module.exports = async function calculateScores(guildId) {
      SWISS
      ========================= */
   try {
-    const [swissResultsRows] = await safeQuery(
+    const [swissResultsRows] = await pool.query(
       pool,
       `SELECT *
 FROM swiss_results
@@ -73,14 +73,14 @@ LIMIT 1
       const correct03 = cleanList(correctSwiss.correct_0_3);
       const correctAdv = cleanList(correctSwiss.correct_advancing);
 
-      const [swissPredictions] = await safeQuery(
+      const [swissPredictions] = await pool.query(
         pool,
         `SELECT * FROM swiss_predictions WHERE guild_id = ? AND stage = ?`,
         [guildId, stageRaw],
         { guildId, scope: 'cron:calculateScores', label: 'select swiss_predictions' }
       );
 
-      const [nameRows] = await safeQuery(
+      const [nameRows] = await pool.query(
         pool,
         `
         SELECT user_id, displayname
@@ -128,7 +128,7 @@ LIMIT 1
       }
 
       if (swissScoreRows.length) {
-        await safeQuery(
+        await pool.query(
           pool,
           `
           INSERT INTO swiss_scores (guild_id, user_id, stage, displayname, points)
@@ -162,7 +162,7 @@ LIMIT 1
      PLAYOFFS
      ========================= */
   try {
-    const [playoffsResultsRows] = await safeQuery(
+    const [playoffsResultsRows] = await pool.query(
       pool,
       `SELECT * FROM playoffs_results WHERE guild_id = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
       [guildId],
@@ -182,14 +182,14 @@ LIMIT 1
 
       const correctPlayoffs = playoffsResultsRows[0];
 
-      const [playoffsPredictions] = await safeQuery(
+      const [playoffsPredictions] = await pool.query(
         pool,
         `SELECT * FROM playoffs_predictions WHERE guild_id = ? AND active = 1`,
         [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select playoffs_predictions' }
       );
 
-      const [nameRows] = await safeQuery(
+      const [nameRows] = await pool.query(
         pool,
         `
         SELECT user_id, displayname
@@ -234,7 +234,7 @@ LIMIT 1
       }
 
       if (playoffsScoreRows.length) {
-        await safeQuery(
+        await pool.query(
           pool,
           `
           INSERT INTO playoffs_scores (guild_id, user_id, displayname, points)
@@ -267,7 +267,7 @@ LIMIT 1
      DOUBLE ELIMINATION
      ========================= */
   try {
-    const [doubleResultsRows] = await safeQuery(
+    const [doubleResultsRows] = await pool.query(
       pool,
       `SELECT * FROM doubleelim_results WHERE guild_id = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
       [guildId],
@@ -282,7 +282,7 @@ LIMIT 1
     } else {
       const correctDouble = doubleResultsRows[0];
 
-      const [doublePredictions] = await safeQuery(
+      const [doublePredictions] = await pool.query(
         pool,
         `
         SELECT p.*
@@ -302,7 +302,7 @@ LIMIT 1
         { guildId, scope: 'cron:calculateScores', label: 'select doubleelim_predictions' }
       );
 
-      const [nameRows] = await safeQuery(
+      const [nameRows] = await pool.query(
         pool,
         `
         SELECT user_id, displayname
@@ -351,7 +351,7 @@ LIMIT 1
       }
 
       if (doubleElimScoreRows.length) {
-        await safeQuery(
+        await pool.query(
           pool,
           `
           INSERT INTO doubleelim_scores (guild_id, user_id, displayname, points)
@@ -384,7 +384,7 @@ LIMIT 1
      PLAY-IN
      ========================= */
   try {
-    const [playinResultsRows] = await safeQuery(
+    const [playinResultsRows] = await pool.query(
       pool,
       `SELECT * FROM playin_results WHERE guild_id = ? and ACTIVE = 1 ORDER BY id DESC LIMIT 1`,
       [guildId],
@@ -399,14 +399,14 @@ LIMIT 1
     } else {
       const correctPlayin = playinResultsRows[0];
 
-      const [playinPredictions] = await safeQuery(
+      const [playinPredictions] = await pool.query(
         pool,
         `SELECT * FROM playin_predictions WHERE guild_id = ? AND active = 1`,
         [guildId],
         { guildId, scope: 'cron:calculateScores', label: 'select playin_predictions' }
       );
 
-      const [nameRows] = await safeQuery(
+      const [nameRows] = await pool.query(
         pool,
         `
         SELECT user_id, displayname
@@ -447,7 +447,7 @@ LIMIT 1
       }
 
       if (playinScoreRows.length) {
-        await safeQuery(
+        await pool.query(
           pool,
           `
           INSERT INTO playin_scores (guild_id, user_id, displayname, points)
@@ -480,7 +480,7 @@ LIMIT 1
      MATCHES
      ========================= */
   try {
-    const [matchesWithResults] = await safeQuery(
+    const [matchesWithResults] = await pool.query(
       pool,
       `
       SELECT
@@ -505,7 +505,7 @@ LIMIT 1
     } else {
       const matchIds = matchesWithResults.map(m => m.match_id);
 
-      const [allPredictions] = await safeQuery(
+      const [allPredictions] = await pool.query(
         pool,
         `
         SELECT match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
@@ -544,7 +544,7 @@ LIMIT 1
       }
 
       if (matchPointRows.length) {
-        await safeQuery(
+        await pool.query(
           pool,
           `
           INSERT INTO match_points (guild_id, match_id, user_id, points)

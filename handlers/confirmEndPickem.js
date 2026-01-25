@@ -52,7 +52,7 @@ module.exports = async (interaction) => {
 
     // ⚠️ Zakładamy, że active_panels jest per-guild
     // P1: jeśli nie ma guild_id w tabeli → migracja
-    const [rows] = await safeQuery(
+    const [rows] = await pool.query(
       pool,
       'SELECT channel_id, message_id FROM active_panels WHERE phase = ? LIMIT 1',
       [phase],
@@ -79,7 +79,7 @@ module.exports = async (interaction) => {
         channel_id,
       });
 
-      await safeQuery(
+      await pool.query(
         pool,
         'DELETE FROM active_panels WHERE phase = ?',
         [phase],
