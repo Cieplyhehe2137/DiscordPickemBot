@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const db = require('../db.js');
-const { safeQuery } = require('../utils/safeQuery.js');
+// const { safeQuery } = require('../utils/safeQuery.js');
 const isAdmin = require('../utils/isAdmin');
 const logger = require('../utils/logger.js');
 
