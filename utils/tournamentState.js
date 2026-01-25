@@ -1,32 +1,35 @@
-// utils/tournamentState.js
+// ❌ USUŃ withGuild stąd
+// const { withGuild } = require('./guildContext');
+
+const db = require('../db');
 const logger = require('./logger');
-const { withGuild } = require('./guildContext');
 const { ensureTournamentState } = require('./ensureTournamentTables');
 
-/**
- * tournament_state – per guild
- */
-async function getTournamentState(source) {
+async function getTournamentState(guildId, pool) {
+  if (!guildId || !pool) {
+    return {
+      ok: false,
+      phase: 'UNKNOWN',
+      isOpen: false,
+      error: 'Missing guild context',
+    };
+  }
+
   try {
-    return await withGuild(source, async ({ guildId, pool }) => {
-      // self-heal (twardo w kontekście guild)
-      await ensureTournamentState(pool);
+    await ensureTournamentState(pool);
 
-      const [[row]] = await pool.query(
-        `SELECT phase, is_open
-         FROM tournament_state
-         WHERE id = 1`
-      );
+    const [[row]] = await pool.query(
+      'SELECT phase, is_open FROM tournament_state WHERE id = 1'
+    );
 
-      return {
-        ok: true,
-        phase: row?.phase ?? 'UNKNOWN',
-        isOpen: !!row?.is_open,
-      };
-    });
+    return {
+      ok: true,
+      phase: row?.phase ?? 'UNKNOWN',
+      isOpen: !!row?.is_open,
+    };
   } catch (err) {
     logger.error('tournament', 'getTournamentState failed', {
-      guildId: typeof source === 'string' ? source : source?.guildId,
+      guildId,
       message: err.message,
       stack: err.stack,
     });
@@ -40,11 +43,8 @@ async function getTournamentState(source) {
   }
 }
 
-/**
- * Sugar helper
- */
-async function isPredictionsOpen(source) {
-  const state = await getTournamentState(source);
+async function isPredictionsOpen(guildId, pool) {
+  const state = await getTournamentState(guildId, pool);
   return state.ok && state.isOpen;
 }
 
