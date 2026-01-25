@@ -21,7 +21,7 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getUserDefaults(pool, matchId, userId, maxMaps, mapNo) {
+async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
   if (maxMaps === 1) {
     const [[p]] = await pool.query(
       `
@@ -32,24 +32,26 @@ async function getUserDefaults(pool, matchId, userId, maxMaps, mapNo) {
         AND user_id = ?
       LIMIT 1
       `,
-      [pool.__guildId, matchId, userId]
+      [guildId, matchId, userId]
     );
+
 
     return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
   }
 
   const [[p]] = await pool.query(
     `
-    SELECT pred_exact_a, pred_exact_b
-    FROM match_map_predictions
-    WHERE guild_id = ?
-      AND match_id = ?
-      AND user_id = ?
-      AND map_no = ?
-    LIMIT 1
-    `,
-    [pool.__guildId, matchId, userId, mapNo]
+  SELECT pred_exact_a, pred_exact_b
+  FROM match_map_predictions
+  WHERE guild_id = ?
+    AND match_id = ?
+    AND user_id = ?
+    AND map_no = ?
+  LIMIT 1
+  `,
+    [guildId, matchId, userId, mapNo]
   );
+
 
   return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
 }
@@ -101,7 +103,7 @@ module.exports = async function matchUserExactOpen(interaction) {
       });
     }
 
-    await withGuild(interaction, async (pool, guildId) => {
+    await withGuild(interaction, async ({ pool, guildId }) => {
       // 👇 mały trick, żeby helper wiedział jaki guild_id
       pool.__guildId = guildId;
 
@@ -161,11 +163,13 @@ module.exports = async function matchUserExactOpen(interaction) {
 
       const defaults = await getUserDefaults(
         pool,
+        guildId,
         match.id,
         interaction.user.id,
         maxMaps,
         effectiveMapNo
       );
+
 
       const modal = buildModal({
         match,
@@ -187,6 +191,6 @@ module.exports = async function matchUserExactOpen(interaction) {
         content: '❌ Nie udało się otworzyć modala.',
         ephemeral: true
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 };
