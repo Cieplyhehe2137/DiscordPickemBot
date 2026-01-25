@@ -9,7 +9,7 @@ const {
 
 const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
-// const { safeQuery } = require('./safeQuery');
+const { withGuild } = require('./guildContext');
 
 /* ======================================================
    🧯 ANTY-OVERLAP
@@ -141,79 +141,80 @@ async function closeExpiredPanelsForGuild(client, guildId) {
   if (_closeExpiredPanelsRunningByGuild.has(guildId)) return;
   _closeExpiredPanelsRunningByGuild.add(guildId);
 
-  const pool = db.getPoolForGuild(guildId);
-
   try {
-    const [rows] = await pool.query(
-      pool,
-      `
-      SELECT id, message_id, channel_id, phase, stage, deadline
-      FROM active_panels
-      WHERE active = 1
-        AND deadline IS NOT NULL
-        AND NOW() >= deadline
-      `,
-      [],
-      { guildId, scope: 'cron:closeExpiredPanels', label: 'select expired panels' }
-    );
+    await withGuild(guildId, async ({ pool, guildId }) => {
 
-    if (!rows.length) return;
+      const [rows] = await pool.query(
+        `
+        SELECT id, message_id, channel_id, phase, stage, deadline
+        FROM active_panels
+        WHERE guild_id = ?
+          AND active = 1
+          AND deadline IS NOT NULL
+          AND NOW() >= deadline
+        `,
+        [guildId]
+      );
 
-    for (const panel of rows) {
-      try {
-        const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
-        if (!channel) continue;
+      if (!rows.length) return;
 
-        const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
-        if (!msg) continue;
+      for (const panel of rows) {
+        try {
+          const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
+          if (!channel) continue;
 
-        let count = 0;
-        let stageNormUsed = null;
+          const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
+          if (!msg) continue;
 
-        const q = getCountQueryForPhase(guildId, panel.phase, panel.stage);
-        if (q?.any?.sql) {
-          const [[r]] = await pool.query(pool, q.any.sql, q.any.params);
-          count = r?.c || 0;
-          stageNormUsed = q.stageNorm;
-        }
+          let count = 0;
+          let stageNormUsed = null;
 
-        const noun =
-          count === 1 ? 'osoba' :
+          const q = getCountQueryForPhase(guildId, panel.phase, panel.stage);
+          if (q?.any?.sql) {
+            const [[r]] = await pool.query(q.any.sql, q.any.params);
+            count = r?.c || 0;
+            stageNormUsed = q.stageNorm;
+          }
+
+          const noun =
+            count === 1 ? 'osoba' :
             count >= 2 && count <= 4 ? 'osoby' : 'osób';
 
-        const phaseLabel =
-          panel.phase.toLowerCase().includes('swiss')
-            ? `Swiss (${(panel.stage || stageNormUsed || '').toUpperCase()})`
-            : prettyPhase(panel.phase);
+          const phaseLabel =
+            panel.phase.toLowerCase().includes('swiss')
+              ? `Swiss (${(panel.stage || stageNormUsed || '').toUpperCase()})`
+              : prettyPhase(panel.phase);
 
-        const embed = new EmbedBuilder()
-          .setColor('Red')
-          .setTitle(`🔴 Etap ${phaseLabel}`)
-          .setDescription(`Typowanie zostało zakończone. Wzięło udział **${count}** ${noun}.`)
-          .setFooter({ text: `⏱ Typowanie zamknięte • ${count} zgłoszeń` });
+          const embed = new EmbedBuilder()
+            .setColor('Red')
+            .setTitle(`🔴 Etap ${phaseLabel}`)
+            .setDescription(`Typowanie zostało zakończone. Wzięło udział **${count}** ${noun}.`)
+            .setFooter({ text: `⏱ Typowanie zamknięte • ${count} zgłoszeń` });
 
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('pickem_closed')
-            .setLabel('Typowanie zamknięte')
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true)
-        );
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId('pickem_closed')
+              .setLabel('Typowanie zamknięte')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(true)
+          );
 
-        await msg.edit({ embeds: [embed], components: [row] });
+          await msg.edit({ embeds: [embed], components: [row] });
 
-        await pool.query(
-          pool,
-          `UPDATE active_panels SET active = 0 WHERE id = ?`,
-          [panel.id]
-        );
+          await pool.query(
+            `UPDATE active_panels
+             SET active = 0, closed = 1
+             WHERE id = ? AND guild_id = ?`,
+            [panel.id, guildId]
+          );
 
-        await sendTrendsAfterDeadline(client, panel);
+          await sendTrendsAfterDeadline(client, panel);
 
-      } catch (e) {
-        console.warn(`[${guildId}] Błąd przy zamykaniu panelu`, e.message);
+        } catch (e) {
+          console.warn(`[${guildId}] Błąd przy zamykaniu panelu`, e.message);
+        }
       }
-    }
+    });
   } finally {
     _closeExpiredPanelsRunningByGuild.delete(guildId);
   }

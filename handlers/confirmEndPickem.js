@@ -1,6 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const db = require('../db.js');
-// const { safeQuery } = require('../utils/safeQuery.js');
+const { withGuild } = require('../utils/guildContext');
 const isAdmin = require('../utils/isAdmin');
 const logger = require('../utils/logger.js');
 
@@ -36,8 +35,6 @@ module.exports = async (interaction) => {
   else if (interaction.customId === 'confirm_end_pickem_playin') phase = 'playin';
   else return;
 
-  const pool = db.getPoolForGuild(guildId);
-
   const userMeta = {
     guildId,
     phase,
@@ -50,101 +47,80 @@ module.exports = async (interaction) => {
   try {
     await interaction.deferReply({ ephemeral: true });
 
-    // ⚠️ Zakładamy, że active_panels jest per-guild
-    // P1: jeśli nie ma guild_id w tabeli → migracja
-    const [rows] = await pool.query(
-      pool,
-      'SELECT channel_id, message_id FROM active_panels WHERE phase = ? LIMIT 1',
-      [phase],
-      {
-        guildId,
-        scope: 'endPickem',
-        label: 'select active_panels',
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      // 🔎 szukamy aktywnego panelu GUILD SAFE
+      const [rows] = await pool.query(
+        `
+        SELECT id, channel_id, message_id
+        FROM active_panels
+        WHERE guild_id = ?
+          AND phase = ?
+          AND active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId, phase]
+      );
+
+      if (!rows.length) {
+        return interaction.followUp({
+          content: `⚠️ Nie znaleziono aktywnego panelu dla fazy **${phase}**.`,
+          ephemeral: true,
+        });
       }
-    );
 
-    if (!rows.length) {
-      return interaction.followUp({
-        content: `⚠️ Nie znaleziono aktywnego panelu dla fazy **${phase}**.`,
-        ephemeral: true,
-      });
-    }
+      const { id, channel_id, message_id } = rows[0];
 
-    const { channel_id, message_id } = rows[0];
+      const channel = await interaction.client.channels.fetch(channel_id).catch(() => null);
+      if (!channel || !channel.isTextBased?.()) {
+        logger.warn('endPickem', 'Channel not found, cleaning DB', userMeta);
 
-    const channel = await interaction.client.channels.fetch(channel_id).catch(() => null);
-    if (!channel || !channel.isTextBased?.()) {
-      logger.warn('endPickem', 'Channel not found or not text-based', {
-        ...userMeta,
-        channel_id,
-      });
+        await pool.query(
+          `UPDATE active_panels SET active = 0, closed = 1 WHERE id = ? AND guild_id = ?`,
+          [id, guildId]
+        );
+
+        return interaction.followUp({
+          content: '⚠️ Panel już nie istnieje. Wpis został wyczyszczony.',
+          ephemeral: true,
+        });
+      }
+
+      let message = null;
+      try {
+        message = await channel.messages.fetch(message_id);
+      } catch (err) {
+        if (err.code !== 10008) throw err;
+      }
+
+      if (message) {
+        const embed = message.embeds?.[0];
+
+        const disabledRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('disabled_button')
+            .setLabel('Typowanie zamknięte')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true)
+        );
+
+        await message.edit({
+          embeds: embed ? [embed] : [],
+          components: [disabledRow],
+        });
+      }
 
       await pool.query(
-        pool,
-        'DELETE FROM active_panels WHERE phase = ?',
-        [phase],
-        {
-          guildId,
-          scope: 'endPickem',
-          label: 'delete active_panels',
-        }
+        `UPDATE active_panels SET active = 0, closed = 1 WHERE id = ? AND guild_id = ?`,
+        [id, guildId]
       );
 
-      return interaction.followUp({
-        content: '⚠️ Panel już nie istnieje. Wpis został wyczyszczony.',
-        ephemeral: true,
-      });
-    }
-
-    // 🔒 Guard — kanał musi należeć do tej guildy
-    if (channel.guildId && String(channel.guildId) !== String(guildId)) {
-      logger.error('endPickem', 'Channel belongs to another guild', {
-        ...userMeta,
-        channelGuildId: channel.guildId,
-      });
+      logger.info('endPickem', 'Pickem closed', userMeta);
 
       return interaction.followUp({
-        content: '❌ Panel należy do innego serwera.',
+        content: `✅ Typowanie dla fazy **${phase}** zostało zakończone.`,
         ephemeral: true,
       });
-    }
-
-    let message = null;
-    try {
-      message = await channel.messages.fetch(message_id);
-    } catch (err) {
-      if (err.code === 10008) {
-        logger.warn('endPickem', 'Message already deleted, cleaning DB', userMeta);
-      } else {
-        throw err;
-      }
-    }
-
-    if (message) {
-      const embed = message.embeds?.[0];
-
-      const disabledRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('disabled_button')
-          .setLabel('Typowanie zamknięte')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true)
-      );
-
-      await message.edit({
-        embeds: embed ? [embed] : [],
-        components: [disabledRow],
-      });
-
-      logger.info('endPickem', 'Panel buttons disabled', userMeta);
-    }
-
-    await pool.query('DELETE FROM active_panels WHERE phase = ?', [phase]);
-    logger.info('endPickem', 'Active panel entry removed', userMeta);
-
-    return interaction.followUp({
-      content: `✅ Typowanie dla fazy **${phase}** zostało zakończone.`,
-      ephemeral: true,
     });
 
   } catch (err) {
@@ -161,6 +137,6 @@ module.exports = async (interaction) => {
           ephemeral: true,
         });
       }
-    } catch (_) { }
+    } catch (_) {}
   }
 };

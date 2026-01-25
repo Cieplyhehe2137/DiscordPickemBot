@@ -1,6 +1,7 @@
 // handlers/submitPlayoffsResultsDropdown.js
-const db = require('../db');
-const logger = require('../logger');
+
+const logger = require('../utils/logger');
+const { withGuild } = require('../utils/guildContext');
 
 /* ===============================
    CACHE (TTL, per guild + admin)
@@ -104,13 +105,18 @@ function pickOrKeep(base = [], add = [], cap) {
 =============================== */
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+  if (!interaction.guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
 
   const guildId = interaction.guildId;
   const adminId = interaction.user.id;
   const username = interaction.user.username;
   const cacheKey = `${guildId}:${adminId}`;
 
-  const pool = db.getPoolForGuild(guildId);
   const local = getCache(cacheKey) || {};
 
   /* ===============================
@@ -125,11 +131,14 @@ module.exports = async (interaction) => {
 
     setCache(cacheKey, local);
 
-    logger.info(
-      `[Playoffs Results] ${username} (${adminId}) [${guildId}] ${type}: ${interaction.values.join(', ')}`
-    );
+    logger.info('playoffs_results', 'slot updated', {
+      guildId,
+      adminId,
+      type,
+      values: interaction.values
+    });
 
-    await interaction.deferUpdate();
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
@@ -139,83 +148,95 @@ module.exports = async (interaction) => {
   if (interaction.isButton() && interaction.customId === 'confirm_playoffs_results') {
     await interaction.deferReply({ ephemeral: true });
 
-    const current = await getCurrentPlayoffs(pool, guildId);
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      const current = await getCurrentPlayoffs(pool, guildId);
 
-    const mSemi   = pickOrKeep(current.semifinalists, local.semifinalists, 4);
-    const mFinal  = pickOrKeep(current.finalists, local.finalists, 2);
-    const mWinner = pickOrKeep(current.winner, local.winner, 1);
-    const mThird  = pickOrKeep(current.third, local.third_place_winner, 1);
+      const mSemi   = pickOrKeep(current.semifinalists, local.semifinalists, 4);
+      const mFinal  = pickOrKeep(current.finalists, local.finalists, 2);
+      const mWinner = pickOrKeep(current.winner, local.winner, 1);
+      const mThird  = pickOrKeep(current.third, local.third_place_winner, 1);
 
-    if (!mSemi.ok)   return interaction.editReply(`⚠️ Półfinaliści: ${mSemi.err}`);
-    if (!mFinal.ok)  return interaction.editReply(`⚠️ Finaliści: ${mFinal.err}`);
-    if (!mWinner.ok) return interaction.editReply(`⚠️ Zwycięzca: ${mWinner.err}`);
-    if (!mThird.ok)  return interaction.editReply(`⚠️ 3. miejsce: ${mThird.err}`);
+      if (!mSemi.ok)   return interaction.editReply(`⚠️ Półfinaliści: ${mSemi.err}`);
+      if (!mFinal.ok)  return interaction.editReply(`⚠️ Finaliści: ${mFinal.err}`);
+      if (!mWinner.ok) return interaction.editReply(`⚠️ Zwycięzca: ${mWinner.err}`);
+      if (!mThird.ok)  return interaction.editReply(`⚠️ 3. miejsce: ${mThird.err}`);
 
-    // relacje
-    if (mFinal.merged.some(t => !mSemi.merged.includes(t)))
-      return interaction.editReply('⚠️ Finaliści muszą być półfinalistami.');
+      // relacje logiczne
+      if (mFinal.merged.some(t => !mSemi.merged.includes(t)))
+        return interaction.editReply('⚠️ Finaliści muszą być półfinalistami.');
 
-    if (mWinner.merged[0] && !mFinal.merged.includes(mWinner.merged[0]))
-      return interaction.editReply('⚠️ Zwycięzca musi być finalistą.');
+      if (mWinner.merged[0] && !mFinal.merged.includes(mWinner.merged[0]))
+        return interaction.editReply('⚠️ Zwycięzca musi być finalistą.');
 
-    if (
-      mThird.merged[0] &&
-      (mThird.merged[0] === mWinner.merged[0] ||
-       !mSemi.merged.includes(mThird.merged[0]))
-    )
-      return interaction.editReply('⚠️ Niepoprawne 3. miejsce.');
+      if (
+        mThird.merged[0] &&
+        (mThird.merged[0] === mWinner.merged[0] ||
+         !mSemi.merged.includes(mThird.merged[0]))
+      )
+        return interaction.editReply('⚠️ Niepoprawne 3. miejsce.');
 
-    // walidacja teams
-    const teams = await loadTeamsFromDB(pool, guildId);
-    const all = [...mSemi.merged, ...mFinal.merged, ...mWinner.merged, ...mThird.merged];
-    const invalid = all.filter(t => !teams.includes(t));
-    if (invalid.length)
-      return interaction.editReply(`⚠️ Nieznane drużyny: ${invalid.join(', ')}`);
+      // walidacja drużyn
+      const teams = await loadTeamsFromDB(pool, guildId);
+      const all = [
+        ...mSemi.merged,
+        ...mFinal.merged,
+        ...mWinner.merged,
+        ...mThird.merged
+      ];
+      const invalid = all.filter(t => !teams.includes(t));
+      if (invalid.length)
+        return interaction.editReply(`⚠️ Nieznane drużyny: ${invalid.join(', ')}`);
 
-    /* ===============================
-       DB SAVE (TRANSAKCJA)
-    =============================== */
-    const conn = await pool.getConnection();
-    try {
-      await conn.beginTransaction();
+      /* ===============================
+         DB SAVE (TRANSAKCJA)
+      =============================== */
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
 
-      await conn.query(
-        `UPDATE playoffs_results
-         SET active = 0
-         WHERE guild_id = ?`,
-        [guildId]
-      );
+        await conn.query(
+          `UPDATE playoffs_results
+           SET active = 0
+           WHERE guild_id = ?`,
+          [guildId]
+        );
 
-      await conn.query(
-        `INSERT INTO playoffs_results
-          (guild_id, correct_semifinalists, correct_finalists,
-           correct_winner, correct_third_place_winner, active)
-         VALUES (?, ?, ?, ?, ?, 1)`,
-        [
+        await conn.query(
+          `INSERT INTO playoffs_results
+            (guild_id, correct_semifinalists, correct_finalists,
+             correct_winner, correct_third_place_winner, active)
+           VALUES (?, ?, ?, ?, ?, 1)`,
+          [
+            guildId,
+            mSemi.merged.join(', '),
+            mFinal.merged.join(', '),
+            mWinner.merged.join(', '),
+            mThird.merged[0] || null
+          ]
+        );
+
+        await conn.commit();
+        cache.delete(cacheKey);
+
+        return interaction.editReply(
+          `✅ Zapisano wyniki Playoffs:\n` +
+          `• SF: ${mSemi.merged.join(', ') || '—'}\n` +
+          `• F: ${mFinal.merged.join(', ') || '—'}\n` +
+          `• 🏆: ${mWinner.merged.join(', ') || '—'}\n` +
+          `• 🥉: ${mThird.merged.join(', ') || '—'}`
+        );
+      } catch (err) {
+        await conn.rollback();
+        logger.error('playoffs_results', 'DB error', {
           guildId,
-          mSemi.merged.join(', '),
-          mFinal.merged.join(', '),
-          mWinner.merged.join(', '),
-          mThird.merged[0] || null
-        ]
-      );
-
-      await conn.commit();
-      cache.delete(cacheKey);
-
-      return interaction.editReply(
-        `✅ Zapisano wyniki Playoffs:\n` +
-        `• SF: ${mSemi.merged.join(', ') || '—'}\n` +
-        `• F: ${mFinal.merged.join(', ') || '—'}\n` +
-        `• 🏆: ${mWinner.merged.join(', ') || '—'}\n` +
-        `• 🥉: ${mThird.merged.join(', ') || '—'}`
-      );
-    } catch (err) {
-      await conn.rollback();
-      logger.error('[Playoffs Results] DB error', err);
-      return interaction.editReply('❌ Błąd zapisu wyników.');
-    } finally {
-      conn.release();
-    }
+          adminId,
+          message: err.message,
+          stack: err.stack
+        });
+        return interaction.editReply('❌ Błąd zapisu wyników.');
+      } finally {
+        conn.release();
+      }
+    });
   }
 };

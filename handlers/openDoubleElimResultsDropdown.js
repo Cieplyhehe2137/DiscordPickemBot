@@ -12,7 +12,7 @@ const { withGuild } = require('../utils/guildContext');
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
   return perms?.has(PermissionFlagsBits.Administrator) ||
-         perms?.has(PermissionFlagsBits.ManageGuild);
+    perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
 async function loadTeamsFromDB(pool, guildId) {
@@ -41,7 +41,7 @@ module.exports = async (interaction) => {
       await interaction.deferReply({ ephemeral: true });
     }
 
-    await withGuild(interaction.guildId, async (pool, guildId) => {
+    await withGuild(interaction.guildId, async ({ pool, guildId }) => {
       const teams = await loadTeamsFromDB(pool, guildId);
 
       if (!teams.length) {
@@ -99,6 +99,6 @@ module.exports = async (interaction) => {
     return interaction.editReply({
       content: '❌ Wystąpił błąd przy otwieraniu wyników Double Elim.',
       components: []
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };

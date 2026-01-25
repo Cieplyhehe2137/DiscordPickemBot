@@ -1,4 +1,3 @@
-const db = require('../db.js');
 const isAdmin = require('../utils/isAdmin');
 const {
   ActionRowBuilder,
@@ -7,6 +6,8 @@ const {
   EmbedBuilder,
   StringSelectMenuBuilder,
 } = require('discord.js');
+
+const { withGuild } = require('../utils/guildContext');
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
@@ -27,7 +28,6 @@ module.exports = async (interaction) => {
   }
 
   const selected = interaction.values[0];
-  const pool = db.getPoolForGuild(interaction.guildId);
 
   try {
     await interaction.deferReply({ ephemeral: true });
@@ -123,21 +123,23 @@ module.exports = async (interaction) => {
         .setStyle(ButtonStyle.Success)
     );
 
-    const msg = await interaction.channel.send({
-      embeds: [embed],
-      components: [row],
-    });
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      const msg = await interaction.channel.send({
+        embeds: [embed],
+        components: [row],
+      });
 
-    await pool.query(
-      `
-      INSERT INTO active_panels (guild_id, phase, channel_id, message_id)
-      VALUES (?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        channel_id = VALUES(channel_id),
-        message_id = VALUES(message_id)
-      `,
-      [interaction.guildId, selected, interaction.channel.id, msg.id]
-    );
+      await pool.query(
+        `
+        INSERT INTO active_panels (guild_id, phase, channel_id, message_id)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          channel_id = VALUES(channel_id),
+          message_id = VALUES(message_id)
+        `,
+        [guildId, selected, interaction.channel.id, msg.id]
+      );
+    });
 
     await interaction.editReply({
       content: `✅ Panel dla fazy **${selected}** został opublikowany.`,

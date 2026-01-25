@@ -1,7 +1,7 @@
 // handlers/submitPlayinResultsDropdown.js
 
-const db = require('../db');
 const logger = require('../utils/logger');
+const { withGuild } = require('../utils/guildContext');
 
 // cache: `${guildId}:${adminId}` -> { teams: [], ts }
 const CACHE_TTL = 15 * 60 * 1000;
@@ -41,11 +41,8 @@ module.exports = async (interaction) => {
       });
     }
 
-    const guildId = interaction.guildId;
     const adminId = interaction.user.id;
-    const username = interaction.user.username;
-    const cacheKey = `${guildId}:${adminId}`;
-    const pool = db.getPoolForGuild(guildId);
+    const cacheKey = `${interaction.guildId}:${adminId}`;
 
     if (!getCache(cacheKey)) {
       setCache(cacheKey, { teams: [] });
@@ -95,58 +92,61 @@ module.exports = async (interaction) => {
         );
       }
 
-      const allowed = await loadActiveTeams(pool, guildId);
-      const invalid = data.teams.filter(t => !allowed.has(t));
+      await withGuild(interaction, async ({ pool, guildId }) => {
+        const allowed = await loadActiveTeams(pool, guildId);
+        const invalid = data.teams.filter(t => !allowed.has(t));
 
-      if (invalid.length) {
-        return interaction.editReply(
-          `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`
-        );
-      }
+        if (invalid.length) {
+          return interaction.editReply(
+            `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`
+          );
+        }
 
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
+        const conn = await pool.getConnection();
+        try {
+          await conn.beginTransaction();
 
-        await conn.query(
-          `UPDATE playin_results SET active = 0 WHERE guild_id = ?`,
-          [guildId]
-        );
+          await conn.query(
+            `UPDATE playin_results SET active = 0 WHERE guild_id = ?`,
+            [guildId]
+          );
 
-        await conn.query(
-          `
-          INSERT INTO playin_results
-            (guild_id, correct_teams, active, created_at)
-          VALUES (?, ?, 1, NOW())
-          `,
-          [guildId, toString(data.teams)]
-        );
+          await conn.query(
+            `
+            INSERT INTO playin_results
+              (guild_id, correct_teams, active, created_at)
+            VALUES (?, ?, 1, NOW())
+            `,
+            [guildId, toString(data.teams)]
+          );
 
-        await conn.commit();
-        cache.delete(cacheKey);
+          await conn.commit();
+          cache.delete(cacheKey);
 
-        logger.info('playin', 'Play-In results saved', {
-          guildId,
-          adminId,
-          teams: data.teams
-        });
+          logger.info('playin', 'Play-In results saved', {
+            guildId,
+            adminId,
+            teams: data.teams
+          });
 
-        return interaction.editReply(
-          '✅ Oficjalne wyniki Play-In zostały zapisane.'
-        );
-      } catch (err) {
-        await conn.rollback();
-        logger.error('playin', 'Error saving Play-In results', {
-          guildId,
-          adminId,
-          message: err.message
-        });
-        return interaction.editReply(
-          '❌ Błąd zapisu wyników Play-In.'
-        );
-      } finally {
-        conn.release();
-      }
+          return interaction.editReply(
+            '✅ Oficjalne wyniki Play-In zostały zapisane.'
+          );
+        } catch (err) {
+          await conn.rollback();
+          logger.error('playin', 'Error saving Play-In results', {
+            guildId,
+            adminId,
+            message: err.message,
+            stack: err.stack
+          });
+          return interaction.editReply(
+            '❌ Błąd zapisu wyników Play-In.'
+          );
+        } finally {
+          conn.release();
+        }
+      });
     }
   } catch (err) {
     logger.error('playin', 'submitPlayinResultsDropdown crash', {

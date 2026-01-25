@@ -1,8 +1,7 @@
-// handlers/matchAdminStartSubmit.js
-const db = require('../db');
 const logger = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 const { DateTime } = require('luxon');
+const { withGuild } = require('../utils/guildContext');
 const {
   DEFAULT_ZONE,
   parseStartInputToUtc,
@@ -11,125 +10,125 @@ const {
 
 module.exports = async function matchAdminStartSubmit(interaction) {
   try {
-    const guildId = interaction.guildId;
-    if (!guildId) {
+    if (!interaction.guildId) {
       return interaction.reply({
         content: '❌ Brak kontekstu serwera.',
         ephemeral: true
       });
     }
 
-    const pool = db.getPoolForGuild(guildId);
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      const ctx = adminState.get(guildId, interaction.user.id);
+      if (!ctx?.matchId) {
+        return interaction.reply({
+          content: '❌ Brak wybranego meczu. Wybierz mecz ponownie.',
+          ephemeral: true
+        });
+      }
 
-    const ctx = adminState.get(guildId, interaction.user.id);
-    if (!ctx?.matchId) {
-      return interaction.reply({
-        content: '❌ Brak wybranego meczu. Wybierz mecz ponownie.',
-        ephemeral: true
-      });
-    }
+      const input = interaction.fields.getTextInputValue('start_time');
+      const parsed = parseStartInputToUtc(input, DEFAULT_ZONE);
 
-    const input = interaction.fields.getTextInputValue('start_time');
-    const parsed = parseStartInputToUtc(input, DEFAULT_ZONE);
-    if (!parsed.ok) {
-      return interaction.reply({
-        content: `❌ ${parsed.reason}`,
-        ephemeral: true
-      });
-    }
+      if (!parsed.ok) {
+        return interaction.reply({
+          content: `❌ ${parsed.reason}`,
+          ephemeral: true
+        });
+      }
 
-    // 🔒 guild-safe SELECT
-    const [[match]] = await pool.query(
-      `
-      SELECT id, team_a, team_b, start_time_utc, is_locked
-      FROM matches
-      WHERE id = ? AND guild_id = ?
-      LIMIT 1
-      `,
-      [ctx.matchId, guildId]
-    );
+      // 🔒 GUILD-SAFE SELECT
+      const [[match]] = await pool.query(
+        `
+        SELECT id, team_a, team_b, start_time_utc, is_locked
+        FROM matches
+        WHERE id = ? AND guild_id = ?
+        LIMIT 1
+        `,
+        [ctx.matchId, guildId]
+      );
 
-    if (!match) {
-      adminState.clear(guildId, interaction.user.id);
-      return interaction.reply({
-        content: '❌ Mecz nie istnieje już w bazie dla tego serwera.',
-        ephemeral: true
-      });
-    }
+      if (!match) {
+        adminState.clear(guildId, interaction.user.id);
+        return interaction.reply({
+          content: '❌ Mecz nie istnieje już w bazie dla tego serwera.',
+          ephemeral: true
+        });
+      }
 
-    // 🧹 USUNIĘCIE STARTU
-    if (parsed.cleared) {
+      // 🧹 USUNIĘCIE STARTU
+      if (parsed.cleared) {
+        await pool.query(
+          `
+          UPDATE matches
+          SET start_time_utc = NULL
+          WHERE id = ? AND guild_id = ?
+          `,
+          [match.id, guildId]
+        );
+
+        return interaction.reply({
+          content: `✅ Usunięto start meczu **${match.team_a} vs ${match.team_b}**`,
+          ephemeral: true
+        });
+      }
+
+      const utcDt = parsed.utc;       // luxon DateTime (UTC)
+      const utcJs = utcDt.toJSDate(); // JS Date
+
       await pool.query(
         `
         UPDATE matches
-        SET start_time_utc = NULL
+        SET start_time_utc = ?
         WHERE id = ? AND guild_id = ?
         `,
-        [match.id, guildId]
+        [utcJs, match.id, guildId]
       );
+
+      const nowUtc = DateTime.utc();
+      let lockedNow = false;
+
+      // 🔒 auto-lock jeśli start już minął
+      if (isMatchStarted({ start_time_utc: utcJs }, nowUtc, 0)) {
+        const [res] = await pool.query(
+          `
+          UPDATE matches
+          SET is_locked = 1
+          WHERE id = ?
+            AND guild_id = ?
+            AND is_locked = 0
+          `,
+          [match.id, guildId]
+        );
+
+        lockedNow = res.affectedRows > 0;
+      }
+
+      const localStr = utcDt.setZone(DEFAULT_ZONE).toFormat('yyyy-LL-dd HH:mm');
+      const utcStr = utcDt.toFormat("yyyy-LL-dd HH:mm 'UTC'");
+
+      logger.info('matches', 'Match start_time_utc updated', {
+        guild_id: guildId,
+        matchId: match.id,
+        local: localStr,
+        utc: utcStr,
+        lockedNow,
+        by: interaction.user?.id
+      });
 
       return interaction.reply({
-        content: `✅ Usunięto start meczu **${match.team_a} vs ${match.team_b}**`,
+        content:
+          `✅ Ustawiono start dla **${match.team_a} vs ${match.team_b}**\n` +
+          `🕒 Czas PL: **${localStr}**\n` +
+          `🌍 UTC: **${utcStr}**` +
+          (lockedNow
+            ? `\n🔒 Mecz był już po starcie — został automatycznie zablokowany.`
+            : ''),
         ephemeral: true
       });
-    }
-
-    const utcDt = parsed.utc;       // luxon DateTime (UTC)
-    const utcJs = utcDt.toJSDate(); // JS Date
-
-    await pool.query(
-      `
-      UPDATE matches
-      SET start_time_utc = ?
-      WHERE id = ? AND guild_id = ?
-      `,
-      [utcJs, match.id, guildId]
-    );
-
-    const nowUtc = DateTime.utc();
-    let lockedNow = false;
-
-    // 🔒 auto-lock jeśli start już minął
-    if (isMatchStarted({ start_time_utc: utcJs }, nowUtc, 0)) {
-      const [res] = await pool.query(
-        `
-        UPDATE matches
-        SET is_locked = 1
-        WHERE id = ?
-          AND guild_id = ?
-          AND is_locked = 0
-        `,
-        [match.id, guildId]
-      );
-
-      lockedNow = res.affectedRows > 0;
-    }
-
-    const localStr = utcDt.setZone(DEFAULT_ZONE).toFormat('yyyy-LL-dd HH:mm');
-    const utcStr = utcDt.toFormat("yyyy-LL-dd HH:mm 'UTC'");
-
-    logger.info('matches', 'Match start_time_utc updated', {
-      guild_id: guildId,
-      matchId: match.id,
-      local: localStr,
-      utc: utcStr,
-      lockedNow,
-      by: interaction.user?.id
-    });
-
-    return interaction.reply({
-      content:
-        `✅ Ustawiono start dla **${match.team_a} vs ${match.team_b}**\n` +
-        `🕒 Czas PL: **${localStr}**\n` +
-        `🌍 UTC: **${utcStr}**` +
-        (lockedNow
-          ? `\n🔒 Mecz był już po starcie — został automatycznie zablokowany.`
-          : ''),
-      ephemeral: true
     });
 
   } catch (err) {
-    logger?.error?.('matches', 'matchAdminStartSubmit failed', {
+    logger.error('matches', 'matchAdminStartSubmit failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

@@ -1,18 +1,18 @@
-const db = require('../db');
 const logger = require('./logger');
 
-/** ===============================
- *  HELPERS
- *  =============================== */
+/* ===============================
+   HELPERS
+=============================== */
 
-/** Prosty parser: JSON lub CSV/separator ; , */
 function parseList(val) {
   if (!val) return [];
   if (Array.isArray(val)) return val;
+
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
   } catch (_) {}
+
   return String(val)
     .replace(/[\[\]"']/g, '')
     .split(/[;,]+/)
@@ -43,8 +43,9 @@ function toPercentList(counter, total) {
   );
 }
 
-/** UWAGA:
- * table jest HARDCODED (bez inputu usera) – bezpieczne
+/**
+ * Bezpieczny picker kolumn – NIE wali się,
+ * jeśli DB jest w starej wersji
  */
 async function pickExistingColumn(pool, table, candidates) {
   const [cols] = await pool.query(`SHOW COLUMNS FROM ${table}`);
@@ -52,16 +53,17 @@ async function pickExistingColumn(pool, table, candidates) {
   return candidates.find(c => names.has(c)) || null;
 }
 
-/** ===============================
- *  SWISS
- *  =============================== */
+/* ===============================
+   SWISS
+=============================== */
+
 async function calcSwiss(pool, guildId, stage, onlyActive) {
   const table = 'swiss_predictions';
 
-  const c30    = await pickExistingColumn(pool, table, ['pick_3_0']);
-  const c03    = await pickExistingColumn(pool, table, ['pick_0_3']);
-  const cA     = await pickExistingColumn(pool, table, ['advancing']);
-  const cStage = await pickExistingColumn(pool, table, ['stage']);
+  const c30     = await pickExistingColumn(pool, table, ['pick_3_0']);
+  const c03     = await pickExistingColumn(pool, table, ['pick_0_3']);
+  const cAdv    = await pickExistingColumn(pool, table, ['advancing']);
+  const cStage  = await pickExistingColumn(pool, table, ['stage']);
   const cActive = await pickExistingColumn(pool, table, ['active']);
 
   const where = ['guild_id = ?'];
@@ -71,15 +73,16 @@ async function calcSwiss(pool, guildId, stage, onlyActive) {
     where.push(`${cStage} = ?`);
     params.push(stage);
   }
+
   if (cActive && onlyActive) {
     where.push(`${cActive} = 1`);
   }
 
   const sql = `
     SELECT user_id,
-           ${c30 || 'NULL'} AS pick30,
-           ${c03 || 'NULL'} AS pick03,
-           ${cA  || 'NULL'} AS adv
+           ${c30  || 'NULL'} AS pick30,
+           ${c03  || 'NULL'} AS pick03,
+           ${cAdv || 'NULL'} AS adv
     FROM ${table}
     WHERE ${where.join(' AND ')}
   `;
@@ -102,23 +105,24 @@ async function calcSwiss(pool, guildId, stage, onlyActive) {
   return {
     totalUsers: total,
     buckets: {
-      '3-0': toPercentList(m30, total),
-      '0-3': toPercentList(m03, total),
-      'Awans': toPercentList(mA, total),
-    },
+      '3-0':  toPercentList(m30, total),
+      '0-3':  toPercentList(m03, total),
+      'Awans': toPercentList(mA, total)
+    }
   };
 }
 
-/** ===============================
- *  PLAYOFFS
- *  =============================== */
+/* ===============================
+   PLAYOFFS
+=============================== */
+
 async function calcPlayoffs(pool, guildId, onlyActive) {
   const table = 'playoffs_predictions';
 
-  const cSF = await pickExistingColumn(pool, table, ['semifinalists']);
-  const cF  = await pickExistingColumn(pool, table, ['finalists']);
-  const cW  = await pickExistingColumn(pool, table, ['winner']);
-  const cTP = await pickExistingColumn(pool, table, ['third_place_winner']);
+  const cSF     = await pickExistingColumn(pool, table, ['semifinalists']);
+  const cF      = await pickExistingColumn(pool, table, ['finalists']);
+  const cW      = await pickExistingColumn(pool, table, ['winner']);
+  const cT3     = await pickExistingColumn(pool, table, ['third_place_winner']);
   const cActive = await pickExistingColumn(pool, table, ['active']);
 
   const where = ['guild_id = ?'];
@@ -131,7 +135,7 @@ async function calcPlayoffs(pool, guildId, onlyActive) {
            ${cSF || 'NULL'} AS sf,
            ${cF  || 'NULL'} AS f,
            ${cW  || 'NULL'} AS w,
-           ${cTP || 'NULL'} AS t3
+           ${cT3 || 'NULL'} AS t3
     FROM ${table}
     WHERE ${where.join(' AND ')}
   `;
@@ -156,18 +160,19 @@ async function calcPlayoffs(pool, guildId, onlyActive) {
   const buckets = {
     'Półfinaliści': toPercentList(mSF, total),
     'Finaliści':    toPercentList(mF, total),
-    'Zwycięzca':    toPercentList(mW, total),
+    'Zwycięzca':    toPercentList(mW, total)
   };
 
-  const t3 = toPercentList(mT3, total);
-  if (t3.length) buckets['3. miejsce'] = t3;
+  const third = toPercentList(mT3, total);
+  if (third.length) buckets['3. miejsce'] = third;
 
   return { totalUsers: total, buckets };
 }
 
-/** ===============================
- *  DOUBLE ELIM
- *  =============================== */
+/* ===============================
+   DOUBLE ELIM
+=============================== */
+
 async function calcDoubleElim(pool, guildId, onlyActive) {
   const table = 'doubleelim_predictions';
 
@@ -215,18 +220,19 @@ async function calcDoubleElim(pool, guildId, onlyActive) {
       'Upper Final – Grupa A': toPercentList(mUFA, total),
       'Lower Final – Grupa A': toPercentList(mLFA, total),
       'Upper Final – Grupa B': toPercentList(mUFB, total),
-      'Lower Final – Grupa B': toPercentList(mLFB, total),
-    },
+      'Lower Final – Grupa B': toPercentList(mLFB, total)
+    }
   };
 }
 
-/** ===============================
- *  PLAY-IN
- *  =============================== */
+/* ===============================
+   PLAY-IN
+=============================== */
+
 async function calcPlayIn(pool, guildId, onlyActive) {
   const table = 'playin_predictions';
 
-  const cTeams = await pickExistingColumn(pool, table, ['teams']);
+  const cTeams  = await pickExistingColumn(pool, table, ['teams']);
   const cActive = await pickExistingColumn(pool, table, ['active']);
 
   const where = ['guild_id = ?'];
@@ -235,7 +241,8 @@ async function calcPlayIn(pool, guildId, onlyActive) {
   if (cActive && onlyActive) where.push(`${cActive} = 1`);
 
   const sql = `
-    SELECT user_id, ${cTeams || 'NULL'} AS teams
+    SELECT user_id,
+           ${cTeams || 'NULL'} AS teams
     FROM ${table}
     WHERE ${where.join(' AND ')}
   `;
@@ -254,40 +261,41 @@ async function calcPlayIn(pool, guildId, onlyActive) {
     totalUsers: total,
     buckets: {
       'Awans': toPercentList(m, total)
-    },
+    }
   };
 }
 
-/** ===============================
- *  PUBLIC API
- *  =============================== */
+/* ===============================
+   PUBLIC API
+=============================== */
+
 async function calculatePopularityForPanel({
+  pool,
   guildId,
   phase,
   stage = null,
   onlyActive = false
 }) {
+  if (!pool) throw new Error('pool is required');
   if (!guildId) throw new Error('guildId is required');
 
-  const pool = db.getPoolForGuild(guildId);
   const p = String(phase || '').toLowerCase();
 
   try {
     if (p.includes('swiss') || stage) {
-      const st = stage || 'stage1';
-      return await calcSwiss(pool, guildId, st, onlyActive);
+      return calcSwiss(pool, guildId, stage || 'stage1', onlyActive);
     }
 
     if (p.includes('playoffs')) {
-      return await calcPlayoffs(pool, guildId, onlyActive);
+      return calcPlayoffs(pool, guildId, onlyActive);
     }
 
     if (p.includes('double')) {
-      return await calcDoubleElim(pool, guildId, onlyActive);
+      return calcDoubleElim(pool, guildId, onlyActive);
     }
 
     if (p.includes('playin') || p.includes('play-in')) {
-      return await calcPlayIn(pool, guildId, onlyActive);
+      return calcPlayIn(pool, guildId, onlyActive);
     }
 
     return { totalUsers: 0, buckets: {} };

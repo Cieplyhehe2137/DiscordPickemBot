@@ -6,7 +6,7 @@ const {
   ButtonStyle
 } = require('discord.js');
 
-const db = require('../db');
+const { withGuild } = require('../utils/guildContext');
 const logger = require('../utils/logger');
 
 /* =======================
@@ -52,7 +52,6 @@ async function loadTeamsFromDB(pool, guildId) {
     `,
     [guildId]
   );
-
   return rows.map(r => r.name);
 }
 
@@ -154,7 +153,12 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
 ======================= */
 
 module.exports = async (interaction, client, ctx = {}) => {
-  const guildId = interaction.guildId;
+  if (!interaction.guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
 
   const STAGE_MAP = {
     swiss1: 'stage1',
@@ -165,37 +169,26 @@ module.exports = async (interaction, client, ctx = {}) => {
   let stageDb = null;
   let stageLabel = null;
 
-  // 1️⃣ ctx.stage (jeśli przyszło)
   if (ctx.stage && STAGE_MAP[ctx.stage]) {
     stageDb = STAGE_MAP[ctx.stage];
     stageLabel = ctx.stage;
   }
 
-  // 2️⃣ fallback: customId (ZGODNE Z MAPAMI)
   if (!stageDb && interaction.customId) {
-  // format: ...:stage1
-  let match = interaction.customId.match(/:(stage[123])/);
-
-  // format: set_results_swiss_stage1
-  if (!match) {
-    match = interaction.customId.match(/_stage([123])$/);
+    let match = interaction.customId.match(/:(stage[123])/);
+    if (!match) {
+      match = interaction.customId.match(/_stage([123])$/);
+      if (match) match[1] = `stage${match[1]}`;
+    }
     if (match) {
-      match[1] = `stage${match[1]}`;
+      stageDb = match[1];
+      stageLabel = match[1];
     }
   }
 
-  if (match) {
-    stageDb = match[1];      // stage1 / stage2 / stage3
-    stageLabel = match[1];
-  }
-}
-
-
-
-  // 3️⃣ walidacja
   if (!stageDb) {
     logger.warn('interaction', 'Invalid Swiss stage', {
-      guildId,
+      guildId: interaction.guildId,
       ctxStage: ctx.stage,
       customId: interaction.customId
     });
@@ -206,28 +199,26 @@ module.exports = async (interaction, client, ctx = {}) => {
     });
   }
 
-  // 4️⃣ defer
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  // 5️⃣ logika
-  const pool = db.getPoolForGuild(guildId);
+  await withGuild(interaction, async ({ pool, guildId }) => {
+    const teams = await loadTeamsFromDB(pool, guildId);
+    const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
-  const teams = await loadTeamsFromDB(pool, guildId);
-  const cur = await getCurrentSwiss(pool, guildId, stageDb);
+    const { embed, components } =
+      buildSwissComponents(stageLabel, stageDb, teams, cur);
 
-  const { embed, components } =
-    buildSwissComponents(stageLabel, stageDb, teams, cur);
-
-  await interaction.editReply({
-    embeds: [embed],
-    components
+    await interaction.editReply({
+      embeds: [embed],
+      components
+    });
   });
 };
 
 /* =======================
-   EXPORTY
+   EXPORTY (TESTY / REUSE)
 ======================= */
 
 module.exports.buildSwissComponents = buildSwissComponents;

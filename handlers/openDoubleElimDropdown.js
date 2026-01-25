@@ -25,20 +25,20 @@ module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
   if (interaction.customId !== 'open_doubleelim_modal') return;
 
-  await withGuild(interaction.guildId, async (pool, guildId) => {
-    const teams = await loadTeamsFromDB(pool, guildId);
+  await withGuild(interaction.guildId, async ({ pool, guildId }) => {
+  const teams = await loadTeamsFromDB(pool, guildId);
 
-    if (!teams.length) {
-      const err = {
-        content: '⚠️ Brak drużyn w bazie. Najpierw dodaj drużyny w managerze.',
-        ephemeral: true
-      };
+  if (!teams.length) {
+    const err = {
+      content: '⚠️ Brak drużyn w bazie. Najpierw dodaj drużyny w managerze.',
+      ephemeral: true
+    };
 
-      if (interaction.deferred || interaction.replied) {
-        return interaction.editReply(err);
-      }
-      return interaction.reply(err);
+    if (interaction.deferred || interaction.replied) {
+      return interaction.editReply(err);
     }
+    return interaction.reply(err);
+  }
 
     const options = teams.map(t => ({
       label: t,

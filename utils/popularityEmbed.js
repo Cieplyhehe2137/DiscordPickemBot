@@ -1,7 +1,8 @@
+// utils/buildPopularityEmbedGrouped.js
 const { EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const db = require('../db');
+const { withGuild } = require('./guildContext');
 
 /* =========================
    HELPERS
@@ -49,19 +50,24 @@ function chunkFieldValue(text, limit = 1024) {
 }
 
 /* =========================
-   TEAMS SOURCE
+   TEAMS SOURCE (SAFE)
    ========================= */
 
-async function loadTeamsForGuild(guildId) {
-  if (!guildId) return loadTeamsFromFile();
-
+async function loadTeamsForGuild(source) {
   try {
-    const pool = db.getPoolForGuild(guildId);
-    const [rows] = await pool.query(
-      `SELECT name FROM teams WHERE guild_id = ? AND active = 1 ORDER BY name ASC`,
-      [guildId]
-    );
-    return rows.map(r => r.name);
+    return await withGuild(source, async ({ guildId, pool }) => {
+      const [rows] = await pool.query(
+        `
+        SELECT name
+        FROM teams
+        WHERE guild_id = ?
+          AND active = 1
+        ORDER BY name ASC
+        `,
+        [guildId]
+      );
+      return rows.map(r => r.name);
+    });
   } catch {
     return loadTeamsFromFile();
   }

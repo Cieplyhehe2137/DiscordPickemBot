@@ -1,4 +1,3 @@
-// handlers/matchAdminMatchSelect.js
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
@@ -7,7 +6,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 
-const db = require('../db');
+const { withGuild } = require('../utils/guildContext');
 const adminState = require('../utils/matchAdminState');
 const logger = require('../utils/logger');
 
@@ -24,10 +23,12 @@ function hasAdminPerms(interaction) {
 
 function buildScoreOptions(bestOf) {
   if (bestOf === 1) return [{ a: 1, b: 0 }, { a: 0, b: 1 }];
-  if (bestOf === 3) return [
-    { a: 2, b: 0 }, { a: 2, b: 1 },
-    { a: 1, b: 2 }, { a: 0, b: 2 }
-  ];
+  if (bestOf === 3) {
+    return [
+      { a: 2, b: 0 }, { a: 2, b: 1 },
+      { a: 1, b: 2 }, { a: 0, b: 2 }
+    ];
+  }
   return [
     { a: 3, b: 0 }, { a: 3, b: 1 }, { a: 3, b: 2 },
     { a: 2, b: 3 }, { a: 1, b: 3 }, { a: 0, b: 3 }
@@ -59,57 +60,59 @@ module.exports = async function matchAdminMatchSelect(interaction) {
       });
     }
 
-    const pool = db.getPoolForGuild(interaction.guildId);
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      const [[m]] = await pool.query(
+        `
+        SELECT id, team_a, team_b, best_of
+        FROM matches
+        WHERE id = ? AND guild_id = ?
+        LIMIT 1
+        `,
+        [matchId, guildId]
+      );
 
-    const [[m]] = await pool.query(
-      `SELECT id, team_a, team_b, best_of
-       FROM matches
-       WHERE id = ? AND guild_id = ?
-       LIMIT 1`,
-      [matchId, interaction.guildId]
-    );
+      if (!m) {
+        return interaction.update({
+          content: '❌ Nie znaleziono meczu lub nie należy do tego serwera.',
+          components: []
+        });
+      }
 
-    if (!m) {
-      return interaction.update({
-        content: '❌ Nie znaleziono meczu lub nie należy do tego serwera.',
-        components: []
+      
+      adminState.set(guildId, interaction.user.id, {
+        matchId: m.id,
+        teamA: m.team_a,
+        teamB: m.team_b,
+        bestOf: Number(m.best_of),
+        mapNo: 1
       });
-    }
 
-    // ✅ zapamiętaj kontekst (guild-safe)
-    adminState.set(interaction.guildId, interaction.user.id, {
-      matchId: m.id,
-      teamA: m.team_a,
-      teamB: m.team_b,
-      bestOf: Number(m.best_of),
-      mapNo: 1
-    });
+      const seriesOptions = buildScoreOptions(Number(m.best_of)).map(s => ({
+        label: safeLabel(`${m.team_a} ${s.a}:${s.b} ${m.team_b}`),
+        value: `${m.id}|${s.a}|${s.b}`
+      }));
 
-    const seriesOptions = buildScoreOptions(Number(m.best_of)).map(s => ({
-      label: safeLabel(`${m.team_a} ${s.a}:${s.b} ${m.team_b}`),
-      value: `${m.id}|${s.a}|${s.b}`
-    }));
+      const rowSeries = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('match_admin_result_select')
+          .setPlaceholder('Wybierz oficjalny wynik serii (maps)…')
+          .addOptions(seriesOptions)
+      );
 
-    const rowSeries = new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId('match_admin_result_select')
-        .setPlaceholder('Wybierz oficjalny wynik serii (maps)…')
-        .addOptions(seriesOptions)
-    );
+      const rowExact = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('match_admin_exact_open')
+          .setLabel('✍️ Wpisz dokładny wynik mapy (np. 13:8)')
+          .setStyle(ButtonStyle.Secondary)
+      );
 
-    const rowExact = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('match_admin_exact_open')
-        .setLabel('✍️ Wpisz dokładny wynik mapy (np. 13:8)')
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    return interaction.update({
-      content:
-        `🎯 Ustaw wyniki dla: **${m.team_a} vs ${m.team_b}** (BO${m.best_of})\n` +
-        `• Dropdown = **wynik serii (maps)**\n` +
-        `• Przycisk = **dokładny wynik mapy (rundy)**`,
-      components: [rowSeries, rowExact]
+      return interaction.update({
+        content:
+          `🎯 Ustaw wyniki dla: **${m.team_a} vs ${m.team_b}** (BO${m.best_of})\n` +
+          `• Dropdown = **wynik serii (maps)**\n` +
+          `• Przycisk = **dokładny wynik mapy (rundy)**`,
+        components: [rowSeries, rowExact]
+      });
     });
 
   } catch (err) {
