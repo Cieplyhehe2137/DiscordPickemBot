@@ -1,6 +1,5 @@
 const db = require('../db');
 
-
 async function withGuild(source, fn) {
   let guildId = null;
 
@@ -25,7 +24,14 @@ async function withGuild(source, fn) {
     throw new Error(`[withGuild] Brak poola DB dla guildId=${guildId}`);
   }
 
-  return fn(pool, guildId);
+  // 🔥 HARD ASSERT — zabija bug raz na zawsze
+  const test = pool.query('SELECT 1');
+  if (!test || typeof test.then !== 'function') {
+    throw new Error('[withGuild] Pool is NOT mysql2/promise pool');
+  }
+
+  // ✅ JEDEN, STAŁY KONTRAKT
+  return fn({ guildId, pool });
 }
 
 module.exports = {
