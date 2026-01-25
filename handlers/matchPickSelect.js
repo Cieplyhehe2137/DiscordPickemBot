@@ -62,18 +62,18 @@ module.exports = async function matchPickSelect(interaction) {
         // ===============================
         // KONTEKST GUILD (JEDYNE ŹRÓDŁO PRAWDY)
         // ===============================
-        await withGuild(interaction, async (pool, guildId) => {
-            const [[match]] = await pool.query(
-                `
-                SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
-                FROM matches
-                WHERE guild_id = ?
-                  AND id = ?
-                  AND phase = ?
-                LIMIT 1
-                `,
-                [guildId, matchId, phaseKey]
-            );
+        await withGuild(interaction, async ({ pool, guildId }) => {
+    const [[match]] = await pool.query(
+        `
+        SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
+        FROM matches
+        WHERE guild_id = ?
+          AND id = ?
+          AND phase = ?
+        LIMIT 1
+        `,
+        [guildId, matchId, phaseKey]
+    );
 
             if (!match) {
                 return interaction.update({
@@ -169,6 +169,6 @@ module.exports = async function matchPickSelect(interaction) {
                 content: '❌ Błąd w wyborze meczu.',
                 components: []
             });
-        } catch (_) {}
+        } catch (_) { }
     }
 };
