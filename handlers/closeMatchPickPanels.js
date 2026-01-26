@@ -1,6 +1,16 @@
 const { withGuild } = require('../utils/guildContext');
 const { disableMatchComponents } = require('../utils/disableMatchComponents');
 
+
+async function closeMatchPickPanelsForGuild(client, guildId) {
+  if (!guildId) {
+    console.warn('[MATCH WATCHER] SKIP – empty guildId:', guildId);
+    return;
+  }
+
+  guildId = String(guildId);
+}
+
 async function closeMatchPickPanelsForGuild(client, guildId) {
   await withGuild(guildId, async ({ pool }) => {
 
@@ -32,4 +42,4 @@ async function closeMatchPickPanelsForGuild(client, guildId) {
   });
 }
 
-module.exports = closeMatchPickPanelsForGuild
+module.exports = { closeMatchPickPanelsForGuild }

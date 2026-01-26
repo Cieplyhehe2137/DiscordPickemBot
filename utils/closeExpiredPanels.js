@@ -201,18 +201,21 @@ async function closeExpiredPanels(client) {
   try {
     const guildIds = getAllGuildIds();
 
-    // 🔴 zamykanie Pick’Em drużyn
+    // 🔴 watcher 1 – zamyka Pick’Em drużyn (per guild)
     for (const guildId of guildIds) {
-      await closeExpiredPanelsForGuild(client, String(guildId));
-    }
+  if (!guildId) {
+    console.warn('[PANEL WATCHER] SKIP empty guildId:', guildId);
+    continue;
+  }
+  await closeExpiredPanelsForGuild(client, String(guildId));
+}
 
-    // 🔵 zamykanie Pick’Em wyników (SAM obsługuje guildy)
+    // 🔵 watcher 2 – zamyka typowanie wyników (SAM iteruje po guildach)
     await closeMatchPickPanels(client);
 
   } finally {
     _runningGlobal = false;
   }
 }
-
 
 module.exports = { closeExpiredPanels };
