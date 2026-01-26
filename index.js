@@ -124,8 +124,8 @@ client.once('ready', async () => {
 
     // 🕒 closeExpiredPanels
     setInterval(() => {
-      Panels(client).catch(err =>
-        console.error('❌ Błąd w Panels tick:', err)
+      closeExpiredPanels(client).catch(err =>
+        console.error('❌ Błąd w closeExpiredPanels tick:', err)
       );
     }, 15_000);
 

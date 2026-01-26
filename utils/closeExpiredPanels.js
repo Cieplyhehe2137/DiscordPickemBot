@@ -10,8 +10,7 @@ const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 const { withGuild } = require('./guildContext');
 const { disablePickemComponents } = require('../utils/disablePickemComponents');
-const { closeMatchPickPanelsForGuild } = require('./closeMatchPickPanels');
-
+const { closeMatchPickPanelsForGuild } = require('../handlers/closeMatchPickPanels');
 
 /* ======================================================
    🧯 ANTY-OVERLAP
