@@ -9,7 +9,7 @@ const PICKEM_PREFIXES = [
   'playin',
   'playoffs',
   'doubleelim',
-  'open_doubleelim_modal'
+  'open_doubleelim_dropdown'
 ];
 
 function isPickemComponent(customId = '') {
