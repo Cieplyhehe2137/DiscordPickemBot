@@ -9,6 +9,8 @@ const {
 const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 const { withGuild } = require('./guildContext');
+const { disablePickemComponents } = require('../utils/disablePickemComponents');
+
 
 /* ======================================================
    🧯 ANTY-OVERLAP
