@@ -23,6 +23,13 @@ function formatLeft(deadlineUtc, nowUtc) {
   return parts.join(' ');
 }
 
+function isMessageOlderThan(messageId, minutes = 1) {
+  const DISCORD_EPOCH = 1420070400000;
+  const timestamp = Number(messageId >> 22) + DISCORD_EPOCH;
+  return Date.now() - timestamp > minutes * 60 * 1000;
+}
+
+
 async function safeEditFooter(message, baseEmbed, footerText) {
   try {
     if (!message || typeof message.edit !== 'function') return;
@@ -89,7 +96,12 @@ function startDeadlineReminder(client, guildId) {
           );
 
           // 🔔 reminder (≤ 60 min)
-          if (diffInMinutes <= 60 && reminded === 0) {
+          if (
+            diffInMinutes <= 60 &&
+            reminded === 0 &&
+            isMessageOlderThan(message_id, 1)
+          ) {
+
             const embed = new EmbedBuilder()
               .setColor('Orange')
               .setTitle(`⏰ Przypomnienie o typowaniu (${phase}${stage ? ` – ${String(stage).toUpperCase()}` : ''})`)
