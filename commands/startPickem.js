@@ -168,13 +168,17 @@ module.exports = {
       });
 
       await pool.query(
-        `INSERT INTO active_panels
-    (guild_id, phase, channel_id, message_id, active, reminded)
-   VALUES (?, ?, ?, ?, 1, 0)
-   ON DUPLICATE KEY UPDATE
-     message_id = VALUES(message_id),
-     active = 1,
-     reminded = 0`,
+        `INSERT INTO active_panels (
+  guild_id, phase, channel_id, message_id,
+  active, reminded, deadline
+)
+VALUES (?, ?, ?, ?, 1, 0, NULL)
+ON DUPLICATE KEY UPDATE
+  message_id = VALUES(message_id),
+  active = 1,
+  reminded = 0,
+  deadline = NULL;
+`,
         [guildId, selected, interaction.channel.id, message.id]
       );
 

@@ -128,18 +128,14 @@ module.exports = {
 
       // ⚠️ WYMAGA UNIQUE(guild_id, phase, stage)
       await pool.query(
-        `INSERT INTO active_panels
-          (guild_id, phase, stage, channel_id, message_id, deadline, reminded, closed, active)
-         VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1)
-         ON DUPLICATE KEY UPDATE
-           deadline = VALUES(deadline),
-           reminded = 0,
-           closed = 0,
-           active = 1,
-           channel_id = VALUES(channel_id),
-           message_id = VALUES(message_id)`,
-        [guildId, phase, stage, panelChannel.id, message.id, deadlineUTC]
-      );
+  `UPDATE active_panels
+   SET
+     deadline = ?,
+     reminded = 0
+   WHERE id = ?`,
+  [deadlineUTC, row.id]
+);
+
 
       const timeLeft = formatTimeLeft(deadlineUTC);
       const embed = message.embeds?.[0]
