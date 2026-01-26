@@ -10,7 +10,9 @@ const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 const { withGuild } = require('./guildContext');
 const { disablePickemComponents } = require('../utils/disablePickemComponents');
-const { closeMatchPickPanelsForGuild } = require('../handlers/closeMatchPickPanels');
+const closeMatchPickPanels =
+  require('../handlers/closeMatchPickPanels');
+
 
 /* ======================================================
    🧯 ANTY-OVERLAP
@@ -198,15 +200,15 @@ async function closeExpiredPanels(client) {
 
   try {
     const guildIds = getAllGuildIds();
+
+    // 🔴 watcher 1 – zamyka Pick’Em drużyn (per guild)
     for (const guildId of guildIds) {
-      const gid = String(guildId);
-
-      // 🔴 watcher 1 – zamyka Pick’Em
-      await closeExpiredPanelsForGuild(client, gid);
-
-      // 🔵 watcher 2 – zamyka typowanie wyników
-      await closeMatchPickPanelsForGuild(client, gid);
+      await closeExpiredPanelsForGuild(client, String(guildId));
     }
+
+    // 🔵 watcher 2 – zamyka typowanie wyników (SAM iteruje po guildach)
+    await closeMatchPickPanels(client);
+
   } finally {
     _runningGlobal = false;
   }
