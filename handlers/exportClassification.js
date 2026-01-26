@@ -636,8 +636,8 @@ module.exports = async function exportClassification(interaction = null, outputP
 
 
 
-      // === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
-      const [mapSummaryRows] = await pool.query(`
+// === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
+const [mapSummaryRows] = await pool.query(`
 SELECT
   m.phase,
   m.match_no,
@@ -661,15 +661,22 @@ FROM matches m
 JOIN match_map_predictions mp
   ON mp.match_id = m.id
 LEFT JOIN match_map_results mr
-  ON mr.match_id = mp.match_id AND mr.map_no = mp.map_no
+  ON mr.match_id = mp.match_id
+ AND mr.map_no = mp.map_no
+WHERE m.guild_id = ?
 GROUP BY
-  m.phase, m.match_no, m.team_a, m.team_b, mp.user_id
+  m.phase,
+  m.match_no,
+  m.team_a,
+  m.team_b,
+  mp.user_id
 ORDER BY
   m.phase,
   COALESCE(m.match_no, 999999),
   m.match_no,
   mp.user_id;
-`);
+`, [guildId]);
+
 
       const mapSummaryUserIds = mapSummaryRows.map(r => r.user_id);
       const discordNamesSummary = await fetchDisplayNamesFromDiscord(interaction, mapSummaryUserIds);
