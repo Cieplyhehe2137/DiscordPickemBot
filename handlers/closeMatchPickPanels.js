@@ -32,4 +32,4 @@ async function closeMatchPickPanelsForGuild(client, guildId) {
   });
 }
 
-module.exports = { closeMatchPickPanelsForGuild };
+module.exports = closeMatchPickPanelsForGuild
