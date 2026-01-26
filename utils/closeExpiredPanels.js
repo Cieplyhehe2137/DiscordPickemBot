@@ -164,7 +164,7 @@ async function closeExpiredPanelsForGuild(client, guildId) {
           const embed = new EmbedBuilder()
             .setColor('Red')
             .setTitle(`🔴 Etap ${phaseLabel}`)
-            .setDescription(`Typowanie zostało zakończone. Wzięło udział **${count}** ${noun}.`)
+            .setDescription(`Typowanie drużyn zostało zakończone. Nadal możesz typować wyniki meczów/map. Wzięło udział **${count}** ${noun}.`)
             .setFooter({ text: `⏱ Typowanie zamknięte • ${count} zgłoszeń` });
 
           const row = new ActionRowBuilder().addComponents(
