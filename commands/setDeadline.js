@@ -3,9 +3,6 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle
 } = require('discord.js');
 const { DateTime } = require('luxon');
 const { withGuild } = require('../utils/guildContext');
@@ -88,10 +85,19 @@ module.exports = {
         { zone: 'Europe/Warsaw' }
       );
 
+      // 🟥 P0 — zły format
       if (!deadlineDate.isValid) {
         return interaction.reply({
           ephemeral: true,
           content: '❌ Zły format daty. Użyj `YYYY-MM-DD HH:mm`.'
+        });
+      }
+
+      // 🟥 P0 — deadline w przeszłości
+      if (deadlineDate <= DateTime.now()) {
+        return interaction.reply({
+          ephemeral: true,
+          content: '❌ Deadline musi być ustawiony w przyszłości.'
         });
       }
 
@@ -113,13 +119,14 @@ module.exports = {
       if (!row?.message_id || !row?.channel_id) {
         return interaction.reply({
           ephemeral: true,
-          content: '❌ Nie znaleziono aktywnego panelu.'
+          content: '❌ Nie znaleziono aktywnego panelu dla tej fazy.'
         });
       }
 
       const panelChannel = await interaction.client.channels.fetch(row.channel_id);
       const message = await panelChannel.messages.fetch(row.message_id);
 
+      // ⚠️ WYMAGA UNIQUE(guild_id, phase, stage)
       await pool.query(
         `INSERT INTO active_panels
           (guild_id, phase, stage, channel_id, message_id, deadline, reminded, closed, active)
@@ -144,7 +151,7 @@ module.exports = {
 
       await interaction.reply({
         ephemeral: true,
-        content: `✅ Deadline ustawiony poprawnie.`
+        content: '✅ Deadline ustawiony poprawnie.'
       });
     });
   }

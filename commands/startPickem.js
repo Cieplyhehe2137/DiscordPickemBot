@@ -7,12 +7,9 @@ const {
   ButtonStyle,
   PermissionFlagsBits
 } = require('discord.js');
-const pool = require('../db.js');
 const { withGuild } = require('../utils/guildContext');
 
-
-
-// Mapowanie faz na dane embedów i przycisków do typowania
+// Mapowanie faz na dane embedów i przycisków
 const phasesConfig = {
   swiss: {
     title: 'Typowanie fazy Swiss',
@@ -56,7 +53,7 @@ const phasesConfig = {
     title: 'Typowanie fazy Play-In',
     description:
       'Typujesz:\n\n' +
-      '🎯 8 drużyn, które awansują z fazy Play-In\n\n' +
+      '🎯 8 drużyn awansujących z Play-In\n\n' +
       '🔴 Deadline: 15 min przed startem meczu',
     buttonLabel: 'Typuj Play-In',
     buttonId: 'open_playin_modal',
@@ -68,23 +65,22 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('start_pickem')
     .setDescription('Rozpoczyna wybór fazy turnieju Pick\'Em')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator
+    ),
 
   async execute(interaction) {
-    const perms = interaction.memberPermissions;
-if (
-  !perms?.has(PermissionFlagsBits.ManageGuild) &&
-  !perms?.has(PermissionFlagsBits.Administrator)
-) {
-  return interaction.reply({
-    content: '🚫 Nie masz uprawnień do użycia tej komendy.',
-    ephemeral: true
-  });
-}
+    // 🔒 guard uprawnień
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
+      return interaction.reply({
+        content: '🚫 Nie masz uprawnień do użycia tej komendy.',
+        ephemeral: true
+      });
+    }
 
-    
-
-    // Wyślij adminowi select menu do wyboru fazy
     const embed = new EmbedBuilder()
       .setTitle('📌 Wybierz fazę turnieju, którą chcesz rozpocząć:')
       .setColor('Orange');
@@ -93,53 +89,67 @@ if (
       new StringSelectMenuBuilder()
         .setCustomId('select_pickem_phase')
         .setPlaceholder('Wybierz fazę turnieju')
-        .addOptions([
-          { label: 'Swiss', description: 'Typowanie fazy Swiss', value: 'swiss' },
-          { label: 'Playoffs', description: 'Typowanie fazy Playoffs', value: 'playoffs' },
-          { label: 'Double Elimination', description: 'Typowanie Double Elim', value: 'doubleelim' },
-          { label: 'Play-In', description: 'Typowanie fazy Play-In', value: 'playin' }
-        ])
+        .addOptions(
+          { label: 'Swiss', value: 'swiss' },
+          { label: 'Playoffs', value: 'playoffs' },
+          { label: 'Double Elimination', value: 'doubleelim' },
+          { label: 'Play-In', value: 'playin' }
+        )
     );
 
-    await interaction.reply({
+    return interaction.reply({
       embeds: [embed],
       components: [selectMenu],
       ephemeral: true
     });
   },
 
-  // Dodaj tę funkcję do eksportu, aby obsłużyć wybór fazy (w index.js ją wywołaj przy interakcji select menu)
+  // ============================================================
+  // SELECT HANDLER
+  // ============================================================
   async handlePhaseSelect(interaction) {
-    if (!interaction.deferred && !interaction.replied) {
-  await interaction.deferReply({ ephemeral: true });
-}
+    if (!interaction.isStringSelectMenu()) return;
+    if (interaction.customId !== 'select_pickem_phase') return;
 
-const perms = interaction.memberPermissions;
-if (
-  !perms?.has(PermissionFlagsBits.ManageGuild) &&
-  !perms?.has(PermissionFlagsBits.Administrator)
-) {
-  return interaction.editReply({
-    content: '🚫 Nie masz uprawnień do tej akcji.'
-  });
-}
-
-
-    if (!interaction.isStringSelectMenu() || interaction.customId !== 'select_pickem_phase') return;
+    // 🔒 guard uprawnień
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
+      return interaction.reply({
+        content: '🚫 Nie masz uprawnień do tej akcji.',
+        ephemeral: true
+      });
+    }
 
     const guildId = interaction.guildId;
     if (!guildId) {
-      return interaction.editReply({ content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).', ephemeral: true });
+      return interaction.reply({
+        content: '❌ Ta funkcja działa tylko na serwerze.',
+        ephemeral: true
+      });
     }
 
-    return withGuild(guildId, async () => {
+    await interaction.deferReply({ ephemeral: true });
+
+    return withGuild(guildId, async ({ pool }) => {
       const selected = interaction.values[0];
       const config = phasesConfig[selected];
+
       if (!config) {
-        return interaction.editReply({ content: `❌ Nieznana faza: ${selected}`, ephemeral: true });
+        return interaction.editReply({
+          content: `❌ Nieznana faza: ${selected}`
+        });
       }
 
-      // Przygotuj embed i przycisk dla wybranej fazy
+      // 🧹 P0: zamknij stare panele tej fazy
+      await pool.query(
+        `UPDATE active_panels
+         SET active = 0
+         WHERE guild_id = ? AND phase = ?`,
+        [guildId, selected]
+      );
+
       const embed = new EmbedBuilder()
         .setTitle(config.title)
         .setDescription(config.description)
@@ -152,22 +162,21 @@ if (
           .setStyle(ButtonStyle.Primary)
       );
 
-      // Wyślij embed i przycisk na ten sam kanał
-      const message = await interaction.channel.send({ embeds: [embed], components: [row] });
+      const message = await interaction.channel.send({
+        embeds: [embed],
+        components: [row]
+      });
 
-      // Zapisz panel do bazy active_panels
       await pool.query(
         `INSERT INTO active_panels
-        (guild_id, phase, channel_id, message_id, active)
-        VALUES (?, ?, ?, ?, 1)
-        ON DUPLICATE KEY UPDATE
-          channel_id = VALUES(channel_id),
-          message_id = VALUES(message_id),
-          active = 1`,
+          (guild_id, phase, channel_id, message_id, active)
+         VALUES (?, ?, ?, ?, 1)`,
         [guildId, selected, interaction.channel.id, message.id]
-      )
-      // Odpowiedz ephemeral użytkownikowi, że faza została uruchomiona
-      await interaction.editReply({ content: `✅ Uruchomiono typowanie fazy **${config.title}**`, ephemeral: true });
+      );
+
+      return interaction.editReply({
+        content: `✅ Uruchomiono typowanie fazy **${config.title}**`
+      });
     });
   }
 };

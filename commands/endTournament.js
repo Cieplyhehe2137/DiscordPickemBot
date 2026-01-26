@@ -1,17 +1,21 @@
-const { SlashCommandBuilder, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  AttachmentBuilder,
+} = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
-const exportClassification = require('../handlers/exportClassification');
-const sendArchivePanel = require('../utils/sendArchivePanel');
-
-const pool = require('../db');
-const { withGuild } = require('../utils/guildContext');
-const { getGuildConfig } = require('../utils/guildRegistry');
-
+const db = require('../db');
 const logger = require('../logger');
 
-// blokada per guild (żeby /end_tournament na 1 serwerze nie blokował drugiego)
+const exportClassification = require('../handlers/exportClassification');
+const sendArchivePanel = require('../utils/sendArchivePanel');
+const { withGuild } = require('../utils/guildContext');
+const { getGuildConfig } = require('../utils/guildRegistry');
+const { logTournamentAction } = require('../utils/logTournamentAction');
+
+// blokada per guild (żeby nie odpalić 2x równolegle)
 const ENDING_GUILDS = new Set();
 
 module.exports = {
@@ -19,24 +23,30 @@ module.exports = {
     .setName('end_tournament')
     .setDescription('Zamyka turniej Pick\'Em, eksportuje dane i tworzy archiwum')
     .addStringOption(option =>
-      option.setName('nazwa_pliku')
+      option
+        .setName('nazwa_pliku')
         .setDescription('Nazwa pliku archiwum (bez .xlsx)')
         .setRequired(true)
     )
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
     const guildId = interaction.guildId;
-    if (!guildId) return interaction.editReply('❌ Ta komenda działa tylko na serwerze (nie w DM).');
-
-    // blokada per guild
-    if (ENDING_GUILDS.has(guildId)) {
-      return interaction.editReply('⏳ Ta operacja już trwa na tym serwerze – poczekaj na zakończenie.');
+    if (!guildId) {
+      return interaction.editReply(
+        '❌ Ta komenda działa tylko na serwerze (nie w DM).'
+      );
     }
 
-    return withGuild(guildId, async () => {
+    if (ENDING_GUILDS.has(guildId)) {
+      return interaction.editReply(
+        '⏳ Operacja kończenia turnieju już trwa na tym serwerze.'
+      );
+    }
+
+    return withGuild(guildId, async ({ pool }) => {
       let conn = null;
 
       try {
@@ -46,103 +56,141 @@ module.exports = {
         const archiveChannelId = cfg?.ARCHIVE_CHANNEL_ID;
 
         if (!archiveChannelId) {
-          return interaction.editReply('❌ Brak ARCHIVE_CHANNEL_ID w konfiguracji dla tego serwera.');
+          return interaction.editReply(
+            '❌ Brak `ARCHIVE_CHANNEL_ID` w konfiguracji tego serwera.'
+          );
         }
 
-        // 📁 nazwa i ścieżka (PER GUILD)
+        // ===== NAZWA PLIKU =====
         const rawName = interaction.options.getString('nazwa_pliku') || '';
-        const customName = rawName.trim();
-        if (!customName) {
+        const safeBase = rawName.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+        if (!safeBase) {
           return interaction.editReply('❌ Podaj poprawną nazwę pliku.');
         }
 
-        const safeName = customName.replace(/[^a-zA-Z0-9_\-]/g, '_');
-        const filename = `${safeName}.xlsx`;
+        const filename = `${safeBase}.xlsx`;
 
-        const archiveDir = path.join(__dirname, '..', 'archiwum', String(guildId)); // ✅ per guild
+        // ===== ŚCIEŻKA (PER GUILD) =====
+        const archiveDir = path.join(
+          __dirname,
+          '..',
+          'archiwum',
+          String(guildId)
+        );
         const filePath = path.join(archiveDir, filename);
-
         fs.mkdirSync(archiveDir, { recursive: true });
 
-        // 🔒 zamknij panele (UI wie, że koniec) — w DB tego guilda
-        await pool.query(`UPDATE active_panels SET closed = 1`);
+        // ===== UI: zamknij panele tylko tego guilda =====
+        await pool.query(
+          `UPDATE active_panels
+           SET closed = 1, closed_at = NOW()
+           WHERE guild_id = ? AND closed = 0`,
+          [guildId]
+        );
 
-        // 📤 1) EKSPORT do pliku (w kontekście DB tego guilda)
-        await exportClassification(null, filePath);
-        logger.info(`[end_tournament] zapisano plik: ${filePath} (guild=${guildId})`);
+        // ===== EKSPORT =====
+        await exportClassification(guildId, filePath);
+        logger.info('[end_tournament] export ok', {
+          guildId,
+          filePath,
+        });
 
-        // 📡 2) WYŚLIJ PLIK NA KANAŁ ARCHIWUM (PER GUILD)
-        const channel = await interaction.client.channels.fetch(archiveChannelId).catch(() => null);
+        // ===== WYŚLIJ NA KANAŁ ARCHIWUM =====
+        const channel = await interaction.client.channels
+          .fetch(archiveChannelId)
+          .catch(() => null);
+
         if (!channel || !channel.send) {
-          throw new Error(`Nie mogę znaleźć kanału o ID ${archiveChannelId}`);
+          throw new Error(
+            `Nie można znaleźć kanału ARCHIVE (${archiveChannelId})`
+          );
         }
 
-        // guard: kanał musi należeć do tego guilda
         if (channel.guildId && channel.guildId !== guildId) {
-          throw new Error(`ARCHIVE_CHANNEL_ID jest błędny: kanał należy do innego serwera (channel.guildId=${channel.guildId}).`);
-        }
-
-        const stats = fs.statSync(filePath);
-        if (stats.size > 25 * 1024 * 1024) {
-          logger.warn(`[end_tournament] Plik >25MB (${stats.size} bytes) — Discord może nie przyjąć.`);
+          throw new Error(
+            `ARCHIVE_CHANNEL_ID należy do innego serwera (${channel.guildId})`
+          );
         }
 
         const file = new AttachmentBuilder(filePath, { name: filename });
 
         await channel.send({
-          content: `📦 **Archiwum Pick'Em** – zapis turnieju: \`${filename}\``,
-          files: [file]
+          content: `📦 **Archiwum Pick'Em** — zapis turnieju`,
+          files: [file],
         });
 
-        // 🧹 3) SPRZĄTANIE PO EKSPORCIE — prawdziwa transakcja na jednym połączeniu
+        // ===== SPRZĄTANIE (TRANSAKCJA) =====
         conn = await pool.getConnection();
         await conn.beginTransaction();
 
-        await conn.query(`DELETE FROM active_panels`);
+        await conn.query(
+          `DELETE FROM active_panels WHERE guild_id = ?`,
+          [guildId]
+        );
 
-        await conn.query(`DELETE FROM swiss_predictions`);
-        await conn.query(`DELETE FROM playoffs_predictions`);
-        await conn.query(`DELETE FROM doubleelim_predictions`);
-        await conn.query(`DELETE FROM playin_predictions`);
+        await conn.query(`DELETE FROM swiss_predictions WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playoffs_predictions WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM doubleelim_predictions WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playin_predictions WHERE guild_id = ?`, [guildId]);
 
-        await conn.query(`DELETE FROM swiss_results`);
-        await conn.query(`DELETE FROM playoffs_results`);
-        await conn.query(`DELETE FROM doubleelim_results`);
-        await conn.query(`DELETE FROM playin_results`);
+        await conn.query(`DELETE FROM swiss_results WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playoffs_results WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM doubleelim_results WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playin_results WHERE guild_id = ?`, [guildId]);
 
-        await conn.query(`DELETE FROM swiss_scores`);
-        await conn.query(`DELETE FROM playoffs_scores`);
-        await conn.query(`DELETE FROM doubleelim_scores`);
-        await conn.query(`DELETE FROM playin_scores`);
+        await conn.query(`DELETE FROM swiss_scores WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playoffs_scores WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM doubleelim_scores WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM playin_scores WHERE guild_id = ?`, [guildId]);
 
         await conn.commit();
         conn.release();
         conn = null;
 
-        // 🔁 4) Odśwież panel archiwum (PER GUILD)
+        // ===== AUDIT LOG (P0) =====
+        await logTournamentAction({
+          guildId,
+          actorId: interaction.user.id,
+          action: 'END_TOURNAMENT',
+          newValue: {
+            file: filename,
+            archiveChannelId,
+            at: new Date().toISOString(),
+          },
+        });
+
+        // ===== ODSWIEŻ ARCHIWUM PANEL =====
         await sendArchivePanel(interaction.client, guildId).catch(err =>
-          logger.warn('[end_tournament] Nie udało się odświeżyć panelu archiwum', { guildId, message: err?.message })
+          logger.warn('[end_tournament] archive panel refresh failed', {
+            guildId,
+            message: err?.message,
+          })
         );
 
-        // ✅ 5) Potwierdzenie
+        // ===== POTWIERDZENIE =====
         await interaction.editReply(
-          `✅ Turniej zakończony.\n` +
-          `• Plik: \`${filename}\`\n` +
-          `• Kanał: <#${archiveChannelId}>\n` +
-          `• Zapis lokalny: \`archiwum/${guildId}/${filename}\``
+          `✅ **Turniej zakończony**\n` +
+            `• Plik: \`${filename}\`\n` +
+            `• Kanał: <#${archiveChannelId}>\n` +
+            `• Lokalnie: \`archiwum/${guildId}/${filename}\``
         );
-
       } catch (err) {
-        logger.error('[end_tournament] error', { guildId, message: err?.message, stack: err?.stack });
+        logger.error('[end_tournament] error', {
+          guildId,
+          message: err?.message,
+          stack: err?.stack,
+        });
 
-        // rollback jeśli transakcja już ruszyła
         try { if (conn) await conn.rollback(); } catch {}
         try { if (conn) conn.release(); } catch {}
 
-        await interaction.editReply('❌ Wystąpił błąd przy kończeniu turnieju.');
+        await interaction.editReply(
+          '❌ Wystąpił błąd podczas kończenia turnieju.'
+        );
       } finally {
         ENDING_GUILDS.delete(guildId);
       }
     });
-  }
+  },
 };
