@@ -41,7 +41,7 @@ async function disableMatchComponents(message) {
   });
 
   console.log(
-    '[MATCH DISABLE] applying components:',
+    // '[MATCH DISABLE] applying components:',
     newRows.map(r =>
       r.components.map(c => ({
         id: c.customId,
