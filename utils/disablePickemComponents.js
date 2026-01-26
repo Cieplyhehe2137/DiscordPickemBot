@@ -1,7 +1,8 @@
 const {
   ActionRowBuilder,
   ButtonBuilder,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
+  ComponentType,
 } = require('discord.js');
 
 const PICKEM_PREFIXES = [
@@ -9,34 +10,53 @@ const PICKEM_PREFIXES = [
   'playin',
   'playoffs',
   'doubleelim',
-  'open_doubleelim_dropdown'
+  'open_doubleelim',
 ];
 
 function isPickemComponent(customId = '') {
   return PICKEM_PREFIXES.some(p => customId.startsWith(p));
 }
 
+function getCustomId(comp) {
+  return comp.customId || comp.data?.custom_id || null;
+}
+
 async function disablePickemComponents(message) {
+  if (!message?.components?.length) return;
+
   const newRows = message.components.map(row => {
-    const r = ActionRowBuilder.from(row);
+    const newRow = new ActionRowBuilder();
 
-    r.components = r.components.map(comp => {
-      const id = comp.customId;
-      if (!id) return comp;
+    for (const comp of row.components) {
+      const id = getCustomId(comp);
 
-      if (isPickemComponent(id)) {
-        if (comp.type === 2) {
-          return ButtonBuilder.from(comp).setDisabled(true);
-        }
-        if (comp.type === 3) {
-          return StringSelectMenuBuilder.from(comp).setDisabled(true);
-        }
+      // NIE pickem → zostawiamy bez zmian
+      if (!id || !isPickemComponent(id)) {
+        newRow.addComponents(comp);
+        continue;
       }
 
-      return comp;
-    });
+      // BUTTON
+      if (comp.type === ComponentType.Button) {
+        newRow.addComponents(
+          ButtonBuilder.from(comp).setDisabled(true)
+        );
+        continue;
+      }
 
-    return r;
+      // SELECT MENU
+      if (comp.type === ComponentType.StringSelect) {
+        newRow.addComponents(
+          StringSelectMenuBuilder.from(comp).setDisabled(true)
+        );
+        continue;
+      }
+
+      // fallback
+      newRow.addComponents(comp);
+    }
+
+    return newRow;
   });
 
   await message.edit({ components: newRows });
