@@ -1,6 +1,6 @@
 const { getAllGuildIds } = require('../utils/guildRegistry');
 const { withGuild } = require('../utils/guildContext');
-const { disableMatchComponents } = require('./disableMatchComponents');
+const { disableMatchComponents } = require('../utils/disableMatchComponents');
 
 let _runningGlobal = false;
 const _runningByGuild = new Set();
