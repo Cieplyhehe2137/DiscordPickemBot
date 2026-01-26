@@ -8,7 +8,8 @@ function isMatchComponent(customId = '') {
   return (
     customId.startsWith('match_') ||
     customId.startsWith('matches_') ||
-    customId.startsWith('match:')
+    customId.startsWith('match:') ||
+    customId.startsWith('open_match_')
   );
 }
 
