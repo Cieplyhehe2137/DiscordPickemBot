@@ -1,99 +1,120 @@
-const { getAllGuildIds } = require('../utils/guildRegistry');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+} = require('discord.js');
+const { DateTime } = require('luxon');
 const { withGuild } = require('../utils/guildContext');
-const { disableMatchComponents } = require('../utils/disableMatchComponents');
 
-let _runningGlobal = false;
-const _runningByGuild = new Set();
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('set_match_deadline')
+    .setDescription('Ustawia deadline zamknięcia typowania wyników meczów')
+    .addStringOption(o =>
+      o.setName('phase')
+        .setDescription('Faza turnieju')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Swiss', value: 'swiss' },
+          { name: 'Playoffs', value: 'playoffs' },
+          { name: 'Double Elimination', value: 'doubleelim' },
+          { name: 'Play-In', value: 'playin' }
+        )
+    )
+    .addStringOption(o =>
+      o.setName('data')
+        .setDescription('YYYY-MM-DD HH:mm (czas PL)')
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator
+    ),
 
-async function closeMatchPickPanelsForGuild(client, guildId) {
-  guildId = String(guildId);
+  async execute(interaction) {
+    const guildId = interaction.guildId;
+    console.log('[SET_MATCH_DEADLINE] start', { guildId });
 
-  if (_runningByGuild.has(guildId)) return;
-  _runningByGuild.add(guildId);
+    if (!guildId) {
+      console.warn('[SET_MATCH_DEADLINE] no guildId');
+      return interaction.reply({
+        ephemeral: true,
+        content: '❌ Ta komenda działa tylko na serwerze.'
+      });
+    }
 
-  console.log('[MATCH WATCHER] tick guild:', guildId);
+    const phase = interaction.options.getString('phase');
+    const raw = interaction.options.getString('data');
 
-  try {
-    await withGuild(guildId, async ({ pool }) => {
+    console.log('[SET_MATCH_DEADLINE] input', { phase, raw });
+
+    const dt = DateTime.fromFormat(
+      raw,
+      'yyyy-MM-dd HH:mm',
+      { zone: 'Europe/Warsaw' }
+    );
+
+    console.log('[SET_MATCH_DEADLINE] parsed date', {
+      isValid: dt.isValid,
+      value: dt.toISO()
+    });
+
+    if (!dt.isValid || dt <= DateTime.now()) {
+      console.warn('[SET_MATCH_DEADLINE] invalid or past date');
+      return interaction.reply({
+        ephemeral: true,
+        content: '❌ Zły format daty lub data w przeszłości.'
+      });
+    }
+
+    const matchDeadlineUTC = dt.toUTC().toJSDate();
+    console.log('[SET_MATCH_DEADLINE] UTC deadline', matchDeadlineUTC);
+
+    return withGuild(guildId, async ({ pool }) => {
+      console.log('[SET_MATCH_DEADLINE] DB context ready');
 
       const [rows] = await pool.query(
         `
-        SELECT id, channel_id, message_id, match_deadline
+        SELECT id, message_id, channel_id
         FROM active_panels
         WHERE guild_id = ?
+          AND phase = ?
           AND active = 0
-          AND match_deadline IS NOT NULL
-          AND UTC_TIMESTAMP() >= match_deadline
+        ORDER BY id DESC
+        LIMIT 1
         `,
-        [guildId]
+        [guildId, phase]
       );
 
-      console.log('[MATCH WATCHER] rows:', rows);
+      console.log('[SET_MATCH_DEADLINE] panel rows', rows);
 
-      if (!rows.length) return;
-
-      for (const panel of rows) {
-        console.log(
-          '[MATCH WATCHER] closing panel:',
-          panel.id,
-          'msg:',
-          panel.message_id,
-          'channel:',
-          panel.channel_id
-        );
-
-        const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
-        if (!channel) {
-          console.log('[MATCH WATCHER] channel not found');
-          continue;
-        }
-
-        const message = await channel.messages.fetch(panel.message_id).catch(() => null);
-        if (!message) {
-          console.log('[MATCH WATCHER] message not found');
-          continue;
-        }
-
-        console.log(
-          '[MATCH WATCHER] message components:',
-          message.components.map(row =>
-            row.components.map(c => ({
-              type: c.type,
-              customId: c.customId || c.data?.custom_id
-            }))
-          )
-        );
-
-        await disableMatchComponents(message);
-
-        await pool.query(
-          `UPDATE active_panels
-           SET match_deadline = NULL
-           WHERE id = ?`,
-          [panel.id]
-        );
-
-        console.log('[MATCH WATCHER] panel closed:', panel.id);
+      if (!rows.length) {
+        console.warn('[SET_MATCH_DEADLINE] no panel found for phase', phase);
+        return interaction.reply({
+          ephemeral: true,
+          content: `❌ Nie znaleziono zamkniętego panelu Pick’Em dla fazy **${phase}**.`
+        });
       }
+
+      const panelId = rows[0].id;
+      console.log('[SET_MATCH_DEADLINE] updating panel', panelId);
+
+      await pool.query(
+        `
+        UPDATE active_panels
+        SET match_deadline = ?
+        WHERE id = ?
+        `,
+        [matchDeadlineUTC, panelId]
+      );
+
+      console.log('[SET_MATCH_DEADLINE] match_deadline updated OK');
+
+      await interaction.reply({
+        ephemeral: true,
+        content:
+          `✅ Deadline **wyników meczów** ustawiony.\n` +
+          `📌 Faza: **${phase}**\n` +
+          `⏱ ${dt.toFormat('yyyy-MM-dd HH:mm')} (PL)`
+      });
     });
-  } catch (err) {
-    console.error('[MATCH WATCHER] ERROR', err);
-  } finally {
-    _runningByGuild.delete(guildId);
   }
-}
-
-async function closeMatchPickPanels(client) {
-  if (_runningGlobal) return;
-  _runningGlobal = true;
-
-  try {
-    for (const guildId of getAllGuildIds()) {
-      await closeMatchPickPanelsForGuild(client, guildId);
-    }
-  } finally {
-    _runningGlobal = false;
-  }
-}
-
-module.exports = { closeMatchPickPanels };
+};
