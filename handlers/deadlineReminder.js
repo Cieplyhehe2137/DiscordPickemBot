@@ -24,10 +24,16 @@ function formatLeft(deadlineUtc, nowUtc) {
 }
 
 function isMessageOlderThan(messageId, minutes = 1) {
-  const DISCORD_EPOCH = 1420070400000;
-  const timestamp = Number(messageId >> 22) + DISCORD_EPOCH;
-  return Date.now() - timestamp > minutes * 60 * 1000;
+  try {
+    const DISCORD_EPOCH = 1420070400000n;
+    const id = BigInt(messageId);
+    const timestamp = Number((id >> 22n) + DISCORD_EPOCH);
+    return Date.now() - timestamp > minutes * 60 * 1000;
+  } catch {
+    return true; // fail-open: lepiej nie blokować reminderów
+  }
 }
+
 
 
 async function safeEditFooter(message, baseEmbed, footerText) {
