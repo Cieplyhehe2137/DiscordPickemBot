@@ -4,12 +4,12 @@ const {
   StringSelectMenuBuilder
 } = require('discord.js');
 
-function isMatchComponent(customId = '') {
+function nent(customId = '') {
   return (
     customId.startsWith('match_') ||
     customId.startsWith('matches_') ||
     customId.startsWith('match:') ||
-    customId.startsWith('open_match_')
+    customId === 'open_match_pick'           // ✅ fallback
   );
 }
 
