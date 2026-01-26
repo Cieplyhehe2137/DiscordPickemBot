@@ -2,11 +2,17 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   StringSelectMenuBuilder,
-  ComponentType
+  ComponentType,
+  ButtonStyle
 } = require('discord.js');
 
-function isMatchComponent(customId = '') {
+function isMatchComponentByCustomId(customId = '') {
   return customId.startsWith('match_pick:');
+}
+
+function isMatchLinkButton(comp) {
+  // link button nie ma customId
+  return comp.type === ComponentType.Button && comp.style === ButtonStyle.Link;
 }
 
 async function disableMatchComponents(message) {
@@ -15,20 +21,18 @@ async function disableMatchComponents(message) {
 
     const newComponents = row.components.map(comp => {
       const customId = comp.customId ?? comp.data?.custom_id;
-      if (!customId) return comp;
 
-      if (!isMatchComponent(customId)) return comp;
-
-      // ✅ BUTTON
-      if (comp.type === ComponentType.Button) {
+      // 🎯 CASE 1: normalny match_pick button
+      if (customId && isMatchComponentByCustomId(customId)) {
         return ButtonBuilder.from(comp).setDisabled(true);
       }
 
-      // ✅ SELECT
-      if (comp.type === ComponentType.StringSelect) {
-        return StringSelectMenuBuilder.from(comp).setDisabled(true);
+      // 🎯 CASE 2: LINK BUTTON „Typuj wyniki meczów”
+      if (isMatchLinkButton(comp)) {
+        return ButtonBuilder.from(comp).setDisabled(true);
       }
 
+      // reszta bez zmian
       return comp;
     });
 
@@ -41,6 +45,7 @@ async function disableMatchComponents(message) {
     newRows.map(r =>
       r.components.map(c => ({
         id: c.customId,
+        style: c.style,
         disabled: c.disabled
       }))
     )
