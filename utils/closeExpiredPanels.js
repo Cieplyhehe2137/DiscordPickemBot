@@ -173,7 +173,9 @@ async function closeExpiredPanelsForGuild(client, guildId) {
               .setDisabled(true)
           );
 
-          await msg.edit({ embeds: [embed], components: [row] });
+          await msg.edit({ embeds: [embed] });
+          await disablePickemComponents(msg);
+
           await pool.query(`UPDATE active_panels SET active = 0 WHERE id = ?`, [panel.id]);
 
           await sendTrendsAfterDeadline(client, panel);

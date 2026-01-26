@@ -1,7 +1,9 @@
 const logger = require('../utils/logger');
 const { getLockBeforeSec } = require('../utils/matchLock');
-const { disableAllComponents } = require('../utils/disableAllComponents');
 const { withGuild } = require('../utils/guildContext');
+const { disableMatchComponents } = require('../utils/disableMatchComponents');
+
+
 
 const _startedWatchers = new Set();
 
@@ -96,8 +98,8 @@ function startMatchLockWatcher(client, guildId) {
               .catch(() => null);
             if (!msg) continue;
 
-            const newComponents = disableAllComponents(msg);
-            await msg.edit({ components: newComponents });
+            
+            await disableMatchComponents(msg);
 
             logger.info('matches', 'Disabled match panel components', {
               guildId,
