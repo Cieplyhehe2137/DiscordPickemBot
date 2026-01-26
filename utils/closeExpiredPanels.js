@@ -10,6 +10,7 @@ const { buildPopularityEmbedGrouped } = require('./popularityEmbed');
 const { calculatePopularityForPanel } = require('./calcPopularityAll');
 const { withGuild } = require('./guildContext');
 const { disablePickemComponents } = require('../utils/disablePickemComponents');
+const { closeMatchPickPanelsForGuild } = require('./closeMatchPickPanels');
 
 
 /* ======================================================
@@ -199,7 +200,13 @@ async function closeExpiredPanels(client) {
   try {
     const guildIds = getAllGuildIds();
     for (const guildId of guildIds) {
-      await closeExpiredPanelsForGuild(client, String(guildId));
+      const gid = String(guildId);
+
+      // 🔴 watcher 1 – zamyka Pick’Em
+      await closeExpiredPanelsForGuild(client, gid);
+
+      // 🔵 watcher 2 – zamyka typowanie wyników
+      await closeMatchPickPanelsForGuild(client, gid);
     }
   } finally {
     _runningGlobal = false;
