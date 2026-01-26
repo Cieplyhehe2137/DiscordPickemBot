@@ -23,9 +23,9 @@ async function closeMatchPickPanelsForGuild(client, guildId) {
         SELECT id, channel_id, message_id, match_deadline
         FROM active_panels
         WHERE guild_id = ?
-          AND active = 0
-          AND match_deadline IS NOT NULL
-          AND UTC_TIMESTAMP() >= match_deadline
+  AND match_deadline IS NOT NULL
+  AND UTC_TIMESTAMP() >= match_deadline
+
         `,
         [guildId]
       );

@@ -29,14 +29,23 @@ async function disableMatchComponents(message) {
           return StringSelectMenuBuilder.from(comp).setDisabled(true);
         }
       }
-
-      return comp; // reszta zostaje
+      return comp;
     });
 
     return r;
   });
 
-  await message.edit({ components: newRows });
+  console.log('[MATCH DISABLE] applying components:', 
+    newRows.map(r => r.components.map(c => ({
+      id: c.data?.custom_id,
+      disabled: c.data?.disabled
+    })))
+  );
+
+  await message.edit({
+    embeds: message.embeds,
+    components: newRows
+  });
 }
 
 module.exports = { disableMatchComponents };
