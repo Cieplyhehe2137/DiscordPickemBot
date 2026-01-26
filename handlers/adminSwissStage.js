@@ -74,17 +74,18 @@ module.exports = async (interaction) => {
     });
 
     await pool.query(
-      `INSERT INTO active_panels
-       (guild_id, phase, stage, message_id, channel_id, reminded, closed, active)
-       VALUES (?, ?, ?, ?, ?, false, false, 1)
-       ON DUPLICATE KEY UPDATE
-         message_id = VALUES(message_id),
-         channel_id = VALUES(channel_id),
-         reminded = false,
-         closed = false,
-         active = 1`,
-      [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
-    );
+  `INSERT INTO active_panels
+   (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
+   VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
+   ON DUPLICATE KEY UPDATE
+     message_id = VALUES(message_id),
+     channel_id = VALUES(channel_id),
+     reminded = 0,
+     closed = 0,
+     active = 1,
+     deadline = NULL`,
+  [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
+);
 
     await interaction.editReply({
       content: canMentionEveryone
