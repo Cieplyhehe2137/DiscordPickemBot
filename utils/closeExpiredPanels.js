@@ -1,6 +1,7 @@
 const { getAllGuildIds } = require('./guildRegistry');
 const { withGuild } = require('./guildContext');
 const { disablePickemComponents } = require('../utils/disablePickemComponents');
+const { disableMatchComponents } = require('../utils/disableMatchComponents');
 
 let _running = false;
 
@@ -24,18 +25,22 @@ async function closeExpiredPanels(client) {
         `);
 
         for (const panel of rows) {
-          const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
+          const channel = await client.channels
+            .fetch(panel.channel_id)
+            .catch(() => null);
           if (!channel) continue;
 
-          const msg = await channel.messages.fetch(panel.message_id).catch(() => null);
-          if (!msg) continue;
+          const message = await channel.messages
+            .fetch(panel.message_id)
+            .catch(() => null);
+          if (!message) continue;
 
-          await disablePickemComponents(msg);
+          // 🔒 ZAMYKAMY TYLKO TYPOWANIE (IDEMPOTENTNIE)
+          await disablePickemComponents(message);
+          await disableMatchComponents(message);
 
-          await pool.query(
-            `UPDATE active_panels SET active = 0 WHERE id = ?`,
-            [panel.id]
-          );
+          // ❌ NIE RUSZAMY active_panels.active
+          // deadline ≠ zamknięcie panelu
         }
       });
     }
