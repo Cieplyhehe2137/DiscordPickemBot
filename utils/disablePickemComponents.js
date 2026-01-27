@@ -5,47 +5,33 @@ const {
   ComponentType,
 } = require('discord.js');
 
-/**
- * Każdy komponent Pick'Em MUSI zawierać jedną z tych fraz w customId.
- * Nie opieramy się na prefixach – tylko na semantyce.
- */
-const PICKEM_KEYWORDS = [
-  'swiss',
-  'playin',
-  'playoffs',
-  'doubleelim',
-];
-
-/**
- * Bezpieczne pobranie customId
- */
 function getCustomId(component) {
-  return (
-    component?.customId ||
-    component?.data?.custom_id ||
-    null
-  );
+  return component?.customId || component?.data?.custom_id || null;
 }
 
 /**
- * Czy komponent należy do Pick'Em
+ * USER PICK = wszystko co:
+ * - open_*
+ * - confirm_*
+ * - start_*
+ * - submit_*
+ * ALE:
+ * - nie results
+ * - nie panel
+ * - nie admin
  */
-/**
- * Buttony USER TYPOWANIA – TYLKO TE ZAMYKAMY
- */
-function isUserPredictionComponent(customId = '') {
+function isUserPickComponent(customId = '') {
   if (!customId) return false;
 
-  // ❌ NIGDY nie zamykamy wyników
+  // ❌ nigdy nie zamykamy wyników
   if (
     customId.includes('results') ||
-    customId.startsWith('set_results_') ||
-    customId.includes('_results')
+    customId.startsWith('set_results_')
   ) {
     return false;
   }
 
-  // ❌ NIGDY nie zamykamy paneli / admina
+  // ❌ nigdy nie zamykamy paneli / admina
   if (
     customId.startsWith('panel:') ||
     customId.startsWith('match_admin_') ||
@@ -54,7 +40,7 @@ function isUserPredictionComponent(customId = '') {
     return false;
   }
 
-  // ✅ USER TYPOWANIE – WSZYSTKIE FAZY
+  // ✅ user pick (wszystkie fazy)
   return (
     customId.startsWith('open_') ||
     customId.startsWith('confirm_') ||
@@ -63,46 +49,36 @@ function isUserPredictionComponent(customId = '') {
   );
 }
 
-
-
-/**
- * Główna funkcja – dezaktywuje TYLKO komponenty Pick'Em
- * i zostawia resztę UI nietkniętą.
- */
 async function disablePickemComponents(message) {
-  if (!message || !Array.isArray(message.components)) return;
+  if (!message?.components?.length) return;
 
   try {
     const newRows = message.components.map(row => {
       const newRow = new ActionRowBuilder();
 
-      for (const component of row.components) {
-        const customId = getCustomId(component);
+      for (const comp of row.components) {
+        const customId = getCustomId(comp);
 
-        // NIE pickem → przepisujemy 1:1
-        if (!customId || !isUserPredictionComponent(customId)) {
-          newRow.addComponents(component);
+        if (!customId || !isUserPickComponent(customId)) {
+          newRow.addComponents(comp);
           continue;
         }
 
-        // BUTTON
-        if (component.type === ComponentType.Button) {
+        if (comp.type === ComponentType.Button) {
           newRow.addComponents(
-            ButtonBuilder.from(component).setDisabled(true)
+            ButtonBuilder.from(comp).setDisabled(true)
           );
           continue;
         }
 
-        // STRING SELECT
-        if (component.type === ComponentType.StringSelect) {
+        if (comp.type === ComponentType.StringSelect) {
           newRow.addComponents(
-            StringSelectMenuBuilder.from(component).setDisabled(true)
+            StringSelectMenuBuilder.from(comp).setDisabled(true)
           );
           continue;
         }
 
-        // fallback – nieznany komponent
-        newRow.addComponents(component);
+        newRow.addComponents(comp);
       }
 
       return newRow;
@@ -110,11 +86,8 @@ async function disablePickemComponents(message) {
 
     await message.edit({ components: newRows });
   } catch (err) {
-    // NIE crashujemy bota – log i cisza
-    console.warn('[disablePickemComponents] failed:', err.message);
+    console.warn('[disablePickemComponents]', err.message);
   }
 }
 
-module.exports = {
-  disablePickemComponents,
-};
+module.exports = { disablePickemComponents };
