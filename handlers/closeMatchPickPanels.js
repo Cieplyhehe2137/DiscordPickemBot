@@ -1,88 +1,43 @@
-const { getAllGuildIds } = require('../utils/guildRegistry');
-const { withGuild } = require('../utils/guildContext');
+const pool = require('../db');
 const { disableMatchComponents } = require('../utils/disableMatchComponents');
 
-let _runningGlobal = false;
-const _runningByGuild = new Set();
+let running = false;
 
-async function closeMatchPickPanelsForGuild(client, guildId) {
-  if (!guildId) {
-    console.warn('[MATCH WATCHER] skip empty guildId');
-    return;
-  }
-
-  if (_runningByGuild.has(guildId)) return;
-  _runningByGuild.add(guildId);
-
-  console.log('[MATCH WATCHER] tick guild:', guildId);
+async function closeMatchPickPanels(client) {
+  if (running) return;
+  running = true;
 
   try {
-    await withGuild(guildId, async ({ pool }) => {
-      const [rows] = await pool.query(
-        `
-        SELECT id, channel_id, message_id, match_deadline
-        FROM active_panels
-        WHERE guild_id = ?
-  AND match_deadline IS NOT NULL
-  AND UTC_TIMESTAMP() >= match_deadline
+    const [rows] = await pool.query(`
+      SELECT id, guild_id, channel_id, message_id
+      FROM active_panels
+      WHERE match_deadline IS NOT NULL
+        AND UTC_TIMESTAMP() >= match_deadline
+    `);
 
-        `,
-        [guildId]
+    if (!rows.length) return;
+
+    for (const panel of rows) {
+      console.log('[MATCH WATCHER] closing panel', panel.id);
+
+      const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
+      if (!channel) continue;
+
+      const message = await channel.messages.fetch(panel.message_id).catch(() => null);
+      if (!message) continue;
+
+      await disableMatchComponents(message);
+
+      await pool.query(
+        `UPDATE active_panels SET match_deadline = NULL WHERE id = ?`,
+        [panel.id]
       );
-
-      console.log('[MATCH WATCHER] rows:', rows);
-
-      for (const panel of rows) {
-        const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
-        if (!channel) continue;
-
-        const message = await channel.messages.fetch(panel.message_id).catch(() => null);
-        if (!message) continue;
-
-        console.log(
-          '[MATCH WATCHER] disabling match components for panel:',
-          panel.id
-        );
-
-        await disableMatchComponents(message);
-
-        await pool.query(
-          `UPDATE active_panels
-           SET match_deadline = NULL
-           WHERE id = ?`,
-          [panel.id]
-        );
-
-        console.log('[MATCH WATCHER] match panel closed:', panel.id);
-      }
-    });
+    }
   } catch (err) {
     console.error('[MATCH WATCHER] ERROR', err);
   } finally {
-    _runningByGuild.delete(guildId);
+    running = false;
   }
 }
 
-async function closeMatchPickPanels(client) {
-  if (_runningGlobal) return;
-  _runningGlobal = true;
-
-  try {
-    // ⬇️ bierzemy TYLKO guildy, które mają match_deadline do sprawdzenia
-    const [rows] = await client.db.query(`
-      SELECT DISTINCT guild_id
-      FROM active_panels
-      WHERE match_deadline IS NOT NULL
-    `);
-
-    for (const row of rows) {
-      const guildId = String(row.guild_id);
-      await closeMatchPickPanelsForGuild(client, guildId);
-    }
-
-  } finally {
-    _runningGlobal = false;
-  }
-}
-
-module.exports = closeMatchPickPanels;
+module.exports = { closeMatchPickPanels };
