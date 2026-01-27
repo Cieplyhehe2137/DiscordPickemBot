@@ -16,7 +16,11 @@ async function closeExpiredPanels(client) {
       if (!guildId) continue;
 
       await withGuild(guildId, async ({ pool }) => {
-        const [rows] = await pool.query(`
+
+        // =========================
+        // 1️⃣ DEADLINE DRUŻYN (PICK'EM)
+        // =========================
+        const [pickemPanels] = await pool.query(`
           SELECT *
           FROM active_panels
           WHERE active = 1
@@ -24,23 +28,37 @@ async function closeExpiredPanels(client) {
             AND UTC_TIMESTAMP() >= deadline
         `);
 
-        for (const panel of rows) {
-          const channel = await client.channels
-            .fetch(panel.channel_id)
-            .catch(() => null);
+        for (const panel of pickemPanels) {
+          const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
           if (!channel) continue;
 
-          const message = await channel.messages
-            .fetch(panel.message_id)
-            .catch(() => null);
+          const message = await channel.messages.fetch(panel.message_id).catch(() => null);
           if (!message) continue;
 
-          // 🔒 ZAMYKAMY TYLKO TYPOWANIE (IDEMPOTENTNIE)
+          // 🔒 zamykamy TYLKO picki drużyn
           await disablePickemComponents(message);
-          await disableMatchComponents(message);
+        }
 
-          // ❌ NIE RUSZAMY active_panels.active
-          // deadline ≠ zamknięcie panelu
+        // =========================
+        // 2️⃣ DEADLINE MECZÓW (RESULTS)
+        // =========================
+        const [matchPanels] = await pool.query(`
+          SELECT *
+          FROM active_panels
+          WHERE active = 1
+            AND match_deadline IS NOT NULL
+            AND UTC_TIMESTAMP() >= match_deadline
+        `);
+
+        for (const panel of matchPanels) {
+          const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
+          if (!channel) continue;
+
+          const message = await channel.messages.fetch(panel.message_id).catch(() => null);
+          if (!message) continue;
+
+          // 🔒 zamykamy TYLKO match / results
+          await disableMatchComponents(message);
         }
       });
     }
