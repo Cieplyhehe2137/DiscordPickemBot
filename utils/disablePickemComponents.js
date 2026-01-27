@@ -34,25 +34,35 @@ function getCustomId(component) {
  * Buttony USER TYPOWANIA – TYLKO TE ZAMYKAMY
  */
 function isUserPredictionComponent(customId = '') {
+  if (!customId) return false;
+
+  // ❌ NIGDY nie zamykamy wyników
+  if (
+    customId.includes('results') ||
+    customId.startsWith('set_results_') ||
+    customId.includes('_results')
+  ) {
+    return false;
+  }
+
+  // ❌ NIGDY nie zamykamy paneli / admina
+  if (
+    customId.startsWith('panel:') ||
+    customId.startsWith('match_admin_') ||
+    customId.startsWith('teams:')
+  ) {
+    return false;
+  }
+
+  // ✅ USER TYPOWANIE – WSZYSTKIE FAZY
   return (
-    // PLAY-IN
-    customId === 'open_playin_dropdown' ||
-    customId === 'confirm_playin' ||
-
-    // SWISS
-    customId.startsWith('start_swiss_stage') ||
-    customId.startsWith('confirm_stage') ||
-    customId.startsWith('submit_swiss') ||
-
-    // PLAYOFFS
-    customId === 'open_playoffs_dropdown' ||
-    customId === 'confirm_playoffs' ||
-
-    // DOUBLE ELIM
-    customId === 'open_doubleelim_dropdown' ||
-    customId === 'confirm_doubleelim'
+    customId.startsWith('open_') ||
+    customId.startsWith('confirm_') ||
+    customId.startsWith('start_') ||
+    customId.startsWith('submit_')
   );
 }
+
 
 
 /**
