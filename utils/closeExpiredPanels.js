@@ -199,23 +199,24 @@ async function closeExpiredPanels(client) {
   _runningGlobal = true;
 
   try {
-    const guildIds = getAllGuildIds();
+    // 🔴 drużyny
+    const [teamGuilds] = await client.db.query(`
+      SELECT DISTINCT guild_id
+      FROM active_panels
+      WHERE active = 1 AND deadline IS NOT NULL
+    `);
 
-    // 🔴 watcher 1 – zamyka Pick’Em drużyn (per guild)
-    for (const guildId of guildIds) {
-  if (!guildId) {
-    console.warn('[PANEL WATCHER] SKIP empty guildId:', guildId);
-    continue;
-  }
-  await closeExpiredPanelsForGuild(client, String(guildId));
-}
+    for (const row of teamGuilds) {
+      await closeExpiredPanelsForGuild(client, String(row.guild_id));
+    }
 
-    // 🔵 watcher 2 – zamyka typowanie wyników (SAM iteruje po guildach)
+    // 🔵 mecze
     await closeMatchPickPanels(client);
 
   } finally {
     _runningGlobal = false;
   }
 }
+
 
 module.exports = { closeExpiredPanels };

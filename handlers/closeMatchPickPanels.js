@@ -68,11 +68,18 @@ async function closeMatchPickPanels(client) {
   _runningGlobal = true;
 
   try {
-    const guildIds = getAllGuildIds();
+    // ⬇️ bierzemy TYLKO guildy, które mają match_deadline do sprawdzenia
+    const [rows] = await client.db.query(`
+      SELECT DISTINCT guild_id
+      FROM active_panels
+      WHERE match_deadline IS NOT NULL
+    `);
 
-    for (const guildId of guildIds) {
-      await closeMatchPickPanelsForGuild(client, String(guildId));
+    for (const row of rows) {
+      const guildId = String(row.guild_id);
+      await closeMatchPickPanelsForGuild(client, guildId);
     }
+
   } finally {
     _runningGlobal = false;
   }
