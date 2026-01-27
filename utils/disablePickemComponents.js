@@ -5,61 +5,85 @@ const {
   ComponentType,
 } = require('discord.js');
 
-const PICKEM_PREFIXES = [
+/**
+ * Każdy komponent Pick'Em MUSI zawierać jedną z tych fraz w customId.
+ * Nie opieramy się na prefixach – tylko na semantyce.
+ */
+const PICKEM_KEYWORDS = [
   'swiss',
   'playin',
   'playoffs',
   'doubleelim',
-  'open_doubleelim',
 ];
 
+/**
+ * Bezpieczne pobranie customId
+ */
+function getCustomId(component) {
+  return (
+    component?.customId ||
+    component?.data?.custom_id ||
+    null
+  );
+}
+
+/**
+ * Czy komponent należy do Pick'Em
+ */
 function isPickemComponent(customId = '') {
-  return PICKEM_PREFIXES.some(p => customId.startsWith(p));
+  return PICKEM_KEYWORDS.some(k => customId.includes(k));
 }
 
-function getCustomId(comp) {
-  return comp.customId || comp.data?.custom_id || null;
-}
-
+/**
+ * Główna funkcja – dezaktywuje TYLKO komponenty Pick'Em
+ * i zostawia resztę UI nietkniętą.
+ */
 async function disablePickemComponents(message) {
-  if (!message?.components?.length) return;
+  if (!message || !Array.isArray(message.components)) return;
 
-  const newRows = message.components.map(row => {
-    const newRow = new ActionRowBuilder();
+  try {
+    const newRows = message.components.map(row => {
+      const newRow = new ActionRowBuilder();
 
-    for (const comp of row.components) {
-      const id = getCustomId(comp);
+      for (const component of row.components) {
+        const customId = getCustomId(component);
 
-      // NIE pickem → zostawiamy bez zmian
-      if (!id || !isPickemComponent(id)) {
-        newRow.addComponents(comp);
-        continue;
+        // NIE pickem → przepisujemy 1:1
+        if (!customId || !isPickemComponent(customId)) {
+          newRow.addComponents(component);
+          continue;
+        }
+
+        // BUTTON
+        if (component.type === ComponentType.Button) {
+          newRow.addComponents(
+            ButtonBuilder.from(component).setDisabled(true)
+          );
+          continue;
+        }
+
+        // STRING SELECT
+        if (component.type === ComponentType.StringSelect) {
+          newRow.addComponents(
+            StringSelectMenuBuilder.from(component).setDisabled(true)
+          );
+          continue;
+        }
+
+        // fallback – nieznany komponent
+        newRow.addComponents(component);
       }
 
-      // BUTTON
-      if (comp.type === ComponentType.Button) {
-        newRow.addComponents(
-          ButtonBuilder.from(comp).setDisabled(true)
-        );
-        continue;
-      }
+      return newRow;
+    });
 
-      // SELECT MENU
-      if (comp.type === ComponentType.StringSelect) {
-        newRow.addComponents(
-          StringSelectMenuBuilder.from(comp).setDisabled(true)
-        );
-        continue;
-      }
-
-      // fallback
-      newRow.addComponents(comp);
-    }
-
-    return newRow;
-  });
-
-  await message.edit({ components: newRows });
+    await message.edit({ components: newRows });
+  } catch (err) {
+    // NIE crashujemy bota – log i cisza
+    console.warn('[disablePickemComponents] failed:', err.message);
+  }
 }
 
-module.exports = { disablePickemComponents };
+module.exports = {
+  disablePickemComponents,
+};
