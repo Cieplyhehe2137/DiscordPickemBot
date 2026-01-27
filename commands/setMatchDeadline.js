@@ -72,17 +72,17 @@ module.exports = {
       console.log('[SET_MATCH_DEADLINE] DB context ready');
 
       const [rows] = await pool.query(
-        `
-        SELECT id, message_id, channel_id
-        FROM active_panels
-        WHERE guild_id = ?
-          AND phase = ?
-          AND active = 0
-        ORDER BY id DESC
-        LIMIT 1
-        `,
-        [guildId, phase]
-      );
+  `
+  SELECT id, message_id, channel_id
+  FROM active_panels
+  WHERE guild_id = ?
+    AND phase = ?
+    AND active = 1
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+  [guildId, phase]
+);
 
       console.log('[SET_MATCH_DEADLINE] panel rows', rows);
 
