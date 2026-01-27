@@ -30,9 +30,30 @@ function getCustomId(component) {
 /**
  * Czy komponent należy do Pick'Em
  */
-function isPickemComponent(customId = '') {
-  return PICKEM_KEYWORDS.some(k => customId.includes(k));
+/**
+ * Buttony USER TYPOWANIA – TYLKO TE ZAMYKAMY
+ */
+function isUserPredictionComponent(customId = '') {
+  return (
+    // PLAY-IN
+    customId === 'open_playin_dropdown' ||
+    customId === 'confirm_playin' ||
+
+    // SWISS
+    customId.startsWith('start_swiss_stage') ||
+    customId.startsWith('confirm_stage') ||
+    customId.startsWith('submit_swiss') ||
+
+    // PLAYOFFS
+    customId === 'open_playoffs_dropdown' ||
+    customId === 'confirm_playoffs' ||
+
+    // DOUBLE ELIM
+    customId === 'open_doubleelim_dropdown' ||
+    customId === 'confirm_doubleelim'
+  );
 }
+
 
 /**
  * Główna funkcja – dezaktywuje TYLKO komponenty Pick'Em
@@ -49,7 +70,7 @@ async function disablePickemComponents(message) {
         const customId = getCustomId(component);
 
         // NIE pickem → przepisujemy 1:1
-        if (!customId || !isPickemComponent(customId)) {
+        if (!customId || !isUserPredictionComponent(customId)) {
           newRow.addComponents(component);
           continue;
         }
