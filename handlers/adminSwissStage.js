@@ -5,7 +5,7 @@ const {
   EmbedBuilder,
   PermissionFlagsBits
 } = require('discord.js');
-const pool = require('../db.js');
+const { withGuild } = require('../utils/guildContext');
 
 module.exports = async (interaction) => {
   // guard: tylko select
@@ -64,33 +64,32 @@ module.exports = async (interaction) => {
   );
 
   try {
-    const canMentionEveryone = interaction.guild.members.me
-      .permissionsIn(interaction.channel)
-      .has(PermissionFlagsBits.MentionEveryone);
-
     const sentMessage = await interaction.channel.send({
       embeds: [embed],
       components: [row],
     });
 
-    await pool.query(
-  `INSERT INTO active_panels
-   (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
-   VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
-   ON DUPLICATE KEY UPDATE
-     message_id = VALUES(message_id),
-     channel_id = VALUES(channel_id),
-     reminded = 0,
-     closed = 0,
-     active = 1,
-     deadline = NULL`,
-  [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
-);
+    // ✅ JEDYNE POPRAWNE MIEJSCE NA pool.query
+    await withGuild(guildId, async ({ pool }) => {
+      await pool.query(
+        `
+        INSERT INTO active_panels
+          (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
+        VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
+        ON DUPLICATE KEY UPDATE
+          message_id = VALUES(message_id),
+          channel_id = VALUES(channel_id),
+          reminded = 0,
+          closed = 0,
+          active = 1,
+          deadline = NULL
+        `,
+        [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
+      );
+    });
 
     await interaction.editReply({
-      content: canMentionEveryone
-        ? `✅ Wysłano panel Swiss (${stage.toUpperCase()}) z pingiem **@everyone**.`
-        : `⚠️ Panel Swiss (${stage.toUpperCase()}) wysłany, ale **bot nie ma permisji Mention Everyone** – brak pingu.`,
+      content: `✅ Wysłano panel Swiss (${stage.toUpperCase()}).`,
       ephemeral: true
     });
   } catch (err) {
