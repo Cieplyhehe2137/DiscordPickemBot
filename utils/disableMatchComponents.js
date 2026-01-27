@@ -9,35 +9,91 @@ function isMatchPick(customId = '') {
 }
 
 function isResultsButton(customId = '') {
-  return customId.startsWith('open_results_');
+  return customId === 'open_results_matches';
 }
 
-
 async function disableMatchComponents(message) {
-  if (!message?.components?.length) return;
+  if (!message) {
+    console.log('[DISABLE][MATCH] message = null');
+    return;
+  }
 
-  const newRows = message.components.map(row => {
-    const newRow = ActionRowBuilder.from(row);
+  if (!Array.isArray(message.components)) {
+    console.log('[DISABLE][MATCH] message.components invalid:', message.components);
+    return;
+  }
 
-    const newComponents = row.components.map(comp => {
-      const customId = comp.customId ?? comp.data?.custom_id;
+  console.log('\n[DISABLE][MATCH] MESSAGE ID:', message.id);
+  console.log('[DISABLE][MATCH] ROWS COUNT:', message.components.length);
 
+  const newRows = message.components.map((row, rowIndex) => {
+    console.log(`\n[DISABLE][MATCH] ROW ${rowIndex}`);
+
+    const newRow = new ActionRowBuilder();
+
+    row.components.forEach((comp, compIndex) => {
+      const customId = comp.customId ?? comp.data?.custom_id ?? null;
+
+      console.log('  ├─ component', {
+        index: compIndex,
+        type: comp.type,
+        style: comp.style,
+        customId,
+        disabled_before: comp.disabled,
+      });
+
+      // CASE 1: match pick
       if (
         comp.type === ComponentType.Button &&
         customId &&
-        (isMatchPick(customId) || isResultsButton(customId))
+        isMatchPick(customId)
       ) {
-        return ButtonBuilder.from(comp).setDisabled(true);
+        console.log('  │  ↳ DISABLING MATCH PICK');
+
+        newRow.addComponents(
+          ButtonBuilder.from(comp).setDisabled(true)
+        );
+        return;
       }
 
-      return comp;
+      // CASE 2: results button
+      if (
+        comp.type === ComponentType.Button &&
+        customId &&
+        isResultsButton(customId)
+      ) {
+        console.log('  │  ↳ DISABLING RESULTS BUTTON');
+
+        newRow.addComponents(
+          ButtonBuilder.from(comp).setDisabled(true)
+        );
+        return;
+      }
+
+      console.log('  │  ↳ LEAVING AS IS');
+      newRow.addComponents(comp);
     });
 
-    newRow.setComponents(newComponents);
+    console.log(
+      '[DISABLE][MATCH] NEW ROW:',
+      newRow.components.map(c => ({
+        id: c.customId,
+        disabled: c.disabled,
+        style: c.style,
+      }))
+    );
+
     return newRow;
   });
 
-  await message.edit({ components: newRows });
+  console.log('\n[DISABLE][MATCH] EDITING MESSAGE…');
+
+  try {
+    await message.edit({ components: newRows });
+    console.log('[DISABLE][MATCH] MESSAGE EDITED OK');
+  } catch (err) {
+    console.error('[DISABLE][MATCH] MESSAGE EDIT FAILED:', err);
+  }
 }
 
 module.exports = { disableMatchComponents };
