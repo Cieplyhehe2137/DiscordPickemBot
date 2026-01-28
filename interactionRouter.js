@@ -193,7 +193,8 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
 
     // ===== MODAL =====
     if (interaction.isModalSubmit()) {
-      const handlerName = modalMap?.[interaction.customId];
+      const key = interaction.customId.split(':')[0];
+      const handlerName = modalMap?.[key];
       const fn = handlerName
         ? resolveHandler(handlers, handlerName)
         : null;
@@ -209,6 +210,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       await fn(interaction, client);
       return;
     }
+
 
     // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
@@ -277,7 +279,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
             '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
