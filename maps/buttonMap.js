@@ -1,6 +1,7 @@
 // maps/buttonMap.js
 module.exports = {
   // MATCHES
+  'match_set_time': 'openSetMatchTimeModal',
   'match_pick:': 'openMatchPick',
   'open_results_matches': 'openMatchResults',
   'clear_user_picks': 'clearDatabaseHandler',

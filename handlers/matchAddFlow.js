@@ -37,7 +37,7 @@ function hasAdminPerms(interaction) {
 }
 
 /* ======================
-   DB (Variant A)
+   DB
 ====================== */
 
 async function loadTeamsFromDb(pool, guildId) {
@@ -96,12 +96,16 @@ const buildCancelRow = () =>
       .setStyle(ButtonStyle.Secondary)
   );
 
-const buildAgainRow = () =>
+const buildAfterAddRow = (matchId) =>
   new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`match_set_time:${matchId}`)
+      .setLabel('🕒 Ustaw godzinę')
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId('match_add_again')
       .setLabel('➕ Dodaj kolejny')
-      .setStyle(ButtonStyle.Primary),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId('match_add_cancel')
       .setLabel('✅ Zakończ')
@@ -235,16 +239,21 @@ async function onTeamBSelect(interaction) {
 
     const [res] = await pool.query(
       `
-      INSERT INTO matches (guild_id, phase, match_no, team_a, team_b, best_of, is_locked)
+      INSERT INTO matches (
+        guild_id, phase, match_no, team_a, team_b, best_of, is_locked
+      )
       VALUES (?, ?, ?, ?, ?, ?, 0)
       `,
       [guildId, st.phase, next.nextNo, st.teamA, teamB, st.bestOf]
     );
 
+    const matchId = res.insertId;
+
     state.delete(stateKey(interaction));
 
     logger.info('matches', 'Match added', {
       guildId,
+      matchId,
       phase: st.phase,
       teamA: st.teamA,
       teamB,
@@ -253,7 +262,7 @@ async function onTeamBSelect(interaction) {
 
     return interaction.update({
       content: `✅ Dodano mecz: **${st.teamA} vs ${teamB}** (BO${st.bestOf})`,
-      components: [buildAgainRow()]
+      components: [buildAfterAddRow(matchId)]
     });
   });
 }
