@@ -30,6 +30,8 @@ module.exports = async function calculateScores(guildId) {
   logger.info('scores', 'Score calculation started', { guildId });
 
   await withGuild(guildId, async ({ pool, guildId }) => {
+    console.log('=== SCORE RUN START ===', guildId);
+
 
     /* =========================
        SWISS
@@ -408,15 +410,19 @@ module.exports = async function calculateScores(guildId) {
 
 
     /* =========================
-   MAPY
-========================= */
+    MAPY (DEBUG)
+ ========================= */
     try {
+
+      console.log('--- MAPS: CLEAN OLD ---');
 
       await pool.query(`
     DELETE FROM match_points
     WHERE guild_id=?
       AND source='map'
   `, [guildId]);
+
+      console.log('--- MAPS: FETCH JOIN ---');
 
       const [maps] = await pool.query(`
     SELECT
@@ -433,50 +439,89 @@ module.exports = async function calculateScores(guildId) {
     WHERE mp.guild_id=?
   `, [guildId]);
 
+      console.log('--- MAPS: JOIN COUNT =', maps.length);
+
       if (!maps.length) {
-        logger.warn('scores', 'No maps', { guildId });
-      } else {
+        console.log('!!! MAPS EMPTY !!!');
+        return;
+      }
 
-        const rows = [];
+      const rows = [];
 
-        for (const m of maps) {
+      let hit = 0;
+      let miss = 0;
 
-          const pts = computeMapPoints({
-            predExactA: m.pred_exact_a,
-            predExactB: m.pred_exact_b,
-            exactA: m.exact_a,
-            exactB: m.exact_b
-          });
+      for (const m of maps) {
 
-          if (pts > 0) {
-            console.log('MAP HIT', m.match_id, m.user_id, pts);
-            rows.push([
-              guildId,
-              m.match_id,
-              m.user_id,
-              pts,
-              'map'
-            ]);
-          }
-        }
+        const pts = computeMapPoints({
+          predExactA: m.pred_exact_a,
+          predExactB: m.pred_exact_b,
+          exactA: m.exact_a,
+          exactB: m.exact_b
+        });
 
-        if (rows.length) {
-          await pool.query(`
-        INSERT INTO match_points
-          (guild_id,match_id,user_id,points,source)
-        VALUES ?
-        ON DUPLICATE KEY UPDATE
-          points=VALUES(points),
-          computed_at=CURRENT_TIMESTAMP
-      `, [rows]);
+        if (pts > 0) {
+          hit++;
+
+          console.log(
+            'MAP HIT:',
+            m.match_id,
+            m.user_id,
+            m.pred_exact_a,
+            ':',
+            m.pred_exact_b,
+            '==',
+            m.exact_a,
+            ':',
+            m.exact_b
+          );
+
+          rows.push([
+            guildId,
+            m.match_id,
+            m.user_id,
+            pts,
+            'map'
+          ]);
+        } else {
+          miss++;
         }
       }
 
-      logger.info('scores', 'Maps done', { guildId });
+      console.log('--- MAPS STATS ---');
+      console.log('HITS:', hit);
+      console.log('MISS:', miss);
+      console.log('ROWS:', rows.length);
+
+      if (!rows.length) {
+        console.log('!!! NO MAP POINTS TO INSERT !!!');
+        return;
+      }
+
+      console.log('--- MAPS INSERT ---');
+
+      const [res] = await pool.query(`
+    INSERT INTO match_points
+      (guild_id,match_id,user_id,points,source)
+    VALUES ?
+    ON DUPLICATE KEY UPDATE
+      points=VALUES(points),
+      computed_at=CURRENT_TIMESTAMP
+  `, [rows]);
+
+      console.log('MAPS INSERT RESULT:', res.affectedRows);
+
+      logger.info('scores', 'Maps done', {
+        guildId,
+        hits: hit,
+        inserted: rows.length
+      });
 
     } catch (e) {
+      console.error('MAPS ERROR:', e);
       logger.error('scores', 'Maps failed', e);
     }
+
 
 
 
