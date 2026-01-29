@@ -1,6 +1,10 @@
 const logger = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
-const { computeTotalPoints } = require('../utils/matchScoring');
+const {
+  computeSeriesPoints,
+  computeMapPoints
+} = require('../utils/matchScoring');
+
 
 // =========================
 // HELPERY
@@ -10,7 +14,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) {}
+  } catch (_) { }
   return String(val)
     .replace(/[\[\]"]+/g, '')
     .split(/[;,]+/)
@@ -50,8 +54,8 @@ module.exports = async function calculateScores(guildId) {
       for (const correctSwiss of swissResultsRows) {
         const stage = correctSwiss.stage;
 
-        const correct30  = cleanList(correctSwiss.correct_3_0);
-        const correct03  = cleanList(correctSwiss.correct_0_3);
+        const correct30 = cleanList(correctSwiss.correct_3_0);
+        const correct03 = cleanList(correctSwiss.correct_0_3);
         const correctAdv = cleanList(correctSwiss.correct_advancing);
 
         const [swissPredictions] = await pool.query(
@@ -217,6 +221,14 @@ module.exports = async function calculateScores(guildId) {
 
       const matchIds = matches.map(m => m.match_id);
 
+      // Czyścimy stare punkty (żeby nie dublować)
+      await pool.query(`
+  DELETE FROM match_points
+  WHERE guild_id = ?
+    AND match_id IN (?)
+`, [guildId, matchIds]);
+
+
       const [preds] = await pool.query(
         `
         SELECT match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
@@ -237,26 +249,50 @@ module.exports = async function calculateScores(guildId) {
 
       for (const m of matches) {
         const ps = predsByMatch.get(m.match_id) || [];
+
         for (const p of ps) {
-          const pts = computeTotalPoints({
+
+          const seriesPoints = computeSeriesPoints({
             predA: p.pred_a,
             predB: p.pred_b,
             resA: m.res_a,
             resB: m.res_b,
+          });
+
+          const mapPoints = computeMapPoints({
             predExactA: p.pred_exact_a,
             predExactB: p.pred_exact_b,
             exactA: m.exact_a,
             exactB: m.exact_b,
           });
 
-          rows.push([guildId, m.match_id, p.user_id, pts]);
+          if (seriesPoints > 0) {
+            rows.push([
+              guildId,
+              m.match_id,
+              p.user_id,
+              seriesPoints,
+              'series'
+            ]);
+          }
+
+          if (mapPoints > 0) {
+            rows.push([
+              guildId,
+              m.match_id,
+              p.user_id,
+              mapPoints,
+              'map'
+            ]);
+          }
         }
       }
+
 
       if (rows.length) {
         await pool.query(
           `
-          INSERT INTO match_points (guild_id, match_id, user_id, points)
+          INSERT INTO match_points (guild_id, match_id, user_id, points, source)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             points = VALUES(points),
