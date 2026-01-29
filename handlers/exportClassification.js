@@ -588,7 +588,9 @@ module.exports = async function exportClassification(interaction = null, outputP
         { header: 'BO', key: 'best_of', width: 5 },
         { header: 'OFF (seria)', key: 'official_series', width: 12 },
         { header: 'Typ (seria)', key: 'pred_series', width: 10 },
-        { header: 'Punkty', key: 'points', width: 8 },
+        { header: 'Seria', key: 'series_points', width: 7 },
+        { header: 'Mapy', key: 'map_points', width: 7 },
+        { header: 'Suma', key: 'points', width: 7 },
         { header: 'Nick', key: 'displayname', width: 18 },
         { header: 'User ID', key: 'user_id', width: 20 },
       ];
@@ -619,11 +621,16 @@ module.exports = async function exportClassification(interaction = null, outputP
     ON r.match_id = m.id
    AND r.guild_id = m.guild_id
   LEFT JOIN (
-    SELECT match_id, user_id, SUM(points) AS points
-    FROM match_points
-    WHERE guild_id = ?
-    GROUP BY match_id, user_id
-  ) pts
+  SELECT
+    match_id,
+    user_id,
+    SUM(CASE WHEN source='series' THEN points ELSE 0 END) AS series_points,
+    SUM(CASE WHEN source='map' THEN points ELSE 0 END) AS map_points,
+    SUM(points) AS points
+  FROM match_points
+  WHERE guild_id = ?
+  GROUP BY match_id, user_id
+) pts
     ON pts.match_id = m.id
    AND pts.user_id = p.user_id
   WHERE m.guild_id = ?
@@ -636,8 +643,8 @@ module.exports = async function exportClassification(interaction = null, outputP
 
 
 
-// === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
-const [mapSummaryRows] = await pool.query(`
+      // === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
+      const [mapSummaryRows] = await pool.query(`
 SELECT
   m.phase,
   m.match_no,
@@ -733,7 +740,9 @@ ORDER BY
           best_of: r.best_of,
           official_series: officialSeries,
           pred_series: predSeries,
-          points: (r.points ?? ''),
+          series_points: r.series_points ?? 0,
+          map_points: r.map_points ?? 0,
+          points: r.points ?? 0,
           displayname: nick,
           user_id: r.user_id ?? '—',
         });

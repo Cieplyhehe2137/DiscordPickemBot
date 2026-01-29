@@ -314,6 +314,80 @@ module.exports = async function calculateScores(guildId) {
       });
     }
 
+    /* =========================
+   MAPY (PUNKTY ZA MAPY)
+   ========================= */
+    try {
+
+      const [maps] = await pool.query(`
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      mp.map_no,
+      mp.pred_exact_a,
+      mp.pred_exact_b,
+      mr.exact_a,
+      mr.exact_b
+    FROM match_map_predictions mp
+    JOIN match_map_results mr
+      ON mr.match_id = mp.match_id
+     AND mr.map_no = mp.map_no
+    WHERE mp.guild_id = ?
+  `, [guildId]);
+
+      if (!maps.length) {
+        logger.warn('scores', 'No map data to calculate', { guildId });
+      } else {
+
+        const rows = [];
+
+        for (const m of maps) {
+
+          const mapPts = computeMapPoints({
+            predExactA: m.pred_exact_a,
+            predExactB: m.pred_exact_b,
+            exactA: m.exact_a,
+            exactB: m.exact_b,
+          });
+
+          if (mapPts > 0) {
+            rows.push([
+              guildId,
+              m.match_id,
+              m.user_id,
+              mapPts,
+              'map'
+            ]);
+          }
+        }
+
+        if (rows.length) {
+          await pool.query(`
+      INSERT INTO match_points
+        (guild_id, match_id, user_id, points, source)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        points = VALUES(points),
+        computed_at = CURRENT_TIMESTAMP
+    `, [rows]);
+        }
+      }
+
+
+      logger.info('scores', 'Map points calculated', {
+        guildId,
+        rows: rows.length,
+      });
+
+    } catch (err) {
+      logger.error('scores', 'Map calculation failed', {
+        guildId,
+        message: err.message,
+        stack: err.stack,
+      });
+    }
+
+
     logger.info('scores', 'Score calculation finished', { guildId });
   });
 };
