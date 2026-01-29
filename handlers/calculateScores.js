@@ -5,7 +5,6 @@ const {
   computeMapPoints
 } = require('../utils/matchScoring');
 
-
 // =========================
 // HELPERY
 // =========================
@@ -15,6 +14,7 @@ const cleanList = (val) => {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
   } catch (_) { }
+
   return String(val)
     .replace(/[\[\]"]+/g, '')
     .split(/[;,]+/)
@@ -33,136 +33,111 @@ module.exports = async function calculateScores(guildId) {
 
     /* =========================
        SWISS
-       ========================= */
+    ========================= */
     try {
-      const [swissResultsRows] = await pool.query(
-        `
+      const [rows] = await pool.query(`
         SELECT *
         FROM swiss_results
         WHERE guild_id = ?
           AND active = 1
         ORDER BY id DESC
         LIMIT 1
-        `,
-        [guildId]
-      );
+      `, [guildId]);
 
-      if (!swissResultsRows.length) {
-        logger.warn('scores', 'No active Swiss results', { guildId });
-      }
+      if (!rows.length) return;
 
-      for (const correctSwiss of swissResultsRows) {
-        const stage = correctSwiss.stage;
+      for (const correct of rows) {
 
-        const correct30 = cleanList(correctSwiss.correct_3_0);
-        const correct03 = cleanList(correctSwiss.correct_0_3);
-        const correctAdv = cleanList(correctSwiss.correct_advancing);
+        const stage = correct.stage;
 
-        const [swissPredictions] = await pool.query(
-          `SELECT * FROM swiss_predictions WHERE guild_id = ? AND stage = ?`,
+        const correct30 = cleanList(correct.correct_3_0);
+        const correct03 = cleanList(correct.correct_0_3);
+        const correctAdv = cleanList(correct.correct_advancing);
+
+        const [preds] = await pool.query(
+          `SELECT * FROM swiss_predictions WHERE guild_id=? AND stage=?`,
           [guildId, stage]
-        );
-
-        const [nameRows] = await pool.query(
-          `
-          SELECT user_id, displayname
-          FROM swiss_predictions
-          WHERE guild_id = ?
-            AND stage = ?
-            AND displayname IS NOT NULL
-            AND displayname != ''
-          `,
-          [guildId, stage]
-        );
-
-        const displayNameMap = new Map(
-          nameRows.map(r => [r.user_id, r.displayname])
         );
 
         const scoreRows = [];
 
-        for (const pred of swissPredictions) {
+        for (const p of preds) {
+
           let score = 0;
 
-          cleanList(pred.pick_3_0).forEach(t => {
+          cleanList(p.pick_3_0).forEach(t => {
             if (correct30.includes(t)) score += 4;
           });
-          cleanList(pred.pick_0_3).forEach(t => {
+
+          cleanList(p.pick_0_3).forEach(t => {
             if (correct03.includes(t)) score += 4;
           });
-          cleanList(pred.advancing).forEach(t => {
+
+          cleanList(p.advancing).forEach(t => {
             if (correctAdv.includes(t)) score += 2;
           });
 
           scoreRows.push([
             guildId,
-            pred.user_id,
+            p.user_id,
             stage,
-            pred.displayname || displayNameMap.get(pred.user_id) || pred.user_id,
-            score,
+            p.displayname || p.user_id,
+            score
           ]);
         }
 
         if (scoreRows.length) {
-          await pool.query(
-            `
-            INSERT INTO swiss_scores (guild_id, user_id, stage, displayname, points)
+          await pool.query(`
+            INSERT INTO swiss_scores
+              (guild_id,user_id,stage,displayname,points)
             VALUES ?
             ON DUPLICATE KEY UPDATE
-              displayname = VALUES(displayname),
-              points = VALUES(points)
-            `,
-            [scoreRows]
-          );
+              displayname=VALUES(displayname),
+              points=VALUES(points)
+          `, [scoreRows]);
         }
-
-        logger.info('scores', 'Swiss calculated', {
-          guildId,
-          stage,
-          users: scoreRows.length,
-        });
       }
-    } catch (err) {
-      logger.error('scores', 'Swiss calculation failed', {
-        guildId,
-        message: err.message,
-        stack: err.stack,
-      });
+
+      logger.info('scores', 'Swiss done', { guildId });
+
+    } catch (e) {
+      logger.error('scores', 'Swiss failed', e);
     }
+
 
     /* =========================
        PLAYOFFS
-       ========================= */
+    ========================= */
     try {
-      const [rows] = await pool.query(
-        `
+
+      const [rows] = await pool.query(`
         SELECT *
         FROM playoffs_results
-        WHERE guild_id = ?
-          AND active = 1
+        WHERE guild_id=?
+          AND active=1
         ORDER BY id DESC
         LIMIT 1
-        `,
-        [guildId]
-      );
+      `, [guildId]);
 
       if (!rows.length) return;
 
       const correct = rows[0];
 
       const [preds] = await pool.query(
-        `SELECT * FROM playoffs_predictions WHERE guild_id = ? AND active = 1`,
+        `SELECT * FROM playoffs_predictions WHERE guild_id=?`,
         [guildId]
       );
 
       const scoreRows = [];
 
       for (const p of preds) {
+
         let score = 0;
 
         cleanList(p.semifinalists).forEach(t => {
           if (cleanList(correct.correct_semifinalists).includes(t)) score += 1;
         });
+
         cleanList(p.finalists).forEach(t => {
           if (cleanList(correct.correct_finalists).includes(t)) score += 2;
         });
@@ -170,192 +145,316 @@ module.exports = async function calculateScores(guildId) {
         if (p.winner === correct.correct_winner) score += 3;
         if (p.third_place_winner === correct.correct_third_place_winner) score += 2;
 
-        scoreRows.push([guildId, p.user_id, p.displayname || p.user_id, score]);
+        scoreRows.push([
+          guildId,
+          p.user_id,
+          p.displayname || p.user_id,
+          score
+        ]);
       }
 
       if (scoreRows.length) {
-        await pool.query(
-          `
-          INSERT INTO playoffs_scores (guild_id, user_id, displayname, points)
+        await pool.query(`
+          INSERT INTO playoffs_scores
+            (guild_id,user_id,displayname,points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
-            displayname = VALUES(displayname),
-            points = VALUES(points)
-          `,
-          [scoreRows]
-        );
+            displayname=VALUES(displayname),
+            points=VALUES(points)
+        `, [scoreRows]);
       }
 
-      logger.info('scores', 'Playoffs calculated', {
-        guildId,
-        users: scoreRows.length,
-      });
-    } catch (err) {
-      logger.error('scores', 'Playoffs calculation failed', {
-        guildId,
-        message: err.message,
-        stack: err.stack,
-      });
+      logger.info('scores', 'Playoffs done', { guildId });
+
+    } catch (e) {
+      logger.error('scores', 'Playoffs failed', e);
     }
 
+
+
     /* =========================
-       MATCHES
-       ========================= */
+   DOUBLE ELIM
+========================= */
     try {
-      const [matches] = await pool.query(
-        `
-        SELECT
-          m.id AS match_id,
-          r.res_a, r.res_b,
-          r.exact_a, r.exact_b
-        FROM matches m
-        JOIN match_results r
-          ON r.match_id = m.id
-         AND r.guild_id = m.guild_id
-        WHERE m.guild_id = ?
-        `,
-        [guildId]
-      );
 
-      if (!matches.length) return;
+      const [rows] = await pool.query(`
+    SELECT *
+    FROM doubleelim_results
+    WHERE guild_id=?
+      AND active=1
+    ORDER BY id DESC
+    LIMIT 1
+  `, [guildId]);
 
-      const matchIds = matches.map(m => m.match_id);
+      if (rows.length) {
 
-      // Czyścimy stare punkty (żeby nie dublować)
+        const correct = rows[0];
+
+        const [preds] = await pool.query(
+          `SELECT * FROM doubleelim_predictions WHERE guild_id=?`,
+          [guildId]
+        );
+
+        const scoreRows = [];
+
+        for (const p of preds) {
+
+          let score = 0;
+
+          // Upper Final A
+          cleanList(p.upper_final_a).forEach(t => {
+            if (cleanList(correct.upper_final_a).includes(t)) score += 1;
+          });
+
+          // Lower Final A
+          cleanList(p.lower_final_a).forEach(t => {
+            if (cleanList(correct.lower_final_a).includes(t)) score += 1;
+          });
+
+          // Upper Final B
+          cleanList(p.upper_final_b).forEach(t => {
+            if (cleanList(correct.upper_final_b).includes(t)) score += 1;
+          });
+
+          // Lower Final B
+          cleanList(p.lower_final_b).forEach(t => {
+            if (cleanList(correct.lower_final_b).includes(t)) score += 1;
+          });
+
+          scoreRows.push([
+            guildId,
+            p.user_id,
+            p.displayname || p.user_id,
+            score
+          ]);
+        }
+
+        if (scoreRows.length) {
+          await pool.query(`
+        INSERT INTO doubleelim_scores
+          (guild_id,user_id,displayname,points)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+          displayname=VALUES(displayname),
+          points=VALUES(points)
+      `, [scoreRows]);
+        }
+
+        logger.info('scores', 'DoubleElim done', { guildId });
+      }
+
+    } catch (e) {
+      logger.error('scores', 'DoubleElim failed', e);
+    }
+
+
+    /* =========================
+       PLAY-IN
+    ========================= */
+    try {
+
+      const [rows] = await pool.query(`
+    SELECT *
+    FROM playin_results
+    WHERE guild_id=?
+      AND active=1
+    ORDER BY id DESC
+    LIMIT 1
+  `, [guildId]);
+
+      if (rows.length) {
+
+        const correct = rows[0];
+
+        const official =
+          correct.correct_teams ??
+          correct.official_playin_teams ??
+          correct.teams ??
+          '';
+
+        const correctTeams = cleanList(official);
+
+        const [preds] = await pool.query(
+          `SELECT * FROM playin_predictions WHERE guild_id=?`,
+          [guildId]
+        );
+
+        const scoreRows = [];
+
+        for (const p of preds) {
+
+          let score = 0;
+
+          cleanList(p.teams).forEach(t => {
+            if (correctTeams.includes(t)) score += 1;
+          });
+
+          scoreRows.push([
+            guildId,
+            p.user_id,
+            p.displayname || p.user_id,
+            score
+          ]);
+        }
+
+        if (scoreRows.length) {
+          await pool.query(`
+        INSERT INTO playin_scores
+          (guild_id,user_id,displayname,points)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+          displayname=VALUES(displayname),
+          points=VALUES(points)
+      `, [scoreRows]);
+        }
+
+        logger.info('scores', 'Play-In done', { guildId });
+      }
+
+    } catch (e) {
+      logger.error('scores', 'Play-In failed', e);
+    }
+
+
+    /* =========================
+   SERIES (MATCHES)
+========================= */
+    try {
+
+      const [matches] = await pool.query(`
+    SELECT
+      m.id,
+      r.res_a,
+      r.res_b
+    FROM matches m
+    JOIN match_results r
+      ON r.match_id=m.id
+     AND r.guild_id=m.guild_id
+    WHERE m.guild_id=?
+  `, [guildId]);
+
+      if (!matches.length) {
+        logger.warn('scores', 'No matches', { guildId });
+        return;
+      }
+
+      const matchIds = matches.map(m => m.id);
+
       await pool.query(`
-  DELETE FROM match_points
-  WHERE guild_id = ?
-    AND match_id IN (?)
-`, [guildId, matchIds]);
+    DELETE FROM match_points
+    WHERE guild_id=?
+      AND match_id IN (?)
+      AND source='series'
+  `, [guildId, matchIds]);
 
+      const [preds] = await pool.query(`
+    SELECT match_id,user_id,pred_a,pred_b
+    FROM match_predictions
+    WHERE guild_id=?
+      AND match_id IN (?)
+  `, [guildId, matchIds]);
 
-      const [preds] = await pool.query(
-        `
-        SELECT match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
-        FROM match_predictions
-        WHERE guild_id = ?
-          AND match_id IN (?)
-        `,
-        [guildId, matchIds]
-      );
+      const byMatch = new Map();
 
-      const predsByMatch = new Map();
       for (const p of preds) {
-        if (!predsByMatch.has(p.match_id)) predsByMatch.set(p.match_id, []);
-        predsByMatch.get(p.match_id).push(p);
+        if (!byMatch.has(p.match_id)) byMatch.set(p.match_id, []);
+        byMatch.get(p.match_id).push(p);
       }
 
       const rows = [];
 
       for (const m of matches) {
-        const ps = predsByMatch.get(m.match_id) || [];
+
+        const ps = byMatch.get(m.id) || [];
 
         for (const p of ps) {
 
-          const seriesPoints = computeSeriesPoints({
+          const pts = computeSeriesPoints({
             predA: p.pred_a,
             predB: p.pred_b,
             resA: m.res_a,
-            resB: m.res_b,
+            resB: m.res_b
           });
 
-          const mapPoints = computeMapPoints({
-            predExactA: p.pred_exact_a,
-            predExactB: p.pred_exact_b,
-            exactA: m.exact_a,
-            exactB: m.exact_b,
-          });
-
-          if (seriesPoints > 0) {
+          if (pts > 0) {
             rows.push([
               guildId,
-              m.match_id,
+              m.id,
               p.user_id,
-              seriesPoints,
+              pts,
               'series'
-            ]);
-          }
-
-          if (mapPoints > 0) {
-            rows.push([
-              guildId,
-              m.match_id,
-              p.user_id,
-              mapPoints,
-              'map'
             ]);
           }
         }
       }
 
-
       if (rows.length) {
-        await pool.query(
-          `
-          INSERT INTO match_points (guild_id, match_id, user_id, points, source)
-          VALUES ?
-          ON DUPLICATE KEY UPDATE
-            points = VALUES(points),
-            computed_at = CURRENT_TIMESTAMP
-          `,
-          [rows]
-        );
+        await pool.query(`
+      INSERT INTO match_points
+        (guild_id,match_id,user_id,points,source)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        points=VALUES(points),
+        computed_at=CURRENT_TIMESTAMP
+    `, [rows]);
       }
 
-      logger.info('scores', 'Match points calculated', {
-        guildId,
-        rows: rows.length,
-      });
-    } catch (err) {
-      logger.error('scores', 'Match calculation failed', {
-        guildId,
-        message: err.message,
-        stack: err.stack,
-      });
+      logger.info('scores', 'Series done', { guildId });
+
+    } catch (e) {
+      logger.error('scores', 'Series failed', e);
     }
 
+
+
     /* =========================
-   MAPY (PUNKTY ZA MAPY)
-   ========================= */
+   MAPY
+========================= */
     try {
+
+      await pool.query(`
+    DELETE FROM match_points
+    WHERE guild_id=?
+      AND source='map'
+  `, [guildId]);
 
       const [maps] = await pool.query(`
     SELECT
       mp.match_id,
       mp.user_id,
-      mp.map_no,
       mp.pred_exact_a,
       mp.pred_exact_b,
       mr.exact_a,
       mr.exact_b
     FROM match_map_predictions mp
     JOIN match_map_results mr
-      ON mr.match_id = mp.match_id
-     AND mr.map_no = mp.map_no
-    WHERE mp.guild_id = ?
+      ON mr.match_id=mp.match_id
+     AND mr.map_no=mp.map_no
+    WHERE mp.guild_id=?
   `, [guildId]);
 
       if (!maps.length) {
-        logger.warn('scores', 'No map data to calculate', { guildId });
+        logger.warn('scores', 'No maps', { guildId });
       } else {
 
         const rows = [];
 
         for (const m of maps) {
 
-          const mapPts = computeMapPoints({
+          const pts = computeMapPoints({
             predExactA: m.pred_exact_a,
             predExactB: m.pred_exact_b,
             exactA: m.exact_a,
-            exactB: m.exact_b,
+            exactB: m.exact_b
           });
 
-          if (mapPts > 0) {
+          if (pts > 0) {
+            console.log('MAP HIT', m.match_id, m.user_id, pts);
             rows.push([
               guildId,
               m.match_id,
               m.user_id,
-              mapPts,
+              pts,
               'map'
             ]);
           }
@@ -363,29 +462,22 @@ module.exports = async function calculateScores(guildId) {
 
         if (rows.length) {
           await pool.query(`
-      INSERT INTO match_points
-        (guild_id, match_id, user_id, points, source)
-      VALUES ?
-      ON DUPLICATE KEY UPDATE
-        points = VALUES(points),
-        computed_at = CURRENT_TIMESTAMP
-    `, [rows]);
+        INSERT INTO match_points
+          (guild_id,match_id,user_id,points,source)
+        VALUES ?
+        ON DUPLICATE KEY UPDATE
+          points=VALUES(points),
+          computed_at=CURRENT_TIMESTAMP
+      `, [rows]);
         }
       }
 
+      logger.info('scores', 'Maps done', { guildId });
 
-      logger.info('scores', 'Map points calculated', {
-        guildId,
-        rows: rows.length,
-      });
-
-    } catch (err) {
-      logger.error('scores', 'Map calculation failed', {
-        guildId,
-        message: err.message,
-        stack: err.stack,
-      });
+    } catch (e) {
+      logger.error('scores', 'Maps failed', e);
     }
+
 
 
     logger.info('scores', 'Score calculation finished', { guildId });

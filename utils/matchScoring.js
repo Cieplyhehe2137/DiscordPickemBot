@@ -46,10 +46,15 @@ function computeSeriesPoints({ predA, predB, resA, resB }) {
  * - 0 PKT → inaczej
  */
 function computeMapPoints({ predExactA, predExactB, exactA, exactB }) {
+
   if (
-    predExactA === null || predExactB === null ||
-    exactA === null || exactB === null
-  ) return 0;
+    predExactA == null ||
+    predExactB == null ||
+    exactA == null ||
+    exactB == null
+  ) {
+    return 0;
+  }
 
   const pa = Number(predExactA);
   const pb = Number(predExactB);
@@ -61,10 +66,13 @@ function computeMapPoints({ predExactA, predExactB, exactA, exactB }) {
     !Number.isFinite(pb) ||
     !Number.isFinite(ea) ||
     !Number.isFinite(eb)
-  ) return 0;
+  ) {
+    return 0;
+  }
 
   return (pa === ea && pb === eb) ? 3 : 0;
 }
+
 
 /**
  * Łączne punkty (compat / legacy)
