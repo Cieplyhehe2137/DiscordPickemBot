@@ -430,19 +430,23 @@ module.exports = async function calculateScores(guildId) {
       console.log('--- MAPS: FETCH JOIN ---');
 
       const [maps] = await pool.query(`
-    SELECT
-      mp.match_id,
-      mp.user_id,
-      mp.pred_exact_a,
-      mp.pred_exact_b,
-      mr.exact_a,
-      mr.exact_b
-    FROM match_map_predictions mp
-    JOIN match_map_results mr
-      ON mr.match_id=mp.match_id
-     AND mr.map_no=mp.map_no
-    WHERE mp.guild_id=?
-  `, [guildId]);
+  SELECT
+    mp.match_id,
+    mp.user_id,
+    mp.pred_exact_a,
+    mp.pred_exact_b,
+    mr.exact_a,
+    mr.exact_b
+  FROM match_map_predictions mp
+  JOIN match_map_results mr
+    ON mr.match_id = mp.match_id
+   AND mr.map_no = mp.map_no
+  JOIN matches m
+    ON m.id = mp.match_id
+   AND m.guild_id = mp.guild_id
+  WHERE mp.guild_id=?
+`, [guildId]);
+
 
       console.log('--- MAPS: JOIN COUNT =', maps.length);
       if (!maps.length) {
