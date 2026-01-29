@@ -589,7 +589,8 @@ module.exports = async function exportClassification(interaction = null, outputP
         { header: 'OFF (seria)', key: 'official_series', width: 12 },
         { header: 'Typ (seria)', key: 'pred_series', width: 10 },
         { header: 'Seria', key: 'series_points', width: 7 },
-        { header: 'Mapy', key: 'map_points', width: 7 },
+        { header: 'Mapy (pkt)', key: 'map_points', width: 9 },
+        { header: 'Trafione mapy', key: 'map_hits', width: 12 },
         { header: 'Suma', key: 'points', width: 7 },
         { header: 'Nick', key: 'displayname', width: 18 },
         { header: 'User ID', key: 'user_id', width: 20 },
@@ -626,6 +627,7 @@ module.exports = async function exportClassification(interaction = null, outputP
     user_id,
     SUM(CASE WHEN source='series' THEN points ELSE 0 END) AS series_points,
     SUM(CASE WHEN source='map' THEN points ELSE 0 END) AS map_points,
+COUNT(CASE WHEN source='map' THEN 1 END) AS map_hits,
     SUM(points) AS points
   FROM match_points
   WHERE guild_id = ?
@@ -651,18 +653,29 @@ SELECT
   m.team_a,
   m.team_b,
   mp.user_id,
-  GROUP_CONCAT(
-    CONCAT(
-      'M', mp.map_no, ': ',
-      mp.pred_exact_a, ':', mp.pred_exact_b,
+CONCAT(
+    GROUP_CONCAT(
+      CONCAT(
+        'M', mp.map_no, ': ',
+        mp.pred_exact_a, ':', mp.pred_exact_b,
+        CASE
+          WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+            THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
+          ELSE ''
+        END
+      )
+      ORDER BY mp.map_no
+      SEPARATOR ', '
+    ),
+    ' (+',
+    SUM(
       CASE
-        WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-          THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
-        ELSE ''
+        WHEN mp.pred_exact_a = mr.exact_a
+         AND mp.pred_exact_b = mr.exact_b
+        THEN 3 ELSE 0
       END
-    )
-    ORDER BY mp.map_no
-    SEPARATOR ', '
+    ),
+    ' pkt)'
   ) AS maps_summary
 FROM matches m
 JOIN match_map_predictions mp
@@ -742,6 +755,7 @@ ORDER BY
           pred_series: predSeries,
           series_points: r.series_points ?? 0,
           map_points: r.map_points ?? 0,
+          map_hits: r.map_hits ?? 0,
           points: r.points ?? 0,
           displayname: nick,
           user_id: r.user_id ?? '—',
