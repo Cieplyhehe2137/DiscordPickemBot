@@ -46,7 +46,9 @@ module.exports = async function calculateScores(guildId) {
         LIMIT 1
       `, [guildId]);
 
-      if (!rows.length) return;
+      if (!rows.length) {
+        logger.warn('scores', 'No data, skipping phase', { guildId });
+      }
 
       for (const correct of rows) {
 
@@ -121,7 +123,10 @@ module.exports = async function calculateScores(guildId) {
         LIMIT 1
       `, [guildId]);
 
-      if (!rows.length) return;
+      if (!rows.length) {
+        logger.warn('scores', 'No data, skipping phase', { guildId });
+      }
+
 
       const correct = rows[0];
 
@@ -337,8 +342,8 @@ module.exports = async function calculateScores(guildId) {
 
       if (!matches.length) {
         logger.warn('scores', 'No matches', { guildId });
-        return;
       }
+
 
       const matchIds = matches.map(m => m.id);
 
@@ -440,11 +445,10 @@ module.exports = async function calculateScores(guildId) {
   `, [guildId]);
 
       console.log('--- MAPS: JOIN COUNT =', maps.length);
-
       if (!maps.length) {
-        console.log('!!! MAPS EMPTY !!!');
-        return;
+        logger.warn('scores', 'No maps', { guildId });
       }
+
 
       const rows = [];
 
@@ -494,9 +498,9 @@ module.exports = async function calculateScores(guildId) {
       console.log('ROWS:', rows.length);
 
       if (!rows.length) {
-        console.log('!!! NO MAP POINTS TO INSERT !!!');
-        return;
+        logger.warn('scores', 'No data, skipping phase', { guildId });
       }
+
 
       console.log('--- MAPS INSERT ---');
 
