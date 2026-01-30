@@ -192,8 +192,19 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     }
 
     // ===== MODAL =====
+    // ===== MODAL =====
     if (interaction.isModalSubmit()) {
-      const handlerName = modalMap?.[interaction.customId];
+      const customId = interaction.customId;
+
+      // 1️⃣ dokładne dopasowanie
+      let handlerName = modalMap?.[customId];
+
+      // 2️⃣ fallback: prefix przed :
+      if (!handlerName && customId.includes(':')) {
+        const prefix = customId.split(':')[0];
+        handlerName = modalMap?.[prefix];
+      }
+
       const fn = handlerName
         ? resolveHandler(handlers, handlerName)
         : null;
@@ -201,7 +212,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       if (!fn) {
         logger.warn('interaction', 'Unhandled modal', {
           guildId: interaction.guildId,
-          customId: interaction.customId,
+          customId,
         });
         return;
       }
