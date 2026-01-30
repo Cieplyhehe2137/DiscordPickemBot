@@ -70,7 +70,7 @@ module.exports = async (interaction) => {
       setCache(cacheKey, { teams: merged });
 
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferUpdate().catch(() => {});
+        await interaction.deferUpdate().catch(() => { });
       }
       return;
     }
@@ -113,12 +113,13 @@ module.exports = async (interaction) => {
 
           await conn.query(
             `
-            INSERT INTO playin_results
-              (guild_id, correct_teams, active, created_at)
-            VALUES (?, ?, 1, NOW())
-            `,
+  INSERT INTO playin_results
+    (guild_id, correct_teams, active)
+  VALUES (?, ?, 1)
+  `,
             [guildId, toString(data.teams)]
           );
+
 
           await conn.commit();
           cache.delete(cacheKey);
@@ -159,7 +160,7 @@ module.exports = async (interaction) => {
         await interaction.reply({
           content: '❌ Wystąpił błąd przy zapisie wyników Play-In.',
           ephemeral: true
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }
