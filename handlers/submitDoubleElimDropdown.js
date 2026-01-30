@@ -65,7 +65,7 @@ module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu()) {
     if (!selectMap[customId]) {
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferUpdate().catch(() => {});
+        await interaction.deferUpdate().catch(() => { });
       }
       return;
     }
@@ -92,7 +92,7 @@ module.exports = async (interaction) => {
     });
 
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
     }
     return;
   }
@@ -106,7 +106,7 @@ module.exports = async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  await withGuild(interaction, async (db) => {
+  await withGuild(interaction, async ({ pool, guildId }) => {
     const gate = await assertPredictionsAllowed({
       guildId,
       kind: 'DOUBLE_ELIM'
@@ -145,16 +145,15 @@ module.exports = async (interaction) => {
     }
 
     const [rows] = await pool.query(
-      db,
       `
-      SELECT name
-      FROM teams
-      WHERE guild_id = ?
-        AND active = 1
-      `,
-      [guildId],
-      { guildId, scope: 'submitDoubleElim', label: 'load teams' }
+  SELECT name
+  FROM teams
+  WHERE guild_id = ?
+    AND active = 1
+  `,
+      [guildId]
     );
+
 
     const allowed = rows.map(r => r.name);
     const invalid = all.filter(t => !allowed.includes(t));
@@ -166,20 +165,19 @@ module.exports = async (interaction) => {
     }
 
     await pool.query(
-      db,
       `
-      INSERT INTO doubleelim_predictions
-        (guild_id, user_id, username, displayname,
-         upper_final_a, lower_final_a, upper_final_b, lower_final_b)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        upper_final_a = VALUES(upper_final_a),
-        lower_final_a = VALUES(lower_final_a),
-        upper_final_b = VALUES(upper_final_b),
-        lower_final_b = VALUES(lower_final_b),
-        displayname   = VALUES(displayname),
-        submitted_at  = CURRENT_TIMESTAMP
-      `,
+  INSERT INTO doubleelim_predictions
+    (guild_id, user_id, username, displayname,
+     upper_final_a, lower_final_a, upper_final_b, lower_final_b)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    upper_final_a = VALUES(upper_final_a),
+    lower_final_a = VALUES(lower_final_a),
+    upper_final_b = VALUES(upper_final_b),
+    lower_final_b = VALUES(lower_final_b),
+    displayname   = VALUES(displayname),
+    submitted_at  = CURRENT_TIMESTAMP
+  `,
       [
         guildId,
         userId,
@@ -189,9 +187,9 @@ module.exports = async (interaction) => {
         picks.lower_final_a.join(', '),
         picks.upper_final_b.join(', '),
         picks.lower_final_b.join(', ')
-      ],
-      { guildId, scope: 'submitDoubleElim', label: 'upsert doubleelim_predictions' }
+      ]
     );
+
 
     cache.delete(cacheKey);
 
