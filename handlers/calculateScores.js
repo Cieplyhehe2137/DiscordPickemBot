@@ -29,7 +29,7 @@ module.exports = async function calculateScores(guildId) {
 
   logger.info('scores', 'Score calculation started', { guildId });
 
-  await withGuild(guildId, async ({ pool, guildId }) => {
+  await withGuild({ guildId }, async ({ pool, guildId }) => {
     console.log('=== SCORE RUN START ===', guildId);
 
 
@@ -259,6 +259,10 @@ module.exports = async function calculateScores(guildId) {
        PLAY-IN
     ========================= */
     try {
+      await pool.query(`
+  DELETE FROM playin_scores
+  WHERE guild_id=?
+`, [guildId]);
 
       const [rows] = await pool.query(`
     SELECT *
@@ -415,120 +419,99 @@ module.exports = async function calculateScores(guildId) {
 
 
     /* =========================
-    MAPY (DEBUG)
- ========================= */
-    try {
+   MAPY
+========================= */
+try {
+  console.log('--- MAPS: FETCH JOIN ---');
 
-      console.log('--- MAPS: CLEAN OLD ---');
-
-      await pool.query(`
-    DELETE FROM match_points
-    WHERE guild_id=?
-      AND source='map'
+  const [maps] = await pool.query(`
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      mp.pred_exact_a,
+      mp.pred_exact_b,
+      mr.exact_a,
+      mr.exact_b
+    FROM match_map_predictions mp
+    JOIN match_map_results mr
+      ON mr.match_id = mp.match_id
+     AND mr.map_no = mp.map_no
+    JOIN matches m
+      ON m.id = mp.match_id
+     AND m.guild_id = mp.guild_id
+    WHERE mp.guild_id=?
   `, [guildId]);
 
-      console.log('--- MAPS: FETCH JOIN ---');
+  console.log('--- MAPS: JOIN COUNT =', maps.length);
 
-      const [maps] = await pool.query(`
-  SELECT
-    mp.match_id,
-    mp.user_id,
-    mp.pred_exact_a,
-    mp.pred_exact_b,
-    mr.exact_a,
-    mr.exact_b
-  FROM match_map_predictions mp
-  JOIN match_map_results mr
-    ON mr.match_id = mp.match_id
-   AND mr.map_no = mp.map_no
-  JOIN matches m
-    ON m.id = mp.match_id
-   AND m.guild_id = mp.guild_id
-  WHERE mp.guild_id=?
-`, [guildId]);
+  if (!maps.length) {
+    logger.warn('scores', 'No maps', { guildId });
+    return;
+  }
 
+  const matchIds = [...new Set(maps.map(m => m.match_id))];
 
-      console.log('--- MAPS: JOIN COUNT =', maps.length);
-      if (!maps.length) {
-        logger.warn('scores', 'No maps', { guildId });
-      }
+  console.log('--- MAPS: CLEAN OLD ---');
 
+  await pool.query(`
+    DELETE FROM match_points
+    WHERE guild_id=?
+      AND match_id IN (?)
+      AND source='map'
+  `, [guildId, matchIds]);
 
-      const rows = [];
+  const rows = [];
+  let hit = 0;
+  let miss = 0;
 
-      let hit = 0;
-      let miss = 0;
+  for (const m of maps) {
+    const pts = computeMapPoints({
+      predExactA: m.pred_exact_a,
+      predExactB: m.pred_exact_b,
+      exactA: m.exact_a,
+      exactB: m.exact_b
+    });
 
-      for (const m of maps) {
-
-        const pts = computeMapPoints({
-          predExactA: m.pred_exact_a,
-          predExactB: m.pred_exact_b,
-          exactA: m.exact_a,
-          exactB: m.exact_b
-        });
-
-        if (pts > 0) {
-          hit++;
-
-          console.log(
-            'MAP HIT:',
-            m.match_id,
-            m.user_id,
-            m.pred_exact_a,
-            ':',
-            m.pred_exact_b,
-            '==',
-            m.exact_a,
-            ':',
-            m.exact_b
-          );
-
-          rows.push([
-            guildId,
-            m.match_id,
-            m.user_id,
-            pts,
-            'map'
-          ]);
-        } else {
-          miss++;
-        }
-      }
-
-      console.log('--- MAPS STATS ---');
-      console.log('HITS:', hit);
-      console.log('MISS:', miss);
-      console.log('ROWS:', rows.length);
-
-      if (!rows.length) {
-        logger.warn('scores', 'No data, skipping phase', { guildId });
-      }
-
-
-      console.log('--- MAPS INSERT ---');
-
-      const [res] = await pool.query(`
-    INSERT INTO match_points
-      (guild_id,match_id,user_id,points,source)
-    VALUES ?
-    ON DUPLICATE KEY UPDATE
-      points=VALUES(points),
-      computed_at=CURRENT_TIMESTAMP
-  `, [rows]);
-
-      console.log('MAPS INSERT RESULT:', res.affectedRows);
-
-      logger.info('scores', 'Maps done', {
+    if (pts > 0) {
+      hit++;
+      rows.push([
         guildId,
-        hits: hit,
-        inserted: rows.length
-      });
-
-    } catch (e) {
-      console.error('MAPS ERROR:', e);
-      logger.error('scores', 'Maps failed', e);
+        m.match_id,
+        m.user_id,
+        pts,
+        'map'
+      ]);
+    } else {
+      miss++;
     }
+  }
+
+  console.log('--- MAPS STATS ---');
+  console.log('HITS:', hit);
+  console.log('MISS:', miss);
+  console.log('ROWS:', rows.length);
+
+  if (rows.length) {
+    await pool.query(`
+      INSERT INTO match_points
+        (guild_id,match_id,user_id,points,source)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        points=VALUES(points),
+        computed_at=CURRENT_TIMESTAMP
+    `, [rows]);
+  }
+
+  logger.info('scores', 'Maps done', {
+    guildId,
+    hits: hit,
+    inserted: rows.length
+  });
+
+} catch (e) {
+  console.error('MAPS ERROR:', e);
+  logger.error('scores', 'Maps failed', e);
+}
 
 
 
