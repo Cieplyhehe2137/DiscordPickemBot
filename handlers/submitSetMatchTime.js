@@ -25,16 +25,17 @@ module.exports = async function submitSetMatchTime(interaction) {
   await withGuild(interaction, async ({ pool, guildId }) => {
     await pool.query(
       `
-      UPDATE matches
-      SET start_time_utc = ?
-      WHERE id = ? AND guild_id = ?
-      `,
+  UPDATE matches
+  SET start_time_utc = ?
+  WHERE id = ? AND guild_id = ?
+  `,
       [
-        utc ? utc.toISO({ suppressMilliseconds: true }) : null,
+        utc ? utc.toFormat('yyyy-MM-dd HH:mm:ss') : null,
         matchId,
         guildId
       ]
     );
+
   });
 
   logger.info('matches', 'start_time_utc updated', {
