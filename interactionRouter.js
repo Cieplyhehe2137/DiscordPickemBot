@@ -193,22 +193,18 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
 
     // ===== MODAL =====
     if (interaction.isModalSubmit()) {
-  const handlerName = modalMap?.[interaction.customId];
-  const fn = handlerName
-    ? resolveHandler(handlers, handlerName)
-    : null;
+      const handlerName = modalMap?.[interaction.customId];
+      const fn = handlerName
+        ? resolveHandler(handlers, handlerName)
+        : null;
 
-  if (!fn) {
-    logger.warn('interaction', 'Unhandled modal', {
-      guildId: interaction.guildId,
-      customId: interaction.customId,
-    });
-    return;
-  }
-
-  await fn(interaction, client);
-  return;
-}
+      if (!fn) {
+        logger.warn('interaction', 'Unhandled modal', {
+          guildId: interaction.guildId,
+          customId: interaction.customId,
+        });
+        return;
+      }
 
       await fn(interaction, client);
       return;
