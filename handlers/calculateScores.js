@@ -432,7 +432,7 @@ module.exports = async function calculateScores(guildId) {
             m.match_id,
             p.user_id,
             total,
-            'total'
+            'series'
           ]);
         }
       }
