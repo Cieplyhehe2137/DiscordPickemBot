@@ -330,91 +330,86 @@ module.exports = async function calculateScores(guildId) {
     /* =========================
    SERIES (MATCHES)
 ========================= */
-    try {
+try {
 
-      const [matches] = await pool.query(`
+  const [matches] = await pool.query(`
     SELECT
       m.id,
       r.res_a,
       r.res_b
     FROM matches m
     JOIN match_results r
-      ON r.match_id=m.id
-     AND r.guild_id=m.guild_id
-    WHERE m.guild_id=?
+      ON r.match_id = m.id
+     AND r.guild_id = m.guild_id
+    WHERE m.guild_id = ?
   `, [guildId]);
 
-      if (!matches.length) {
-        logger.warn('scores', 'No matches', { guildId });
-      }
+  if (!matches.length) {
+    logger.warn('scores', 'No matches', { guildId });
+  }
 
-
-      const matchIds = matches.map(m => m.id);
-
-      await pool.query(`
+  // 🔥 czyścimy WSZYSTKO
+  await pool.query(`
     DELETE FROM match_points
-    WHERE guild_id=?
-      AND match_id IN (?)
-      AND source='series'
-  `, [guildId, matchIds]);
+    WHERE guild_id = ?
+      AND source = 'series'
+  `, [guildId]);
 
-      const [preds] = await pool.query(`
+  const [preds] = await pool.query(`
     SELECT match_id,user_id,pred_a,pred_b
     FROM match_predictions
-    WHERE guild_id=?
-      AND match_id IN (?)
-  `, [guildId, matchIds]);
+    WHERE guild_id = ?
+  `, [guildId]);
 
-      const byMatch = new Map();
+  const byMatch = new Map();
 
-      for (const p of preds) {
-        if (!byMatch.has(p.match_id)) byMatch.set(p.match_id, []);
-        byMatch.get(p.match_id).push(p);
-      }
+  for (const p of preds) {
+    if (!byMatch.has(p.match_id)) byMatch.set(p.match_id, []);
+    byMatch.get(p.match_id).push(p);
+  }
 
-      const rows = [];
+  const rows = [];
 
-      for (const m of matches) {
+  for (const m of matches) {
 
-        const ps = byMatch.get(m.id) || [];
+    const ps = byMatch.get(m.id) || [];
 
-        for (const p of ps) {
+    for (const p of ps) {
 
-          const pts = computeSeriesPoints({
-            predA: p.pred_a,
-            predB: p.pred_b,
-            resA: m.res_a,
-            resB: m.res_b
-          });
+      const pts = computeSeriesPoints({
+        predA: p.pred_a,
+        predB: p.pred_b,
+        resA: m.res_a,
+        resB: m.res_b
+      });
 
-          if (pts > 0) {
-            rows.push([
-              guildId,
-              m.id,
-              p.user_id,
-              pts,
-              'series'
-            ]);
-          }
-        }
-      }
+      // ✅ zapisujemy ZAWSZE
+      rows.push([
+        guildId,
+        m.id,
+        p.user_id,
+        pts,
+        'series'
+      ]);
+    }
+  }
 
-      if (rows.length) {
-        await pool.query(`
+  if (rows.length) {
+    await pool.query(`
       INSERT INTO match_points
         (guild_id,match_id,user_id,points,source)
       VALUES ?
       ON DUPLICATE KEY UPDATE
-        points=VALUES(points),
-        computed_at=CURRENT_TIMESTAMP
+        points = VALUES(points),
+        computed_at = CURRENT_TIMESTAMP
     `, [rows]);
-      }
+  }
 
-      logger.info('scores', 'Series done', { guildId });
+  logger.info('scores', 'Series done', { guildId });
 
-    } catch (e) {
-      logger.error('scores', 'Series failed', e);
-    }
+} catch (e) {
+  logger.error('scores', 'Series failed', e);
+}
 
 
 
