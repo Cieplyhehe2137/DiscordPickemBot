@@ -30,15 +30,24 @@ function computeSeriesPoints({ predA, predB, resA, resB }) {
     !Number.isFinite(rb)
   ) return 0;
 
-  // dokładny wynik
-  if (pa === ra && pb === rb) return 3;
+  let pts = 0;
 
-  // trafiony winner
+  // winner
   const pw = getWinner(pa, pb);
   const rw = getWinner(ra, rb);
 
-  return pw && rw && pw === rw ? 1 : 0;
+  if (pw && rw && pw === rw) {
+    pts += 1;
+  }
+
+  // exact
+  if (pa === ra && pb === rb) {
+    pts += 3;
+  }
+
+  return pts;
 }
+
 
 /**
  * Punkty za MAPĘ (exact)
