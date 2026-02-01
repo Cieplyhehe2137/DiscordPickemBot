@@ -71,8 +71,8 @@ module.exports = async (interaction) => {
           new StringSelectMenuBuilder()
             .setCustomId(id)
             .setPlaceholder(label)
-            .setMinValues(1)
-            .setMaxValues(1)
+            .setMinValues(2)
+            .setMaxValues(2)
             .addOptions(options)
         );
 
