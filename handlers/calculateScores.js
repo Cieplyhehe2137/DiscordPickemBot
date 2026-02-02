@@ -184,6 +184,11 @@ module.exports = async function calculateScores(guildId) {
 ========================= */
     try {
 
+      await pool.query(`
+    DELETE FROM doubleelim_scores
+    WHERE guild_id = ?
+  `, [guildId]);
+
       const [rows] = await pool.query(`
     SELECT *
     FROM doubleelim_results
@@ -423,7 +428,7 @@ module.exports = async function calculateScores(guildId) {
             });
           }
 
-          
+
 
           const total = seriesPts + mapPts;
 
