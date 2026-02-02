@@ -19,7 +19,7 @@ module.exports = {
   'playoffs_finalists': 'submitPlayoffsDropdown',
   'playoffs_winner': 'submitPlayoffsDropdown',
   'playoffs_third_place': 'submitPlayoffsDropdown',
-  'playoffs_confirm': 'submitPlayoffsDropdown', // ← DODAJ TO!
+  'confirm_playoffs': 'submitPlayoffsDropdown', // ← DODAJ TO!
 
   // Swiss results
   'official_swiss_3_0_stage1': 'submitSwissResultsDropdown',
