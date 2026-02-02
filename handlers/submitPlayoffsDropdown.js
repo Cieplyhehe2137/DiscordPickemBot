@@ -75,7 +75,7 @@ module.exports = async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  await withGuild(interaction, async (db, guildId) => {
+  await withGuild(interaction, async ({ pool, guildId }) => {
     const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYOFFS' });
     if (!gate.allowed) {
       return interaction.editReply(gate.message || '❌ Typowanie zamknięte.');
