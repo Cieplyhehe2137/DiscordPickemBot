@@ -164,21 +164,20 @@ module.exports = async (interaction) => {
        ZAPIS DO DB
        =============================== */
     await pool.query(
-      db,
       `
-      INSERT INTO playoffs_predictions
-        (guild_id, user_id, username, displayname,
-         semifinalists, finalists, winner, third_place_winner, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      ON DUPLICATE KEY UPDATE
-        semifinalists = VALUES(semifinalists),
-        finalists = VALUES(finalists),
-        winner = VALUES(winner),
-        third_place_winner = VALUES(third_place_winner),
-        displayname = VALUES(displayname),
-        active = 1,
-        submitted_at = CURRENT_TIMESTAMP
-      `,
+  INSERT INTO playoffs_predictions
+    (guild_id, user_id, username, displayname,
+     semifinalists, finalists, winner, third_place_winner, active)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+  ON DUPLICATE KEY UPDATE
+    semifinalists = VALUES(semifinalists),
+    finalists = VALUES(finalists),
+    winner = VALUES(winner),
+    third_place_winner = VALUES(third_place_winner),
+    displayname = VALUES(displayname),
+    active = 1,
+    submitted_at = CURRENT_TIMESTAMP
+  `,
       [
         guildId,
         userId,
@@ -188,13 +187,21 @@ module.exports = async (interaction) => {
         picks.finalists.join(', '),
         winner,
         thirdPick[0] || null
-      ],
-      { guildId, scope: 'submitPlayoffs', label: 'upsert playoffs_predictions' }
+      ]
     );
 
-    delete interaction.client._playoffsCache[guildId][userId];
+    // wyczyść cache po zapisie
+    if (
+      interaction.client._playoffsCache?.[guildId]?.[userId]
+    ) {
+      delete interaction.client._playoffsCache[guildId][userId];
+    }
 
-    logger.info('submit', 'Playoffs predictions saved', { guildId, userId });
+    logger.info('submit', 'Playoffs predictions saved', {
+      guildId,
+      userId
+    });
+
 
     await sendPredictionEmbed(interaction.client, guildId, 'playoffs', userId, {
       semifinalists: picks.semifinalists,
