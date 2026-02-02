@@ -60,10 +60,10 @@ module.exports = {
 
 // PLAYOFFS
 
-'playoffs_semifinalists': 'openPlayoffsDropdown',
-'playoffs_finalists': 'openPlayoffsDropdown',
-'playoffs_winner': 'openPlayoffsDropdown',
-'playoffs_third_place': 'openPlayoffsDropdown',
+'playoffs_semifinalists': 'submitPlayoffsDropdown',
+'playoffs_finalists': 'submitPlayoffsDropdown',
+'playoffs_winner': 'submitPlayoffsDropdown',
+'playoffs_third_place': 'submitPlayoffsDropdown',
 
   // ===== PLAYOFFS – RESULTS =====
   'results_playoffs_semifinalists': 'submitPlayoffsResultsDropdown',
