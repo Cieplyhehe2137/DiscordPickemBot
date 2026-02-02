@@ -64,7 +64,7 @@ module.exports = async (interaction) => {
       values
     });
 
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch(() => { });
     return;
   }
 
@@ -137,10 +137,12 @@ module.exports = async (interaction) => {
        WALIDACJA DRUŻYN Z DB
        =============================== */
     const [rows] = await pool.query(
-      db,
-      `SELECT name FROM teams WHERE guild_id = ? AND active = 1`,
-      [guildId],
-      { guildId, scope: 'submitPlayoffs', label: 'load teams' }
+      `
+  SELECT name
+  FROM teams
+  WHERE guild_id = ? AND active = 1
+  `,
+      [guildId]
     );
 
     const allowed = new Set(rows.map(r => r.name));
