@@ -222,7 +222,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     }
 
 
-     // ===== SELECT =====
+    // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
 
@@ -241,8 +241,8 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         selectMap?.[customId]
           ? customId
           : Object.keys(selectMap || {}).find((key) =>
-              customId.startsWith(key),
-            );
+            customId.startsWith(key),
+          );
 
       if (selectKey) {
         const handlerName = selectMap[selectKey];
@@ -328,7 +328,32 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
+
+// =====================================================
+// Public entry
+// =====================================================
+async function handleInteraction(
+  interaction,
+  client,
+  handlers = {},
+  maps = {},
+) {
+  if (!interaction.guildId) {
+    logger.warn('interaction', 'Blocked interaction without guildId', {
+      type: interaction.type,
+      userId: interaction.user?.id,
+      customId: interaction.customId,
+    });
+    return;
+  }
+
+  return withGuild(interaction.guildId, async () =>
+    _handleInteraction(interaction, client, handlers, maps),
+  );
+}
+
+module.exports = handleInteraction;
