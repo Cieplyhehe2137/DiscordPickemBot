@@ -2,7 +2,6 @@
 const logger = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 
-
 const VALUE_TO_TARGET_CUSTOM_ID = {
   'results:export': 'export_ranking',
   'results:playin': 'set_results_playin',
@@ -25,10 +24,6 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'danger:clearMatches': 'clear_matches'
 };
 
-function resolveHandlerName(map, customId) {
-  return map?.[customId] || null;
-}
-
 function proxyCustomId(interaction, forcedCustomId) {
   const proxied = new Proxy(interaction, {
     get(target, prop) {
@@ -38,33 +33,96 @@ function proxyCustomId(interaction, forcedCustomId) {
     }
   });
 
-  // 🔑 KLUCZOWA LINIA
+  // zachowanie kontekstu guild
   proxied.__guildContext = interaction.__guildContext;
 
   return proxied;
 }
 
-
 module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
   try {
+    // =========================
+    // LOG 1: select dotarł
+    // =========================
+    logger.info('panel', 'Panel select received', {
+      guildId: interaction.guildId,
+      customId: interaction.customId,
+      value: interaction.values?.[0],
+    });
+
     const value = interaction.values?.[0];
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
-    if (!targetCustomId) return;
+
+    // =========================
+    // LOG 2: mapowanie value → customId
+    // =========================
+    if (!targetCustomId) {
+      logger.warn('panel', 'No targetCustomId for select value', {
+        value,
+      });
+      return;
+    }
+
+    logger.info('panel', 'Select mapped to targetCustomId', {
+      value,
+      targetCustomId,
+    });
 
     const handlerName = maps?.buttonMap?.[targetCustomId];
+
+    // =========================
+    // LOG 3: handlerName z buttonMap
+    // =========================
+    if (!handlerName) {
+      logger.warn('panel', 'No handlerName in buttonMap for targetCustomId', {
+        targetCustomId,
+      });
+      return;
+    }
+
     const handler = handlers?.[handlerName];
-    if (!handler) return;
+
+    // =========================
+    // LOG 4: handler znaleziony
+    // =========================
+    if (!handler) {
+      logger.error('panel', 'Handler not loaded', {
+        handlerName,
+        targetCustomId,
+      });
+      return;
+    }
+
+    logger.info('panel', 'Dispatching to handler', {
+      handlerName,
+      targetCustomId,
+    });
 
     const proxied = proxyCustomId(interaction, targetCustomId);
 
-    // ❗ NIE deferReply, NIE reply
+    // =========================
+    // LOG 5: przed wywołaniem handlera
+    // =========================
+    logger.info('panel', 'Calling handler', {
+      handlerName,
+      guildId: proxied.guildId,
+      customId: proxied.customId,
+    });
+
+    // ❗ tu NAJPEWNIEJ leci error / timeout
     await handler(proxied, client);
+
+    // =========================
+    // LOG 6: handler zakończył się
+    // =========================
+    logger.info('panel', 'Handler finished successfully', {
+      handlerName,
+    });
 
   } catch (err) {
     logger.error('panel', 'panelSelectAction failed', {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
   }
 };
-
