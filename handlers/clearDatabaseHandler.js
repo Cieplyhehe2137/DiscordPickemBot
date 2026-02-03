@@ -9,20 +9,13 @@ const logger = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 
 module.exports = async (interaction) => {
-  if (!interaction.isButton()) return;
   if (!interaction.guildId) return;
 
   const guildId = interaction.guildId;
 
   // 🔒 ADMIN ONLY
   if (!isAdmin(interaction)) {
-    logger.warn('clear', 'Unauthorized clear attempt', {
-      guildId,
-      userId: interaction.user.id,
-      customId: interaction.customId,
-    });
-
-    return interaction.followUp({
+    return interaction.reply({
       content: '❌ Brak uprawnień do tej operacji.',
       ephemeral: true,
     }).catch(() => {});
@@ -35,7 +28,7 @@ module.exports = async (interaction) => {
     customId: interaction.customId,
   };
 
-  logger.warn('clear', 'Clear database interaction triggered', userMeta);
+  logger.warn('clear', 'Clear interaction triggered', userMeta);
 
   const aliasMap = {
     clear_user_picks: 'clear_db_confirm',
@@ -45,18 +38,20 @@ module.exports = async (interaction) => {
 
   const action = aliasMap[interaction.customId] || interaction.customId;
 
-  const panelUpdate = (payload) =>
-    interaction.update(payload).catch(() => {});
-
-  const panelMessage = (payload) =>
-    interaction.followUp({ ephemeral: true, ...payload }).catch(() => {});
+  // 🔑 UNIWERSALNE ODPowiedzi (select + button)
+  const respond = async (payload) => {
+    if (interaction.replied || interaction.deferred) {
+      return interaction.editReply(payload).catch(() => {});
+    }
+    return interaction.reply({ ephemeral: true, ...payload }).catch(() => {});
+  };
 
   /* =========================
      CONFIRM PANELS
      ========================= */
 
   if (action === 'clear_db_confirm') {
-    return panelUpdate({
+    return respond({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Czy na pewno chcesz wyczyścić bazę?')
@@ -79,7 +74,7 @@ module.exports = async (interaction) => {
   }
 
   if (action === 'clear_db_with_results') {
-    return panelUpdate({
+    return respond({
       embeds: [
         new EmbedBuilder()
           .setTitle('💣 PEŁNY RESET — na pewno?')
@@ -102,7 +97,7 @@ module.exports = async (interaction) => {
   }
 
   if (action === 'clear_only_results_confirm') {
-    return panelUpdate({
+    return respond({
       embeds: [
         new EmbedBuilder()
           .setTitle('🗑 Usunąć tylko oficjalne wyniki?')
@@ -129,90 +124,52 @@ module.exports = async (interaction) => {
      ========================= */
 
   try {
-    await withGuild(interaction, async ({ pool, guildId }) => {
-
-      const del = async (sql) => {
-        await pool.query(sql, [guildId]);
-      };
+    await withGuild(interaction.guildId, async ({ pool }) => {
+      const del = async (sql) => pool.query(sql, [guildId]);
 
       if (action === 'clear_db_yes') {
         await pool.query('START TRANSACTION');
-
         await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
         await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
         await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
         await del('DELETE FROM playin_predictions WHERE guild_id = ?');
-
-        await del('DELETE FROM swiss_scores WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
-        await del('DELETE FROM playin_scores WHERE guild_id = ?');
-
         await pool.query('COMMIT');
-
-        logger.info('clear', 'User picks cleared', userMeta);
-        return panelMessage({ content: '🧹 Usunięto typy użytkowników.' });
+        return respond({ content: '🧹 Usunięto typy użytkowników.' });
       }
 
       if (action === 'clear_all_yes') {
         await pool.query('START TRANSACTION');
-
         await del('DELETE FROM active_panels WHERE guild_id = ?');
         await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
         await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
         await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
         await del('DELETE FROM playin_predictions WHERE guild_id = ?');
-
-        await del('DELETE FROM swiss_results WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_results WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
-        await del('DELETE FROM playin_results WHERE guild_id = ?');
-
-        await del('DELETE FROM swiss_scores WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
-        await del('DELETE FROM playin_scores WHERE guild_id = ?');
-
         await pool.query('COMMIT');
-
-        logger.warn('clear', 'FULL RESET completed', userMeta);
-        return panelMessage({ content: '💣 Wykonano pełny reset.' });
+        return respond({ content: '💣 Wykonano pełny reset.' });
       }
 
       if (action === 'clear_only_results_yes') {
         await pool.query('START TRANSACTION');
-
         await del('DELETE FROM swiss_results WHERE guild_id = ?');
         await del('DELETE FROM playoffs_results WHERE guild_id = ?');
         await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
         await del('DELETE FROM playin_results WHERE guild_id = ?');
-
-        await del('DELETE FROM swiss_scores WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
-        await del('DELETE FROM playin_scores WHERE guild_id = ?');
-
         await pool.query('COMMIT');
-
-        logger.info('clear', 'Official results cleared', userMeta);
-        return panelMessage({ content: '🧹 Usunięto oficjalne wyniki.' });
+        return respond({ content: '🧹 Usunięto oficjalne wyniki.' });
       }
 
       if (action.endsWith('_no')) {
-        logger.info('clear', 'Clear action cancelled', userMeta);
-        return panelMessage({ content: '✅ Anulowano.' });
+        return respond({ content: '✅ Anulowano.' });
       }
 
-      return panelMessage({ content: `❌ Nieznana akcja: ${action}` });
+      return respond({ content: `❌ Nieznana akcja: ${action}` });
     });
-
   } catch (err) {
     logger.error('clear', 'Clear operation failed', {
       ...userMeta,
       message: err.message,
       stack: err.stack,
     });
-
-    return panelMessage({ content: '❌ Wystąpił błąd podczas czyszczenia.' });
+    return respond({ content: '❌ Wystąpił błąd podczas czyszczenia.' });
   }
 };
