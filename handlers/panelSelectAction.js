@@ -1,6 +1,5 @@
 // handlers/panelSelectAction.js
 const logger = require('../utils/logger');
-const { withGuild } = require('../utils/guildContext');
 
 const VALUE_TO_TARGET_CUSTOM_ID = {
   'results:export': 'export_ranking',
@@ -21,113 +20,98 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'danger:clearPicks': 'clear_db_confirm',
   'danger:clearOfficial': 'clear_only_results_confirm',
   'danger:fullReset': 'clear_db_with_results',
-  'danger:clearMatches': 'clear_matches'
+  'danger:clearMatches': 'clear_matches',
 };
 
 function proxyCustomId(interaction, forcedCustomId) {
-  const proxied = new Proxy(interaction, {
+  return new Proxy(interaction, {
     get(target, prop) {
       if (prop === 'customId') return forcedCustomId;
       const v = target[prop];
       return typeof v === 'function' ? v.bind(target) : v;
-    }
+    },
   });
-
-  // zachowanie kontekstu guild
-  proxied.__guildContext = interaction.__guildContext;
-
-  return proxied;
 }
 
-module.exports = async function panelSelectAction(interaction, client, handlers, maps) {
+module.exports = async function panelSelectAction(
+  interaction,
+  client,
+  handlers,
+  maps,
+) {
   try {
-    // =========================
-    // LOG 1: select dotarł
-    // =========================
+    const value = interaction.values?.[0];
+
     logger.info('panel', 'Panel select received', {
       guildId: interaction.guildId,
       customId: interaction.customId,
-      value: interaction.values?.[0],
+      value,
     });
 
-    const value = interaction.values?.[0];
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
-
-    // =========================
-    // LOG 2: mapowanie value → customId
-    // =========================
     if (!targetCustomId) {
-      logger.warn('panel', 'No targetCustomId for select value', {
-        value,
+      logger.warn('panel', 'Unknown select value', { value });
+      return interaction.reply({
+        content: '❌ Nieznana akcja.',
+        ephemeral: true,
       });
-      return;
     }
 
-    logger.info('panel', 'Select mapped to targetCustomId', {
-      value,
-      targetCustomId,
-    });
-
     const handlerName = maps?.buttonMap?.[targetCustomId];
-
-    // =========================
-    // LOG 3: handlerName z buttonMap
-    // =========================
     if (!handlerName) {
-      logger.warn('panel', 'No handlerName in buttonMap for targetCustomId', {
+      logger.error('panel', 'No handler mapped for targetCustomId', {
         targetCustomId,
       });
-      return;
+      return interaction.reply({
+        content: '❌ Brak obsługi tej akcji.',
+        ephemeral: true,
+      });
     }
 
     const handler = handlers?.[handlerName];
-
-    // =========================
-    // LOG 4: handler znaleziony
-    // =========================
-    if (!handler) {
-      logger.error('panel', 'Handler not loaded', {
+    if (typeof handler !== 'function') {
+      logger.error('panel', 'Handler not loaded or invalid', {
         handlerName,
-        targetCustomId,
       });
-      return;
+      return interaction.reply({
+        content: '❌ Handler nie jest dostępny.',
+        ephemeral: true,
+      });
     }
 
-    logger.info('panel', 'Dispatching to handler', {
+    // 🔑 ZAWSZE ACK DLA SELECTA (ephemeral)
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
+    const proxied = proxyCustomId(interaction, targetCustomId);
+
+    logger.info('panel', 'Dispatching select to handler', {
       handlerName,
       targetCustomId,
     });
 
-    const proxied = proxyCustomId(interaction, targetCustomId);
-
-    // =========================
-    // LOG 5: przed wywołaniem handlera
-    // =========================
-    logger.info('panel', 'Calling handler', {
-      handlerName,
-      guildId: proxied.guildId,
-      customId: proxied.customId,
-    });
-
-    // ✅ ACK dla SELECTA
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate();
-    }
-
     await handler(proxied, client);
 
-
-    // =========================
-    // LOG 6: handler zakończył się
-    // =========================
-    logger.info('panel', 'Handler finished successfully', {
-      handlerName,
-    });
+    // ⚠️ Jeśli handler NIC nie zrobił → pokaż fallback
+    if (!interaction.replied) {
+      await interaction.editReply({
+        content: '✅ Akcja została wykonana.',
+      });
+    }
 
   } catch (err) {
     logger.error('panel', 'panelSelectAction failed', {
       message: err.message,
       stack: err.stack,
     });
+
+    if (!interaction.replied) {
+      try {
+        await interaction.editReply({
+          content: '❌ Wystąpił błąd podczas wykonywania akcji.',
+        });
+      } catch (_) {}
+    }
   }
 };
