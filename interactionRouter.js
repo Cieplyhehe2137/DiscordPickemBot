@@ -222,17 +222,30 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     }
 
 
-    // ===== SELECT =====
+     // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
 
+      // =========================
+      // RANKING (specjalny case)
+      // =========================
       if (customId.startsWith('ranking:')) {
         const rankingCmd = require('./commands/ranking.js');
         return rankingCmd.handleComponent(interaction);
       }
 
-      if (selectMap?.[customId]) {
-        const handlerName = selectMap[customId];
+      // =========================
+      // SELECT MAP (exact + prefix)
+      // =========================
+      const selectKey =
+        selectMap?.[customId]
+          ? customId
+          : Object.keys(selectMap || {}).find((key) =>
+              customId.startsWith(key),
+            );
+
+      if (selectKey) {
+        const handlerName = selectMap[selectKey];
         const fn = handlerName
           ? resolveHandler(handlers, handlerName)
           : null;
@@ -241,6 +254,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           logger.error('interaction', 'Select handler not callable', {
             guildId: interaction.guildId,
             customId,
+            selectKey,
             handlerName,
           });
           await safeDeferUpdate(interaction);
@@ -250,6 +264,9 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client, handlers, maps);
       }
 
+      // =========================
+      // DROPDOWN MAP (fallback)
+      // =========================
       const baseId = customId.replace(/_p\d+$/i, '');
       const dropdownKey =
         dropdownMap?.[customId] ||
@@ -266,15 +283,38 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         const fn =
           handlers?.[nameOrFile] ||
           require(`./handlers/${nameOrFile}`);
+
+        if (typeof fn !== 'function') {
+          logger.error(
+            'interaction',
+            'Dropdown select handler not callable',
+            {
+              guildId: interaction.guildId,
+              customId,
+              dropdownKey,
+              nameOrFile,
+            },
+          );
+          await safeDeferUpdate(interaction);
+          return;
+        }
+
         return fn(interaction, client);
       }
 
+      // =========================
+      // UNHANDLED SELECT
+      // =========================
       logger.warn('interaction', 'Unhandled select menu', {
         guildId: interaction.guildId,
         customId,
+        values: interaction.values,
       });
+
       await safeDeferUpdate(interaction);
+      return;
     }
+
   } catch (err) {
     logger.error('interaction', 'Unhandled interactionCreate error', {
       guildId: interaction.guildId,
@@ -285,34 +325,10 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (!interaction.replied && !interaction.deferred) {
       try {
         await interaction.reply({
-          content:
-            '❌ Wystąpił błąd podczas obsługi interakcji.',
+          content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 }
-
-// =====================================================
-// Public entry
-// =====================================================
-module.exports = async function handleInteraction(
-  interaction,
-  client,
-  handlers = {},
-  maps = {},
-) {
-  if (!interaction.guildId) {
-    logger.warn('interaction', 'Blocked interaction without guildId', {
-      type: interaction.type,
-      userId: interaction.user?.id,
-      customId: interaction.customId,
-    });
-    return;
-  }
-
-  return withGuild(interaction.guildId, async () =>
-    _handleInteraction(interaction, client, handlers, maps),
-  );
-};

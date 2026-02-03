@@ -762,9 +762,6 @@ ORDER BY
         });
       }
 
-      // --- Query dla MAP (po wierszach, czytelnie)
-      // Uwaga: to zakłada, że match_map_results istnieje (w Twojej bazie istnieje).
-      // Jeśli match_map_predictions nie istnieje, kolumna TYP będzie '—'.
       let mapRows = [];
       try {
         const [rows] = await pool.query(`
@@ -826,17 +823,12 @@ ORDER BY
 
       }
 
-
-
-
       prettifySheet(sheetMatches);
       prettifySheet(sheetMaps);
 
     } catch (e) {
       console.log('⚠️ MATCHES/MAPY: nie udało się wygenerować arkuszy (pomijam):', e?.message || e);
     }
-
-
 
     const buffer = await workbook.xlsx.writeBuffer();
 
@@ -863,5 +855,5 @@ ORDER BY
     if (!interaction) {
       console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
     }
-  }); // <-- zamyka withGuild
-};  // <-- zamyka exportClassification
+  });
+};  

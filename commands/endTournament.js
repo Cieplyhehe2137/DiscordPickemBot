@@ -138,6 +138,19 @@ module.exports = {
         await conn.query(`DELETE FROM playoffs_results WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM doubleelim_results WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM playin_results WHERE guild_id = ?`, [guildId]);
+        // ===== MATCH FLOW =====
+        await conn.query(`DELETE FROM match_points WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM match_map_predictions WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM match_map_results WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM match_predictions WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM match_results WHERE guild_id = ?`, [guildId]);
+        await conn.query(`DELETE FROM matches WHERE guild_id = ?`, [guildId]);
+
+        // ===== TOTAL SCORES =====
+        await conn.query(`DELETE FROM user_total_scores WHERE guild_id = ?`, [guildId]);
+
+        // ===== TOURNAMENT STATE =====
+        await conn.query(`DELETE FROM tournament_state WHERE guild_id = ?`, [guildId]);
 
         await conn.query(`DELETE FROM swiss_scores WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM playoffs_scores WHERE guild_id = ?`, [guildId]);
@@ -171,9 +184,9 @@ module.exports = {
         // ===== POTWIERDZENIE =====
         await interaction.editReply(
           `✅ **Turniej zakończony**\n` +
-            `• Plik: \`${filename}\`\n` +
-            `• Kanał: <#${archiveChannelId}>\n` +
-            `• Lokalnie: \`archiwum/${guildId}/${filename}\``
+          `• Plik: \`${filename}\`\n` +
+          `• Kanał: <#${archiveChannelId}>\n` +
+          `• Lokalnie: \`archiwum/${guildId}/${filename}\``
         );
       } catch (err) {
         logger.error('[end_tournament] error', {
@@ -182,8 +195,8 @@ module.exports = {
           stack: err?.stack,
         });
 
-        try { if (conn) await conn.rollback(); } catch {}
-        try { if (conn) conn.release(); } catch {}
+        try { if (conn) await conn.rollback(); } catch { }
+        try { if (conn) conn.release(); } catch { }
 
         await interaction.editReply(
           '❌ Wystąpił błąd podczas kończenia turnieju.'
