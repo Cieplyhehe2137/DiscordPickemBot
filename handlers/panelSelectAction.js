@@ -109,8 +109,13 @@ module.exports = async function panelSelectAction(interaction, client, handlers,
       customId: proxied.customId,
     });
 
-    // ❗ tu NAJPEWNIEJ leci error / timeout
+    // ✅ ACK dla SELECTA
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+
     await handler(proxied, client);
+
 
     // =========================
     // LOG 6: handler zakończył się
