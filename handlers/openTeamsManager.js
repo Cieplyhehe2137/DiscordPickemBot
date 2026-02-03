@@ -97,22 +97,34 @@ async function render(interaction) {
   const remainingSlots = Math.max(0, 10 - selectedCount);
 
   const select = new StringSelectMenuBuilder()
-    .setCustomId('teams:select')
-    .setPlaceholder(
-      hasOptions
-        ? remainingSlots > 0
-          ? `Wybierz drużyny… (pozostało ${remainingSlots})`
-          : 'Limit zaznaczeń osiągnięty'
-        : 'Brak drużyn'
-    )
-    .setMinValues(0)
-    .setMaxValues(hasOptions ? Math.min(remainingSlots, optionsRaw.length) : 1)
-    .setDisabled(!hasOptions || remainingSlots === 0)
-    .addOptions(
-      hasOptions
-        ? optionsRaw
-        : [{ label: 'Brak drużyn', value: 'none' }]
-    );
+  .setCustomId('teams:select')
+  .setPlaceholder(
+    hasOptions
+      ? remainingSlots > 0
+        ? `Wybierz drużyny… (pozostało ${remainingSlots})`
+        : 'Limit zaznaczeń osiągnięty'
+      : 'Brak drużyn'
+  );
+
+if (!hasOptions) {
+  select
+    .setMinValues(1)
+    .setMaxValues(1)
+    .setDisabled(true)
+    .addOptions([{ label: 'Brak drużyn', value: 'none' }]);
+} else if (remainingSlots === 0) {
+  select
+    .setMinValues(1)
+    .setMaxValues(1)
+    .setDisabled(true)
+    .addOptions([{ label: 'Limit zaznaczeń osiągnięty', value: 'limit' }]);
+} else {
+  select
+    .setMinValues(1)
+    .setMaxValues(Math.min(remainingSlots, optionsRaw.length))
+    .addOptions(optionsRaw);
+}
+
 
   const selectRow = new ActionRowBuilder().addComponents(select);
 
