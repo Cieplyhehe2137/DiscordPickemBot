@@ -224,6 +224,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
 
     // ===== SELECT =====
     if (interaction.isStringSelectMenu()) {
+      console.log('🔥 SELECT ROUTER HIT', interaction.customId, interaction.values);
       const customId = interaction.customId;
 
       // =========================
