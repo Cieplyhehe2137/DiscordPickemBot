@@ -125,7 +125,10 @@ module.exports = async function calculateScores(guildId) {
 
       if (!rows.length) {
         logger.warn('scores', 'No data, skipping phase', { guildId });
+        return; // ⬅⬅⬅ KLUCZOWE
       }
+
+      
 
 
       const correct = rows[0];
