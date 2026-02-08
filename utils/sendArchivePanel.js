@@ -80,7 +80,7 @@ module.exports = async function sendArchivePanel(client, guildId) {
 
     const options = files.slice(0, 25).map(f => ({
       label: safeLabel(f.file),
-      value: String(f.mtime), // ✅ stabilne ID
+      value: f.file, // ✅ stabilne ID
       description: 'Pobierz plik XLSX',
     }));
 
