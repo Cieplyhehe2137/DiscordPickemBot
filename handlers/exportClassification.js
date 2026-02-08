@@ -3,7 +3,6 @@ const calculateScores = require('./calculateScores');
 const path = require('path');
 const fs = require('fs');
 const { withGuild } = require('../utils/guildContext');
-const db = require('../db')
 function parseList(input) {
   if (!input) return [];
   try {
@@ -96,17 +95,29 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 
 
 
-module.exports = async function exportClassification(interaction = null, outputPath = null) {
+module.exports = async function exportClassification(arg) {
   const logger = require('../utils/logger');
-  if (interaction && !interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({ ephemeral: true });
-  }
-  const guildId = interaction?.guildId;
+
+  const isInteraction =
+    arg &&
+    typeof arg === 'object' &&
+    typeof arg.deferReply === 'function' &&
+    arg.guildId;
+
+  const interaction = isInteraction ? arg : null;
+  const guildId = isInteraction ? arg.guildId : arg?.guildId;
+  const outputPath = isInteraction ? null : arg?.outputPath;
+
   if (!guildId) {
-    throw new Error('exportClassification called without guildId');
+    throw new Error('exportClassification: missing guildId');
   }
 
-  await withGuild(guildId, async ({ pool, guildId }) => {
+
+  if (interaction && !interaction.deferred && !interaction.replied) {
+  await interaction.deferReply({ ephemeral: true });
+}
+
+await withGuild({ guildId }, async ({ pool, guildId }) => {
     logger.info('export', 'Starting classification export', { guildId });
 
     await calculateScores(guildId);
