@@ -147,7 +147,6 @@ module.exports = {
         await conn.query(`DELETE FROM matches WHERE guild_id = ?`, [guildId]);
 
         await conn.query(`DELETE FROM user_total_scores WHERE guild_id = ?`, [guildId]);
-        await conn.query(`DELETE FROM tournament_state WHERE guild_id = ?`, [guildId]);
 
         await conn.query(`DELETE FROM swiss_scores WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM playoffs_scores WHERE guild_id = ?`, [guildId]);
