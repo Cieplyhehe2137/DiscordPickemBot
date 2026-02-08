@@ -94,6 +94,16 @@ module.exports = {
           outputPath: filePath,
         });
 
+        await pool.query(
+          `INSERT INTO archive_files (guild_id, filename, path)
+   VALUES (?, ?, ?)`,
+          [
+            guildId,
+            filename,
+            filePath
+          ]
+        );
+
         logger.info('[end_tournament] export ok', {
           guildId,
           filePath,
@@ -191,8 +201,8 @@ module.exports = {
           stack: err?.stack,
         });
 
-        try { if (conn) await conn.rollback(); } catch {}
-        try { if (conn) conn.release(); } catch {}
+        try { if (conn) await conn.rollback(); } catch { }
+        try { if (conn) conn.release(); } catch { }
 
         await interaction.editReply(
           '❌ Wystąpił błąd podczas kończenia turnieju.'
