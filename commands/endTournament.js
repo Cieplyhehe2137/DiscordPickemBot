@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const db = require('../db');
-const logger = require('../logger');
+const logger = require('../utils/logger');
+
 
 const exportClassification = require('../handlers/exportClassification');
 const sendArchivePanel = require('../utils/sendArchivePanel');
@@ -46,7 +47,7 @@ module.exports = {
       );
     }
 
-    return withGuild(guildId, async ({ pool }) => {
+    return withGuild({ guildId }, async ({ pool, guildId }) => {
       let conn = null;
 
       try {
