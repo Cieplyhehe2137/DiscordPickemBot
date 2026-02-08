@@ -6,9 +6,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const db = require('../db');
 const logger = require('../utils/logger');
-
 
 const exportClassification = require('../handlers/exportClassification');
 const sendArchivePanel = require('../utils/sendArchivePanel');
@@ -47,7 +45,7 @@ module.exports = {
       );
     }
 
-    return withGuild({ guildId }, async ({ pool, guildId }) => {
+    return withGuild({ guildId }, async ({ pool }) => {
       let conn = null;
 
       try {
@@ -90,8 +88,12 @@ module.exports = {
           [guildId]
         );
 
-        // ===== EKSPORT =====
-        await exportClassification(guildId, filePath);
+        // ===== EKSPORT (POPRAWNE WYWOŁANIE) =====
+        await exportClassification({
+          guildId,
+          outputPath: filePath,
+        });
+
         logger.info('[end_tournament] export ok', {
           guildId,
           filePath,
@@ -125,10 +127,7 @@ module.exports = {
         conn = await pool.getConnection();
         await conn.beginTransaction();
 
-        await conn.query(
-          `DELETE FROM active_panels WHERE guild_id = ?`,
-          [guildId]
-        );
+        await conn.query(`DELETE FROM active_panels WHERE guild_id = ?`, [guildId]);
 
         await conn.query(`DELETE FROM swiss_predictions WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM playoffs_predictions WHERE guild_id = ?`, [guildId]);
@@ -139,7 +138,7 @@ module.exports = {
         await conn.query(`DELETE FROM playoffs_results WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM doubleelim_results WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM playin_results WHERE guild_id = ?`, [guildId]);
-        // ===== MATCH FLOW =====
+
         await conn.query(`DELETE FROM match_points WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM match_map_predictions WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM match_map_results WHERE guild_id = ?`, [guildId]);
@@ -147,10 +146,7 @@ module.exports = {
         await conn.query(`DELETE FROM match_results WHERE guild_id = ?`, [guildId]);
         await conn.query(`DELETE FROM matches WHERE guild_id = ?`, [guildId]);
 
-        // ===== TOTAL SCORES =====
         await conn.query(`DELETE FROM user_total_scores WHERE guild_id = ?`, [guildId]);
-
-        // ===== TOURNAMENT STATE =====
         await conn.query(`DELETE FROM tournament_state WHERE guild_id = ?`, [guildId]);
 
         await conn.query(`DELETE FROM swiss_scores WHERE guild_id = ?`, [guildId]);
@@ -162,7 +158,7 @@ module.exports = {
         conn.release();
         conn = null;
 
-        // ===== AUDIT LOG (P0) =====
+        // ===== AUDIT LOG =====
         await logTournamentAction({
           guildId,
           actorId: interaction.user.id,
@@ -196,8 +192,8 @@ module.exports = {
           stack: err?.stack,
         });
 
-        try { if (conn) await conn.rollback(); } catch { }
-        try { if (conn) conn.release(); } catch { }
+        try { if (conn) await conn.rollback(); } catch {}
+        try { if (conn) conn.release(); } catch {}
 
         await interaction.editReply(
           '❌ Wystąpił błąd podczas kończenia turnieju.'
