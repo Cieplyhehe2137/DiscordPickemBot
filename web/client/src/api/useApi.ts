@@ -2,28 +2,26 @@ import { useGuild } from "../guild/GuildContext";
 import { apiFetch } from "./client";
 
 export function useApi() {
-    const { guildId } = useGuild();
+  const { guildId } = useGuild();
 
-    if (!guildId) {
-        throw new Error("useApi called without guildId");
-    }
+  if (!guildId) {
+    throw new Error("useApi called without guildId");
+  }
 
-    function get(url: string){
-        return apiFetch(`/guilds/${guildId}${url}`);
-    }
+  function get<T = any>(url: string): Promise<T> {
+    return apiFetch(`/guilds/${guildId}${url}`);
+  }
 
-    function post(url: string, body?: any) {
-        return apiFetch(`/guilds/${guildId}${url}`, {
-            method: "POST",
-            body: body ? JSON.stringify(body) : undefined,
-        });
-    }
+  function post<T = any>(url: string, body?: any): Promise<T> {
+    return apiFetch(`/guilds/${guildId}${url}`, {
+      method: "POST",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
 
-    function del(url: string) {
-        return apiFetch(`/guilds/${guildId}${url}`, {
-            method: "DELETE",
-        });
-    }
+  function getRaw(url: string): Promise<Response> {
+    return apiFetch(`/guilds/${guildId}${url}`, { raw: true });
+  }
 
-    return { get, post, del };
+  return { get, post, getRaw };
 }
