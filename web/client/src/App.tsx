@@ -1,22 +1,26 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Login from "./pages/Login";
+
 import Dashboard from "./pages/Dashboard";
 import GuildHome from "./pages/GuildHome";
 import PickemOverview from "./pickem/PickemOverview";
 import PickemLeaderboard from "./pickem/PickemLeaderboard";
 import PickemParticipants from "./pickem/PickemParticipants";
+import PublicPickemOverview from "./public/PublicPickemOverview";
+import PublicPickemLeaderboard from "./public/PublicPickemLeaderboard";
+
 
 import RequireAuth from "./auth/RequireAuth";
 import RequireGuild from "./guild/RequireGuild";
 import GuildLayout from "./guild/GuildLayout";
+
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* PUBLIC */}
-        <Route path="/login" element={<Login />} />
+        
 
         {/* AUTH REQUIRED */}
         <Route element={<RequireAuth />}>
