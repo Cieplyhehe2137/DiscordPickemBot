@@ -24,6 +24,8 @@ export default function App() {
 
           {/* GUILD CONTEXT */}
           <Route path="/guild/:guildId" element={<RequireGuild />}>
+          <Route path="/public/:guildSlug/pickem" element={<PublicPickemOverview />} />
+          <Route path="/public/:guildSlug/pickem/leaderboard" element={<PublicPickemLeaderboard />} />
             <Route element={<GuildLayout />}>
               <Route index element={<GuildHome />} />
               <Route path="pickem" element={<PickemOverview />} />

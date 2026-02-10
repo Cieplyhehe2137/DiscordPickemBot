@@ -7,9 +7,11 @@ export type GuildRole = "admin" | "viewer";
 export type Guild = {
   id: string;
   name?: string;
+  slug?: string;   
   icon?: string;
   role?: GuildRole;
 };
+
 
 type GuildContextValue = {
   guildId: string | null;

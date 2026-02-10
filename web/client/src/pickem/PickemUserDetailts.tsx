@@ -1,4 +1,5 @@
 import { usePickemUserDetails } from "./usePickemUserDetails";
+import UserBreakdownTabs from "./UserBreakdownTabs";
 
 export default function PickemUserDetails() {
   const { data, loading } = usePickemUserDetails();
@@ -11,14 +12,7 @@ export default function PickemUserDetails() {
       <h2>👤 {data.user.username}</h2>
       <p>⭐ Punkty: {data.totalPoints}</p>
 
-      <h3>Szczegóły typów</h3>
-      <ul>
-        {data.picks.map((p, i) => (
-          <li key={i}>
-            [{p.stage}] {p.label} → {p.points} pkt
-          </li>
-        ))}
-      </ul>
+      <UserBreakdownTabs breakdown={data.breakdown} />
     </div>
   );
 }
