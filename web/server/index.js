@@ -1,13 +1,15 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import dashboardRoutes from "./routes/dashboard.js";
-import path from "path";
-import { fileURLToPath } from "url";
 import { loadGuildConfigsOnce } from "../../utils/guildRegistry.js";
+import publicRoutes from "./routes/public.js";
+import cors from "cors"
+import eventsRoutes from "./routes/events.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-process.env.GUILD_CONFIG_DIR = path.resolve(__dirname, "../../config");
+
+
 
 loadGuildConfigsOnce();
 
@@ -16,6 +18,10 @@ loadGuildConfigsOnce();
 
 
 const app = express();
+app.use(cors({
+  origin: "http://localhost:5173"
+}));
+
 const PORT = process.env.WEB_PORT || 3301;
 
 app.use(express.json());
@@ -31,6 +37,9 @@ app.use((req, _res, next) => {
 });
 
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/public", publicRoutes);
+app.use("/api/events", eventsRoutes);
+app.use("/api/public", publicRoutes);
 
 app.get("/health", (req, res) => {
     res.json({
