@@ -12,6 +12,8 @@ import GuildLayout from "./guild/GuildLayout";
 import PublicLayout from "./public/PublicLayout";
 import EventDashboard from "./pages/EventDashboard";
 import PublicHub from "./public/PublicHub";
+import GuildSelect from "./pages/GuildSelect";
+
 
 
 

@@ -20,6 +20,36 @@ router.get("/:slug/summary", async (req, res) => {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
+  /**
+ * GET /api/dashboard/:slug/top
+ */
+  router.get("/:slug/top", async (req, res) => {
+    const { slug } = req.params;
+    const guildId = req.user.guildId;
+
+    try {
+      const result = await withGuild(guildId, async () => {
+        const pool = db.getPoolForGuild(guildId);
+
+        const [rows] = await pool.query(`
+        SELECT user_id, total_points
+        FROM leaderboard
+        ORDER BY total_points DESC
+        LIMIT 5
+      `);
+
+        return rows;
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error("[dashboard top]", err);
+      res.status(500).json({ error: "Top fetch error" });
+    }
+  });
+
+
+
   const { slug } = req.params;
   const guildId = req.user.guildId;
 
@@ -29,7 +59,7 @@ router.get("/:slug/summary", async (req, res) => {
 
       // Pobierz event
       const [[event]] = await pool.query(
-        "SELECT phase, status FROM events WHERE slug = ?",
+        "SELECT id, phase, status FROM events WHERE slug = ?",
         [slug]
       );
 
@@ -47,12 +77,22 @@ router.get("/:slug/summary", async (req, res) => {
       );
 
       return {
-        phase: event.phase ?? "UNKNOWN",
+        name: event.name,
+        phase: state?.phase ?? "UNKNOWN",
         isOpen: event.status === "OPEN",
         participants: participants.count,
         predictions: predictions.count,
+        completionRate:
+          participants.count === 0
+            ? 0
+            : Math.round(
+              (predictions.count / participants.count) * 100
+            ),
+        deadline: event.deadline,
         isAdmin: !!req.user?.isAdmin,
       };
+
+
     });
 
     if (!result) {
