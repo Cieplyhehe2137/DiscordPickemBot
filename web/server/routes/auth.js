@@ -1,5 +1,7 @@
 import express from "express";
-import { getGuildConfigs } from "../../../utils/guildRegistry.js";
+import guildRegistry from "../../../utils/guildRegistry.js";
+const { getGuildConfigs } = guildRegistry;
+
 
 const router = express.Router();
 
@@ -144,6 +146,23 @@ router.post("/select-guild", (req, res) => {
 
   res.json({ ok: true });
 });
+
+router.get("/current-guild", (req, res) => {
+  if (!req.session.user || !req.session.guildId) {
+    return res.status(400).json({ error: "No guild selected" });
+  }
+
+  const guild = req.session.user.guilds.find(
+    g => g.id === req.session.guildId
+  );
+
+  if (!guild) {
+    return res.status(404).json({ error: "Guild not found" });
+  }
+
+  res.json(guild);
+});
+
 
 /* ================= LOGOUT ================= */
 

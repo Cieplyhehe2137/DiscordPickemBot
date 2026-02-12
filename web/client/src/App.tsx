@@ -13,7 +13,8 @@ import PublicLayout from "./public/PublicLayout";
 import EventDashboard from "./pages/EventDashboard";
 import PublicHub from "./public/PublicHub";
 import GuildSelect from "./pages/GuildSelect";
-
+import TopBar from "./components/TopBar";
+import ServerSidebar from "./components/ServerSidebar";
 
 
 
@@ -30,7 +31,20 @@ export default function App() {
 
         {/* AUTH */}
         <Route element={<RequireAuth />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={
+              <div className="flex min-h-screen bg-black text-white">
+                <ServerSidebar />
+                <div className="flex-1">
+                  <TopBar />
+                  <Dashboard />
+                </div>
+              </div>
+            }
+          />
+
+
           <Route path="/dashboard/:slug" element={<EventDashboard />} />
 
           <Route path="/guild/:guildId" element={<RequireGuild />}>
