@@ -112,7 +112,8 @@ router.get("/me", (req, res) => {
     return res.status(401).json({ error: "Not logged in" });
   }
 
-  const guildConfigs = getGuildConfigs();
+  const guildConfigs = getGuildConfigs(); // ✅ TU JEST KLUCZ
+
   const allowedGuildIds = Object.keys(guildConfigs);
 
   const filteredGuilds = req.session.user.guilds.filter(g =>

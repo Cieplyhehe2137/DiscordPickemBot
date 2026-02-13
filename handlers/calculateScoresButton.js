@@ -10,7 +10,7 @@ module.exports = async function calculateScoresButton(interaction, client) {
   }
 
   await withGuild(guildId, async () => {
-    await calculateScores(guildId);
+    await calculateScores(guildId, eventId);
   });
 
   if (!interaction.replied && !interaction.deferred) {

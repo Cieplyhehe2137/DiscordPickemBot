@@ -22,9 +22,9 @@ const cleanList = (val) => {
     .filter(Boolean);
 };
 
-module.exports = async function calculateScores(guildId) {
-  if (!guildId) {
-    throw new Error('calculateScores called without guildId');
+module.exports = async function calculateScores(guildId, eventId) {
+  if (!guildId || !eventId) {
+    throw new Error('calculateScores requires guildId and eventId');
   }
 
   logger.info('scores', 'Score calculation started', { guildId });
@@ -83,6 +83,7 @@ module.exports = async function calculateScores(guildId) {
 
           scoreRows.push([
             guildId,
+            eventId,
             p.user_id,
             stage,
             p.displayname || p.user_id,
@@ -93,7 +94,7 @@ module.exports = async function calculateScores(guildId) {
         if (scoreRows.length) {
           await pool.query(`
             INSERT INTO swiss_scores
-              (guild_id,user_id,stage,displayname,points)
+              (guild_id,event_id,user_id,stage,displayname,points)
             VALUES ?
             ON DUPLICATE KEY UPDATE
               displayname=VALUES(displayname),
@@ -128,7 +129,7 @@ module.exports = async function calculateScores(guildId) {
         return; // ⬅⬅⬅ KLUCZOWE
       }
 
-      
+
 
 
       const correct = rows[0];
@@ -157,6 +158,7 @@ module.exports = async function calculateScores(guildId) {
 
         scoreRows.push([
           guildId,
+          eventId,
           p.user_id,
           p.displayname || p.user_id,
           score
@@ -166,7 +168,7 @@ module.exports = async function calculateScores(guildId) {
       if (scoreRows.length) {
         await pool.query(`
           INSERT INTO playoffs_scores
-            (guild_id,user_id,displayname,points)
+            (guild_id,event_id,user_id,displayname,points)
           VALUES ?
           ON DUPLICATE KEY UPDATE
             displayname=VALUES(displayname),
@@ -238,6 +240,7 @@ module.exports = async function calculateScores(guildId) {
 
           scoreRows.push([
             guildId,
+            eventId,
             p.user_id,
             p.displayname || p.user_id,
             score
@@ -247,7 +250,7 @@ module.exports = async function calculateScores(guildId) {
         if (scoreRows.length) {
           await pool.query(`
         INSERT INTO doubleelim_scores
-          (guild_id,user_id,displayname,points)
+          (guild_id,event_id,user_id,displayname,points)
         VALUES ?
         ON DUPLICATE KEY UPDATE
           displayname=VALUES(displayname),
@@ -310,6 +313,7 @@ module.exports = async function calculateScores(guildId) {
 
           scoreRows.push([
             guildId,
+            eventId,
             p.user_id,
             p.displayname || p.user_id,
             score
@@ -319,7 +323,7 @@ module.exports = async function calculateScores(guildId) {
         if (scoreRows.length) {
           await pool.query(`
         INSERT INTO playin_scores
-          (guild_id,user_id,displayname,points)
+          (guild_id,event_id,user_id,displayname,points)
         VALUES ?
         ON DUPLICATE KEY UPDATE
           displayname=VALUES(displayname),
@@ -437,6 +441,7 @@ module.exports = async function calculateScores(guildId) {
 
           rows.push([
             guildId,
+            eventId,
             m.match_id,
             p.user_id,
             total,
@@ -448,7 +453,7 @@ module.exports = async function calculateScores(guildId) {
       if (rows.length) {
         await pool.query(`
       INSERT INTO match_points
-        (guild_id,match_id,user_id,points,source)
+        (guild_id,event_id,match_id,user_id,points,source)
       VALUES ?
       ON DUPLICATE KEY UPDATE
         points = VALUES(points),
@@ -462,6 +467,65 @@ module.exports = async function calculateScores(guildId) {
       logger.error('scores', 'Matches total failed', e);
     }
 
+
+    /* =========================
+   GLOBAL LEADERBOARD PER EVENT
+========================= */
+    try {
+
+      await pool.query(`
+    DELETE FROM leaderboard
+    WHERE guild_id = ?
+      AND event_id = ?
+  `, [guildId, eventId]);
+
+      const [rows] = await pool.query(`
+    SELECT user_id, SUM(points) AS total_points
+    FROM (
+      SELECT user_id, points FROM swiss_scores 
+        WHERE guild_id = ? AND event_id = ?
+      UNION ALL
+      SELECT user_id, points FROM playoffs_scores 
+        WHERE guild_id = ? AND event_id = ?
+      UNION ALL
+      SELECT user_id, points FROM doubleelim_scores 
+        WHERE guild_id = ? AND event_id = ?
+      UNION ALL
+      SELECT user_id, points FROM playin_scores 
+        WHERE guild_id = ? AND event_id = ?
+      UNION ALL
+      SELECT user_id, points FROM match_points 
+        WHERE guild_id = ? AND event_id = ?
+    ) all_points
+    GROUP BY user_id
+  `, [
+        guildId, eventId,
+        guildId, eventId,
+        guildId, eventId,
+        guildId, eventId,
+        guildId, eventId
+      ]);
+
+      if (rows.length) {
+        const insertRows = rows.map(r => [
+          guildId,
+          eventId,
+          r.user_id,
+          r.total_points
+        ]);
+
+        await pool.query(`
+      INSERT INTO leaderboard
+        (guild_id,event_id,user_id,total_points)
+      VALUES ?
+    `, [insertRows]);
+      }
+
+      logger.info('scores', 'Leaderboard rebuilt per event', { guildId, eventId });
+
+    } catch (e) {
+      logger.error('scores', 'Leaderboard rebuild failed', e);
+    }
 
     logger.info('scores', 'Score calculation finished', { guildId });
   });

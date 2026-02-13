@@ -16,6 +16,16 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(res => res.json())
+      .then(user => {
+        if (!user.guilds?.length) {
+          navigate("/servers");
+        }
+      });
+  }, []);
+
+  useEffect(() => {
     async function load() {
       const activeRes = await fetch("/api/events/active", {
         credentials: "include"
