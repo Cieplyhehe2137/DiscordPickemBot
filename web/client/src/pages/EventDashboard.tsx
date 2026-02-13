@@ -39,7 +39,9 @@ export default function EventDashboard() {
     if (!slug) return;
 
     try {
-      const res = await fetch(`/api/dashboard/${slug}/summary`);
+      const res = await fetch(`/api/dashboard/${slug}/summary`, {
+        credentials: "include"
+      });
       if (!res.ok) throw new Error();
       setData(await res.json());
     } catch {
@@ -51,7 +53,9 @@ export default function EventDashboard() {
     if (!slug) return;
 
     try {
-      const res = await fetch(`/api/dashboard/${slug}/top`);
+      const res = await fetch(`/api/dashboard/${slug}/top`, {
+        credentials: "include"
+      } );
       if (!res.ok) return;
       setTop(await res.json());
     } catch {
@@ -100,18 +104,19 @@ export default function EventDashboard() {
   /* ================= ACTIONS ================= */
 
   const handleOpen = async () => {
-    await fetch(`/api/dashboard/${slug}/open`, { method: "POST" });
+    await fetch(`/api/dashboard/${slug}/open`, { method: "POST", credentials: "include", });
     await loadSummary();
   };
 
   const handleClose = async () => {
-    await fetch(`/api/dashboard/${slug}/close`, { method: "POST" });
+    await fetch(`/api/dashboard/${slug}/close`, { method: "POST", credentials: "include", });
     await loadSummary();
   };
 
   const handlePhaseChange = async (phase: string) => {
     await fetch(`/api/dashboard/${slug}/phase`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phase }),
     });
@@ -122,6 +127,7 @@ export default function EventDashboard() {
   const handleRecalculate = async () => {
     await fetch(`/api/dashboard/${slug}/recalculate`, {
       method: "POST",
+      credentials: "include",
     });
 
     await loadSummary();

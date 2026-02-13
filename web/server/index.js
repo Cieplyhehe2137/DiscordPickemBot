@@ -46,7 +46,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: false, // na localhost musi być false
-    httpOnly: true
+    httpOnly: true,
+    sameSite: "lax"
   }
 }));
 

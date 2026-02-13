@@ -1,6 +1,6 @@
 import express from "express";
-import guildRegistry from "../../../utils/guildRegistry.js";
-const { getGuildConfigs } = guildRegistry;
+import pkg from "../../../utils/guildRegistry.js";
+const { getGuildConfigs } = pkg;
 
 
 const router = express.Router();
@@ -112,8 +112,7 @@ router.get("/me", (req, res) => {
     return res.status(401).json({ error: "Not logged in" });
   }
 
-  const guildConfigs = getGuildConfigs(); // ✅ TU JEST KLUCZ
-
+  const guildConfigs = getAllGuildConfig();
   const allowedGuildIds = Object.keys(guildConfigs);
 
   const filteredGuilds = req.session.user.guilds.filter(g =>
