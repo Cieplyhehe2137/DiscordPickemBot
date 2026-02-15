@@ -45,9 +45,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // na localhost musi być false
+    secure: false,
     httpOnly: true,
-    sameSite: "lax"
+    sameSite: "none",
+    domain: "localhost"
   }
 }));
 

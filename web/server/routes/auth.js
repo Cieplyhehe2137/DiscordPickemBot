@@ -1,7 +1,6 @@
 import express from "express";
-import pkg from "../../../utils/guildRegistry.js";
-const { getGuildConfigs } = pkg;
-
+import guildRegistry from "../../../utils/guildRegistry.js";
+const { getAllGuildConfig } = guildRegistry;
 
 const router = express.Router();
 
@@ -97,8 +96,9 @@ router.get("/discord/callback", async (req, res) => {
       guilds: adminGuilds,
     };
 
-    res.redirect("http://localhost:5173/guilds");
-
+    req.session.save(() => {
+      res.redirect("http://localhost:5173/guilds");
+    });
   } catch (err) {
     console.error("OAuth callback error:", err);
     res.status(500).send("OAuth failed");
