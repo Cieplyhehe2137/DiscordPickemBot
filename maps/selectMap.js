@@ -23,5 +23,5 @@ module.exports = {
   'official_playin_': 'submitPlayinResultsDropdown',
 
   // ==== SELECT PANEL ===
-  'panel:select:': 'panelOpenMenu'
+  'panel:select': 'panelOpenMenu'
 };
