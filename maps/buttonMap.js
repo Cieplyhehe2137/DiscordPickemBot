@@ -63,6 +63,7 @@ module.exports = {
   'start_swiss_': 'openSwissDropdown',
   'confirm_swiss': 'submitSwissDropdown',
   'swiss_advancing': 'submitSwissDropdown',
+  'confirm_swiss_results': 'submitSwissResultsDropdown',
 
 
 
