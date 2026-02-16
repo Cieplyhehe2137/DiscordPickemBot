@@ -1,21 +1,13 @@
-// handlers/submitSwissDropdown.js
-
 const { withGuild } = require('../utils/guildContext');
-// const { safeQuery } = require('../utils/safeQuery');
 const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
-/* ===============================
-   CACHE (TTL)
-   key = `${guildId}:${userId}:${stage}`
-=============================== */
-const CACHE_TTL = 15 * 60 * 1000; // 15 min
+const CACHE_TTL = 15 * 60 * 1000;
 const cache = new Map();
 
 function getCache(key) {
   const e = cache.get(key);
   if (!e) return null;
-
   if (Date.now() - e.ts > CACHE_TTL) {
     cache.delete(key);
     return null;
@@ -27,12 +19,8 @@ function setCache(key, data) {
   cache.set(key, { ts: Date.now(), data });
 }
 
-/* ===============================
-   DB HELPERS
-=============================== */
 async function loadTeamsFromDB(db, guildId) {
-  const [rows] = await pool.query(
-    db,
+  const [rows] = await db.query(
     `
     SELECT name
     FROM teams
@@ -40,16 +28,12 @@ async function loadTeamsFromDB(db, guildId) {
       AND active = 1
     ORDER BY name ASC
     `,
-    [guildId],
-    { guildId, scope: 'submitSwiss', label: 'load teams' }
+    [guildId]
   );
 
   return rows.map(r => r.name);
 }
 
-/* ===============================
-   HANDLER
-=============================== */
 module.exports = async (interaction) => {
   const { customId } = interaction;
   const guildId = interaction.guildId;
@@ -58,64 +42,47 @@ module.exports = async (interaction) => {
   const displayName = interaction.member?.displayName || username;
 
   /* ===============================
-     STAGE
-     =============================== */
-  const m = customId.match(/stage([123])/);
-  const stage = m ? `stage${m[1]}` : null;
+     DROPDOWN
+  =============================== */
+  const dropdownMatch = customId.match(
+    /^swiss_(3_0|0_3|advancing):(stage[123])$/
+  );
 
-  if (!stage) {
-    return interaction.reply({
-      content: '❌ Nie udało się rozpoznać etapu Swiss.',
-      ephemeral: true
-    });
-  }
+  if (interaction.isStringSelectMenu() && dropdownMatch) {
+    const typeRaw = dropdownMatch[1];
+    const stage = dropdownMatch[2];
 
-  const cacheKey = `${guildId}:${userId}:${stage}`;
-  const local = getCache(cacheKey) || {};
+    const type =
+      typeRaw === '3_0' ? '3'
+        : typeRaw === '0_3' ? '0'
+          : 'advancing';
 
-  /* ===============================
-     DROPDOWNS
-     =============================== */
-  if (interaction.isStringSelectMenu()) {
-    // customId: swiss_3_0_stage1 | swiss_0_3_stage1 | swiss_advancing_stage1
-    const parts = customId.split('_');
-
-    let type;
-    if (parts[1] === '3') type = '3';
-    else if (parts[1] === '0') type = '0';
-    else if (parts[1] === 'advancing') type = 'advancing';
-    else return interaction.deferUpdate();
+    const cacheKey = `${guildId}:${userId}:${stage}`;
+    const local = getCache(cacheKey) || {};
 
     local[type] = interaction.values.map(String);
     setCache(cacheKey, local);
-
-    logger.debug('submit', 'Swiss dropdown updated', {
-      guildId,
-      userId,
-      stage,
-      type,
-      values: local[type]
-    });
 
     await interaction.deferUpdate();
     return;
   }
 
   /* ===============================
-     CONFIRM BUTTON
-     =============================== */
-  const isConfirm =
-    interaction.isButton() &&
-    (customId === `confirm_${stage}` || customId === `confirm_swiss_${stage}`);
+     CONFIRM
+  =============================== */
+  const confirmMatch = customId.match(
+    /^confirm_swiss:(stage[123])$/
+  );
 
-  if (!isConfirm) return;
+  if (!interaction.isButton() || !confirmMatch) return;
+
+  const stage = confirmMatch[1];
+  const cacheKey = `${guildId}:${userId}:${stage}`;
 
   await interaction.deferReply({ ephemeral: true });
 
-  await withGuild(interaction, async (db, guildId) => {
-    /* ===============================
-       GATE
-       =============================== */
+  await withGuild(interaction, async (db) => {
+
     const gate = await assertPredictionsAllowed({
       guildId,
       kind: 'SWISS',
@@ -136,19 +103,13 @@ module.exports = async (interaction) => {
       );
     }
 
-    /* ===============================
-       WALIDACJA ILOŚCI
-       =============================== */
     if (
       data['3'].length !== 2 ||
       data['0'].length !== 2 ||
       data['advancing'].length !== 6
     ) {
       return interaction.editReply(
-        `⚠️ Nieprawidłowa liczba drużyn:\n` +
-        `• 3-0: ${data['3'].length}/2\n` +
-        `• 0-3: ${data['0'].length}/2\n` +
-        `• awans: ${data['advancing'].length}/6`
+        '⚠️ Nieprawidłowa liczba drużyn.'
       );
     }
 
@@ -159,34 +120,27 @@ module.exports = async (interaction) => {
       );
     }
 
-    /* ===============================
-       WALIDACJA DRUŻYN
-       =============================== */
     const validTeams = await loadTeamsFromDB(db, guildId);
     const invalid = all.filter(t => !validTeams.includes(t));
 
     if (invalid.length) {
       return interaction.editReply(
-        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
+        `⚠️ Nieznane drużyny: ${invalid.join(', ')}`
       );
     }
 
-    /* ===============================
-       DB SAVE
-       =============================== */
-    await pool.query(
-      db,
+    await db.query(
       `
       INSERT INTO swiss_predictions
         (guild_id, user_id, username, displayname, stage,
          pick_3_0, pick_0_3, advancing, active)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
       ON DUPLICATE KEY UPDATE
-        pick_3_0     = VALUES(pick_3_0),
-        pick_0_3     = VALUES(pick_0_3),
-        advancing    = VALUES(advancing),
-        displayname  = VALUES(displayname),
-        active       = 1,
+        pick_3_0 = VALUES(pick_3_0),
+        pick_0_3 = VALUES(pick_0_3),
+        advancing = VALUES(advancing),
+        displayname = VALUES(displayname),
+        active = 1,
         submitted_at = CURRENT_TIMESTAMP
       `,
       [
@@ -198,20 +152,13 @@ module.exports = async (interaction) => {
         data['3'].join(', '),
         data['0'].join(', '),
         data['advancing'].join(', ')
-      ],
-      { guildId, scope: 'submitSwiss', label: 'upsert swiss_predictions' }
+      ]
     );
 
     cache.delete(cacheKey);
 
-    logger.info('submit', 'Swiss predictions saved', {
-      guildId,
-      userId,
-      stage
-    });
-
     return interaction.editReply(
-      '✅ Twoje typy dla tej fazy Swiss zostały zapisane!'
+      '✅ Twoje typy zostały zapisane!'
     );
   });
 };
