@@ -152,58 +152,42 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
    HANDLER
 ======================= */
 
-module.exports = async (interaction, client, ctx = {}) => {
-  if (!interaction.guildId) {
-    return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
-    });
-  }
-
-  const STAGE_MAP = {
-    swiss1: 'stage1',
-    swiss2: 'stage2',
-    swiss3: 'stage3'
-  };
-
-  let stageDb = null;
-  let stageLabel = null;
-
-  if (ctx.stage && STAGE_MAP[ctx.stage]) {
-    stageDb = STAGE_MAP[ctx.stage];
-    stageLabel = ctx.stage;
-  }
-
-  if (!stageDb && interaction.customId) {
-    let match = interaction.customId.match(/:(stage[123])/);
-    if (!match) {
-      match = interaction.customId.match(/_stage([123])$/);
-      if (match) match[1] = `stage${match[1]}`;
+module.exports = async function openSwissResultsDropdown(
+  interaction,
+  forcedStage = null
+) {
+  try {
+    if (!interaction.guildId) {
+      return interaction.reply({
+        content: '❌ Ta akcja działa tylko na serwerze.',
+        ephemeral: true
+      });
     }
-    if (match) {
-      stageDb = match[1];
-      stageLabel = match[1];
-    }
-  }
 
-  if (!stageDb) {
-    logger.warn('interaction', 'Invalid Swiss stage', {
-      guildId: interaction.guildId,
-      ctxStage: ctx.stage,
-      customId: interaction.customId
-    });
+    // 🔥 1️⃣ STAGE RESOLUTION
+    // 🔥 1️⃣ STAGE RESOLUTION
+let stage = forcedStage;
 
-    return interaction.reply({
-      content: '❌ Nieprawidłowy etap Swiss.',
-      ephemeral: true
-    });
-  }
+if (!stage) {
+  const match = String(interaction.customId).match(/stage([123])/);
+  stage = match ? `stage${match[1]}` : null;
+}
+
+if (!stage) {
+  return interaction.reply({
+    content: '❌ Nieprawidłowy etap Swiss.',
+    ephemeral: true
+  });
+}
+
+const stageDb = stage;
+const stageLabel = stage;
 
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  await withGuild(interaction, async ({ pool, guildId }) => {
+    await withGuild(interaction, async ({ pool, guildId }) => {
     const teams = await loadTeamsFromDB(pool, guildId);
     const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
@@ -215,11 +199,21 @@ module.exports = async (interaction, client, ctx = {}) => {
       components
     });
   });
-};
 
-/* =======================
-   EXPORTY (TESTY / REUSE)
-======================= */
+  } catch (err) {
+    logger.error('interaction', 'openSwissResultsDropdown failed', {
+      message: err.message,
+      stack: err.stack
+    });
+
+    if (!interaction.replied && !interaction.deferred) {
+      return interaction.reply({
+        content: '❌ Błąd podczas otwierania wyników Swiss.',
+        ephemeral: true
+      });
+    }
+  }
+};
 
 module.exports.buildSwissComponents = buildSwissComponents;
 module.exports.parseList = parseList;
