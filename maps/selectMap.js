@@ -20,5 +20,8 @@ module.exports = {
 
   // ===== PLAYIN =====
   'playin_': 'submitPlayinDropdown',
-  'official_playin_': 'submitPlayinResultsDropdown'
+  'official_playin_': 'submitPlayinResultsDropdown',
+
+  // ==== SELECT PANEL ===
+  'panel:select:': 'panelOpenMenu'
 };
