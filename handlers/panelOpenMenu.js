@@ -70,29 +70,34 @@ module.exports = async function panelOpenMenu(interaction) {
       });
     }
 
-    const menu = buildMenu(interaction.customId);
-    if (!menu) return;
+    // ===== 1️⃣ BUTTON OPEN =====
+    if (interaction.isButton()) {
+      const menu = buildMenu(interaction.customId);
+      if (!menu) return;
 
-    const row = new ActionRowBuilder().addComponents(menu);
-    const payload = {
-      content: 'Wybierz akcję:',
-      components: [row],
-      ephemeral: true
-    };
+      const row = new ActionRowBuilder().addComponents(menu);
 
-    // 🔑 KLUCZ: update jeśli to kliknięcie w panel
-    if (interaction.deferred || interaction.replied) {
-  return interaction.followUp(payload);
-}
-
-return interaction.reply(payload);
-
-    // fallback (np. slash)
-    if (interaction.deferred || interaction.replied) {
-      return interaction.editReply(payload);
+      return interaction.reply({
+        content: 'Wybierz akcję:',
+        components: [row],
+        ephemeral: true
+      });
     }
 
-    return interaction.reply(payload);
+    // ===== 2️⃣ SELECT =====
+    if (interaction.isStringSelectMenu()) {
+      const value = interaction.values?.[0];
+
+      if (!value) {
+        return interaction.deferUpdate();
+      }
+
+      // Tutaj możesz przekierować dalej
+      return interaction.reply({
+        content: `Wybrano: ${value}`,
+        ephemeral: true
+      });
+    }
 
   } catch (err) {
     logger.error('interaction', 'panelOpenMenu failed', {
