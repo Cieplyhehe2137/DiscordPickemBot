@@ -72,4 +72,10 @@ module.exports = {
   'results_playoffs_third_place_winner': 'submitPlayoffsResultsDropdown',
 
 
+  // SWISS
+
+   'swiss_3_0': 'submitSwissDropdown',
+  'swiss_0_3': 'submitSwissDropdown',
+  'swiss_advancing': 'submitSwissDropdown'
+
 };
