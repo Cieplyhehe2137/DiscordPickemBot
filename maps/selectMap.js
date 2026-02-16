@@ -76,6 +76,9 @@ module.exports = {
 
    'swiss_3_0': 'submitSwissDropdown',
   'swiss_0_3': 'submitSwissDropdown',
-  'swiss_advancing': 'submitSwissDropdown'
+  'swiss_advancing': 'submitSwissDropdown',
+  'official_swiss_3_0': 'submitSwissResultsDropdown',
+  'official_swiss_0_3': 'submitSwissResultsDropdown',
+  'official_swiss_advancing': 'submitSwissResultsDropdown'
 
 };
