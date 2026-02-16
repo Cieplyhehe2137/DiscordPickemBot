@@ -45,9 +45,7 @@ module.exports = {
   'start_stage3': 'openSwissDropdown',
   'ranking_prev': 'rankingPagination',
   'ranking_next': 'rankingPagination',
-  'confirm_stage1': 'submitSwissDropdown',
-  'confirm_stage2': 'submitSwissDropdown',
-  'confirm_stage3': 'submitSwissDropdown',
+  'confirm_swiss': 'submitSwissDropdown',
   'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
   'open_restore_dropdown': 'openRestoreDropdown',
   'confirm_restore_backup': 'confirmRestoreBackup',
@@ -62,7 +60,7 @@ module.exports = {
   'match_user_exact_open_next': 'matchUserExactOpenNext',
   'match_exact_open': 'matchUserExactOpen',
   'open_doubleelim_modal': 'openDoubleElimDropdown',
-  'start_swiss_stage1': 'openSwissDropdown',
+  'start_swiss_': 'openSwissDropdown',
 
 
 
