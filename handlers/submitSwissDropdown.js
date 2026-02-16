@@ -1,5 +1,4 @@
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 const CACHE_TTL = 15 * 60 * 1000;
@@ -8,10 +7,12 @@ const cache = new Map();
 function getCache(key) {
   const e = cache.get(key);
   if (!e) return null;
+
   if (Date.now() - e.ts > CACHE_TTL) {
     cache.delete(key);
     return null;
   }
+
   return e.data;
 }
 
@@ -19,8 +20,8 @@ function setCache(key, data) {
   cache.set(key, { ts: Date.now(), data });
 }
 
-async function loadTeamsFromDB(db, guildId) {
-  const [rows] = await db.query(
+async function loadTeamsFromDB(pool, guildId) {
+  const [rows] = await pool.query(
     `
     SELECT name
     FROM teams
@@ -35,6 +36,8 @@ async function loadTeamsFromDB(db, guildId) {
 }
 
 module.exports = async (interaction) => {
+  if (!interaction.guildId) return;
+
   const { customId } = interaction;
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -44,6 +47,7 @@ module.exports = async (interaction) => {
   /* ===============================
      DROPDOWN
   =============================== */
+
   const dropdownMatch = customId.match(
     /^swiss_(3_0|0_3|advancing):(stage[123])$/
   );
@@ -53,9 +57,11 @@ module.exports = async (interaction) => {
     const stage = dropdownMatch[2];
 
     const type =
-      typeRaw === '3_0' ? '3'
-        : typeRaw === '0_3' ? '0'
-          : 'advancing';
+      typeRaw === '3_0'
+        ? '3'
+        : typeRaw === '0_3'
+        ? '0'
+        : 'advancing';
 
     const cacheKey = `${guildId}:${userId}:${stage}`;
     const local = getCache(cacheKey) || {};
@@ -70,6 +76,7 @@ module.exports = async (interaction) => {
   /* ===============================
      CONFIRM
   =============================== */
+
   const confirmMatch = customId.match(
     /^confirm_swiss:(stage[123])$/
   );
@@ -79,10 +86,12 @@ module.exports = async (interaction) => {
   const stage = confirmMatch[1];
   const cacheKey = `${guildId}:${userId}:${stage}`;
 
+  // Bezpieczny ACK
   await interaction.deferReply({ ephemeral: true });
 
-  await withGuild(interaction, async ({ pool, guildId }) => {
+  await withGuild(interaction, async ({ pool }) => {
 
+    // GATE
     const gate = await assertPredictionsAllowed({
       guildId,
       kind: 'SWISS',
@@ -97,12 +106,14 @@ module.exports = async (interaction) => {
 
     const data = getCache(cacheKey) || {};
 
+    // Sprawdzenie czy wszystko wybrane
     if (!data['3'] || !data['0'] || !data['advancing']) {
       return interaction.editReply(
         '❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.'
       );
     }
 
+    // Walidacja ilości
     if (
       data['3'].length !== 2 ||
       data['0'].length !== 2 ||
@@ -113,6 +124,7 @@ module.exports = async (interaction) => {
       );
     }
 
+    // Unikalność globalna
     const all = [...data['3'], ...data['0'], ...data['advancing']];
     if (new Set(all).size !== all.length) {
       return interaction.editReply(
@@ -120,6 +132,7 @@ module.exports = async (interaction) => {
       );
     }
 
+    // Walidacja z DB
     const validTeams = await loadTeamsFromDB(pool, guildId);
     const invalid = all.filter(t => !validTeams.includes(t));
 
@@ -129,6 +142,7 @@ module.exports = async (interaction) => {
       );
     }
 
+    // SAVE
     await pool.query(
       `
       INSERT INTO swiss_predictions
