@@ -81,7 +81,7 @@ module.exports = async (interaction) => {
 
   await interaction.deferReply({ ephemeral: true });
 
-  await withGuild(interaction, async (db) => {
+  await withGuild(interaction, async ({ pool, guildId }) => {
 
     const gate = await assertPredictionsAllowed({
       guildId,
@@ -129,7 +129,7 @@ module.exports = async (interaction) => {
       );
     }
 
-    await db.query(
+    await pool.query(
       `
       INSERT INTO swiss_predictions
         (guild_id, user_id, username, displayname, stage,
