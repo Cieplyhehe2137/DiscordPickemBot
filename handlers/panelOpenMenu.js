@@ -1,9 +1,9 @@
-// handlers/panelOpenMenu.js
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   PermissionFlagsBits
 } = require('discord.js');
+
 const logger = require('../utils/logger');
 
 function isAdmin(interaction) {
@@ -12,6 +12,7 @@ function isAdmin(interaction) {
 
 function buildMenu(customId) {
   switch (customId) {
+
     case 'panel:open:results':
       return new StringSelectMenuBuilder()
         .setCustomId('panel:select:results')
@@ -70,8 +71,11 @@ module.exports = async function panelOpenMenu(interaction) {
       });
     }
 
-    // ===== 1️⃣ BUTTON OPEN =====
+    /* =======================================================
+       1️⃣ BUTTON → WYŚWIETL DROPDOWN
+    ======================================================= */
     if (interaction.isButton()) {
+
       const menu = buildMenu(interaction.customId);
       if (!menu) return;
 
@@ -84,19 +88,91 @@ module.exports = async function panelOpenMenu(interaction) {
       });
     }
 
-    // ===== 2️⃣ SELECT =====
+    /* =======================================================
+       2️⃣ SELECT → PRZEKIEROWANIE
+    ======================================================= */
     if (interaction.isStringSelectMenu()) {
-      const value = interaction.values?.[0];
 
+      const value = interaction.values?.[0];
       if (!value) {
         return interaction.deferUpdate();
       }
 
-      // Tutaj możesz przekierować dalej
-      return interaction.reply({
-        content: `Wybrano: ${value}`,
-        ephemeral: true
-      });
+      // ===== RESULTS =====
+      if (value === 'results:export') {
+        return interaction.reply({
+          content: '➡️ Uruchamiam eksport...',
+          ephemeral: true
+        });
+      }
+
+      if (value === 'results:swiss1') {
+        return require('./openSwissResultsDropdown')(interaction, 'stage1');
+      }
+
+      if (value === 'results:swiss2') {
+        return require('./openSwissResultsDropdown')(interaction, 'stage2');
+      }
+
+      if (value === 'results:swiss3') {
+        return require('./openSwissResultsDropdown')(interaction, 'stage3');
+      }
+
+      if (value === 'results:playoffs') {
+        return require('./openPlayoffsResultsDropdown')(interaction);
+      }
+
+      if (value === 'results:double') {
+        return require('./openDoubleElimResultsDropdown')(interaction);
+      }
+
+      if (value === 'results:playin') {
+        return require('./openPlayinResultsDropdown')(interaction);
+      }
+
+      // ===== MATCHES =====
+      if (value === 'matches:results') {
+        return require('./openMatchResults')(interaction);
+      }
+
+      if (value === 'matches:add') {
+        return require('./openAddMatch')(interaction);
+      }
+
+      if (value === 'matches:clear') {
+        return require('./openClearMatches')(interaction);
+      }
+
+      // ===== DB =====
+      if (value === 'db:backup') {
+        return require('./backupDatabase')(interaction);
+      }
+
+      if (value === 'db:restore') {
+        return require('./openRestoreDropdown')(interaction);
+      }
+
+      // ===== DANGER =====
+      if (value === 'danger:clearPicks') {
+        interaction.customId = 'clear_user_picks';
+        return require('./clearDatabaseHandler')(interaction);
+      }
+
+      if (value === 'danger:clearOfficial') {
+        interaction.customId = 'clear_only_results_confirm';
+        return require('./clearDatabaseHandler')(interaction);
+      }
+
+      if (value === 'danger:fullReset') {
+        interaction.customId = 'full_reset';
+        return require('./clearDatabaseHandler')(interaction);
+      }
+
+      if (value === 'danger:clearMatches') {
+        return require('./openClearMatches')(interaction);
+      }
+
+      return interaction.deferUpdate();
     }
 
   } catch (err) {
