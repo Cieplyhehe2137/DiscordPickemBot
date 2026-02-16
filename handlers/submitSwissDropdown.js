@@ -120,7 +120,7 @@ module.exports = async (interaction) => {
       );
     }
 
-    const validTeams = await loadTeamsFromDB(db, guildId);
+    const validTeams = await loadTeamsFromDB(pool, guildId);
     const invalid = all.filter(t => !validTeams.includes(t));
 
     if (invalid.length) {
