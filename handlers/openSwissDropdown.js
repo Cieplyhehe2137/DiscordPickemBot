@@ -36,7 +36,8 @@ module.exports = async (interaction) => {
       });
     }
 
-    const stage = interaction.customId?.split(':')[1]; // np. stage1
+    const match = interaction.customId.match(/^start_swiss_(.+)$/);
+    const stage = match?.[1];
     if (!stage) {
       return interaction.reply({
         content: '❌ Brak stage w customId.',
