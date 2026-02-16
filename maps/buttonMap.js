@@ -25,7 +25,7 @@ module.exports = {
   // ===== SWISS (CZYSTA WERSJA) =====
   'start_swiss_': 'openSwissDropdown',
   'confirm_swiss': 'submitSwissDropdown',
-  'confirm_swiss_results': 'submitSwissResultsDropdown',
+  'confirm_swiss_results:': 'submitSwissResultsDropdown',
 
   // ===== PLAYOFFS =====
   'confirm_playoffs': 'submitPlayoffsDropdown',
