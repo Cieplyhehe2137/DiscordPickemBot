@@ -62,6 +62,7 @@ module.exports = {
   'match_user_exact_open_next': 'matchUserExactOpenNext',
   'match_exact_open': 'matchUserExactOpen',
   'open_doubleelim_modal': 'openDoubleElimDropdown',
+  'start_swuss_stage1': 'openSwissDropdown',
 
 
 
