@@ -12,7 +12,7 @@ const logger = require('../utils/logger');
 async function loadTeamsWithFlags(pool, guildId) {
   const [rows] = await pool.query(
     `
-    SELECT name, flag
+    SELECT name
     FROM teams
     WHERE guild_id = ?
       AND active = 1
