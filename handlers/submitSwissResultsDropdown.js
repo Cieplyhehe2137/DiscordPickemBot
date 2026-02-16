@@ -85,7 +85,7 @@ module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu()) {
     const stage = stageFromCustomId(interaction.customId);
     if (!stage) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
       return;
     }
 
@@ -109,7 +109,7 @@ module.exports = async (interaction) => {
       picks: local
     });
 
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch(() => { });
     return;
   }
 
@@ -198,13 +198,12 @@ module.exports = async (interaction) => {
         };
 
         const { embed, components } =
-          buildSwissComponents(stage, teams, fresh);
+          buildSwissComponents(stage, stage, teams, fresh);
 
-        await interaction.update({ embeds: [embed], components });
-
-        return interaction.followUp({
-          ephemeral: true,
-          content: '✅ Zapisano oficjalne wyniki Swiss.'
+        return interaction.update({
+          embeds: [embed],
+          components,
+          content: null
         });
 
       } catch (err) {
