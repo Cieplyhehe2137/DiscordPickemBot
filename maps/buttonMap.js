@@ -61,7 +61,8 @@ module.exports = {
   'match_exact_open': 'matchUserExactOpen',
   'open_doubleelim_modal': 'openDoubleElimDropdown',
   'start_swiss_': 'openSwissDropdown',
-  'confirm_swiss_': 'submitSwissDropdown',
+  'confirm_swiss': 'submitSwissDropdown',
+  'swiss_advancing': 'submitSwissDropdown',
 
 
 
