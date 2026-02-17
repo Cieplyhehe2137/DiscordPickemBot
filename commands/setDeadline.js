@@ -83,7 +83,12 @@ module.exports = {
     return withGuild(guildId, async ({ pool }) => {
       const phase = interaction.options.getString('phase');
       const inputStage = interaction.options.getString('stage') || null;
-      const stage = normalizeStage(phase, inputStage);
+      const normalizedStage = normalizeStage(phase, inputStage);
+
+      // 🔥 budujemy stage_key dokładnie tak jak w active_panels
+      const stageKey = normalizedStage
+        ? `swiss_${normalizedStage}`   // swiss_stage1
+        : null;
       const rawInput = interaction.options.getString('data');
 
       const deadlineDate = DateTime.fromFormat(
@@ -115,11 +120,11 @@ module.exports = {
          FROM active_panels
          WHERE guild_id = ?
            AND phase = ?
-           AND stage <=> ?
+           AND stage_key <=> ?
            AND active = 1
          ORDER BY id DESC
          LIMIT 1`,
-        [guildId, phase, stage]
+        [guildId, phase, stageKey]
       );
 
       const row = rows?.[0];
