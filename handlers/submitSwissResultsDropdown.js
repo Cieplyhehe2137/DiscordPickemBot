@@ -68,24 +68,18 @@ function stageFromCustomId(customId) {
 =============================== */
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
-  if (!interaction.guildId) {
-    return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
-    });
-  }
+  if (!interaction.guildId) return;
 
   const guildId = interaction.guildId;
   const adminId = interaction.user.id;
-  const username = interaction.user.username;
 
   /* ===============================
      SELECT MENUS → CACHE ONLY
-     =============================== */
+  =============================== */
   if (interaction.isStringSelectMenu()) {
     const stage = stageFromCustomId(interaction.customId);
     if (!stage) {
-      await interaction.deferUpdate().catch(() => { });
+      await interaction.deferUpdate().catch(() => {});
       return;
     }
 
@@ -102,37 +96,33 @@ module.exports = async (interaction) => {
 
     setCache(key, local);
 
-    logger.debug('swiss_results', 'cache updated', {
-      guildId,
-      adminId,
-      stage,
-      picks: local
-    });
-
-    await interaction.deferUpdate().catch(() => { });
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
   /* ===============================
      CONFIRM BUTTON
-     =============================== */
+  =============================== */
   if (
     interaction.isButton() &&
     interaction.customId.startsWith('confirm_swiss_results:')
   ) {
+    // 🔥 ACK NA SAMYM POCZĄTKU
+    await interaction.deferUpdate();
+
     const stage = interaction.customId.replace('confirm_swiss_results:', '');
     const key = `${guildId}:${adminId}:${stage}`;
     const sel = getCache(key);
 
     if (!sel) {
-      return interaction.reply({
+      return interaction.followUp({
         ephemeral: true,
         content: '⚠️ Brak zapisanych wyborów (cache wygasł).'
       });
     }
 
     if (!sel.add3.length && !sel.add0.length && !sel.addA.length) {
-      return interaction.reply({
+      return interaction.followUp({
         ephemeral: true,
         content: '⚠️ Nic nie wybrano w dropdownach.'
       });
@@ -143,18 +133,32 @@ module.exports = async (interaction) => {
       const current = await getCurrentSwiss(pool, guildId, stage);
 
       const m3 = mergeWithCap(current.x3_0, sel.add3, 2);
-      if (!m3.ok) return interaction.reply({ ephemeral: true, content: `⚠️ 3-0: ${m3.err}` });
+      if (!m3.ok) {
+        return interaction.followUp({
+          ephemeral: true,
+          content: `⚠️ 3-0: ${m3.err}`
+        });
+      }
 
       const m0 = mergeWithCap(current.x0_3, sel.add0, 2);
-      if (!m0.ok) return interaction.reply({ ephemeral: true, content: `⚠️ 0-3: ${m0.err}` });
+      if (!m0.ok) {
+        return interaction.followUp({
+          ephemeral: true,
+          content: `⚠️ 0-3: ${m0.err}`
+        });
+      }
 
       const mA = mergeWithCap(current.adv, sel.addA, 6);
-      if (!mA.ok) return interaction.reply({ ephemeral: true, content: `⚠️ Awans: ${mA.err}` });
+      if (!mA.ok) {
+        return interaction.followUp({
+          ephemeral: true,
+          content: `⚠️ Awans: ${mA.err}`
+        });
+      }
 
-      // globalna unikalność
       const all = [...m3.merged, ...m0.merged, ...mA.merged];
       if (new Set(all.map(v => v.toLowerCase())).size !== all.length) {
-        return interaction.reply({
+        return interaction.followUp({
           ephemeral: true,
           content: '⚠️ Drużyna nie może być w więcej niż jednej kategorii.'
         });
@@ -162,7 +166,7 @@ module.exports = async (interaction) => {
 
       const invalid = all.filter(t => !teams.includes(t));
       if (invalid.length) {
-        return interaction.reply({
+        return interaction.followUp({
           ephemeral: true,
           content: `⚠️ Nieznane drużyny: ${invalid.join(', ')}`
         });
@@ -200,7 +204,7 @@ module.exports = async (interaction) => {
         const { embed, components } =
           buildSwissComponents(stage, stage, teams, fresh);
 
-        return interaction.update({
+        await interaction.editReply({
           embeds: [embed],
           components,
           content: null
@@ -214,7 +218,7 @@ module.exports = async (interaction) => {
           stack: err.stack
         });
 
-        return interaction.reply({
+        return interaction.followUp({
           ephemeral: true,
           content: '❌ Błąd zapisu wyników Swiss.'
         });
