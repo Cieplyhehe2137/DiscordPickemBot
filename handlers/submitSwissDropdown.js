@@ -49,7 +49,7 @@ module.exports = async (interaction) => {
   =============================== */
 
   const dropdownMatch = customId.match(
-    /^swiss_(3_0|0_3|advancing):(stage[123])$/
+    /^official_swiss_(3_0|0_3|advancing):(stage[123])/
   );
 
   if (interaction.isStringSelectMenu() && dropdownMatch) {
@@ -60,8 +60,8 @@ module.exports = async (interaction) => {
       typeRaw === '3_0'
         ? '3'
         : typeRaw === '0_3'
-        ? '0'
-        : 'advancing';
+          ? '0'
+          : 'advancing';
 
     const cacheKey = `${guildId}:${userId}:${stage}`;
     const local = getCache(cacheKey) || {};
@@ -78,7 +78,7 @@ module.exports = async (interaction) => {
   =============================== */
 
   const confirmMatch = customId.match(
-    /^confirm_swiss:(stage[123])$/
+    /^confirm_swiss_results:(stage[123])$/
   );
 
   if (!interaction.isButton() || !confirmMatch) return;
