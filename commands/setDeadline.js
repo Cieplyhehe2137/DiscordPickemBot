@@ -24,15 +24,6 @@ function formatTimeLeft(deadlineUTCDate) {
   return parts.join(' ');
 }
 
-const inputStage = interaction.options.getString('stage') || null;
-
-let stageKey = null;
-
-if (inputStage) {
-  const stageNumber = String(inputStage).replace(/\D/g, '');
-  stageKey = `swiss_stage${stageNumber}`;
-}
-
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('set_deadline')
@@ -55,7 +46,7 @@ module.exports = {
     )
     .addStringOption(option =>
       option.setName('stage')
-        .setDescription('np. swiss_stage_1 / stage1 / 1')
+        .setDescription('np. 1 / stage1 / swiss_stage_1')
         .setRequired(false)
     )
     .setDefaultMemberPermissions(
@@ -64,6 +55,7 @@ module.exports = {
 
   async execute(interaction) {
     const guildId = interaction.guildId;
+
     if (!guildId) {
       return interaction.reply({
         content: '❌ Ta komenda działa tylko na serwerze.',
@@ -72,15 +64,20 @@ module.exports = {
     }
 
     return withGuild(guildId, async ({ pool }) => {
-      const phase = interaction.options.getString('phase');
-      const inputStage = interaction.options.getString('stage') || null;
-      const normalizedStage = normalizeStage(phase, inputStage);
 
-      // 🔥 budujemy stage_key dokładnie tak jak w active_panels
-      const stageKey = normalizedStage
-        ? `swiss_${normalizedStage}`   // swiss_stage1
-        : null;
+      const phase = interaction.options.getString('phase');
       const rawInput = interaction.options.getString('data');
+      const inputStage = interaction.options.getString('stage') || null;
+
+      // 🔥 budujemy stage_key dokładnie jak w active_panels
+      let stageKey = null;
+
+      if (inputStage) {
+        const stageNumber = String(inputStage).replace(/\D/g, '');
+        if (stageNumber) {
+          stageKey = `swiss_stage${stageNumber}`;
+        }
+      }
 
       const deadlineDate = DateTime.fromFormat(
         rawInput,
@@ -88,7 +85,7 @@ module.exports = {
         { zone: 'Europe/Warsaw' }
       );
 
-      // 🟥 P0 — zły format
+      // 🟥 Zły format
       if (!deadlineDate.isValid) {
         return interaction.reply({
           ephemeral: true,
@@ -96,7 +93,7 @@ module.exports = {
         });
       }
 
-      // 🟥 P0 — deadline w przeszłości
+      // 🟥 Deadline w przeszłości
       if (deadlineDate <= DateTime.now()) {
         return interaction.reply({
           ephemeral: true,
@@ -119,6 +116,7 @@ module.exports = {
       );
 
       const row = rows?.[0];
+
       if (!row?.message_id || !row?.channel_id) {
         return interaction.reply({
           ephemeral: true,
@@ -129,23 +127,21 @@ module.exports = {
       const panelChannel = await interaction.client.channels.fetch(row.channel_id);
       const message = await panelChannel.messages.fetch(row.message_id);
 
-      // ⚠️ WYMAGA UNIQUE(guild_id, phase, stage)
       await pool.query(
         `UPDATE active_panels
-   SET
-     deadline = ?,
-     reminded = 0
-   WHERE id = ?`,
+         SET deadline = ?, reminded = 0
+         WHERE id = ?`,
         [deadlineUTC, row.id]
       );
 
-
       const timeLeft = formatTimeLeft(deadlineUTC);
+
       const embed = message.embeds?.[0]
         ? EmbedBuilder.from(message.embeds[0])
         : new EmbedBuilder();
 
       embed.setFooter({ text: `🕒 Deadline za ${timeLeft}` });
+
       await message.edit({ embeds: [embed] });
 
       await interaction.reply({
