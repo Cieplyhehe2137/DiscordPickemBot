@@ -39,31 +39,31 @@ module.exports = {
   // ===== PLAY-IN (BRAKOWAŁO TEGO!) =====
   'playin_select': 'submitPlayinDropdown',
   // ===== PLAY-IN – RESULTS =====
-'official_playin_teams': 'submitPlayinResultsDropdown',
-'confirm_playin_results': 'submitPlayinResultsDropdown',
+  'official_playin_teams': 'submitPlayinResultsDropdown',
+  'confirm_playin_results': 'submitPlayinResultsDropdown',
 
 
   // ===== DOUBLE ELIM – PREDICTIONS =====
-'doubleelim_upper_final_a': 'submitDoubleElimDropdown',
-'doubleelim_lower_final_a': 'submitDoubleElimDropdown',
-'doubleelim_upper_final_b': 'submitDoubleElimDropdown',
-'doubleelim_lower_final_b': 'submitDoubleElimDropdown',
-'confirm_doubleelim': 'submitDoubleElimDropdown',
+  'doubleelim_upper_final_a': 'submitDoubleElimDropdown',
+  'doubleelim_lower_final_a': 'submitDoubleElimDropdown',
+  'doubleelim_upper_final_b': 'submitDoubleElimDropdown',
+  'doubleelim_lower_final_b': 'submitDoubleElimDropdown',
+  'confirm_doubleelim': 'submitDoubleElimDropdown',
 
-// ===== DOUBLE ELIM – RESULTS =====
-'official_doubleelim_upper_final_a': 'submitDoubleElimResultsDropdown',
-'official_doubleelim_lower_final_a': 'submitDoubleElimResultsDropdown',
-'official_doubleelim_upper_final_b': 'submitDoubleElimResultsDropdown',
-'official_doubleelim_lower_final_b': 'submitDoubleElimResultsDropdown',
-'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
-'open_doubleelim_results': 'openDoubleElimResultsDropdown',
+  // ===== DOUBLE ELIM – RESULTS =====
+  'official_doubleelim_upper_final_a': 'submitDoubleElimResultsDropdown',
+  'official_doubleelim_lower_final_a': 'submitDoubleElimResultsDropdown',
+  'official_doubleelim_upper_final_b': 'submitDoubleElimResultsDropdown',
+  'official_doubleelim_lower_final_b': 'submitDoubleElimResultsDropdown',
+  'confirm_official_doubleelim': 'submitDoubleElimResultsDropdown',
+  'open_doubleelim_results': 'openDoubleElimResultsDropdown',
 
-// PLAYOFFS
+  // PLAYOFFS
 
-'playoffs_semifinalists': 'submitPlayoffsDropdown',
-'playoffs_finalists': 'submitPlayoffsDropdown',
-'playoffs_winner': 'submitPlayoffsDropdown',
-'playoffs_third_place': 'submitPlayoffsDropdown',
+  'playoffs_semifinalists': 'submitPlayoffsDropdown',
+  'playoffs_finalists': 'submitPlayoffsDropdown',
+  'playoffs_winner': 'submitPlayoffsDropdown',
+  'playoffs_third_place': 'submitPlayoffsDropdown',
 
   // ===== PLAYOFFS – RESULTS =====
   'results_playoffs_semifinalists': 'submitPlayoffsResultsDropdown',
@@ -74,12 +74,13 @@ module.exports = {
 
   // SWISS
 
-   'swiss_3_0': 'submitSwissDropdown',
+  'swiss_3_0': 'submitSwissDropdown',
   'swiss_0_3': 'submitSwissDropdown',
   'swiss_advancing': 'submitSwissDropdown',
   'official_swiss_3_0': 'submitSwissResultsDropdown',
   'official_swiss_0_3': 'submitSwissResultsDropdown',
   'official_swiss_advancing': 'submitSwissResultsDropdown',
-  'set_results_swiss_': 'submitSwissResultsDropdown'
+  'set_results_swiss_': 'submitSwissResultsDropdown',
+  'official_swiss_': 'submitSwissResultsDropdown'
 
 };
