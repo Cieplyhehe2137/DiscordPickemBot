@@ -6,7 +6,6 @@ const {
 } = require('discord.js');
 const { DateTime } = require('luxon');
 const { withGuild } = require('../utils/guildContext');
-const { raw } = require('express');
 
 // ⏱️ helper do formatowania „ile zostało”
 function formatTimeLeft(deadlineUTCDate) {
@@ -30,8 +29,8 @@ const inputStage = interaction.options.getString('stage') || null;
 let stageKey = null;
 
 if (inputStage) {
-  const stageNumber = String(inputStage).replace(/\D/g, ''); // wyciąga tylko cyfrę
-  stageKey = `swiss_stage${stageNumber}`; // swiss_stage1
+  const stageNumber = String(inputStage).replace(/\D/g, '');
+  stageKey = `swiss_stage${stageNumber}`;
 }
 
 module.exports = {
