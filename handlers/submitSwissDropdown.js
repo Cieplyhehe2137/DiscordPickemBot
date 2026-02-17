@@ -52,7 +52,7 @@ module.exports = async (interaction) => {
     /^official_swiss_(3_0|0_3|advancing):(stage[123])/
   );
 
-  if (interaction.isStringSelectMenu() && dropdownMatch) {
+  if (dropdownMatch) {
     const typeRaw = dropdownMatch[1];
     const stage = dropdownMatch[2];
 
@@ -66,7 +66,18 @@ module.exports = async (interaction) => {
     const cacheKey = `${guildId}:${userId}:${stage}`;
     const local = getCache(cacheKey) || {};
 
-    local[type] = interaction.values.map(String);
+    if (!interaction.values.length) {
+      local[type] = [];
+      setCache(cacheKey, local);
+      await interaction.deferUpdate();
+      return;
+    }
+
+    const existing = local[type] || [];
+    const incoming = interaction.values.map(String);
+
+    local[type] = [...new Set([...existing, ...incoming])];
+
     setCache(cacheKey, local);
 
     await interaction.deferUpdate();
