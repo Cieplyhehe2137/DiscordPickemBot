@@ -25,21 +25,13 @@ function formatTimeLeft(deadlineUTCDate) {
   return parts.join(' ');
 }
 
-// ✅ normalizacja etapu
-function normalizeStage(phase, rawStage) {
-  if (!rawStage) return null;
+const inputStage = interaction.options.getString('stage') || null;
 
-  const isSwiss =
-    phase === 'swiss' ||
-    String(phase).toUpperCase().startsWith('SWISS');
+let stageKey = null;
 
-  if (!isSwiss) return rawStage;
-
-  const s = String(rawStage).toLowerCase().trim();
-  const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
-  const num = m ? (m[1] || m[2]) : null;
-
-  return num ? `stage${num}` : rawStage;
+if (inputStage) {
+  const stageNumber = String(inputStage).replace(/\D/g, ''); // wyciąga tylko cyfrę
+  stageKey = `swiss_stage${stageNumber}`; // swiss_stage1
 }
 
 module.exports = {
