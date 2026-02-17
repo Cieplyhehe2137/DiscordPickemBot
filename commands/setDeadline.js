@@ -6,6 +6,7 @@ const {
 } = require('discord.js');
 const { DateTime } = require('luxon');
 const { withGuild } = require('../utils/guildContext');
+const { raw } = require('express');
 
 // ⏱️ helper do formatowania „ile zostało”
 function formatTimeLeft(deadlineUTCDate) {
@@ -27,12 +28,18 @@ function formatTimeLeft(deadlineUTCDate) {
 // ✅ normalizacja etapu
 function normalizeStage(phase, rawStage) {
   if (!rawStage) return null;
-  if (phase !== 'swiss') return rawStage;
 
-  const s = String(rawStage).toLowerCase().trim();
-  const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
-  const num = m ? (m[1] || m[2]) : null;
-  return num ? `stage${num}` : rawStage;
+  const isSwiss =
+    phase === 'swiss' ||
+    String(phase).toUpperCase().startsWith('SWISS');
+
+    if (!isSwiss) return rawStage;
+
+    const s = String(rawStage).toLowerCase().trim();
+    const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
+    const num = m ? (m[1] || m[2]) : null;
+
+    return num ? `stage${num}` : rawStage;
 }
 
 module.exports = {
@@ -74,7 +81,19 @@ module.exports = {
     }
 
     return withGuild(guildId, async ({ pool }) => {
-      const phase = interaction.options.getString('phase');
+      let phase = interaction.options.getString('phase');
+
+      if (phase === 'swiss') {
+        const [eventRows] = await pool.query(
+          `SELECT phase FROM events WHERE guild_id = ? LIMIT 1`,
+          [guildId]
+        );
+
+        if (eventRows[0]?.phase?.startsWith('SWISS')) {
+          phase = eventRows[0].phase;
+        }
+      }
+
       const inputStage = interaction.options.getString('stage') || null;
       const stage = normalizeStage(phase, inputStage);
       const rawInput = interaction.options.getString('data');
@@ -128,13 +147,13 @@ module.exports = {
 
       // ⚠️ WYMAGA UNIQUE(guild_id, phase, stage)
       await pool.query(
-  `UPDATE active_panels
+        `UPDATE active_panels
    SET
      deadline = ?,
      reminded = 0
    WHERE id = ?`,
-  [deadlineUTC, row.id]
-);
+        [deadlineUTC, row.id]
+      );
 
 
       const timeLeft = formatTimeLeft(deadlineUTC);
