@@ -154,7 +154,7 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
 
 module.exports = async function openSwissResultsDropdown(
   interaction,
-  forcedStage = null
+  _client
 ) {
   try {
     if (!interaction.guildId) {
