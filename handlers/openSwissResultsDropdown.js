@@ -21,7 +21,6 @@ function chunk(array, size = 25) {
   return out;
 }
 
-// parse JSON / CSV / string -> array
 function parseList(input) {
   if (!input) return [];
   if (Array.isArray(input)) return input.map(String);
@@ -76,7 +75,7 @@ async function getCurrentSwiss(pool, guildId, stageDb) {
   return {
     x3_0: parseList(rows[0].correct_3_0),
     x0_3: parseList(rows[0].correct_0_3),
-    adv:  parseList(rows[0].correct_advancing)
+    adv: parseList(rows[0].correct_advancing)
   };
 }
 
@@ -154,7 +153,7 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
 
 module.exports = async function openSwissResultsDropdown(
   interaction,
-  _client
+  _client // ignorujemy drugi parametr z routera
 ) {
   try {
     if (!interaction.guildId) {
@@ -164,41 +163,36 @@ module.exports = async function openSwissResultsDropdown(
       });
     }
 
-    // 🔥 1️⃣ STAGE RESOLUTION
-    // 🔥 1️⃣ STAGE RESOLUTION
-let stage = forcedStage;
+    // 🔥 Stage zawsze wyciągamy z customId
+    const match = String(interaction.customId).match(/stage([123])/);
+    const stage = match ? `stage${match[1]}` : null;
 
-if (!stage) {
-  const match = String(interaction.customId).match(/stage([123])/);
-  stage = match ? `stage${match[1]}` : null;
-}
+    if (!stage) {
+      return interaction.reply({
+        content: '❌ Nieprawidłowy etap Swiss.',
+        ephemeral: true
+      });
+    }
 
-if (!stage) {
-  return interaction.reply({
-    content: '❌ Nieprawidłowy etap Swiss.',
-    ephemeral: true
-  });
-}
+    const stageDb = stage;
+    const stageLabel = stage;
 
-const stageDb = stage;
-const stageLabel = stage;
-
-  if (!interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({ ephemeral: true });
-  }
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferReply({ ephemeral: true });
+    }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-    const teams = await loadTeamsFromDB(pool, guildId);
-    const cur = await getCurrentSwiss(pool, guildId, stageDb);
+      const teams = await loadTeamsFromDB(pool, guildId);
+      const cur = await getCurrentSwiss(pool, guildId, stageDb);
 
-    const { embed, components } =
-      buildSwissComponents(stageLabel, stageDb, teams, cur);
+      const { embed, components } =
+        buildSwissComponents(stageLabel, stageDb, teams, cur);
 
-    await interaction.editReply({
-      embeds: [embed],
-      components
+      await interaction.editReply({
+        embeds: [embed],
+        components
+      });
     });
-  });
 
   } catch (err) {
     logger.error('interaction', 'openSwissResultsDropdown failed', {
