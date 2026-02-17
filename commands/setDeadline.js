@@ -33,13 +33,13 @@ function normalizeStage(phase, rawStage) {
     phase === 'swiss' ||
     String(phase).toUpperCase().startsWith('SWISS');
 
-    if (!isSwiss) return rawStage;
+  if (!isSwiss) return rawStage;
 
-    const s = String(rawStage).toLowerCase().trim();
-    const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
-    const num = m ? (m[1] || m[2]) : null;
+  const s = String(rawStage).toLowerCase().trim();
+  const m = s.match(/(?:swiss_)?stage[_-]?(\d)|^(\d)$/);
+  const num = m ? (m[1] || m[2]) : null;
 
-    return num ? `stage${num}` : rawStage;
+  return num ? `stage${num}` : rawStage;
 }
 
 module.exports = {
@@ -81,19 +81,7 @@ module.exports = {
     }
 
     return withGuild(guildId, async ({ pool }) => {
-      let phase = interaction.options.getString('phase');
-
-      if (phase === 'swiss') {
-        const [eventRows] = await pool.query(
-          `SELECT phase FROM events WHERE guild_id = ? LIMIT 1`,
-          [guildId]
-        );
-
-        if (eventRows[0]?.phase?.startsWith('SWISS')) {
-          phase = eventRows[0].phase;
-        }
-      }
-
+      const phase = interaction.options.getString('phase');
       const inputStage = interaction.options.getString('stage') || null;
       const stage = normalizeStage(phase, inputStage);
       const rawInput = interaction.options.getString('data');
