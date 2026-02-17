@@ -26,9 +26,9 @@ module.exports = {
   'start_swiss_': 'openSwissDropdown',
   'confirm_swiss': 'submitSwissDropdown',
   'confirm_swiss_results:': 'submitSwissResultsDropdown',
-  'set_results_swiss_stage1': 'submitSwissResultsDropdown',
-  'set_results_swiss_stage2': 'submitSwissResultsDropdown',
-  'set_results_swiss_stage3': 'submitSwissResultsDropdown',
+  'set_results_swiss_stage1': 'openSwissResultsDropdown',
+  'set_results_swiss_stage2': 'openSwissResultsDropdown',
+  'set_results_swiss_stage3': 'openSwissResultsDropdown',
 
   // ===== PLAYOFFS =====
   'confirm_playoffs': 'submitPlayoffsDropdown',
