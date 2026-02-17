@@ -57,7 +57,15 @@ module.exports = async function panelSelectAction(
       });
     }
 
-    const handlerName = maps?.buttonMap?.[targetCustomId];
+    const handlerName =
+      maps?.buttonMap?.[targetCustomId] ||
+      Object.keys(maps?.buttonMap || {}).find(key =>
+        targetCustomId.startsWith(key)
+      ) && maps.buttonMap[
+      Object.keys(maps.buttonMap).find(key =>
+        targetCustomId.startsWith(key)
+      )
+      ];
     if (!handlerName) {
       logger.error('panel', 'No handler mapped for targetCustomId', {
         targetCustomId,
@@ -111,7 +119,7 @@ module.exports = async function panelSelectAction(
         await interaction.editReply({
           content: '❌ Wystąpił błąd podczas wykonywania akcji.',
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 };
