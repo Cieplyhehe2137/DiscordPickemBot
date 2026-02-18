@@ -24,6 +24,7 @@ module.exports = {
 
   // ===== SWISS (CZYSTA WERSJA) =====
   'start_swiss_': 'openSwissDropdown',
+  'confirm_official_swiss_results': 'submitSwissResultsDropdown',
   'confirm_swiss': 'submitSwissDropdown',
   'confirm_swiss_results:': 'submitSwissResultsDropdown',
   'set_results_swiss_stage1': 'openSwissResultsDropdown',
