@@ -77,7 +77,7 @@ module.exports = async (interaction) => {
 
     const stage = extractStage(interaction.customId);
     if (!stage) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
       return;
     }
 
@@ -96,7 +96,7 @@ module.exports = async (interaction) => {
 
     console.log("CACHE SET:", key, local);
 
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch(() => { });
     return;
   }
 
@@ -107,7 +107,7 @@ module.exports = async (interaction) => {
     interaction.isButton() &&
     interaction.customId.startsWith('confirm_swiss_results:')
   ) {
-    await interaction.deferUpdate();
+    await interaction.deferReply({ ephemeral: true });
 
     const stage = extractStage(interaction.customId);
     const key = `${guildId}:${adminId}:${stage}`;
@@ -203,9 +203,9 @@ module.exports = async (interaction) => {
           buildSwissComponents(stage, stage, teams, fresh);
 
         await interaction.editReply({
+          content: '✅ Oficjalne wyniki zapisane.',
           embeds: [embed],
-          components,
-          content: null
+          components
         });
 
       } catch (err) {
