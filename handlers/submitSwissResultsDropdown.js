@@ -103,10 +103,7 @@ module.exports = async (interaction) => {
   /* ===============================
      CONFIRM BUTTON
   =============================== */
-  if (
-    interaction.isButton() &&
-    interaction.customId.startsWith('confirm_swiss_results:')
-  ) {
+  if (interaction.customId.startsWith('confirm_official_swiss_results:')) {
     await interaction.deferReply({ ephemeral: true });
 
     const stage = extractStage(interaction.customId);
