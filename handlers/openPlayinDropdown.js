@@ -8,6 +8,24 @@ const {
 
 const { withGuild } = require('../utils/guildContext');
 
+
+const CACHE_TTL = 15 * 60 * 1000;
+const cache = new Map();
+
+function getCache(key) {
+  const e = cache.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  return e.data;
+}
+
+function setCache(key, data) {
+  cache.set(key, { ts: Date.now(), data })
+}
+
 module.exports = async (interaction) => {
   if (!interaction.guildId) {
     return interaction.reply({
