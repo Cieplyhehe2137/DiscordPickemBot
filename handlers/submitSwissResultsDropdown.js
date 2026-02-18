@@ -84,11 +84,11 @@ module.exports = async (interaction) => {
     const key = `${guildId}:${adminId}:${stage}`;
     const local = getCache(key) || { add3: [], add0: [], addA: [] };
 
-    if (interaction.customId.startsWith('official_swiss_3_0')) {
+    if (interaction.customId.startsWith('official_admin_swiss_3_0')) {
       local.add3 = interaction.values;
-    } else if (interaction.customId.startsWith('official_swiss_0_3')) {
+    } else if (interaction.customId.startsWith('official_admin_swiss_0_3')) {
       local.add0 = interaction.values;
-    } else if (interaction.customId.startsWith('official_swiss_advancing')) {
+    } else if (interaction.customId.startsWith('official_admin_swiss_advancing')) {
       local.addA = interaction.values;
     }
 
