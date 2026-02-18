@@ -2,15 +2,12 @@
 
 const logger = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
-
-// re-używane z openera
 const { buildSwissComponents, getCurrentSwiss } = require('./openSwissResultsDropdown');
 
 /* ===============================
    CACHE (TTL)
-   key = `${guildId}:${adminId}:${stage}`
 =============================== */
-const CACHE_TTL = 15 * 60 * 1000; // 15 min
+const CACHE_TTL = 15 * 60 * 1000;
 const cache = new Map();
 
 function getCache(key) {
@@ -30,6 +27,12 @@ function setCache(key, data) {
 /* ===============================
    HELPERS
 =============================== */
+
+function extractStage(customId) {
+  const parts = String(customId).split(':');
+  return parts[1] || null; // zawsze druga część
+}
+
 async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(
     `SELECT name
@@ -44,9 +47,7 @@ async function loadTeamsFromDB(pool, guildId) {
 
 function normalize(arr = []) {
   return Array.from(
-    new Set(
-      arr.map(v => String(v || '').trim()).filter(Boolean)
-    )
+    new Set(arr.map(v => String(v || '').trim()).filter(Boolean))
   );
 }
 
@@ -58,14 +59,10 @@ function mergeWithCap(base = [], add = [], cap) {
   return { ok: true, merged };
 }
 
-function stageFromCustomId(customId) {
-  const m = String(customId).match(/stage([123])/);
-  return m ? `stage${m[1]}` : null;
-}
-
 /* ===============================
    HANDLER
 =============================== */
+
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
   if (!interaction.guildId) return;
@@ -74,12 +71,13 @@ module.exports = async (interaction) => {
   const adminId = interaction.user.id;
 
   /* ===============================
-     SELECT MENUS → CACHE ONLY
+     SELECT → zapis do cache
   =============================== */
   if (interaction.isStringSelectMenu()) {
-    const stage = stageFromCustomId(interaction.customId);
+
+    const stage = extractStage(interaction.customId);
     if (!stage) {
-      await interaction.deferUpdate().catch(() => { });
+      await interaction.deferUpdate().catch(() => {});
       return;
     }
 
@@ -96,7 +94,9 @@ module.exports = async (interaction) => {
 
     setCache(key, local);
 
-    await interaction.deferUpdate().catch(() => { });
+    console.log("CACHE SET:", key, local);
+
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
@@ -107,12 +107,15 @@ module.exports = async (interaction) => {
     interaction.isButton() &&
     interaction.customId.startsWith('confirm_swiss_results:')
   ) {
-    // 🔥 ACK NA SAMYM POCZĄTKU
     await interaction.deferUpdate();
 
-    const [, stage] = interaction.customId.split(':');
+    const stage = extractStage(interaction.customId);
     const key = `${guildId}:${adminId}:${stage}`;
     const sel = getCache(key);
+
+    console.log("CONFIRM STAGE:", stage);
+    console.log("CONFIRM CACHE KEY:", key);
+    console.log("CACHE HIT:", sel);
 
     if (!sel) {
       return interaction.followUp({
@@ -128,33 +131,22 @@ module.exports = async (interaction) => {
       });
     }
 
-    await withGuild(interaction, async ({ pool, guildId }) => {
+    await withGuild(interaction, async ({ pool }) => {
+
       const teams = await loadTeamsFromDB(pool, guildId);
       const current = await getCurrentSwiss(pool, guildId, stage);
 
       const m3 = mergeWithCap(current.x3_0, sel.add3, 2);
-      if (!m3.ok) {
-        return interaction.followUp({
-          ephemeral: true,
-          content: `⚠️ 3-0: ${m3.err}`
-        });
-      }
+      if (!m3.ok)
+        return interaction.followUp({ ephemeral: true, content: `⚠️ 3-0: ${m3.err}` });
 
       const m0 = mergeWithCap(current.x0_3, sel.add0, 2);
-      if (!m0.ok) {
-        return interaction.followUp({
-          ephemeral: true,
-          content: `⚠️ 0-3: ${m0.err}`
-        });
-      }
+      if (!m0.ok)
+        return interaction.followUp({ ephemeral: true, content: `⚠️ 0-3: ${m0.err}` });
 
       const mA = mergeWithCap(current.adv, sel.addA, 6);
-      if (!mA.ok) {
-        return interaction.followUp({
-          ephemeral: true,
-          content: `⚠️ Awans: ${mA.err}`
-        });
-      }
+      if (!mA.ok)
+        return interaction.followUp({ ephemeral: true, content: `⚠️ Awans: ${mA.err}` });
 
       const all = [...m3.merged, ...m0.merged, ...mA.merged];
       if (new Set(all.map(v => v.toLowerCase())).size !== all.length) {
@@ -172,16 +164,24 @@ module.exports = async (interaction) => {
         });
       }
 
+      console.log("SAVING SWISS:", {
+        guildId,
+        stage,
+        m3: m3.merged,
+        m0: m0.merged,
+        mA: mA.merged
+      });
+
       try {
         await pool.query(
           `INSERT INTO swiss_results
-   (guild_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
-   VALUES (?, ?, ?, ?, ?, 1)
-   ON DUPLICATE KEY UPDATE
-     correct_3_0 = VALUES(correct_3_0),
-     correct_0_3 = VALUES(correct_0_3),
-     correct_advancing = VALUES(correct_advancing),
-     active = 1`,
+           (guild_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
+           VALUES (?, ?, ?, ?, ?, 1)
+           ON DUPLICATE KEY UPDATE
+             correct_3_0 = VALUES(correct_3_0),
+             correct_0_3 = VALUES(correct_0_3),
+             correct_advancing = VALUES(correct_advancing),
+             active = 1`,
           [
             guildId,
             stage,
