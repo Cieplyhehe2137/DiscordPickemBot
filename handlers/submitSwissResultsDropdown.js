@@ -110,7 +110,7 @@ module.exports = async (interaction) => {
     // 🔥 ACK NA SAMYM POCZĄTKU
     await interaction.deferUpdate();
 
-    const stage = interaction.customId.replace('confirm_swiss_results:', '');
+    const [, stage] = interaction.customId.split(':');
     const key = `${guildId}:${adminId}:${stage}`;
     const sel = getCache(key);
 
