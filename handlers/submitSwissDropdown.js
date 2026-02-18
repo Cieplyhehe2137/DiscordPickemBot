@@ -49,7 +49,7 @@ module.exports = async (interaction) => {
   =============================== */
 
   const dropdownMatch = customId.match(
-    /^official_swiss_(3_0|0_3|advancing):(stage[123])/
+    /^official_admin_swiss_(3_0|0_3|advancing):(stage[123])/
   );
 
   if (dropdownMatch) {
@@ -89,7 +89,7 @@ module.exports = async (interaction) => {
   =============================== */
 
   const confirmMatch = customId.match(
-    /^confirm_swiss_results:(stage[123])$/
+    /^confirm_official_swiss_results:(stage[123])$/
   );
 
   if (!interaction.isButton() || !confirmMatch) return;

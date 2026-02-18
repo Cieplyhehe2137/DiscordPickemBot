@@ -104,7 +104,7 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
       components.push(
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`official_swiss_${type}:${stageDb}:p${idx}`)
+            .setCustomId(`official_admin_swiss_${type}:${stageDb}:p${idx}`)
             .setPlaceholder(
               left > 0
                 ? `${label} (część ${idx + 1})`
@@ -126,7 +126,7 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
   components.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`confirm_swiss_results:${stageDb}`)
+        .setCustomId(`confirm_official_swiss_results:${stageDb}`)
         .setLabel('✅ Zatwierdź (dopisz)')
         .setStyle(ButtonStyle.Success)
     )
