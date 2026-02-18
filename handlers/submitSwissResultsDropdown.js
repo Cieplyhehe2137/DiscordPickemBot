@@ -79,7 +79,7 @@ module.exports = async (interaction) => {
   if (interaction.isStringSelectMenu()) {
     const stage = stageFromCustomId(interaction.customId);
     if (!stage) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
       return;
     }
 
@@ -96,7 +96,7 @@ module.exports = async (interaction) => {
 
     setCache(key, local);
 
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch(() => { });
     return;
   }
 
@@ -174,16 +174,14 @@ module.exports = async (interaction) => {
 
       try {
         await pool.query(
-          `UPDATE swiss_results
-           SET active = 0
-           WHERE guild_id = ? AND stage = ?`,
-          [guildId, stage]
-        );
-
-        await pool.query(
           `INSERT INTO swiss_results
-            (guild_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
-           VALUES (?, ?, ?, ?, ?, 1)`,
+   (guild_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
+   VALUES (?, ?, ?, ?, ?, 1)
+   ON DUPLICATE KEY UPDATE
+     correct_3_0 = VALUES(correct_3_0),
+     correct_0_3 = VALUES(correct_0_3),
+     correct_advancing = VALUES(correct_advancing),
+     active = 1`,
           [
             guildId,
             stage,
