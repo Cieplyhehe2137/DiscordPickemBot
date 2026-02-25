@@ -24,7 +24,7 @@ function requireGuild(interaction) {
     interaction.reply({
       content: '❌ Ta akcja działa tylko na serwerze.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
     return false;
   }
   return true;
@@ -33,7 +33,7 @@ function requireGuild(interaction) {
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
   return perms?.has(PermissionFlagsBits.Administrator) ||
-         perms?.has(PermissionFlagsBits.ManageGuild);
+    perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
 /* ======================
@@ -231,20 +231,64 @@ async function onTeamBSelect(interaction) {
   const [, teamB] = interaction.values[0].split('|');
 
   await withGuild(interaction, async ({ pool, guildId }) => {
-    const [[next]] = await pool.query(
-      `SELECT COALESCE(MAX(match_no),0)+1 AS nextNo
-       FROM matches WHERE guild_id=? AND phase=?`,
-      [guildId, st.phase]
+
+    // 🔹 1. Pobieramy aktywny event
+    const [[event]] = await pool.query(
+      `
+      SELECT id
+      FROM events
+      WHERE guild_id = ?
+        AND is_active = 1
+      LIMIT 1
+      `,
+      [guildId]
     );
 
+    if (!event) {
+      return interaction.update({
+        content: '❌ Brak aktywnego eventu.',
+        components: []
+      });
+    }
+
+    const eventId = event.id;
+
+    // 🔹 2. Liczymy kolejny numer meczu w ramach eventu + fazy
+    const [[next]] = await pool.query(
+      `
+      SELECT COALESCE(MAX(match_no),0)+1 AS nextNo
+      FROM matches
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND phase = ?
+      `,
+      [guildId, eventId, st.phase]
+    );
+
+    // 🔹 3. INSERT z event_id
     const [res] = await pool.query(
       `
       INSERT INTO matches (
-        guild_id, phase, match_no, team_a, team_b, best_of, is_locked
+        guild_id,
+        event_id,
+        phase,
+        match_no,
+        team_a,
+        team_b,
+        best_of,
+        is_locked
       )
-      VALUES (?, ?, ?, ?, ?, ?, 0)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0)
       `,
-      [guildId, st.phase, next.nextNo, st.teamA, teamB, st.bestOf]
+      [
+        guildId,
+        eventId,
+        st.phase,
+        next.nextNo,
+        st.teamA,
+        teamB,
+        st.bestOf
+      ]
     );
 
     const matchId = res.insertId;
@@ -253,6 +297,7 @@ async function onTeamBSelect(interaction) {
 
     logger.info('matches', 'Match added', {
       guildId,
+      eventId,
       matchId,
       phase: st.phase,
       teamA: st.teamA,
