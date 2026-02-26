@@ -41,9 +41,9 @@ module.exports = async (interaction) => {
     });
   }
 
-  const stageNumber = raw.replace('swiss_stage_', '');
-  const stage = `stage${stageNumber}`;
-  const matchPhaseKey = `swiss_stage${stageNumber}`;
+  const matchPhaseKey = raw; // używamy dokładnie tego co przyszło z selecta
+  const stage = raw.replace('swiss_', ''); // tylko do wyświetlenia
+
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (${stage.toUpperCase()})`)
