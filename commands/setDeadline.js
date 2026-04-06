@@ -64,18 +64,19 @@ module.exports = {
     }
 
     return withGuild(guildId, async ({ pool }) => {
-
       const phase = interaction.options.getString('phase');
       const rawInput = interaction.options.getString('data');
       const inputStage = interaction.options.getString('stage') || null;
 
-      // 🔥 budujemy stage_key dokładnie jak w active_panels
-      let stageKey = null;
+      let dbPhase = phase;
+      let dbStageKey = null;
 
-      if (inputStage) {
+      if (phase === 'swiss' && inputStage) {
         const stageNumber = String(inputStage).replace(/\D/g, '');
+
         if (stageNumber) {
-          stageKey = `swiss_stage${stageNumber}`;
+          dbPhase = `swiss_stage${stageNumber}`;
+          dbStageKey = `stage${stageNumber}`;
         }
       }
 
@@ -85,7 +86,6 @@ module.exports = {
         { zone: 'Europe/Warsaw' }
       );
 
-      // 🟥 Zły format
       if (!deadlineDate.isValid) {
         return interaction.reply({
           ephemeral: true,
@@ -93,7 +93,6 @@ module.exports = {
         });
       }
 
-      // 🟥 Deadline w przeszłości
       if (deadlineDate <= DateTime.now()) {
         return interaction.reply({
           ephemeral: true,
@@ -104,15 +103,15 @@ module.exports = {
       const deadlineUTC = deadlineDate.toUTC().toJSDate();
 
       const [rows] = await pool.query(
-        `SELECT id, channel_id, message_id
-         FROM active_panels
-         WHERE guild_id = ?
-           AND phase = ?
-           AND stage_key <=> ?
-           AND active = 1
-         ORDER BY id DESC
-         LIMIT 1`,
-        [guildId, phase, stageKey]
+        `SELECT id, channel_id, message_id, phase, stage_key
+       FROM active_panels
+       WHERE guild_id = ?
+         AND phase = ?
+         AND stage_key <=> ?
+         AND active = 1
+       ORDER BY id DESC
+       LIMIT 1`,
+        [guildId, dbPhase, dbStageKey]
       );
 
       const row = rows?.[0];
@@ -129,8 +128,8 @@ module.exports = {
 
       await pool.query(
         `UPDATE active_panels
-         SET deadline = ?, reminded = 0
-         WHERE id = ?`,
+       SET deadline = ?, reminded = 0
+       WHERE id = ?`,
         [deadlineUTC, row.id]
       );
 
