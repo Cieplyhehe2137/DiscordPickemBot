@@ -8,7 +8,6 @@ const {
 const { withGuild } = require('../utils/guildContext');
 
 module.exports = async (interaction) => {
-  // guard: tylko select
   if (!interaction.isStringSelectMenu()) return;
 
   const guildId = interaction.guildId;
@@ -36,14 +35,15 @@ module.exports = async (interaction) => {
   const raw = interaction.values?.[0]; // np. swiss_stage_1
   if (!raw) {
     return interaction.editReply({
-      content: '❌ Nie wybrano etapu.',
-      ephemeral: true
+      content: '❌ Nie wybrano etapu.'
     });
   }
 
-  const matchPhaseKey = raw; // używamy dokładnie tego co przyszło z selecta
-  const stage = raw.replace('swiss_', ''); // tylko do wyświetlenia
+  // pełny klucz fazy, np. swiss_stage_1
+  const phase = raw;
 
+  // uproszczona nazwa etapu do wyświetlenia, np. stage_1
+  const stage = raw.replace('swiss_', '');
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (${stage.toUpperCase()})`)
@@ -54,11 +54,11 @@ module.exports = async (interaction) => {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`start_${stage}`)
-      .setLabel(`Typuj Swiss ${stage.replace('stage', '')}`)
+      .setLabel(`Typuj Swiss ${stage.replace('stage_', '')}`)
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`match_pick:${matchPhaseKey}`)
+      .setCustomId(`match_pick:${phase}`)
       .setLabel('🎯 Typuj wyniki meczów')
       .setStyle(ButtonStyle.Success)
   );
@@ -69,7 +69,6 @@ module.exports = async (interaction) => {
       components: [row],
     });
 
-    // ✅ JEDYNE POPRAWNE MIEJSCE NA pool.query
     await withGuild(guildId, async ({ pool }) => {
       await pool.query(
         `
@@ -89,14 +88,13 @@ module.exports = async (interaction) => {
     });
 
     await interaction.editReply({
-      content: `✅ Wysłano panel Swiss (${stage.toUpperCase()}).`,
-      ephemeral: true
+      content: `✅ Wysłano panel Swiss (${stage.toUpperCase()}).`
     });
   } catch (err) {
     console.error('Błąd wysyłania panelu Swiss:', err);
+
     await interaction.editReply({
-      content: '❌ Nie udało się wysłać panelu.',
-      ephemeral: true
+      content: '❌ Nie udało się wysłać panelu.'
     });
   }
 };
