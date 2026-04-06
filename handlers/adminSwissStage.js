@@ -39,26 +39,33 @@ module.exports = async (interaction) => {
     });
   }
 
-  // pełny klucz fazy, np. swiss_stage_1
-  const phase = raw;
+  const stageNumber = String(raw).match(/\d+/)?.[0];
 
-  // uproszczona nazwa etapu do wyświetlenia, np. stage_1
-  const stage = raw.replace('swiss_', '');
+  if (!stageNumber) {
+    return interaction.editReply({
+      content: '❌ Nie udało się rozpoznać numeru etapu Swiss.'
+    });
+  }
+
+  // Ujednolicony format do DB i customId
+  const phase = `swiss_stage${stageNumber}`; // swiss_stage1
+  const stage = `stage${stageNumber}`;       // stage1
+  const stageKey = stage;                    // stage1
 
   const embed = new EmbedBuilder()
-    .setTitle(`🟠 Etap Swiss (${stage.toUpperCase()})`)
+    .setTitle(`🟠 Etap Swiss (STAGE ${stageNumber})`)
     .setDescription('Kliknij przycisk poniżej, aby rozpocząć typowanie:')
     .setColor('#ff9900')
     .setFooter({ text: '⏰ Typowanie otwarte – brak deadline.' });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`start_${stage}`)
-      .setLabel(`Typuj Swiss ${stage.replace('stage_', '')}`)
+      .setCustomId(`start_${phase}`) // start_swiss_stage1
+      .setLabel(`Typuj Swiss ${stageNumber}`)
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`match_pick:${phase}`)
+      .setCustomId(`match_pick:${phase}`) // match_pick:swiss_stage1
       .setLabel('🎯 Typuj wyniki meczów')
       .setStyle(ButtonStyle.Success)
   );
@@ -73,22 +80,24 @@ module.exports = async (interaction) => {
       await pool.query(
         `
         INSERT INTO active_panels
-          (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
-        VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
+          (guild_id, phase, stage, stage_key, message_id, channel_id, reminded, closed, active, deadline)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, NULL)
         ON DUPLICATE KEY UPDATE
           message_id = VALUES(message_id),
           channel_id = VALUES(channel_id),
+          stage = VALUES(stage),
+          stage_key = VALUES(stage_key),
           reminded = 0,
           closed = 0,
           active = 1,
           deadline = NULL
         `,
-        [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
+        [guildId, phase, stage, stageKey, sentMessage.id, sentMessage.channel.id]
       );
     });
 
     await interaction.editReply({
-      content: `✅ Wysłano panel Swiss (${stage.toUpperCase()}).`
+      content: `✅ Wysłano panel Swiss (STAGE ${stageNumber}).`
     });
   } catch (err) {
     console.error('Błąd wysyłania panelu Swiss:', err);
