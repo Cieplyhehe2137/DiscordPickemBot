@@ -47,10 +47,8 @@ module.exports = async (interaction) => {
     });
   }
 
-  // Ujednolicony format do DB i customId
   const phase = `swiss_stage${stageNumber}`; // swiss_stage1
   const stage = `stage${stageNumber}`;       // stage1
-  const stageKey = stage;                    // stage1
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (STAGE ${stageNumber})`)
@@ -60,12 +58,12 @@ module.exports = async (interaction) => {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`start_${phase}`) // start_swiss_stage1
+      .setCustomId(`start_${phase}`)
       .setLabel(`Typuj Swiss ${stageNumber}`)
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`match_pick:${phase}`) // match_pick:swiss_stage1
+      .setCustomId(`match_pick:${phase}`)
       .setLabel('🎯 Typuj wyniki meczów')
       .setStyle(ButtonStyle.Success)
   );
@@ -80,19 +78,18 @@ module.exports = async (interaction) => {
       await pool.query(
         `
         INSERT INTO active_panels
-          (guild_id, phase, stage, stage_key, message_id, channel_id, reminded, closed, active, deadline)
-        VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1, NULL)
+          (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
+        VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
         ON DUPLICATE KEY UPDATE
           message_id = VALUES(message_id),
           channel_id = VALUES(channel_id),
           stage = VALUES(stage),
-          stage_key = VALUES(stage_key),
           reminded = 0,
           closed = 0,
           active = 1,
           deadline = NULL
         `,
-        [guildId, phase, stage, stageKey, sentMessage.id, sentMessage.channel.id]
+        [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
       );
     });
 
