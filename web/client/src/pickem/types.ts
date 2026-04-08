@@ -1,90 +1,45 @@
-// ========================
-// PICKEM OVERVIEW
-// ========================
+export type PickemPhase =
+  | "SWISS_STAGE_1"
+  | "SWISS_STAGE_2"
+  | "SWISS_STAGE_3"
+  | "PLAYOFFS"
+  | "DOUBLE_ELIMINATION"
+  | "PLAY_IN"
+  | "FINISHED";
 
-export type PickemStatus = "open" | "locked" | "scoring" | "scored";
+export type PickemStatus = "OPEN" | "CLOSED" | string;
 
 export type PickemOverviewDTO = {
   event: {
-    id: number;
+    id: number | string;
     name: string;
+    slug: string;
+    deadline: string | null;
   };
-  participants: number;
-  deadline: string; // ISO
-  status: PickemStatus;
-  lastScoredAt: string | null;
+  tournament: {
+    phase: PickemPhase | string;
+    status: PickemStatus;
+    isOpen: boolean;
+  };
+  stats: {
+    participants: number;
+    predictions: number;
+    byType: {
+      swiss: number;
+      playoffs: number;
+      doubleElimination: number;
+      playIn: number;
+      matches: number;
+      maps: number;
+    };
+  };
+  permissions: {
+    isAdmin: boolean;
+  };
 };
 
-// ========================
-// LEADERBOARD
-// ========================
-
-export type LeaderboardRow = {
+export type PickemTopEntryDTO = {
   rank: number;
   userId: string;
-  username: string;
   points: number;
-};
-
-export type PickemLeaderboardDTO = {
-  event: {
-    id: number;
-    name: string;
-  };
-  rows: LeaderboardRow[];
-};
-
-// ========================
-// PARTICIPANTS
-// ========================
-
-export type ParticipantsRow = {
-  userId: string;
-  username: string;
-  points: number | null;
-  joinedAt: string;
-};
-
-export type PickemParticipantsDTO = {
-  event: {
-    id: number;
-    name: string;
-  };
-  rows: ParticipantsRow[];
-};
-
-// ========================
-// USER BREAKDOWN (v0.2)
-// ========================
-
-export type BreakdownItem = {
-  label: string;
-  predicted: string[];
-  points: number;
-};
-
-export type MatchBreakdownItem = {
-  match: string;
-  prediction: string;
-  result: string;
-  points: number;
-};
-
-export type PickemUserBreakdown = {
-  swiss: BreakdownItem[];
-  playoffs: BreakdownItem[];
-  matches: MatchBreakdownItem[];
-};
-
-// ========================
-// USER DETAILS
-// ========================
-
-export type PickemUserDetailsDTO = {
-  user: {
-    id: string;
-    username: string;
-  };
-  totalPoints: number;
-  breakdown: PickemUserBreakdown;
 };
