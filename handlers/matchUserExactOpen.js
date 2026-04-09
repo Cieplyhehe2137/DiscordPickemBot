@@ -104,7 +104,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      // 👇 mały trick, żeby helper wiedział jaki guild_id
+      
       pool.__guildId = guildId;
 
       const [[match]] = await pool.query(

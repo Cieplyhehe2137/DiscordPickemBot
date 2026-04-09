@@ -12,6 +12,25 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
+function validateScore(a, b) {
+  const scoreA = Number(a);
+  const scoreB = Number(b);
+
+  if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB)) {
+    return 'Wynik musi być liczbą całkowitą.';
+  }
+  
+  if (scoreA < 0 || scoreB < 0) {
+    return 'Wynik nie może być ujemny.';
+  }
+
+  if (scoreA === scoreB) {
+    return 'Zwycięzca musi mieć co najmniej 13 rund.'
+  }
+
+  return null;
+}
+
 module.exports = async function matchUserExactSubmit(interaction) {
   try {
     if (!interaction.guildId) {
