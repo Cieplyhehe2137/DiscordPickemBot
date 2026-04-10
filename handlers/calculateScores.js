@@ -13,7 +13,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) {}
+  } catch (_) { }
 
   return String(val)
     .replace(/[\[\]"]+/g, '')
@@ -369,43 +369,41 @@ module.exports = async function calculateScores(guildId, eventId) {
     }
 
     /* =========================
-       MATCHES – SERIES + MAPS
-    ========================= */
+   MATCHES – SERIES + MAPS
+========================= */
     try {
-      const [matches] = await pool.query(
-        `
-        SELECT
-          m.id AS match_id,
-          r.res_a,
-          r.res_b
-        FROM matches m
-        JOIN match_results r
-          ON r.match_id = m.id
-         AND r.guild_id = m.guild_id
-        WHERE m.guild_id = ?
-          AND m.event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      const [matches] = await pool.query(`
+    SELECT
+      m.id AS match_id,
+      r.res_a,
+      r.res_b
+    FROM matches m
+    JOIN match_results r
+      ON r.match_id = m.id
+     AND r.guild_id = m.guild_id
+    WHERE m.guild_id = ?
+      AND m.event_id = ?
+  `, [guildId, eventId]);
 
-      await pool.query(
-        `
-        DELETE FROM match_points
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      await pool.query(`
+    DELETE FROM match_points
+    WHERE guild_id = ?
+      AND event_id = ?
+  `, [guildId, eventId]);
 
-      const [preds] = await pool.query(
-        `
-        SELECT match_id, user_id, pred_a, pred_b
-        FROM match_predictions
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      const [preds] = await pool.query(`
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      mp.pred_a,
+      mp.pred_b
+    FROM match_predictions mp
+    JOIN matches m
+      ON m.id = mp.match_id
+     AND m.guild_id = mp.guild_id
+    WHERE mp.guild_id = ?
+      AND m.event_id = ?
+  `, [guildId, eventId]);
 
       const predsByMatch = new Map();
       for (const p of preds) {
@@ -415,28 +413,25 @@ module.exports = async function calculateScores(guildId, eventId) {
         predsByMatch.get(p.match_id).push(p);
       }
 
-      const [allMaps] = await pool.query(
-        `
-        SELECT
-          mp.match_id,
-          mp.user_id,
-          mp.pred_exact_a AS predA,
-          mp.pred_exact_b AS predB,
-          mr.exact_a AS resA,
-          mr.exact_b AS resB
-        FROM match_map_predictions mp
-        JOIN matches m
-          ON m.id = mp.match_id
-         AND m.guild_id = mp.guild_id
-        JOIN match_map_results mr
-          ON mr.match_id = mp.match_id
-         AND mr.map_no = mp.map_no
-         AND mr.guild_id = mp.guild_id
-        WHERE mp.guild_id = ?
-          AND m.event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      const [allMaps] = await pool.query(`
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      mp.pred_exact_a AS predA,
+      mp.pred_exact_b AS predB,
+      mr.exact_a AS resA,
+      mr.exact_b AS resB
+    FROM match_map_predictions mp
+    JOIN matches m
+      ON m.id = mp.match_id
+     AND m.guild_id = mp.guild_id
+    JOIN match_map_results mr
+      ON mr.match_id = mp.match_id
+     AND mr.map_no = mp.map_no
+     AND mr.guild_id = mp.guild_id
+    WHERE mp.guild_id = ?
+      AND m.event_id = ?
+  `, [guildId, eventId]);
 
       const mapsByMatchUser = new Map();
       for (const m of allMaps) {
@@ -480,7 +475,6 @@ module.exports = async function calculateScores(guildId, eventId) {
             seriesPts,
             mapPts,
             mapsCount: maps.length,
-            maps
           });
 
           rows.push([
@@ -504,17 +498,14 @@ module.exports = async function calculateScores(guildId, eventId) {
       }
 
       if (rows.length) {
-        await pool.query(
-          `
-          INSERT INTO match_points
-            (guild_id, event_id, match_id, user_id, points, source)
-          VALUES ?
-          ON DUPLICATE KEY UPDATE
-            points = VALUES(points),
-            computed_at = CURRENT_TIMESTAMP
-          `,
-          [rows]
-        );
+        await pool.query(`
+      INSERT INTO match_points
+        (guild_id, event_id, match_id, user_id, points, source)
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        points = VALUES(points),
+        computed_at = CURRENT_TIMESTAMP
+    `, [rows]);
       }
 
       logger.info('scores', 'Matches score done', {
@@ -522,6 +513,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         eventId,
         rowsInserted: rows.length
       });
+
     } catch (e) {
       logger.error('scores', 'Matches failed', {
         guildId,
