@@ -12,6 +12,23 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
+function getRequiredMapsFromSeries(targetWinsA, targetWinsB, maxMaps) {
+  if (
+    Number.isInteger(targetWinsA) &&
+    Number.isInteger(targetWinsB) &&
+    targetWinsA >= 0 &&
+    targetWinsB >= 0
+  ) {
+    const totalMaps = targetWinsA + targetWinsB;
+
+    if (totalMaps >= 1 && totalMaps <= maxMaps) {
+      return totalMaps;
+    }
+  }
+
+  return maxMaps;
+}
+
 function validateScore(a, b) {
   const scoreA = Number(a);
   const scoreB = Number(b);
@@ -19,16 +36,34 @@ function validateScore(a, b) {
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB)) {
     return 'Wynik musi być liczbą całkowitą.';
   }
-  
+
   if (scoreA < 0 || scoreB < 0) {
     return 'Wynik nie może być ujemny.';
   }
 
   if (scoreA === scoreB) {
-    return 'Zwycięzca musi mieć co najmniej 13 rund.'
+    return 'Na mapie nie może być remisu.';
   }
 
-  return null;
+  const winner = Math.max(scoreA, scoreB);
+  const loser = Math.min(scoreA, scoreB);
+
+  // Regulaminowy czas: 13:0 do 13:11
+  if (winner === 13 && loser <= 11) {
+    return null;
+  }
+
+  // OT: 16:14, 19:17, 22:20, 25:23 itd.
+  if (
+    winner >= 16 &&
+    winner - loser === 2 &&
+    (winner - 16) % 3 === 0 &&
+    (loser - 14) % 3 === 0
+  ) {
+    return null;
+  }
+
+  return 'Nieprawidłowy wynik mapy CS2. Dozwolone np. 13:8, 13:11, 16:14, 19:17.';
 }
 
 module.exports = async function matchUserExactSubmit(interaction) {
@@ -49,7 +84,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
-      // 🔒 global gate (deadline / lock)
       const gate = await assertPredictionsAllowed({
         guildId,
         kind: 'MATCHES'
@@ -62,29 +96,20 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
-      const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
-      const exactB = Number(interaction.fields.getTextInputValue('exact_b'));
+      const exactARaw = interaction.fields.getTextInputValue('exact_a');
+      const exactBRaw = interaction.fields.getTextInputValue('exact_b');
 
-      if (
-        !Number.isFinite(exactA) ||
-        !Number.isFinite(exactB) ||
-        exactA < 0 ||
-        exactB < 0
-      ) {
+      const validationError = validateScore(exactARaw, exactBRaw);
+      if (validationError) {
         return interaction.reply({
-          content: '❌ Wynik musi być liczbą ≥ 0.',
+          content: `❌ ${validationError}`,
           ephemeral: true
         });
       }
 
-      if (exactA === exactB) {
-        return interaction.reply({
-          content: '❌ Na mapie nie może być remisu.',
-          ephemeral: true
-        });
-      }
+      const exactA = Number(exactARaw);
+      const exactB = Number(exactBRaw);
 
-      // 🔒 GUILD-SAFE SELECT
       const [[match]] = await pool.query(
         `
         SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
@@ -114,7 +139,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const maxMaps = maxMapsFromBo(match.best_of);
       const mapNo = Number(ctx.mapNo || 1);
 
-      // ====== SERIA (jeśli user ją wybrał) ======
       const targetWinsA = Number.isFinite(Number(ctx.targetWinsA))
         ? Number(ctx.targetWinsA)
         : null;
@@ -123,10 +147,9 @@ module.exports = async function matchUserExactSubmit(interaction) {
         : null;
       const hasTarget = targetWinsA !== null && targetWinsB !== null;
 
-      const requiredMaps = Math.min(
-        Number(ctx.requiredMaps || maxMaps),
-        maxMaps
-      );
+      const requiredMaps = hasTarget
+        ? getRequiredMapsFromSeries(targetWinsA, targetWinsB, maxMaps)
+        : Math.min(Number(ctx.requiredMaps || maxMaps), maxMaps);
 
       const prevWinsA = Number(ctx.mapWinsA || 0);
       const prevWinsB = Number(ctx.mapWinsB || 0);
@@ -134,28 +157,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const mapWinner = exactA > exactB ? 'A' : 'B';
       const nextWinsA = prevWinsA + (mapWinner === 'A' ? 1 : 0);
       const nextWinsB = prevWinsB + (mapWinner === 'B' ? 1 : 0);
-
-      // === ZAPIS MAPY (BO3 / BO5) ===
-      if (maxMaps > 1) {
-        try {
-          await pool.query(
-            `
-            INSERT INTO match_map_predictions
-              (guild_id, match_id, user_id, map_no, pred_exact_a, pred_exact_b)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-              pred_exact_a = VALUES(pred_exact_a),
-              pred_exact_b = VALUES(pred_exact_b),
-              updated_at = CURRENT_TIMESTAMP
-            `,
-            [guildId, match.id, interaction.user.id, mapNo, exactA, exactB]
-          );
-        } catch (e) {
-          logger.warn('matches', 'match_map_predictions insert failed', {
-            message: e.message
-          });
-        }
-      }
 
       // ===== WALIDACJA SERII =====
       if (hasTarget) {
@@ -183,7 +184,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
         }
       }
 
-      // === BO1: zapis bezpośrednio do match_predictions ===
+      // === BO1 ===
       if (maxMaps === 1) {
         const predA = exactA > exactB ? 1 : 0;
         const predB = exactB > exactA ? 1 : 0;
@@ -202,15 +203,45 @@ module.exports = async function matchUserExactSubmit(interaction) {
           `,
           [guildId, match.id, interaction.user.id, predA, predB, exactA, exactB]
         );
+
+        userState.clear(guildId, interaction.user.id);
+
+        return interaction.reply({
+          content: `✅ Zapisano dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`,
+          ephemeral: true
+        });
       }
 
-      const winsNeeded =
-        maxMaps === 1 ? 1 : (maxMaps === 3 ? 2 : 3);
-
+      const winsNeeded = maxMaps === 3 ? 2 : 3;
       const shouldFinish =
         mapNo >= requiredMaps ||
         nextWinsA >= winsNeeded ||
         nextWinsB >= winsNeeded;
+
+      // === ZAPIS MAPY (dopiero po pełnej walidacji) ===
+      try {
+        await pool.query(
+          `
+          INSERT INTO match_map_predictions
+            (guild_id, match_id, user_id, map_no, pred_exact_a, pred_exact_b)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            pred_exact_a = VALUES(pred_exact_a),
+            pred_exact_b = VALUES(pred_exact_b),
+            updated_at = CURRENT_TIMESTAMP
+          `,
+          [guildId, match.id, interaction.user.id, mapNo, exactA, exactB]
+        );
+      } catch (e) {
+        logger.warn('matches', 'match_map_predictions insert failed', {
+          message: e.message
+        });
+
+        return interaction.reply({
+          content: '❌ Nie udało się zapisać wyniku mapy.',
+          ephemeral: true
+        });
+      }
 
       if (!shouldFinish) {
         const nextMapNo = mapNo + 1;
@@ -240,18 +271,13 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
-      // === KONIEC ===
       userState.clear(guildId, interaction.user.id);
 
       return interaction.reply({
-        content:
-          maxMaps === 1
-            ? `✅ Zapisano dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`
-            : `✅ Zapisano dokładne wyniki dla BO${match.best_of} (mapy 1–${requiredMaps}).`,
+        content: `✅ Zapisano dokładne wyniki dla BO${match.best_of} (mapy 1–${requiredMaps}).`,
         ephemeral: true
       });
     });
-
   } catch (err) {
     logger.error('matches', 'matchUserExactSubmit failed', {
       guild_id: interaction.guildId,
