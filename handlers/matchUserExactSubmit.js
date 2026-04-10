@@ -48,12 +48,10 @@ function validateScore(a, b) {
   const winner = Math.max(scoreA, scoreB);
   const loser = Math.min(scoreA, scoreB);
 
-  // Regulaminowy czas: 13:0 do 13:11
   if (winner === 13 && loser <= 11) {
     return null;
   }
 
-  // OT: 16:14, 19:17, 22:20, 25:23 itd.
   if (
     winner >= 16 &&
     winner - loser === 2 &&
@@ -112,7 +110,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
 
       const [[match]] = await pool.query(
         `
-        SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
+        SELECT id, event_id, team_a, team_b, best_of, is_locked, start_time_utc
         FROM matches
         WHERE guild_id = ? AND id = ?
         LIMIT 1
@@ -124,6 +122,13 @@ module.exports = async function matchUserExactSubmit(interaction) {
         userState.clear(guildId, interaction.user.id);
         return interaction.reply({
           content: '❌ Mecz nie istnieje.',
+          ephemeral: true
+        });
+      }
+
+      if (!match.event_id) {
+        return interaction.reply({
+          content: '❌ Ten mecz nie ma przypisanego eventu.',
           ephemeral: true
         });
       }
@@ -158,7 +163,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const nextWinsA = prevWinsA + (mapWinner === 'A' ? 1 : 0);
       const nextWinsB = prevWinsB + (mapWinner === 'B' ? 1 : 0);
 
-      // ===== WALIDACJA SERII =====
       if (hasTarget) {
         if (nextWinsA > targetWinsA || nextWinsB > targetWinsB) {
           return interaction.reply({
@@ -184,7 +188,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
         }
       }
 
-      // === BO1 ===
       if (maxMaps === 1) {
         const predA = exactA > exactB ? 1 : 0;
         const predB = exactB > exactA ? 1 : 0;
@@ -192,8 +195,8 @@ module.exports = async function matchUserExactSubmit(interaction) {
         await pool.query(
           `
           INSERT INTO match_predictions
-            (guild_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+            (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             pred_a = VALUES(pred_a),
             pred_b = VALUES(pred_b),
@@ -201,7 +204,16 @@ module.exports = async function matchUserExactSubmit(interaction) {
             pred_exact_b = VALUES(pred_exact_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, match.id, interaction.user.id, predA, predB, exactA, exactB]
+          [
+            guildId,
+            match.event_id,
+            match.id,
+            interaction.user.id,
+            predA,
+            predB,
+            exactA,
+            exactB
+          ]
         );
 
         userState.clear(guildId, interaction.user.id);
@@ -212,25 +224,26 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
-      const winsNeeded = maxMaps === 3 ? 2 : 3;
-      const shouldFinish =
-        mapNo >= requiredMaps ||
-        nextWinsA >= winsNeeded ||
-        nextWinsB >= winsNeeded;
-
-      // === ZAPIS MAPY (dopiero po pełnej walidacji) ===
       try {
         await pool.query(
           `
           INSERT INTO match_map_predictions
-            (guild_id, match_id, user_id, map_no, pred_exact_a, pred_exact_b)
-          VALUES (?, ?, ?, ?, ?, ?)
+            (guild_id, event_id, match_id, user_id, map_no, pred_exact_a, pred_exact_b)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             pred_exact_a = VALUES(pred_exact_a),
             pred_exact_b = VALUES(pred_exact_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, match.id, interaction.user.id, mapNo, exactA, exactB]
+          [
+            guildId,
+            match.event_id,
+            match.id,
+            interaction.user.id,
+            mapNo,
+            exactA,
+            exactB
+          ]
         );
       } catch (e) {
         logger.warn('matches', 'match_map_predictions insert failed', {
@@ -242,6 +255,12 @@ module.exports = async function matchUserExactSubmit(interaction) {
           ephemeral: true
         });
       }
+
+      const winsNeeded = maxMaps === 3 ? 2 : 3;
+      const shouldFinish =
+        mapNo >= requiredMaps ||
+        nextWinsA >= winsNeeded ||
+        nextWinsB >= winsNeeded;
 
       if (!shouldFinish) {
         const nextMapNo = mapNo + 1;
@@ -271,13 +290,12 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
-      // === KONIEC BO3 / BO5: zapisz też finalny typ serii ===
       if (hasTarget) {
         await pool.query(
           `
           INSERT INTO match_predictions
-            (guild_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+            (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             pred_a = VALUES(pred_a),
             pred_b = VALUES(pred_b),
@@ -287,6 +305,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
           `,
           [
             guildId,
+            match.event_id,
             match.id,
             interaction.user.id,
             targetWinsA,
