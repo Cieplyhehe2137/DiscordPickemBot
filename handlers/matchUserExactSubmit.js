@@ -271,6 +271,32 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
+      // === KONIEC BO3 / BO5: zapisz też finalny typ serii ===
+      if (hasTarget) {
+        await pool.query(
+          `
+          INSERT INTO match_predictions
+            (guild_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            pred_a = VALUES(pred_a),
+            pred_b = VALUES(pred_b),
+            pred_exact_a = VALUES(pred_exact_a),
+            pred_exact_b = VALUES(pred_exact_b),
+            updated_at = CURRENT_TIMESTAMP
+          `,
+          [
+            guildId,
+            match.id,
+            interaction.user.id,
+            targetWinsA,
+            targetWinsB,
+            targetWinsA,
+            targetWinsB
+          ]
+        );
+      }
+
       userState.clear(guildId, interaction.user.id);
 
       return interaction.reply({

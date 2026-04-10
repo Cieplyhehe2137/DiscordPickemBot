@@ -340,11 +340,9 @@ module.exports = async function calculateScores(guildId, eventId) {
 
 
     /* =========================
-    MATCHES – TOTAL (SERIES + MAPS)
- ========================= */
+   MATCHES – SERIES + MAPS
+========================= */
     try {
-
-      // bierzemy mecze z wynikami
       const [matches] = await pool.query(`
     SELECT
       m.id AS match_id,
@@ -355,19 +353,22 @@ module.exports = async function calculateScores(guildId, eventId) {
       ON r.match_id = m.id
      AND r.guild_id = m.guild_id
     WHERE m.guild_id = ?
-  `, [guildId]);
+      AND m.event_id = ?
+  `, [guildId, eventId]);
 
-      // czyścimy stare punkty
+      // czyścimy stare punkty TYLKO dla tego eventu
       await pool.query(`
     DELETE FROM match_points
     WHERE guild_id = ?
-  `, [guildId]);
+      AND event_id = ?
+  `, [guildId, eventId]);
 
       const [preds] = await pool.query(`
-    SELECT match_id,user_id,pred_a,pred_b
+    SELECT match_id, user_id, pred_a, pred_b
     FROM match_predictions
     WHERE guild_id = ?
-  `, [guildId]);
+      AND event_id = ?
+  `, [guildId, eventId]);
 
       const predsByMatch = new Map();
       for (const p of preds) {
@@ -379,24 +380,26 @@ module.exports = async function calculateScores(guildId, eventId) {
 
       const rows = [];
 
-      // =========================
-      // MAPY – pobieramy WSZYSTKO RAZ
-      // =========================
+      // mapy tylko dla tego eventu
       const [allMaps] = await pool.query(`
-  SELECT
-    mp.match_id,
-    mp.user_id,
-    mp.pred_exact_a AS predA,
-    mp.pred_exact_b AS predB,
-    mr.exact_a AS resA,
-    mr.exact_b AS resB
-  FROM match_map_predictions mp
-  JOIN match_map_results mr
-    ON mr.match_id = mp.match_id
-   AND mr.map_no = mp.map_no
-   AND mr.guild_id = mp.guild_id
-  WHERE mp.guild_id = ?
-`, [guildId]);
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      mp.pred_exact_a AS predA,
+      mp.pred_exact_b AS predB,
+      mr.exact_a AS resA,
+      mr.exact_b AS resB
+    FROM match_map_predictions mp
+    JOIN matches m
+      ON m.id = mp.match_id
+     AND m.guild_id = mp.guild_id
+    JOIN match_map_results mr
+      ON mr.match_id = mp.match_id
+     AND mr.map_no = mp.map_no
+     AND mr.guild_id = mp.guild_id
+    WHERE mp.guild_id = ?
+      AND m.event_id = ?
+  `, [guildId, eventId]);
 
       const mapsByMatchUser = new Map();
 
@@ -412,8 +415,6 @@ module.exports = async function calculateScores(guildId, eventId) {
         const users = predsByMatch.get(m.match_id) || [];
 
         for (const p of users) {
-
-          // === SERIA ===
           const seriesPts = computeSeriesPoints({
             predA: p.pred_a,
             predB: p.pred_b,
@@ -421,9 +422,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             resB: m.res_b
           });
 
-          // === MAPY (z cache, bez SQL) ===
-          const maps =
-            mapsByMatchUser.get(`${m.match_id}:${p.user_id}`) || [];
+          const maps = mapsByMatchUser.get(`${m.match_id}:${p.user_id}`) || [];
 
           let mapPts = 0;
           for (const map of maps) {
@@ -435,17 +434,24 @@ module.exports = async function calculateScores(guildId, eventId) {
             });
           }
 
-
-
-          const total = seriesPts + mapPts;
-
+          // osobny wpis za serię
           rows.push([
             guildId,
             eventId,
             m.match_id,
             p.user_id,
-            total,
+            seriesPts,
             'series'
+          ]);
+
+          // osobny wpis za mapy
+          rows.push([
+            guildId,
+            eventId,
+            m.match_id,
+            p.user_id,
+            mapPts,
+            'map'
           ]);
         }
       }
@@ -453,7 +459,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       if (rows.length) {
         await pool.query(`
       INSERT INTO match_points
-        (guild_id,event_id,match_id,user_id,points,source)
+        (guild_id, event_id, match_id, user_id, points, source)
       VALUES ?
       ON DUPLICATE KEY UPDATE
         points = VALUES(points),
@@ -461,12 +467,11 @@ module.exports = async function calculateScores(guildId, eventId) {
     `, [rows]);
       }
 
-      logger.info('scores', 'Matches total score done', { guildId });
+      logger.info('scores', 'Matches score done', { guildId, eventId });
 
     } catch (e) {
-      logger.error('scores', 'Matches total failed', e);
+      logger.error('scores', 'Matches failed', e);
     }
-
 
     /* =========================
    GLOBAL LEADERBOARD PER EVENT

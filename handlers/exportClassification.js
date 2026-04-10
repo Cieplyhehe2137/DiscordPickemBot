@@ -9,7 +9,7 @@ function parseList(input) {
   try {
     const parsed = JSON.parse(input);
     if (Array.isArray(parsed)) return parsed;
-  } catch (err) {}
+  } catch (err) { }
   return String(input)
     .replace(/[[\]"']/g, '')
     .split(/[;,]+/)
@@ -82,7 +82,7 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
         try {
           const u = await interaction.client.users.fetch(id);
           if (u?.username) map.set(id, u.username);
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -109,7 +109,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (activeEvent?.id) return activeEvent.id;
-  } catch (_) {}
+  } catch (_) { }
 
   // 2) fallback: najnowszy event z matches
   try {
@@ -126,7 +126,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (latestMatchEvent?.event_id) return latestMatchEvent.event_id;
-  } catch (_) {}
+  } catch (_) { }
 
   return null;
 }
@@ -448,6 +448,15 @@ module.exports = async function exportClassification(arg) {
       { header: 'Suma', key: 'total' }
     ];
 
+    const summaryUserIds = Object.keys(users);
+    const summaryDiscordNames = await fetchDisplayNamesFromDiscord(interaction, summaryUserIds);
+
+    for (const [id, u] of Object.entries(users)) {
+      if (!u.displayname || u.displayname === id) {
+        u.displayname = summaryDiscordNames.get(id) || id;
+      }
+    }
+
     const summary = Object.entries(users).map(([user_id, u]) => {
       const swiss1 = u.swiss['swiss_stage_1'] || 0;
       const swiss2 = u.swiss['swiss_stage_2'] || 0;
@@ -668,7 +677,7 @@ module.exports = async function exportClassification(arg) {
           ['Lower Final B', joinOrDash(parseList(de[0].lower_final_b))],
         ]);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const rowsPlayIn = Object.entries(users)
       .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
