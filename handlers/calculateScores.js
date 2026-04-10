@@ -434,7 +434,15 @@ module.exports = async function calculateScores(guildId, eventId) {
             });
           }
 
-          // osobny wpis za serię
+          console.log('MATCH SCORE DEBUG', {
+            matchId: m.match_id,
+            userId: p.user_id,
+            seriesPts,
+            mapPts,
+            mapsCount: maps.length,
+            maps
+          });
+
           rows.push([
             guildId,
             eventId,
@@ -444,7 +452,6 @@ module.exports = async function calculateScores(guildId, eventId) {
             'series'
           ]);
 
-          // osobny wpis za mapy
           rows.push([
             guildId,
             eventId,
