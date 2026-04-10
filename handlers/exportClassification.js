@@ -120,7 +120,7 @@ module.exports = async function exportClassification(arg) {
 await withGuild({ guildId }, async ({ pool, guildId }) => {
     logger.info('export', 'Starting classification export', { guildId });
 
-    await calculateScores(guildId, eventId);
+    await calculateScores(guildId);
 
 
     // ⬇️⬇️⬇️ TU DOPIERO
