@@ -3,12 +3,13 @@ const calculateScores = require('./calculateScores');
 const path = require('path');
 const fs = require('fs');
 const { withGuild } = require('../utils/guildContext');
+
 function parseList(input) {
   if (!input) return [];
   try {
     const parsed = JSON.parse(input);
     if (Array.isArray(parsed)) return parsed;
-  } catch (err) { }
+  } catch (err) {}
   return String(input)
     .replace(/[[\]"']/g, '')
     .split(/[;,]+/)
@@ -61,8 +62,6 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
   if (!interaction?.guild) return map;
 
   const unique = [...new Set(userIds)].filter(Boolean);
-
-  // prosta kontrola "równoległości", żeby nie zabić rate limitów
   const CONCURRENCY = 10;
   let i = 0;
 
@@ -80,11 +79,10 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
         if (member?.displayName) map.set(id, member.displayName);
         else if (member?.user?.username) map.set(id, member.user.username);
       } catch (_) {
-        // fallback: czasem user nie jest na serwerze / brak uprawnień
         try {
           const u = await interaction.client.users.fetch(id);
           if (u?.username) map.set(id, u.username);
-        } catch (_) { }
+        } catch (_) {}
       }
     }
   }
@@ -93,7 +91,45 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
   return map;
 }
 
+async function resolveEventId(pool, guildId, preferredEventId) {
+  if (preferredEventId) return preferredEventId;
 
+  // 1) aktywny event z tabeli events
+  try {
+    const [[activeEvent]] = await pool.query(
+      `
+      SELECT id
+      FROM events
+      WHERE guild_id = ?
+        AND is_active = 1
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [guildId]
+    );
+
+    if (activeEvent?.id) return activeEvent.id;
+  } catch (_) {}
+
+  // 2) fallback: najnowszy event z matches
+  try {
+    const [[latestMatchEvent]] = await pool.query(
+      `
+      SELECT event_id
+      FROM matches
+      WHERE guild_id = ?
+        AND event_id IS NOT NULL
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [guildId]
+    );
+
+    if (latestMatchEvent?.event_id) return latestMatchEvent.event_id;
+  } catch (_) {}
+
+  return null;
+}
 
 module.exports = async function exportClassification(arg) {
   const logger = require('../utils/logger');
@@ -104,26 +140,32 @@ module.exports = async function exportClassification(arg) {
     typeof arg.deferReply === 'function' &&
     arg.guildId;
 
-  const interaction = isInteraction ? arg : null;
+  const interaction = isInteraction ? arg : arg?.interaction || null;
   const guildId = isInteraction ? arg.guildId : arg?.guildId;
   const outputPath = isInteraction ? null : arg?.outputPath;
+  let eventId = isInteraction ? arg?.eventId : arg?.eventId;
 
   if (!guildId) {
     throw new Error('exportClassification: missing guildId');
   }
 
-
   if (interaction && !interaction.deferred && !interaction.replied) {
-  await interaction.deferReply({ ephemeral: true });
-}
+    await interaction.deferReply({ ephemeral: true });
+  }
 
-await withGuild({ guildId }, async ({ pool, guildId }) => {
-    logger.info('export', 'Starting classification export', { guildId });
+  await withGuild({ guildId }, async ({ pool, guildId }) => {
+    eventId = await resolveEventId(pool, guildId, eventId);
 
-    await calculateScores(guildId);
+    if (!eventId) {
+      throw new Error(
+        'exportClassification: missing eventId and could not resolve active/latest event'
+      );
+    }
 
+    logger.info('export', 'Starting classification export', { guildId, eventId });
 
-    // ⬇️⬇️⬇️ TU DOPIERO
+    await calculateScores(guildId, eventId);
+
     const workbook = new ExcelJS.Workbook();
 
     const sheetMain = workbook.addWorksheet('Klasyfikacja ogólna');
@@ -136,6 +178,7 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
     const sheetMatches = workbook.addWorksheet('Mecze');
     const sheetMaps = workbook.addWorksheet('Mapy');
     const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)');
+
     const users = {};
 
     sheetMaps.columns = [
@@ -162,30 +205,53 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
       { header: 'Mapy (TYP → OFF)', key: 'maps', width: 40 },
     ];
 
-
-
     // === Punkty Swiss
-    const [swissRows] = await pool.query(`SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ?`, [guildId]);
+    const [swissRows] = await pool.query(
+      `SELECT user_id, displayname, stage, points AS score
+       FROM swiss_scores
+       WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of swissRows) {
       const id = row.user_id;
-      if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
-      else if (!users[id].displayname || users[id].displayname === id) users[id].displayname = row.displayname || id;
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      } else if (!users[id].displayname || users[id].displayname === id) {
+        users[id].displayname = row.displayname || id;
+      }
+
       const stageNum = row.stage?.replace('stage', '');
       users[id].swiss[`swiss_stage_${stageNum}`] = row.score || 0;
     }
 
     // === Typy Swiss
-    const [swissPredictions] = await pool.query(`SELECT * FROM swiss_predictions WHERE guild_id = ?`, [guildId]);
+    const [swissPredictions] = await pool.query(
+      `SELECT * FROM swiss_predictions WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of swissPredictions) {
       const id = row.user_id;
-      if (!users[id]) users[id] = {
-        displayname: row.displayname || row.username || id,
-        swiss: {},
-        playoffs: 0,
-        double: 0,
-        playin: 0,
-        picks: {}
-      };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || row.username || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       const normalizedStage = `swiss_stage_${row.stage?.replace('stage', '')}`;
       users[id].picks[normalizedStage] = {
         pick_3_0: parseList(row.pick_3_0),
@@ -195,24 +261,45 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
     }
 
     // === Playoffs
-    const [playoffRows] = await pool.query(`SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`, [guildId]);
+    const [playoffRows] = await pool.query(
+      `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of playoffRows) {
       const id = row.user_id;
-      if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       users[id].playoffs = row.points || 0;
     }
 
-    const [playoffPreds] = await pool.query(`SELECT * FROM playoffs_predictions WHERE guild_id = ?`, [guildId]);
+    const [playoffPreds] = await pool.query(
+      `SELECT * FROM playoffs_predictions WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of playoffPreds) {
       const id = row.user_id;
-      if (!users[id]) users[id] = {
-        displayname: row.displayname || row.username || id,
-        swiss: {},
-        playoffs: 0,
-        double: 0,
-        playin: 0,
-        picks: {}
-      };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || row.username || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       users[id].picks.playoffs = {
         semifinalists: parseList(row.semifinalists),
         finalists: parseList(row.finalists),
@@ -222,24 +309,45 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
     }
 
     // === Double Elim
-    const [doubleRows] = await pool.query(`SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`, [guildId]);
+    const [doubleRows] = await pool.query(
+      `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of doubleRows) {
       const id = row.user_id;
-      if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       users[id].double = row.points || 0;
     }
 
-    const [doublePreds] = await pool.query(`SELECT * FROM doubleelim_predictions WHERE guild_id = ?`, [guildId]);
+    const [doublePreds] = await pool.query(
+      `SELECT * FROM doubleelim_predictions WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of doublePreds) {
       const id = row.user_id;
-      if (!users[id]) users[id] = {
-        displayname: row.displayname || row.username || id,
-        swiss: {},
-        playoffs: 0,
-        double: 0,
-        playin: 0,
-        picks: {}
-      };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || row.username || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       users[id].picks.double = {
         upper_final_a: parseList(row.upper_final_a),
         lower_final_a: parseList(row.lower_final_a),
@@ -249,14 +357,32 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
     }
 
     // === Play-In
-    const [playinRows] = await pool.query(`SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`, [guildId]);
+    const [playinRows] = await pool.query(
+      `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of playinRows) {
       const id = row.user_id;
-      if (!users[id]) users[id] = { displayname: row.displayname || id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+      if (!users[id]) {
+        users[id] = {
+          displayname: row.displayname || id,
+          swiss: {},
+          playoffs: 0,
+          double: 0,
+          playin: 0,
+          matches: 0,
+          picks: {}
+        };
+      }
       users[id].playin = row.points || 0;
     }
 
-    const [playinPreds] = await pool.query(`SELECT * FROM playin_predictions WHERE guild_id = ?`, [guildId]);
+    const [playinPreds] = await pool.query(
+      `SELECT * FROM playin_predictions WHERE guild_id = ?`,
+      [guildId]
+    );
+
     for (const row of playinPreds) {
       const id = row.user_id;
       if (!users[id]) {
@@ -266,32 +392,47 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
           playoffs: 0,
           double: 0,
           playin: 0,
+          matches: 0,
           picks: {}
         };
       }
       users[id].picks.playin = parseList(row.teams);
     }
 
-    // === MATCHES: suma punktów za wyniki meczów ===
+    // === MATCHES: suma punktów za wyniki meczów (per event)
     try {
-      const [matchPointRows] = await pool.query(`
-    SELECT user_id, SUM(points) AS points
-    FROM match_points
-    WHERE guild_id = ?
-    GROUP BY user_id
-  `, [guildId]);
+      const [matchPointRows] = await pool.query(
+        `
+        SELECT mp.user_id, SUM(mp.points) AS points
+        FROM match_points mp
+        JOIN matches m
+          ON m.id = mp.match_id
+         AND m.guild_id = mp.guild_id
+        WHERE mp.guild_id = ?
+          AND m.event_id = ?
+        GROUP BY mp.user_id
+        `,
+        [guildId, eventId]
+      );
 
       for (const row of matchPointRows) {
         const id = row.user_id;
         if (!users[id]) {
-          users[id] = { displayname: id, swiss: {}, playoffs: 0, double: 0, playin: 0, picks: {} };
+          users[id] = {
+            displayname: id,
+            swiss: {},
+            playoffs: 0,
+            double: 0,
+            playin: 0,
+            matches: 0,
+            picks: {}
+          };
         }
         users[id].matches = Number(row.points || 0);
       }
     } catch (e) {
       console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
     }
-
 
     // === Klasyfikacja ogólna
     sheetMain.columns = [
@@ -313,13 +454,25 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
       const swiss3 = u.swiss['swiss_stage_3'] || 0;
       const matches = u.matches || 0;
       const total = swiss1 + swiss2 + swiss3 + u.playoffs + u.double + u.playin + matches;
-      return { user_id, displayname: u.displayname, playin: u.playin, swiss1, swiss2, swiss3, playoffs: u.playoffs, double: u.double, matches, total };
+      return {
+        user_id,
+        displayname: u.displayname,
+        playin: u.playin,
+        swiss1,
+        swiss2,
+        swiss3,
+        playoffs: u.playoffs,
+        double: u.double,
+        matches,
+        total
+      };
     });
 
     summary.sort((a, b) => {
       if (b.total !== a.total) return b.total - a.total;
       return a.displayname.localeCompare(b.displayname);
     });
+
     summary.forEach(row => sheetMain.addRow(row));
     prettifySheet(sheetMain);
     sheetMain.columns.forEach(col => {
@@ -350,8 +503,16 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
         .filter(([, u]) => u.picks[stageKey])
         .map(([id, u]) => {
           const p = u.picks[stageKey];
-          return [id, u.displayname, p.pick_3_0.join(', '), p.pick_0_3.join(', '), p.qualified.join(', '), u.swiss[stageKey] || 0];
-        }).sort((a, b) => b[5] - a[5]);
+          return [
+            id,
+            u.displayname,
+            p.pick_3_0.join(', '),
+            p.pick_0_3.join(', '),
+            p.qualified.join(', '),
+            u.swiss[stageKey] || 0
+          ];
+        })
+        .sort((a, b) => b[5] - a[5]);
 
       addSheet(sheet, ['User ID', 'Nick', 'Pick 3-0', 'Pick 0-3', 'Awansujące', 'Punkty'], rows);
       prettifySheet(sheet);
@@ -361,14 +522,16 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
     exportSwiss(sheetSwiss2, 2);
     exportSwiss(sheetSwiss3, 3);
 
-    // === Oficjalne wyniki dla Swiss 1/2/3 ===
+    // === Oficjalne wyniki Swiss
     {
-      const [s1] = await pool.query(`
-    SELECT correct_3_0, correct_0_3, correct_advancing
-    FROM swiss_results
-    WHERE active=1 AND stage='stage1'
-    ORDER BY id DESC LIMIT 1
-  `);
+      const [s1] = await pool.query(
+        `
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE active=1 AND stage='stage1'
+        ORDER BY id DESC LIMIT 1
+        `
+      );
       if (s1.length) {
         const col = sheetSwiss1.columnCount + 2;
         putOfficialBlock(sheetSwiss1, col, 1, 'Oficjalne — Swiss 1', [
@@ -378,12 +541,14 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
         ]);
       }
 
-      const [s2] = await pool.query(`
-    SELECT correct_3_0, correct_0_3, correct_advancing
-    FROM swiss_results
-    WHERE active=1 AND stage='stage2'
-    ORDER BY id DESC LIMIT 1
-  `);
+      const [s2] = await pool.query(
+        `
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE active=1 AND stage='stage2'
+        ORDER BY id DESC LIMIT 1
+        `
+      );
       if (s2.length) {
         const col = sheetSwiss2.columnCount + 2;
         putOfficialBlock(sheetSwiss2, col, 1, 'Oficjalne — Swiss 2', [
@@ -393,12 +558,14 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
         ]);
       }
 
-      const [s3] = await pool.query(`
-    SELECT correct_3_0, correct_0_3, correct_advancing
-    FROM swiss_results
-    WHERE active=1 AND stage='stage3'
-    ORDER BY id DESC LIMIT 1
-  `);
+      const [s3] = await pool.query(
+        `
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE active=1 AND stage='stage3'
+        ORDER BY id DESC LIMIT 1
+        `
+      );
       if (s3.length) {
         const col = sheetSwiss3.columnCount + 2;
         putOfficialBlock(sheetSwiss3, col, 1, 'Oficjalne — Swiss 3', [
@@ -408,10 +575,6 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
         ]);
       }
     }
-
-
-
-
 
     const rowsPlayoffs = Object.entries(users)
       .filter(([, u]) => u.picks.playoffs)
@@ -426,36 +589,36 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
           p.third_place_winner || '',
           u.playoffs || 0
         ];
-      }).sort((a, b) => b[6] - a[6]);
+      })
+      .sort((a, b) => b[6] - a[6]);
 
-    addSheet(sheetPlayoffs, ['User ID', 'Nick', 'Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce', 'Punkty'], rowsPlayoffs);
+    addSheet(
+      sheetPlayoffs,
+      ['User ID', 'Nick', 'Półfinaliści', 'Finaliści', 'Zwycięzca', '3. miejsce', 'Punkty'],
+      rowsPlayoffs
+    );
     prettifySheet(sheetPlayoffs);
 
-    // === Oficjalne wyniki na arkuszu Playoffs ===
     try {
-      const [po] = await pool.query(`
-    SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
-    FROM playoffs_results
-    WHERE active = 1
-    ORDER BY id DESC
-    LIMIT 1
-  `);
-
+      const [po] = await pool.query(
+        `
+        SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
+        FROM playoffs_results
+        WHERE active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `
+      );
 
       if (po && po.length) {
         const row = po[0];
-
         const semifinalists = parseList(row.correct_semifinalists);
         const finalists = parseList(row.correct_finalists);
         const winner = row.correct_winner || '—';
         const thirdPlace = row.correct_third_place_winner || '—';
 
-        const usedCols = Math.max(
-          sheetPlayoffs.actualColumnCount || 0,
-          sheetPlayoffs.columnCount || 0,
-          7 // kolumny z danymi użytkowników
-        );
-        const startCol = usedCols + 2; // odstęp 1 kolumny
+        const usedCols = Math.max(sheetPlayoffs.actualColumnCount || 0, sheetPlayoffs.columnCount || 0, 7);
+        const startCol = usedCols + 2;
         const startRow = 1;
 
         putOfficialBlock(sheetPlayoffs, startCol, startRow, 'Oficjalne — Playoffs', [
@@ -464,17 +627,11 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
           ['Zwycięzca', winner],
           ['3. miejsce', thirdPlace],
         ]);
-
-        console.log('📘 Oficjalne Playoffs dodane do arkusza (kolumna)', startCol);
-      } else {
-        console.log('⚠️ Brak aktywnych oficjalnych wyników Playoffs');
       }
     } catch (e) {
       console.error('❌ Błąd Playoffs official block:', e);
     }
 
-
-    // === Wiersze z typami użytkowników: Double Elim ===
     const rowsDouble = Object.entries(users)
       .filter(([, u]) => u.picks.double)
       .map(([id, u]) => {
@@ -487,19 +644,21 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
       })
       .sort((a, b) => b[6] - a[6]);
 
-    addSheet(sheetDouble,
+    addSheet(
+      sheetDouble,
       ['User ID', 'Nick', 'Upper A', 'Lower A', 'Upper B', 'Lower B', 'Punkty'],
-      rowsDouble);
-    prettifySheet(sheetDouble)
+      rowsDouble
+    );
+    prettifySheet(sheetDouble);
 
-
-    // === Oficjalne wyniki na arkuszu Double Elim ===
     try {
-      const [de] = await pool.query(`
-    SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
-    FROM doubleelim_results
-    WHERE active=1 ORDER BY id DESC LIMIT 1
-  `);
+      const [de] = await pool.query(
+        `
+        SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+        FROM doubleelim_results
+        WHERE active=1 ORDER BY id DESC LIMIT 1
+        `
+      );
       if (de.length) {
         const col = sheetDouble.columnCount + 2;
         putOfficialBlock(sheetDouble, col, 1, 'Oficjalne — Double Elim', [
@@ -509,54 +668,41 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
           ['Lower Final B', joinOrDash(parseList(de[0].lower_final_b))],
         ]);
       }
-    } catch (e) { }
-
+    } catch (e) {}
 
     const rowsPlayIn = Object.entries(users)
       .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
-      .map(([id, u]) => {
-        return [
-          id,
-          u.displayname,
-          u.picks.playin.join(', '),
-          u.playin || 0
-        ];
-      })
+      .map(([id, u]) => [id, u.displayname, u.picks.playin.join(', '), u.playin || 0])
       .sort((a, b) => b[3] - a[3]);
 
     addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
     prettifySheet(sheetPlayIn);
 
-    // === Oficjalne wyniki na arkuszu Play-In ===
-    // === Oficjalne wyniki na arkuszu Play-In ===
     try {
-      // jeśli masz kolumnę active – użyj pierwszego SELECT-a, w przeciwnym razie fallback
       let po;
       try {
-        [po] = await pool.query(`
-      SELECT *
-      FROM playin_results
-      WHERE active = 1
-      ORDER BY id DESC
-      LIMIT 1
-    `);
+        [po] = await pool.query(
+          `
+          SELECT *
+          FROM playin_results
+          WHERE active = 1
+          ORDER BY id DESC
+          LIMIT 1
+          `
+        );
       } catch (_) {
-        [po] = await pool.query(`
-      SELECT *
-      FROM playin_results
-      ORDER BY id DESC
-      LIMIT 1
-    `);
+        [po] = await pool.query(
+          `
+          SELECT *
+          FROM playin_results
+          ORDER BY id DESC
+          LIMIT 1
+          `
+        );
       }
-
-      // parser list kompatybilny z JSON i CSV
-
-
 
       if (po && po.length) {
         const row = po[0];
-
-        // akceptuj różne nazwy kolumn (u Ciebie standard to correct_teams)
         const teamsRaw =
           row.correct_teams ??
           row.official_playin_teams ??
@@ -564,32 +710,20 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
           null;
 
         const qualified = parseList(teamsRaw);
-
-        // ustal bezpieczny start kolumny (po danych użytkowników)
-        const usedCols = Math.max(
-          sheetPlayIn?.actualColumnCount || 0,
-          sheetPlayIn?.columnCount || 0,
-          3 // domyślnie: [User ID, Nick, Drużyny, Punkty] — dopasuj jeśli masz więcej
-        );
-        const startCol = usedCols + 2; // jedna kolumna odstępu
+        const usedCols = Math.max(sheetPlayIn?.actualColumnCount || 0, sheetPlayIn?.columnCount || 0, 3);
+        const startCol = usedCols + 2;
         const startRow = 1;
 
         putOfficialBlock(sheetPlayIn, startCol, startRow, 'Oficjalne — Play-In', [
           ['Zakwalifikowane', joinOrDash(qualified)],
         ]);
-
-        console.log('📘 Oficjalne Play-In dodane do arkusza (kolumna)', startCol);
-      } else {
-        console.log('⚠️ Brak aktywnych oficjalnych wyników Play-In');
       }
     } catch (e) {
       console.error('❌ Błąd Play-In official block:', e);
     }
 
-
-    // === Arkusz: Mecze (czytelnie: tylko seria) + Arkusz: Mapy (szczegóły) ===
+    // === Mecze / Mapy
     try {
-      // Ustaw "Mecze" jako czytelny arkusz serii
       sheetMatches.columns = [
         { header: 'Faza', key: 'phase', width: 12 },
         { header: 'Match No', key: 'match_no', width: 9 },
@@ -607,107 +741,116 @@ await withGuild({ guildId }, async ({ pool, guildId }) => {
         { header: 'User ID', key: 'user_id', width: 20 },
       ];
 
+      const [matchRows] = await pool.query(
+        `
+        SELECT
+          m.id AS match_id,
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          m.best_of,
+          r.res_a,
+          r.res_b,
+          p.user_id,
+          p.pred_a,
+          p.pred_b,
+          pts.series_points,
+          pts.map_points,
+          pts.map_hits,
+          pts.points
+        FROM matches m
+        JOIN match_predictions p
+          ON p.match_id = m.id
+         AND p.guild_id = m.guild_id
+        LEFT JOIN match_results r
+          ON r.match_id = m.id
+         AND r.guild_id = m.guild_id
+        LEFT JOIN (
+          SELECT
+            mp.match_id,
+            mp.user_id,
+            SUM(CASE WHEN mp.source='series' THEN mp.points ELSE 0 END) AS series_points,
+            SUM(CASE WHEN mp.source='map' THEN mp.points ELSE 0 END) AS map_points,
+            COUNT(CASE WHEN mp.source='map' THEN 1 END) AS map_hits,
+            SUM(mp.points) AS points
+          FROM match_points mp
+          JOIN matches mm
+            ON mm.id = mp.match_id
+           AND mm.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+            AND mm.event_id = ?
+          GROUP BY mp.match_id, mp.user_id
+        ) pts
+          ON pts.match_id = m.id
+         AND pts.user_id = p.user_id
+        WHERE m.guild_id = ?
+          AND m.event_id = ?
+        ORDER BY
+          m.phase,
+          COALESCE(m.match_no, 999999),
+          m.id,
+          p.user_id
+        `,
+        [guildId, eventId, guildId, eventId]
+      );
 
-
-
-      // --- Query dla SERII (bez map)
-      const [matchRows] = await pool.query(`
-  SELECT
-    m.id AS match_id,
-    m.phase,
-    m.match_no,
-    m.team_a,
-    m.team_b,
-    m.best_of,
-    r.res_a,
-    r.res_b,
-    p.user_id,
-    p.pred_a,
-    p.pred_b,
-    pts.points
-  FROM matches m
-  JOIN match_predictions p
-    ON p.match_id = m.id
-   AND p.guild_id = m.guild_id
-  LEFT JOIN match_results r
-    ON r.match_id = m.id
-   AND r.guild_id = m.guild_id
-  LEFT JOIN (
-  SELECT
-    match_id,
-    user_id,
-    SUM(CASE WHEN source='series' THEN points ELSE 0 END) AS series_points,
-    SUM(CASE WHEN source='map' THEN points ELSE 0 END) AS map_points,
-COUNT(CASE WHEN source='map' THEN 1 END) AS map_hits,
-    SUM(points) AS points
-  FROM match_points
-  WHERE guild_id = ?
-  GROUP BY match_id, user_id
-) pts
-    ON pts.match_id = m.id
-   AND pts.user_id = p.user_id
-  WHERE m.guild_id = ?
-  ORDER BY
-    m.phase,
-    COALESCE(m.match_no, 999999),
-    m.id,
-    p.user_id;
-`, [guildId, guildId]);
-
-
-
-      // === MAPY (PODGLĄD) – 1 wiersz = 1 user × 1 mecz ===
-      const [mapSummaryRows] = await pool.query(`
-SELECT
-  m.phase,
-  m.match_no,
-  m.team_a,
-  m.team_b,
-  mp.user_id,
-CONCAT(
-    GROUP_CONCAT(
-      CONCAT(
-        'M', mp.map_no, ': ',
-        mp.pred_exact_a, ':', mp.pred_exact_b,
-        CASE
-          WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-            THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
-          ELSE ''
-        END
-      )
-      ORDER BY mp.map_no
-      SEPARATOR ', '
-    ),
-    ' (+',
-    SUM(
-      CASE
-        WHEN mp.pred_exact_a = mr.exact_a
-         AND mp.pred_exact_b = mr.exact_b
-        THEN 3 ELSE 0
-      END
-    ),
-    ' pkt)'
-  ) AS maps_summary
-FROM matches m
-JOIN match_map_predictions mp
-  ON mp.match_id = m.id
-LEFT JOIN match_map_results mr
-  ON mr.match_id = mp.match_id
- AND mr.map_no = mp.map_no
-WHERE m.guild_id = ?
-GROUP BY
-  m.phase,
-  m.match_no,
-  m.team_a,
-  m.team_b,
-  mp.user_id
-ORDER BY
-  m.phase,
-  COALESCE(m.match_no, 999999),
-  m.match_no,
-  mp.user_id;
-`, [guildId]);
-
+      const [mapSummaryRows] = await pool.query(
+        `
+        SELECT
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          mp.user_id,
+          CONCAT(
+            GROUP_CONCAT(
+              CONCAT(
+                'M', mp.map_no, ': ',
+                mp.pred_exact_a, ':', mp.pred_exact_b,
+                CASE
+                  WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+                    THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
+                  ELSE ''
+                END
+              )
+              ORDER BY mp.map_no
+              SEPARATOR ', '
+            ),
+            ' (+',
+            SUM(
+              CASE
+                WHEN mp.pred_exact_a = mr.exact_a
+                 AND mp.pred_exact_b = mr.exact_b
+                THEN 3 ELSE 0
+              END
+            ),
+            ' pkt)'
+          ) AS maps_summary
+        FROM matches m
+        JOIN match_map_predictions mp
+          ON mp.match_id = m.id
+         AND mp.guild_id = m.guild_id
+        LEFT JOIN match_map_results mr
+          ON mr.match_id = mp.match_id
+         AND mr.map_no = mp.map_no
+         AND mr.guild_id = mp.guild_id
+        WHERE m.guild_id = ?
+          AND m.event_id = ?
+        GROUP BY
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          mp.user_id
+        ORDER BY
+          m.phase,
+          COALESCE(m.match_no, 999999),
+          m.match_no,
+          mp.user_id
+        `,
+        [guildId, eventId]
+      );
 
       const mapSummaryUserIds = mapSummaryRows.map(r => r.user_id);
       const discordNamesSummary = await fetchDisplayNamesFromDiscord(interaction, mapSummaryUserIds);
@@ -715,7 +858,6 @@ ORDER BY
       for (const r of mapSummaryRows) {
         const fromUsers = users?.[r.user_id]?.displayname;
         const fromDiscord = discordNamesSummary.get(r.user_id);
-
         const nick =
           (fromUsers && fromUsers !== r.user_id)
             ? fromUsers
@@ -734,9 +876,6 @@ ORDER BY
 
       prettifySheet(sheetMapsSummary);
 
-
-
-      // Dociągnij displayname z Discorda dla userów, którzy tu występują
       const matchUserIds = matchRows.map(r => r.user_id).filter(Boolean);
       const discordNames = await fetchDisplayNamesFromDiscord(interaction, matchUserIds);
 
@@ -775,34 +914,42 @@ ORDER BY
 
       let mapRows = [];
       try {
-        const [rows] = await pool.query(`
-      SELECT
-  m.phase,
-  m.match_no,
-  m.id AS match_id,
-  m.team_a,
-  m.team_b,
-  m.best_of,
-  mp.user_id,
-  mp.map_no,
-  CASE
-    WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-      THEN CONCAT(mr.exact_a, ':', mr.exact_b)
-    ELSE '—'
-  END AS off_score,
-  CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
-FROM match_map_predictions mp
-JOIN matches m ON m.id = mp.match_id
-LEFT JOIN match_map_results mr
-  ON mr.match_id = mp.match_id
- AND mr.map_no = mp.map_no
-ORDER BY
-  m.phase,
-  COALESCE(m.match_no, 999999),
-  m.id,
-  mp.user_id,
-  mp.map_no;
-`);
+        const [rows] = await pool.query(
+          `
+          SELECT
+            m.phase,
+            m.match_no,
+            m.id AS match_id,
+            m.team_a,
+            m.team_b,
+            m.best_of,
+            mp.user_id,
+            mp.map_no,
+            CASE
+              WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+                THEN CONCAT(mr.exact_a, ':', mr.exact_b)
+              ELSE '—'
+            END AS off_score,
+            CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
+          FROM match_map_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          LEFT JOIN match_map_results mr
+            ON mr.match_id = mp.match_id
+           AND mr.map_no = mp.map_no
+           AND mr.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+            AND m.event_id = ?
+          ORDER BY
+            m.phase,
+            COALESCE(m.match_no, 999999),
+            m.id,
+            mp.user_id,
+            mp.map_no
+          `,
+          [guildId, eventId]
+        );
         mapRows = rows;
       } catch (e) {
         console.log('⚠️ MAPY: nie udało się pobrać map (pomijam):', e?.message || e);
@@ -830,13 +977,10 @@ ORDER BY
           off: r.off_score ?? '—',
           pred: r.pred_score ?? '—',
         });
-
-
       }
 
       prettifySheet(sheetMatches);
       prettifySheet(sheetMaps);
-
     } catch (e) {
       console.log('⚠️ MATCHES/MAPY: nie udało się wygenerować arkuszy (pomijam):', e?.message || e);
     }
@@ -867,4 +1011,4 @@ ORDER BY
       console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
     }
   });
-};  
+};
