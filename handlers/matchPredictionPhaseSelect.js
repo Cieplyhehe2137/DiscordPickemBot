@@ -1,245 +1,251 @@
 const {
-    ActionRowBuilder,
-    StringSelectMenuBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    EmbedBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  EmbedBuilder,
 } = require('discord.js');
-
 const { withGuild } = require('../utils/guildContext');
 
-const PAGE_SIZE = 25;
+const FIRST_PAGE_MATCHES = 24;
+const NEXT_PAGES_MATCHES = 23;
 
+function mapPanelValueToDbPhase(raw) {
+  const map = {
+    swiss_stage1: 'swiss_stage1',
+    swiss_stage2: 'swiss_stage2',
+    swiss_stage3: 'swiss_stage3',
+    playoffs: 'playoffs',
+    double_elimination: 'double_elimination',
+    playin: 'playin',
+  };
 
-function chunkMatches(matches, page) {
-
-    const start = page * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-
-    return {
-        slice: matches.slice(start, end),
-        totalPages: Math.ceil(matches.length / PAGE_SIZE)
-    };
-
+  return map[raw] || raw;
 }
 
+function getPhaseDisplayName(raw) {
+  const map = {
+    swiss_stage1: 'Swiss Stage 1',
+    swiss_stage2: 'Swiss Stage 2',
+    swiss_stage3: 'Swiss Stage 3',
+    playoffs: 'Playoffs',
+    double_elimination: 'Double Elimination',
+    playin: 'Play-In',
+  };
 
-function buildMatchDropdown(matches, phase, eventId, page) {
-
-    const { slice, totalPages } = chunkMatches(matches, page);
-
-    const options = slice.map(match => {
-
-        const bo = match.best_of ? `Bo${match.best_of}` : "Bo?";
-
-        let label =
-            `#${match.match_no} ${match.team_a} vs ${match.team_b} (${bo})`;
-
-        if (label.length > 100) {
-            label = label.slice(0, 97) + "...";
-        }
-
-        return {
-
-            label,
-
-            value: `match:${match.id}`,
-
-            description: `match #${match.match_no}`
-
-        };
-
-    });
-
-
-    const dropdown = new StringSelectMenuBuilder()
-
-        .setCustomId(
-            `match_select_page:${phase}:${eventId}:${page}`
-        )
-
-        .setPlaceholder(
-            `Wybierz mecz (${page + 1}/${totalPages})`
-        )
-
-        .addOptions(options);
-
-
-    return new ActionRowBuilder().addComponents(dropdown);
-
+  return map[raw] || raw;
 }
 
-
-
-function buildPaginationButtons(phase, eventId, page, totalPages) {
-
-    return new ActionRowBuilder().addComponents(
-
-        new ButtonBuilder()
-
-            .setCustomId(
-                `match_page_prev:${phase}:${eventId}:${page}`
-            )
-
-            .setLabel("⬅️")
-
-            .setStyle(ButtonStyle.Secondary)
-
-            .setDisabled(page === 0),
-
-
-        new ButtonBuilder()
-
-            .setCustomId("page_info")
-
-            .setLabel(`${page + 1}/${totalPages}`)
-
-            .setStyle(ButtonStyle.Secondary)
-
-            .setDisabled(true),
-
-
-        new ButtonBuilder()
-
-            .setCustomId(
-                `match_page_next:${phase}:${eventId}:${page}`
-            )
-
-            .setLabel("➡️")
-
-            .setStyle(ButtonStyle.Secondary)
-
-            .setDisabled(page + 1 >= totalPages)
-
-    );
-
-}
-
-
-
-async function getEventId(pool, phase) {
-
-    const [rows] = await pool.query(`
-
+async function resolveLatestEventId(pool, phase, guildId) {
+  const [rows] = await pool.query(
+    `
     SELECT event_id
-
     FROM matches
-
-    WHERE phase = ?
-
+    WHERE guild_id = ?
+      AND phase = ?
+      AND event_id IS NOT NULL
     ORDER BY event_id DESC
-
     LIMIT 1
+    `,
+    [guildId, phase]
+  );
 
-  `, [phase]);
-
-
-    return rows?.[0]?.event_id ?? null;
-
+  return rows?.[0]?.event_id ?? null;
 }
 
+function getTotalPages(totalMatches) {
+  if (totalMatches <= 0) return 1;
+  if (totalMatches <= FIRST_PAGE_MATCHES) return 1;
 
+  const remaining = totalMatches - FIRST_PAGE_MATCHES;
+  return 1 + Math.ceil(remaining / NEXT_PAGES_MATCHES);
+}
 
-module.exports = async interaction => {
+function getPageSlice(totalMatches, page) {
+  if (page < 0) page = 0;
 
-    if (!interaction.isStringSelectMenu()) return;
+  let start;
+  let end;
 
-    if (interaction.customId !== "panel:select:match_phase") return;
+  if (page === 0) {
+    start = 0;
+    end = Math.min(FIRST_PAGE_MATCHES, totalMatches);
+  } else {
+    start = FIRST_PAGE_MATCHES + (page - 1) * NEXT_PAGES_MATCHES;
+    end = Math.min(start + NEXT_PAGES_MATCHES, totalMatches);
+  }
 
+  const hasPrev = page > 0;
+  const hasNext = end < totalMatches;
 
-    const phase = interaction.values[0];
+  return {
+    start,
+    end,
+    hasPrev,
+    hasNext,
+  };
+}
 
+function buildPagedMatchSelect({ matches, phase, eventId, page = 0 }) {
+  const total = matches.length;
+  const totalPages = getTotalPages(total);
+  const safePage = Math.max(0, Math.min(page, totalPages - 1));
 
+  const { start, end, hasPrev, hasNext } = getPageSlice(total, safePage);
+  const slice = matches.slice(start, end);
+
+  const options = [];
+
+  if (hasPrev) {
+    options.push({
+      label: '⬅️ Poprzednia strona',
+      value: 'nav:prev',
+      description: 'Pokaż wcześniejsze mecze',
+    });
+  }
+
+  for (const match of slice) {
+    const teamA = match.team_a || 'TBD';
+    const teamB = match.team_b || 'TBD';
+    const bo = match.best_of ? `Bo${match.best_of}` : 'Bo?';
+
+    let label = `#${match.match_no} ${teamA} vs ${teamB} (${bo})`;
+    if (label.length > 100) {
+      label = label.slice(0, 97) + '...';
+    }
+
+    let description = `Mecz #${match.match_no}`;
+    if (match.is_locked) description += ' • zablokowany';
+    if (description.length > 100) {
+      description = description.slice(0, 97) + '...';
+    }
+
+    options.push({
+      label,
+      value: `match:${match.id}`,
+      description,
+    });
+  }
+
+  if (hasNext) {
+    options.push({
+      label: '➡️ Następna strona',
+      value: 'nav:next',
+      description: 'Pokaż kolejne mecze',
+    });
+  }
+
+  const placeholderStart = total === 0 ? 0 : start + 1;
+  const placeholderEnd = end;
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`match_select_page:${phase}:${eventId}:${safePage}`)
+    .setPlaceholder(
+      `Wybierz mecz... (${placeholderStart}-${placeholderEnd} z ${total}, strona ${safePage + 1}/${totalPages})`
+    )
+    .addOptions(options);
+
+  return new ActionRowBuilder().addComponents(select);
+}
+
+module.exports = async (interaction) => {
+  if (!interaction.isStringSelectMenu()) return;
+  if (interaction.customId !== 'panel:select:match_phase') return;
+
+  const raw = interaction.values?.[0];
+  if (!raw) {
+    if (!interaction.deferred && !interaction.replied) {
+      return interaction.reply({
+        content: '❌ Nie wybrano fazy.',
+        ephemeral: true,
+      });
+    }
+
+    return interaction.editReply({
+      content: '❌ Nie wybrano fazy.',
+      embeds: [],
+      components: [],
+    });
+  }
+
+  const dbPhase = mapPanelValueToDbPhase(raw);
+  const phaseLabel = getPhaseDisplayName(raw);
+
+  if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
+  }
 
+  try {
+    await withGuild(interaction, async ({ pool, guildId }) => {
+      const eventId = await resolveLatestEventId(pool, dbPhase, guildId);
 
-    try {
-
-        await withGuild(interaction, async ({ pool }) => {
-
-
-            const eventId = await getEventId(pool, phase);
-
-
-            const [matches] = await pool.query(`
-
-        SELECT *
-
-        FROM matches
-
-        WHERE event_id = ?
-
-        AND phase = ?
-
-        ORDER BY match_no
-
-      `, [eventId, phase]);
-
-
-            const page = 0;
-
-
-            const dropdownRow =
-                buildMatchDropdown(matches, phase, eventId, page);
-
-
-            const totalPages =
-                Math.ceil(matches.length / PAGE_SIZE);
-
-
-            const buttonsRow =
-                buildPaginationButtons(
-                    phase,
-                    eventId,
-                    page,
-                    totalPages
-                );
-
-
-            const embed = new EmbedBuilder()
-
-                .setTitle(
-                    "🎯 Wybierz mecz do wytypowania wyniku"
-                )
-
-                .setDescription(
-
-                    `faza: ${phase}\n` +
-
-                    `mecze: ${matches.length}`
-
-                );
-
-
-            return interaction.editReply({
-
-                embeds: [embed],
-
-                components: [
-
-                    dropdownRow,
-
-                    buttonsRow
-
-                ]
-
-            });
-
-        });
-
-    }
-
-    catch (err) {
-
-        console.error(err);
-
-
+      if (!eventId) {
         return interaction.editReply({
-
-            content: "❌ błąd wczytywania meczów"
-
+          content: `❌ Nie udało się ustalić eventu dla fazy **${phaseLabel}**.`,
+          embeds: [],
+          components: [],
         });
+      }
 
-    }
+      const [matches] = await pool.query(
+        `
+        SELECT
+          id,
+          event_id,
+          guild_id,
+          phase,
+          match_no,
+          team_a,
+          team_b,
+          best_of,
+          is_locked
+        FROM matches
+        WHERE event_id = ?
+          AND guild_id = ?
+          AND phase = ?
+        ORDER BY match_no ASC, id ASC
+        `,
+        [eventId, guildId, dbPhase]
+      );
 
+      if (!matches || matches.length === 0) {
+        return interaction.editReply({
+          content: `ℹ️ Brak meczów do typowania dla fazy **${phaseLabel}**.`,
+          embeds: [],
+          components: [],
+        });
+      }
+
+      const row = buildPagedMatchSelect({
+        matches,
+        phase: dbPhase,
+        eventId,
+        page: 0,
+      });
+
+      const embed = new EmbedBuilder()
+        .setTitle('🎯 Wybierz mecz do wytypowania wyniku')
+        .setDescription(
+          [
+            `**Faza:** ${phaseLabel}`,
+            `**Liczba meczów:** ${matches.length}`,
+            '',
+            `Dropdown pokazuje maksymalnie tyle opcji, ile pozwala Discord,`,
+            `a przechodzenie dalej działa przez pozycje „Następna strona” i „Poprzednia strona”.`,
+          ].join('\n')
+        );
+
+      return interaction.editReply({
+        content: null,
+        embeds: [embed],
+        components: [row],
+      });
+    });
+  } catch (err) {
+    console.error('[matchPredictionPhaseSelect] failed:', err);
+
+    return interaction.editReply({
+      content: `❌ Nie udało się wczytać meczów.\n\`${err.message}\``,
+      embeds: [],
+      components: [],
+    });
+  }
 };
