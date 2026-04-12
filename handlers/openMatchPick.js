@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 const { isMatchLocked } = require('../utils/matchLock');
 
-const PAGE_SIZE = 24; // 24 + 1 = Next/Prev
+const PAGE_SIZE = 24; // 24 meczów + do 1 opcji nawigacji = max 25
 
 function safeLabel(s) {
   const str = String(s ?? '');
@@ -16,7 +16,6 @@ function safeValue(s) {
   return str.length > 100 ? str.slice(0, 100) : str;
 }
 
-// helper: bezpieczna odpowiedź
 async function respond(interaction, payload, isUpdate) {
   try {
     if (isUpdate) return await interaction.update(payload);
@@ -33,8 +32,9 @@ async function respond(interaction, payload, isUpdate) {
   }
 }
 
-async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
-  const offset = page * PAGE_SIZE;
+async function sendMatchList({ interaction, phaseKey, mode, page = 0, isUpdate }) {
+  const safePage = Math.max(0, Number(page) || 0);
+  const offset = safePage * PAGE_SIZE;
 
   return withGuild(interaction, async ({ pool, guildId }) => {
     const [rows] = await pool.query(
@@ -52,11 +52,15 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
     if (!rows.length) {
       return respond(
         interaction,
-        { content: `Brak meczów dla fazy **${phaseKey}**.`, components: [] },
+        {
+          content: `Brak meczów dla fazy **${phaseKey}**.`,
+          components: [],
+        },
         isUpdate
       );
     }
 
+    const hasPrev = safePage > 0;
     const hasNext = rows.length > PAGE_SIZE;
     const slice = rows.slice(0, PAGE_SIZE);
 
@@ -67,6 +71,7 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
 
     const options = slice.map((m) => {
       const locked = isMatchLocked(m);
+
       const label =
         `${m.match_no ? `#${m.match_no} ` : ''}` +
         `${m.team_a} vs ${m.team_b} (Bo${m.best_of})` +
@@ -78,17 +83,24 @@ async function sendMatchList({ interaction, phaseKey, mode, page, isUpdate }) {
       };
     });
 
+    if (hasPrev) {
+      options.push({
+        label: safeLabel('⬅️ Poprzednia strona'),
+        value: safeValue(`PREV|${phaseKey}|${safePage - 1}`),
+      });
+    }
+
     if (hasNext) {
       options.push({
         label: safeLabel('➡️ Następna strona'),
-        value: safeValue(`NEXT|${phaseKey}|${page + 1}`),
+        value: safeValue(`NEXT|${phaseKey}|${safePage + 1}`),
       });
     }
 
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(customId)
-        .setPlaceholder('Wybierz mecz...')
+        .setPlaceholder(`Wybierz mecz... (strona ${safePage + 1})`)
         .addOptions(options)
     );
 
@@ -115,6 +127,7 @@ module.exports = async function openMatchPick(interaction) {
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true }).catch(() => {});
       }
+
       return interaction.editReply({
         content: '❌ Brak phaseKey w CustomId',
         components: [],
@@ -142,6 +155,7 @@ module.exports = async function openMatchPick(interaction) {
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true }).catch(() => {});
       }
+
       await interaction.editReply({
         content: '❌ Błąd przy ładowaniu listy meczów.',
         components: [],
@@ -150,5 +164,4 @@ module.exports = async function openMatchPick(interaction) {
   }
 };
 
-// eksport helpera (używany np. w NEXT)
 module.exports.sendMatchList = sendMatchList;

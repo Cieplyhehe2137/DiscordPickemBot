@@ -27,19 +27,25 @@ module.exports = async function matchPickSelect(interaction) {
             });
         }
 
+        logger.info('matches', 'matchPickSelect value', {
+            customId: interaction.customId,
+            picked
+        });
+
         // value: TYPE|PHASE|EXTRA
         const [type, phaseKey, third] = picked.split('|');
 
         // ===============================
         // PAGINACJA
         // ===============================
-        if (type === 'NEXT') {
-            const nextPage = Number(third || 0);
+        if (type === 'NEXT' || type === 'PREV') {
+            const targetPage = Number(third || 0);
+
             return sendMatchList({
                 interaction,
                 phaseKey,
                 mode,
-                page: nextPage,
+                page: targetPage,
                 isUpdate: true
             });
         }
@@ -60,20 +66,20 @@ module.exports = async function matchPickSelect(interaction) {
         }
 
         // ===============================
-        // KONTEKST GUILD (JEDYNE ŹRÓDŁO PRAWDY)
+        // KONTEKST GUILD
         // ===============================
         await withGuild(interaction, async ({ pool, guildId }) => {
-    const [[match]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
-        FROM matches
-        WHERE guild_id = ?
-          AND id = ?
-          AND phase = ?
-        LIMIT 1
-        `,
-        [guildId, matchId, phaseKey]
-    );
+            const [[match]] = await pool.query(
+                `
+                SELECT id, team_a, team_b, best_of, is_locked, start_time_utc
+                FROM matches
+                WHERE guild_id = ?
+                  AND id = ?
+                  AND phase = ?
+                LIMIT 1
+                `,
+                [guildId, matchId, phaseKey]
+            );
 
             if (!match) {
                 return interaction.update({
@@ -128,9 +134,6 @@ module.exports = async function matchPickSelect(interaction) {
                 )
             ];
 
-            // ===============================
-            // DODATKOWY PRZYCISK (PRED)
-            // ===============================
             if (mode === 'pred') {
                 userState.set(guildId, interaction.user.id, {
                     matchId: match.id,
@@ -169,6 +172,6 @@ module.exports = async function matchPickSelect(interaction) {
                 content: '❌ Błąd w wyborze meczu.',
                 components: []
             });
-        } catch (_) { }
+        } catch (_) {}
     }
 };
