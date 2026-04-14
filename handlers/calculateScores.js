@@ -13,7 +13,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) { }
+  } catch (_) {}
 
   return String(val)
     .replace(/[\[\]"]+/g, '')
@@ -22,15 +22,61 @@ const cleanList = (val) => {
     .filter(Boolean);
 };
 
+async function resolveEventId(pool, guildId, preferredEventId) {
+  if (preferredEventId) return preferredEventId;
+
+  // 1) aktywny event
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT id
+      FROM events
+      WHERE is_active = 1
+      ORDER BY id DESC
+      LIMIT 1
+      `
+    );
+
+    if (rows?.[0]?.id) return rows[0].id;
+  } catch (_) {}
+
+  // 2) fallback: ostatni event z matches
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT event_id
+      FROM matches
+      WHERE guild_id = ?
+        AND event_id IS NOT NULL
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [guildId]
+    );
+
+    if (rows?.[0]?.event_id) return rows[0].event_id;
+  } catch (_) {}
+
+  return null;
+}
+
 module.exports = async function calculateScores(guildId, eventId) {
-  if (!guildId || !eventId) {
-    throw new Error('calculateScores requires guildId and eventId');
+  if (!guildId) {
+    throw new Error('calculateScores requires guildId');
   }
 
-  logger.info('scores', 'Score calculation started', { guildId, eventId });
-
   await withGuild({ guildId }, async ({ pool, guildId }) => {
-    logger.info('scores', '=== SCORE RUN START ===', { guildId, eventId });
+    eventId = await resolveEventId(pool, guildId, eventId).catch(() => null);
+
+    logger.info('scores', 'Score calculation started', {
+      guildId,
+      eventId: eventId || null
+    });
+
+    logger.info('scores', '=== SCORE RUN START ===', {
+      guildId,
+      eventId: eventId || null
+    });
 
     /* =========================
        SWISS
@@ -49,7 +95,10 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Swiss data, skipping phase', { guildId, eventId });
+        logger.warn('scores', 'No Swiss data, skipping phase', {
+          guildId,
+          eventId: eventId || null
+        });
       }
 
       for (const correct of rows) {
@@ -92,25 +141,39 @@ module.exports = async function calculateScores(guildId, eventId) {
         }
 
         if (scoreRows.length) {
-          await pool.query(
-            `
-            INSERT INTO swiss_scores
-              (guild_id, event_id, user_id, stage, displayname, points)
-            VALUES ?
-            ON DUPLICATE KEY UPDATE
-              displayname = VALUES(displayname),
-              points = VALUES(points)
-            `,
-            [scoreRows]
-          );
+          if (eventId) {
+            await pool.query(
+              `
+              INSERT INTO swiss_scores
+                (guild_id, event_id, user_id, stage, displayname, points)
+              VALUES ?
+              ON DUPLICATE KEY UPDATE
+                displayname = VALUES(displayname),
+                points = VALUES(points)
+              `,
+              [scoreRows]
+            );
+          } else {
+            await pool.query(
+              `
+              INSERT INTO swiss_scores
+                (guild_id, event_id, user_id, stage, displayname, points)
+              VALUES ?
+              ON DUPLICATE KEY UPDATE
+                displayname = VALUES(displayname),
+                points = VALUES(points)
+              `,
+              [scoreRows]
+            );
+          }
         }
       }
 
-      logger.info('scores', 'Swiss done', { guildId, eventId });
+      logger.info('scores', 'Swiss done', { guildId, eventId: eventId || null });
     } catch (e) {
       logger.error('scores', 'Swiss failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
@@ -133,7 +196,10 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Playoffs data, skipping phase', { guildId, eventId });
+        logger.warn('scores', 'No Playoffs data, skipping phase', {
+          guildId,
+          eventId: eventId || null
+        });
       } else {
         const correct = rows[0];
 
@@ -181,12 +247,12 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'Playoffs done', { guildId, eventId });
+        logger.info('scores', 'Playoffs done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
       logger.error('scores', 'Playoffs failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
@@ -196,14 +262,24 @@ module.exports = async function calculateScores(guildId, eventId) {
        DOUBLE ELIM
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM doubleelim_scores
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      if (eventId) {
+        await pool.query(
+          `
+          DELETE FROM doubleelim_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId]
+        );
+      } else {
+        await pool.query(
+          `
+          DELETE FROM doubleelim_scores
+          WHERE guild_id = ?
+          `,
+          [guildId]
+        );
+      }
 
       const [rows] = await pool.query(
         `
@@ -218,7 +294,10 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No DoubleElim data, skipping phase', { guildId, eventId });
+        logger.warn('scores', 'No DoubleElim data, skipping phase', {
+          guildId,
+          eventId: eventId || null
+        });
       } else {
         const correct = rows[0];
 
@@ -271,12 +350,12 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'DoubleElim done', { guildId, eventId });
+        logger.info('scores', 'DoubleElim done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
       logger.error('scores', 'DoubleElim failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
@@ -286,14 +365,24 @@ module.exports = async function calculateScores(guildId, eventId) {
        PLAY-IN
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM playin_scores
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId]
-      );
+      if (eventId) {
+        await pool.query(
+          `
+          DELETE FROM playin_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId]
+        );
+      } else {
+        await pool.query(
+          `
+          DELETE FROM playin_scores
+          WHERE guild_id = ?
+          `,
+          [guildId]
+        );
+      }
 
       const [rows] = await pool.query(
         `
@@ -308,7 +397,10 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Play-In data, skipping phase', { guildId, eventId });
+        logger.warn('scores', 'No Play-In data, skipping phase', {
+          guildId,
+          eventId: eventId || null
+        });
       } else {
         const correct = rows[0];
 
@@ -357,53 +449,158 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'Play-In done', { guildId, eventId });
+        logger.info('scores', 'Play-In done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
       logger.error('scores', 'Play-In failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
     }
 
     /* =========================
-   MATCHES – SERIES + MAPS
-========================= */
+       MATCHES – SERIES + MAPS
+    ========================= */
     try {
-      const [matches] = await pool.query(`
-    SELECT
-      m.id AS match_id,
-      r.res_a,
-      r.res_b
-    FROM matches m
-    JOIN match_results r
-      ON r.match_id = m.id
-     AND r.guild_id = m.guild_id
-    WHERE m.guild_id = ?
-      AND m.event_id = ?
-  `, [guildId, eventId]);
+      let matches = [];
+      let preds = [];
+      let allMaps = [];
 
-      await pool.query(`
-    DELETE FROM match_points
-    WHERE guild_id = ?
-      AND event_id = ?
-  `, [guildId, eventId]);
+      if (eventId) {
+        const [matchRows] = await pool.query(
+          `
+          SELECT
+            m.id AS match_id,
+            r.res_a,
+            r.res_b
+          FROM matches m
+          JOIN match_results r
+            ON r.match_id = m.id
+           AND r.guild_id = m.guild_id
+          WHERE m.guild_id = ?
+            AND m.event_id = ?
+          `,
+          [guildId, eventId]
+        );
+        matches = matchRows;
 
-      const [preds] = await pool.query(`
-    SELECT
-      mp.match_id,
-      mp.user_id,
-      mp.pred_a,
-      mp.pred_b
-    FROM match_predictions mp
-    JOIN matches m
-      ON m.id = mp.match_id
-     AND m.guild_id = mp.guild_id
-    WHERE mp.guild_id = ?
-      AND m.event_id = ?
-  `, [guildId, eventId]);
+        await pool.query(
+          `
+          DELETE FROM match_points
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId]
+        );
+
+        const [predRows] = await pool.query(
+          `
+          SELECT
+            mp.match_id,
+            mp.user_id,
+            mp.pred_a,
+            mp.pred_b
+          FROM match_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+            AND m.event_id = ?
+          `,
+          [guildId, eventId]
+        );
+        preds = predRows;
+
+        const [mapRows] = await pool.query(
+          `
+          SELECT
+            mp.match_id,
+            mp.user_id,
+            mp.pred_exact_a AS predA,
+            mp.pred_exact_b AS predB,
+            mr.exact_a AS resA,
+            mr.exact_b AS resB
+          FROM match_map_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          JOIN match_map_results mr
+            ON mr.match_id = mp.match_id
+           AND mr.map_no = mp.map_no
+           AND mr.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+            AND m.event_id = ?
+          `,
+          [guildId, eventId]
+        );
+        allMaps = mapRows;
+      } else {
+        const [matchRows] = await pool.query(
+          `
+          SELECT
+            m.id AS match_id,
+            r.res_a,
+            r.res_b
+          FROM matches m
+          JOIN match_results r
+            ON r.match_id = m.id
+           AND r.guild_id = m.guild_id
+          WHERE m.guild_id = ?
+          `,
+          [guildId]
+        );
+        matches = matchRows;
+
+        await pool.query(
+          `
+          DELETE FROM match_points
+          WHERE guild_id = ?
+          `,
+          [guildId]
+        );
+
+        const [predRows] = await pool.query(
+          `
+          SELECT
+            mp.match_id,
+            mp.user_id,
+            mp.pred_a,
+            mp.pred_b
+          FROM match_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+          `,
+          [guildId]
+        );
+        preds = predRows;
+
+        const [mapRows] = await pool.query(
+          `
+          SELECT
+            mp.match_id,
+            mp.user_id,
+            mp.pred_exact_a AS predA,
+            mp.pred_exact_b AS predB,
+            mr.exact_a AS resA,
+            mr.exact_b AS resB
+          FROM match_map_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          JOIN match_map_results mr
+            ON mr.match_id = mp.match_id
+           AND mr.map_no = mp.map_no
+           AND mr.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+          `,
+          [guildId]
+        );
+        allMaps = mapRows;
+      }
 
       const predsByMatch = new Map();
       for (const p of preds) {
@@ -412,26 +609,6 @@ module.exports = async function calculateScores(guildId, eventId) {
         }
         predsByMatch.get(p.match_id).push(p);
       }
-
-      const [allMaps] = await pool.query(`
-    SELECT
-      mp.match_id,
-      mp.user_id,
-      mp.pred_exact_a AS predA,
-      mp.pred_exact_b AS predB,
-      mr.exact_a AS resA,
-      mr.exact_b AS resB
-    FROM match_map_predictions mp
-    JOIN matches m
-      ON m.id = mp.match_id
-     AND m.guild_id = mp.guild_id
-    JOIN match_map_results mr
-      ON mr.match_id = mp.match_id
-     AND mr.map_no = mp.map_no
-     AND mr.guild_id = mp.guild_id
-    WHERE mp.guild_id = ?
-      AND m.event_id = ?
-  `, [guildId, eventId]);
 
       const mapsByMatchUser = new Map();
       for (const m of allMaps) {
@@ -469,12 +646,12 @@ module.exports = async function calculateScores(guildId, eventId) {
 
           logger.info('scores', 'MATCH SCORE DEBUG', {
             guildId,
-            eventId,
+            eventId: eventId || null,
             matchId: m.match_id,
             userId: p.user_id,
             seriesPts,
             mapPts,
-            mapsCount: maps.length,
+            mapsCount: maps.length
           });
 
           rows.push([
@@ -498,105 +675,162 @@ module.exports = async function calculateScores(guildId, eventId) {
       }
 
       if (rows.length) {
-        await pool.query(`
-      INSERT INTO match_points
-        (guild_id, event_id, match_id, user_id, points, source)
-      VALUES ?
-      ON DUPLICATE KEY UPDATE
-        points = VALUES(points),
-        computed_at = CURRENT_TIMESTAMP
-    `, [rows]);
+        await pool.query(
+          `
+          INSERT INTO match_points
+            (guild_id, event_id, match_id, user_id, points, source)
+          VALUES ?
+          ON DUPLICATE KEY UPDATE
+            points = VALUES(points),
+            computed_at = CURRENT_TIMESTAMP
+          `,
+          [rows]
+        );
       }
 
       logger.info('scores', 'Matches score done', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         rowsInserted: rows.length
       });
-
     } catch (e) {
       logger.error('scores', 'Matches failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
     }
 
     /* =========================
-       GLOBAL LEADERBOARD PER EVENT
+       GLOBAL LEADERBOARD
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM leaderboard
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId]
-      );
-
-      const [rows] = await pool.query(
-        `
-        SELECT user_id, SUM(points) AS total_points
-        FROM (
-          SELECT user_id, points FROM swiss_scores
-            WHERE guild_id = ? AND event_id = ?
-          UNION ALL
-          SELECT user_id, points FROM playoffs_scores
-            WHERE guild_id = ? AND event_id = ?
-          UNION ALL
-          SELECT user_id, points FROM doubleelim_scores
-            WHERE guild_id = ? AND event_id = ?
-          UNION ALL
-          SELECT user_id, points FROM playin_scores
-            WHERE guild_id = ? AND event_id = ?
-          UNION ALL
-          SELECT user_id, points FROM match_points
-            WHERE guild_id = ? AND event_id = ?
-        ) all_points
-        GROUP BY user_id
-        `,
-        [
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId
-        ]
-      );
-
-      if (rows.length) {
-        const insertRows = rows.map(r => [
-          guildId,
-          eventId,
-          r.user_id,
-          r.total_points
-        ]);
-
+      if (eventId) {
         await pool.query(
           `
-          INSERT INTO leaderboard
-            (guild_id, event_id, user_id, total_points)
-          VALUES ?
+          DELETE FROM leaderboard
+          WHERE guild_id = ?
+            AND event_id = ?
           `,
-          [insertRows]
+          [guildId, eventId]
         );
+
+        const [rows] = await pool.query(
+          `
+          SELECT user_id, SUM(points) AS total_points
+          FROM (
+            SELECT user_id, points FROM swiss_scores
+              WHERE guild_id = ? AND event_id = ?
+            UNION ALL
+            SELECT user_id, points FROM playoffs_scores
+              WHERE guild_id = ? AND event_id = ?
+            UNION ALL
+            SELECT user_id, points FROM doubleelim_scores
+              WHERE guild_id = ? AND event_id = ?
+            UNION ALL
+            SELECT user_id, points FROM playin_scores
+              WHERE guild_id = ? AND event_id = ?
+            UNION ALL
+            SELECT user_id, points FROM match_points
+              WHERE guild_id = ? AND event_id = ?
+          ) all_points
+          GROUP BY user_id
+          `,
+          [
+            guildId, eventId,
+            guildId, eventId,
+            guildId, eventId,
+            guildId, eventId,
+            guildId, eventId
+          ]
+        );
+
+        if (rows.length) {
+          const insertRows = rows.map(r => [
+            guildId,
+            eventId,
+            r.user_id,
+            r.total_points
+          ]);
+
+          await pool.query(
+            `
+            INSERT INTO leaderboard
+              (guild_id, event_id, user_id, total_points)
+            VALUES ?
+            `,
+            [insertRows]
+          );
+        }
+      } else {
+        await pool.query(
+          `
+          DELETE FROM leaderboard
+          WHERE guild_id = ?
+          `,
+          [guildId]
+        );
+
+        const [rows] = await pool.query(
+          `
+          SELECT user_id, SUM(points) AS total_points
+          FROM (
+            SELECT user_id, points FROM swiss_scores
+              WHERE guild_id = ?
+            UNION ALL
+            SELECT user_id, points FROM playoffs_scores
+              WHERE guild_id = ?
+            UNION ALL
+            SELECT user_id, points FROM doubleelim_scores
+              WHERE guild_id = ?
+            UNION ALL
+            SELECT user_id, points FROM playin_scores
+              WHERE guild_id = ?
+            UNION ALL
+            SELECT user_id, points FROM match_points
+              WHERE guild_id = ?
+          ) all_points
+          GROUP BY user_id
+          `,
+          [guildId, guildId, guildId, guildId, guildId]
+        );
+
+        if (rows.length) {
+          const insertRows = rows.map(r => [
+            guildId,
+            null,
+            r.user_id,
+            r.total_points
+          ]);
+
+          await pool.query(
+            `
+            INSERT INTO leaderboard
+              (guild_id, event_id, user_id, total_points)
+            VALUES ?
+            `,
+            [insertRows]
+          );
+        }
       }
 
-      logger.info('scores', 'Leaderboard rebuilt per event', {
+      logger.info('scores', 'Leaderboard rebuilt', {
         guildId,
-        eventId
+        eventId: eventId || null
       });
     } catch (e) {
       logger.error('scores', 'Leaderboard rebuild failed', {
         guildId,
-        eventId,
+        eventId: eventId || null,
         message: e.message,
         stack: e.stack
       });
     }
 
-    logger.info('scores', 'Score calculation finished', { guildId, eventId });
+    logger.info('scores', 'Score calculation finished', {
+      guildId,
+      eventId: eventId || null
+    });
   });
 };
