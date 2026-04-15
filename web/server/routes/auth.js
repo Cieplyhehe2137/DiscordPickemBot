@@ -1,8 +1,40 @@
+console.log("AUTH ROUTES LOADED - NEW FILE");
 import express from "express";
 import guildRegistry from "../../../utils/guildRegistry.js";
-const { getAllGuildConfig } = guildRegistry;
 
+const { getAllGuildConfig } = guildRegistry;
 const router = express.Router();
+
+/* ================= HELPERS ================= */
+
+function getAllowedGuilds() {
+  const guildConfigs = getAllGuildConfig?.() || {};
+
+  return Object.entries(guildConfigs).map(([id, cfg]) => ({
+    id,
+    name: cfg?.name || `Guild ${id}`,
+    role: "admin",
+  }));
+}
+
+function getDevUser(req) {
+  const guilds = getAllowedGuilds();
+
+  if (!req.session.user) {
+    req.session.user = {
+      id: "dev-user",
+      username: "DevUser",
+      avatar: null,
+      guilds,
+    };
+  }
+
+  if (!req.session.guildId && guilds.length > 0) {
+    req.session.guildId = guilds[0].id;
+  }
+
+  return req.session.user;
+}
 
 /* ================= LOGIN ================= */
 
@@ -29,24 +61,19 @@ router.get("/discord/callback", async (req, res) => {
       return res.status(400).send("Brak code");
     }
 
-    /* ===== TOKEN ===== */
-
-    const tokenRes = await fetch(
-      "https://discord.com/api/oauth2/token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          client_id: process.env.DISCORD_CLIENT_ID,
-          client_secret: process.env.DISCORD_CLIENT_SECRET,
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: process.env.DISCORD_REDIRECT_URI,
-        }),
-      }
-    );
+    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI,
+      }),
+    });
 
     const tokenData = await tokenRes.json();
 
@@ -57,37 +84,25 @@ router.get("/discord/callback", async (req, res) => {
 
     req.session.access_token = tokenData.access_token;
 
-    /* ===== USER ===== */
-
-    const userRes = await fetch(
-      "https://discord.com/api/users/@me",
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      }
-    );
+    const userRes = await fetch("https://discord.com/api/users/@me", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
 
     const userData = await userRes.json();
 
-    /* ===== GUILDS ===== */
-
-    const guildRes = await fetch(
-      "https://discord.com/api/users/@me/guilds",
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      }
-    );
+    const guildRes = await fetch("https://discord.com/api/users/@me/guilds", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
 
     const guilds = await guildRes.json();
 
-    const adminGuilds = guilds.filter(
-      (g) => (BigInt(g.permissions) & 0x8n) === 0x8n
-    );
-
-    /* ===== SAVE SESSION ===== */
+    const adminGuilds = Array.isArray(guilds)
+      ? guilds.filter((g) => (BigInt(g.permissions) & 0x8n) === 0x8n)
+      : [];
 
     req.session.user = {
       id: userData.id,
@@ -95,6 +110,10 @@ router.get("/discord/callback", async (req, res) => {
       avatar: userData.avatar,
       guilds: adminGuilds,
     };
+
+    if (!req.session.guildId && adminGuilds.length > 0) {
+      req.session.guildId = adminGuilds[0].id;
+    }
 
     req.session.save(() => {
       res.redirect("http://localhost:5173/guilds");
@@ -108,21 +127,19 @@ router.get("/discord/callback", async (req, res) => {
 /* ================= GET CURRENT USER ================= */
 
 router.get("/me", (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: "Not logged in" });
-  }
+  console.log("HIT /api/auth/me - NEW DEV ROUTE");
+  const user = req.session.user || getDevUser(req);
+  const allowedGuilds = getAllowedGuilds();
+  const allowedGuildIds = allowedGuilds.map((g) => g.id);
 
-  const guildConfigs = getAllGuildConfig();
-  const allowedGuildIds = Object.keys(guildConfigs);
-
-  const filteredGuilds = req.session.user.guilds.filter(g =>
+  const filteredGuilds = (user.guilds || []).filter((g) =>
     allowedGuildIds.includes(g.id)
   );
 
   res.json({
-    id: req.session.user.id,
-    username: req.session.user.username,
-    avatar: req.session.user.avatar,
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
     guilds: filteredGuilds,
   });
 });
@@ -130,13 +147,17 @@ router.get("/me", (req, res) => {
 /* ================= SELECT GUILD ================= */
 
 router.post("/select-guild", (req, res) => {
-  const { guildId } = req.body;
+  const user = req.session.user || getDevUser(req);
+  const { guildId } = req.body || {};
 
-  if (!req.session.user) {
-    return res.status(401).json({ error: "Not logged in" });
+  if (!guildId) {
+    return res.status(400).json({ error: "Missing guildId" });
   }
 
-  const userGuild = req.session.user.guilds.find(g => g.id === guildId);
+  const allowedGuilds = getAllowedGuilds();
+  const userGuild =
+    (user.guilds || []).find((g) => g.id === guildId) ||
+    allowedGuilds.find((g) => g.id === guildId);
 
   if (!userGuild) {
     return res.status(403).json({ error: "Guild not allowed" });
@@ -144,17 +165,26 @@ router.post("/select-guild", (req, res) => {
 
   req.session.guildId = guildId;
 
-  res.json({ ok: true });
+  res.json({ ok: true, guildId });
 });
 
+/* ================= CURRENT GUILD ================= */
+
 router.get("/current-guild", (req, res) => {
-  if (!req.session.user || !req.session.guildId) {
-    return res.status(400).json({ error: "No guild selected" });
+  const user = req.session.user || getDevUser(req);
+  const allowedGuilds = getAllowedGuilds();
+
+  if (!req.session.guildId) {
+    if (allowedGuilds.length === 0) {
+      return res.status(404).json({ error: "No guilds configured" });
+    }
+
+    req.session.guildId = allowedGuilds[0].id;
   }
 
-  const guild = req.session.user.guilds.find(
-    g => g.id === req.session.guildId
-  );
+  const guild =
+    (user.guilds || []).find((g) => g.id === req.session.guildId) ||
+    allowedGuilds.find((g) => g.id === req.session.guildId);
 
   if (!guild) {
     return res.status(404).json({ error: "Guild not found" });
@@ -162,7 +192,6 @@ router.get("/current-guild", (req, res) => {
 
   res.json(guild);
 });
-
 
 /* ================= LOGOUT ================= */
 

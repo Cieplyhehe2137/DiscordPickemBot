@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../api/client";
 
 type Guild = {
   id: string;
@@ -13,74 +14,52 @@ export default function GuildSelect() {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("http://localhost:3301/api/auth/me", {
-        credentials: "include"
-      });
-
-      if (!res.ok) {
+      try {
+        const res = await apiFetch<{ guilds: Guild[] }>("/auth/me");
+        setGuilds(res.guilds || []);
+      } catch {
         navigate("/");
-        return;
       }
-
-      const json = await res.json();
-      setGuilds(json.guilds || []);
     }
 
     load();
-  }, []);
+  }, [navigate]);
 
-  const handleSelect = async (guildId: string) => {
-    await fetch("http://localhost:3301/api/auth/select-guild", {
+  async function selectGuild(guildId: string) {
+    await apiFetch("/auth/select-guild", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ guildId })
+      body: JSON.stringify({ guildId }),
     });
 
     navigate("/dashboard");
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black p-12 text-white">
-      <div className="max-w-5xl mx-auto space-y-12">
+    <div className="min-h-screen bg-black text-white p-12">
+      <div className="max-w-5xl mx-auto space-y-10">
+        <h1 className="text-4xl font-bold">Wybierz serwer</h1>
 
-        <h1 className="text-4xl font-bold">
-          Wybierz serwer
-        </h1>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
-
-          {guilds.map(guild => (
+        <div className="grid md:grid-cols-3 gap-6">
+          {guilds.map((g) => (
             <div
-              key={guild.id}
-              onClick={() => handleSelect(guild.id)}
-              className="bg-zinc-900/70 backdrop-blur
-                         border border-zinc-800
-                         rounded-3xl p-10
-                         flex flex-col items-center
-                         cursor-pointer
-                         hover:border-indigo-500
-                         hover:shadow-[0_0_30px_rgba(99,102,241,0.5)]
-                         hover:scale-105
-                         transition-all duration-300"
+              key={g.id}
+              onClick={() => selectGuild(g.id)}
+              className="p-6 rounded-2xl bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
             >
-              {guild.icon ? (
-                <img
-                  src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`}
-                  className="w-20 h-20 rounded-2xl mb-4"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-2xl bg-zinc-700 mb-4 flex items-center justify-center">
-                  ?
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                {g.icon ? (
+                  <img
+                    src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`}
+                    className="w-12 h-12 rounded-xl"
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-zinc-700 rounded-xl" />
+                )}
 
-              <h2 className="text-lg font-semibold text-center">
-                {guild.name}
-              </h2>
+                <div>{g.name}</div>
+              </div>
             </div>
           ))}
-
         </div>
       </div>
     </div>

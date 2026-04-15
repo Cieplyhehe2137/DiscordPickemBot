@@ -11,7 +11,6 @@ import authRoutes from "./routes/auth.js";
 import { loadGuildConfigsOnce } from "../../utils/guildRegistry.js";
 import { requireGuild } from "./middleware/requireGuild.js";
 
-
 /* ================== FIX __dirname w ES modules ================== */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,26 +30,29 @@ loadGuildConfigsOnce();
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 
 /* ================== SESSION ================== */
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || "dev_secret",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    sameSite: "none",
-    domain: "localhost"
-  }
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "dev_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      sameSite: "lax",
+    },
+  })
+);
 
 /* ================== ROUTES ================== */
 

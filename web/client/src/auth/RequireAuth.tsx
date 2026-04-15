@@ -1,11 +1,21 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { useMe } from "./useMe";
 
 export default function RequireAuth() {
-    const isLoggedIn = true; // tymczasowo
+  const { loading, authenticated } = useMe();
 
-    if (!isLoggedIn) {
-        return <Navigate to="/login" replace />;
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Ładowanie...
+      </div>
+    );
+  }
 
-    return <Outlet />;
+  if (!authenticated) {
+    window.location.href = "/api/auth/discord";
+    return null;
+  }
+
+  return <Outlet />;
 }

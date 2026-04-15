@@ -1,22 +1,15 @@
 import { usePickemOverview } from "./usePickemOverview";
-import { usePermissions } from "../guild/usePermissions";
 import { usePickemActions } from "./usePickemActions";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import PickemStatusBadge from "./PickemStatusBadge";
 import { useGuild } from "../guild/GuildContext";
 
-
 export default function PickemOverview() {
   const { data, loading, refetch } = usePickemOverview();
-  const { isAdmin } = usePermissions();
   const { lockPickem, recalculatePickem } = usePickemActions();
   const [busy, setBusy] = useState(false);
   const { guild } = useGuild();
-
-  // ======================
-  // Handlers
-  // ======================
 
   async function handleLock() {
     try {
@@ -42,22 +35,18 @@ export default function PickemOverview() {
     }
   }
 
-  // ======================
-  // Guards
-  // ======================
-
   if (loading) return <p>Ładowanie Pick’Em…</p>;
   if (!data) return <p>Brak danych Pick’Em</p>;
 
-  const isScoring = data.status === "scoring";
-
-  // ======================
-  // Render
-  // ======================
+  const status = data.tournament.status;
+  const normalizedStatus = status?.toLowerCase();
+  const isScoring = normalizedStatus === "scoring";
+  const deadline = data.event.deadline;
 
   return (
     <div>
       <h2>{data.event.name}</h2>
+
       {guild?.slug && (
         <div style={{ marginBottom: 12 }}>
           <a
@@ -70,7 +59,6 @@ export default function PickemOverview() {
         </div>
       )}
 
-
       <div style={{ marginBottom: 12 }}>
         <Link to="leaderboard">📊 Zobacz ranking</Link>
         <Link to="participants" style={{ marginLeft: 12 }}>
@@ -79,41 +67,37 @@ export default function PickemOverview() {
       </div>
 
       <ul>
-        <li>👥 Uczestnicy: {data.participants}</li>
-        <li>⏰ Deadline: {new Date(data.deadline).toLocaleString()}</li>
+        <li>👥 Uczestnicy: {data.stats.participants}</li>
         <li>
-          📊 Status: <PickemStatusBadge status={data.status} />
+          ⏰ Deadline: {deadline ? new Date(deadline).toLocaleString() : "Brak"}
         </li>
+        <li>
+          📊 Status: <PickemStatusBadge status={normalizedStatus} />
+        </li>
+        <li>🎯 Typy łącznie: {data.stats.predictions}</li>
+        <li>🧩 Faza: {data.tournament.phase}</li>
       </ul>
 
-      {isAdmin && (
+      {data.permissions.isAdmin && (
         <div style={{ marginTop: 16 }}>
-          {data.status === "open" && (
+          {normalizedStatus === "open" && (
             <button onClick={handleLock} disabled={busy}>
               🔒 Zamknij typowanie
             </button>
           )}
 
-          {data.status === "locked" && (
+          {normalizedStatus === "locked" && (
             <button onClick={handleRecalculate} disabled={busy}>
               🔄 Przelicz punkty
             </button>
           )}
 
-          {isScoring && (
-            <p>⏳ Trwa liczenie punktów…</p>
-          )}
+          {isScoring && <p>⏳ Trwa liczenie punktów…</p>}
 
-          {data.status === "scored" && (
-            <button disabled>
-              ✅ Punkty policzone
-            </button>
-          )}
+          {normalizedStatus === "scored" && <button disabled>✅ Punkty policzone</button>}
 
           <div style={{ marginTop: 8 }}>
-            <button disabled={busy || isScoring}>
-              📥 Eksport
-            </button>
+            <button disabled={busy || isScoring}>📥 Eksport</button>
           </div>
         </div>
       )}

@@ -17,21 +17,20 @@ export function usePickemOverview() {
     }
   }, [api]);
 
-  // 🔹 initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // 🔹 polling TYLKO gdy scoring
   useEffect(() => {
-    if (data?.status !== "scoring") return;
+    const status = data?.tournament?.status?.toLowerCase();
+    if (status !== "scoring") return;
 
     const interval = setInterval(() => {
       fetchData();
-    }, 3000); // co 3 sekundy
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [data?.status, fetchData]);
+  }, [data?.tournament?.status, fetchData]);
 
   return {
     data,

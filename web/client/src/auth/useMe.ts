@@ -1,30 +1,46 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api/client";
 
+export type Guild = {
+  id: string;
+  name: string;
+  icon?: string | null;
+  isAdmin?: boolean;
+  botPresent?: boolean;
+};
+
 export type MeResponse = {
-    user: {
-        id: string;
-        username: string;
-        avatar?: string;
-    };
-    guilds: {
-        id: string;
-        name: string;
-        icon?: string;
-        isAdmin: boolean;
-        botPresent: boolean;
-    }[];
+  id: string;
+  username: string;
+  avatar?: string | null;
+  guilds: Guild[];
 };
 
 export function useMe() {
-    const [data, setData] = useState<MeResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<MeResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
 
-    useEffect(() => {
-        apiFetch("/me")
-        .then(setData)
-        .finally(() => setLoading(false));
-    }, []);
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await apiFetch<MeResponse>("/auth/me");
+        setData(res);
+        setAuthenticated(true);
+      } catch {
+        setData(null);
+        setAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-    return { data, loading };
+    load();
+  }, []);
+
+  return {
+    data,
+    loading,
+    authenticated,
+  };
 }
