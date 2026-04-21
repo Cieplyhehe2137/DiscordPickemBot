@@ -10,7 +10,6 @@ const { withGuild } = require('../utils/guildContext');
 const logger = require('../utils/logger');
 
 async function loadTeamsFromDB(pool, guildId) {
-
   const [rows] = await pool.query(`
     SELECT name
     FROM teams
@@ -20,11 +19,9 @@ async function loadTeamsFromDB(pool, guildId) {
   `, [guildId]);
 
   return rows.map(r => r.name).filter(Boolean);
-
 }
 
 async function loadMvpCandidates(pool, guildId, eventId) {
-
   const [rows] = await pool.query(`
     SELECT id, nickname, team_name
     FROM mvp_candidates
@@ -35,11 +32,9 @@ async function loadMvpCandidates(pool, guildId, eventId) {
   `, [guildId, eventId]);
 
   return rows;
-
 }
 
 async function getLatestEventId(pool, guildId) {
-
   const [rows] = await pool.query(`
     SELECT id
     FROM events
@@ -49,15 +44,12 @@ async function getLatestEventId(pool, guildId) {
   `, [guildId]);
 
   return rows[0]?.id || null;
-
 }
 
 module.exports = async function openPlayoffsDropdown(interaction) {
-
-  console.log('🔥 OPEN PLAYOFFS DROPDOWN WITH MVP');
+  console.log('🔥 OPEN PLAYOFFS DROPDOWN WITH MVP + CONFIRM MESSAGE');
 
   try {
-
     if (!interaction.guildId) {
       return interaction.reply({
         content: '❌ Brak guildId.',
@@ -70,7 +62,6 @@ module.exports = async function openPlayoffsDropdown(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-
       const eventId = await getLatestEventId(pool, guildId);
 
       console.log('EVENT DEBUG', {
@@ -157,81 +148,63 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .addOptions(makeOptions())
       );
 
-      const components = [
-        row1,
-        row2,
-        row3,
-        row4
-      ];
+      const components = [row1, row2, row3, row4];
 
-      // MVP dropdown tylko jeśli są kandydaci
       if (mvpCandidates.length) {
-
         if (mvpCandidates.length > 25) {
-
           return interaction.editReply({
             content:
-              `⚠️ Kandydatów MVP jest ${mvpCandidates.length}, ` +
-              `a Discord pozwala max 25 opcji.\n` +
+              `⚠️ Kandydatów MVP jest ${mvpCandidates.length}, a Discord pozwala max 25 opcji.\n` +
               `Trzeba dodać paginację MVP.`
           });
-
         }
 
         const row5 = new ActionRowBuilder().addComponents(
-
           new StringSelectMenuBuilder()
             .setCustomId(`playoffs_mvp:${eventId}`)
             .setPlaceholder('⭐ Wybierz MVP turnieju')
             .setMinValues(1)
             .setMaxValues(1)
             .addOptions(
-
               mvpCandidates.map(c => ({
                 label: c.team_name
                   ? `${c.nickname} (${c.team_name})`
                   : c.nickname,
-
                 value: String(c.id)
               }))
-
             )
-
         );
 
         components.push(row5);
-
       }
 
-      // UWAGA:
-      // NIE dodajemy już confirm button
-      // bo Discord pozwala max 5 action rows
-
-      return interaction.editReply({
-
+      await interaction.editReply({
         embeds: [embed],
         components
-
       });
 
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('confirm_playoffs')
+          .setLabel('✅ Zatwierdź typy')
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await interaction.followUp({
+        content: 'Gdy skończysz wybierać wszystkie typy, kliknij poniżej:',
+        components: [confirmRow],
+        ephemeral: true
+      });
     });
-
   } catch (err) {
-
     logger.error('playoffs', 'openPlayoffsDropdown failed', {
-
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack
-
     });
 
     return interaction.editReply({
-
       content: '❌ Błąd otwierania Pick\'Em Playoffs.'
-
     }).catch(() => {});
-
   }
-
 };
