@@ -13,7 +13,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) {}
+  } catch (_) { }
 
   return String(val)
     .replace(/[\[\]"]+/g, '')
@@ -38,7 +38,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (rows?.[0]?.id) return rows[0].id;
-  } catch (_) {}
+  } catch (_) { }
 
   // 2) fallback: ostatni event z matches
   try {
@@ -55,7 +55,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (rows?.[0]?.event_id) return rows[0].event_id;
-  } catch (_) {}
+  } catch (_) { }
 
   return null;
 }
@@ -830,28 +830,39 @@ module.exports = async function calculateScores(guildId, eventId) {
 
         const [rows] = await pool.query(
           `
-          SELECT user_id, SUM(points) AS total_points
-          FROM (
-            SELECT user_id, points FROM swiss_scores
-              WHERE guild_id = ? AND event_id = ?
-            UNION ALL
-            SELECT user_id, points FROM playoffs_scores
-              WHERE guild_id = ? AND event_id = ?
-            UNION ALL
-            SELECT user_id, points FROM doubleelim_scores
-              WHERE guild_id = ? AND event_id = ?
-            UNION ALL
-            SELECT user_id, points FROM playin_scores
-              WHERE guild_id = ? AND event_id = ?
-            UNION ALL
-            SELECT user_id, points FROM match_points
-              WHERE guild_id = ? AND event_id = ?
-            UNION ALL
-            SELECT user_id, points FROM mvp_scores
-              WHERE guild_id = ? AND event_id = ?
-          ) all_points
-          GROUP BY user_id
-          `,
+  SELECT user_id, SUM(points) AS total_points
+  FROM (
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM swiss_scores
+      WHERE guild_id = ? AND event_id = ?
+
+    UNION ALL
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM playoffs_scores
+      WHERE guild_id = ? AND event_id = ?
+
+    UNION ALL
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM doubleelim_scores
+      WHERE guild_id = ? AND event_id = ?
+
+    UNION ALL
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM playin_scores
+      WHERE guild_id = ? AND event_id = ?
+
+    UNION ALL
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM match_points
+      WHERE guild_id = ? AND event_id = ?
+
+    UNION ALL
+    SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
+      FROM mvp_scores
+      WHERE guild_id = ? AND event_id = ?
+  ) all_points
+  GROUP BY user_id
+  `,
           [
             guildId, eventId,
             guildId, eventId,
