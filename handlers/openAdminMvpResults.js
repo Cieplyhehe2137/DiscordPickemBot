@@ -17,7 +17,6 @@ module.exports = async function openAdminMvpResult(interaction, eventId) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-
       const [rows] = await pool.query(
         `
           SELECT id, nickname, team_name
@@ -68,9 +67,7 @@ module.exports = async function openAdminMvpResult(interaction, eventId) {
         components: [row],
         ephemeral: true
       });
-
     });
-
   } catch (err) {
     logger.error('mvp', 'openAdminMvpResult failed', {
       guildId: interaction.guildId,
