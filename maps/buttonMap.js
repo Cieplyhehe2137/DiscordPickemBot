@@ -93,5 +93,12 @@ module.exports = {
   // ===== RESTORE =====
   'open_restore_dropdown': 'openRestoreDropdown',
   'confirm_restore_backup': 'confirmRestoreBackup',
-  'cancel_restore_backup': 'confirmRestoreBackup'
+  'cancel_restore_backup': 'confirmRestoreBackup',
+
+  // MVP
+  'panel:open:mvp': 'openMvpAdminPanel',
+  'mvp:admin:candidates': 'openMvpCandidatesModalEntry',
+  'mvp:admin:result': 'openAdminMvpResultEntry',
+  'mvp:admin:list': 'showMvpCandidates',
+  'mvp:admin:show_result': 'showOfficialMvp',
 };

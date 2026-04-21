@@ -8,5 +8,8 @@ module.exports = {
   'teams:add_modal': 'teamsAddSubmit',
   'teams:rename_modal': 'teamsRenameSubmit',
   'teams:import_modal': 'teamsImportSubmit',
-  'teams:add:submit': 'teamsAddSubmit'
+  'teams:add:submit': 'teamsAddSubmit',
+
+  // MVP
+  'mvp_admin_candidates_modal': 'mvpCandidatesModalSubmit'
 }

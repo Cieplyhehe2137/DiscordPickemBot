@@ -81,6 +81,10 @@ module.exports = {
   'official_swiss_0_3': 'submitSwissResultsDropdown',
   'official_swiss_advancing': 'submitSwissResultsDropdown',
   'set_results_swiss_': 'submitSwissResultsDropdown',
-  'official_admin_swiss_': 'submitSwissResultsDropdown'
+  'official_admin_swiss_': 'submitSwissResultsDropdown',
 
+  // MVP
+
+  'playoffs_mvp': 'playoffsMvpSelect',
+  'admin_mvp_result_select': 'adminMvpResultSelect',
 };
