@@ -43,14 +43,15 @@ app.use(express.json());
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "dev_secret",
+    secret: process.env.SESSION_SECRET || "dev-secret",
     resave: false,
     saveUninitialized: false,
+
     cookie: {
-      secure: false,
       httpOnly: true,
-      sameSite: "lax",
-    },
+      secure: false,     // musi być false na localhost
+      sameSite: "lax"    // ważne dla proxy
+    }
   })
 );
 

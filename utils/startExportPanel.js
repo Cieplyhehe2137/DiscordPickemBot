@@ -42,6 +42,13 @@ function buildPanelComponents() {
         .setCustomId('panel:open:teams')
         .setLabel('👥 Drużyny')
         .setStyle(ButtonStyle.Secondary)
+    ),
+
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('panel:open:mvp')
+        .setLabel('⭐ MVP')
+        .setStyle(ButtonStyle.Success)
     )
   ];
 }
@@ -55,7 +62,8 @@ function buildPanelPayload() {
       '• Wyniki i eksport\n' +
       '• Zarządzanie meczami\n' +
       '• Backup / restore bazy\n' +
-      '• Reset i czyszczenie danych\n\n' +
+      '• Reset i czyszczenie danych\n' +
+      '• Typowanie MVP\n\n' +
       '⚠️ **Dostęp tylko dla Administracji**'
     )
     .setFooter({ text: PANEL_MARKER });
