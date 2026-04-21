@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import type { PickemLeaderboardDTO } from "../pickem/types";
+import PickemUserDetailsModal from "../pickem/PickemUserDetailsModal";
 
 type SummaryResponse = {
   event: {
@@ -23,17 +25,12 @@ type SummaryResponse = {
       playIn: number;
       matches: number;
       maps: number;
+      mvp?: number;
     };
   };
   permissions: {
     isAdmin: boolean;
   };
-};
-
-type Leader = {
-  rank: number;
-  userId: string;
-  points: number;
 };
 
 const PHASES = [
@@ -59,11 +56,23 @@ export default function EventDashboard() {
   const { slug } = useParams();
 
   const [data, setData] = useState<SummaryResponse | null>(null);
-  const [top, setTop] = useState<Leader[]>([]);
+  const [top, setTop] = useState<PickemLeaderboardDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const handleOpenUserDetails = (userId: string) => {
+    setSelectedUserId(userId);
+    setDetailsOpen(true);
+  };
+
+  const handleCloseUserDetails = () => {
+    setDetailsOpen(false);
+    setSelectedUserId(null);
+  };
 
   const loadSummary = async () => {
     if (!slug) return;
@@ -119,8 +128,15 @@ export default function EventDashboard() {
     }
 
     const interval = setInterval(() => {
+      const deadline = data.event.deadline;
+      if (!deadline) {
+        setTimeLeft("");
+        clearInterval(interval);
+        return;
+      }
+
       const now = Date.now();
-      const end = new Date(data.event.deadline as string).getTime();
+      const end = new Date(deadline).getTime();
       const diff = end - now;
 
       if (diff <= 0) {
@@ -149,12 +165,14 @@ export default function EventDashboard() {
 
   const handleOpen = async () => {
     if (!slug) return;
+
     try {
       setBusy(true);
       const res = await fetch(`/api/dashboard/${slug}/open`, {
         method: "POST",
         credentials: "include",
       });
+
       if (!res.ok) throw new Error("Nie udało się otworzyć eventu");
       await reloadAll();
     } catch (err: any) {
@@ -166,12 +184,14 @@ export default function EventDashboard() {
 
   const handleClose = async () => {
     if (!slug) return;
+
     try {
       setBusy(true);
       const res = await fetch(`/api/dashboard/${slug}/close`, {
         method: "POST",
         credentials: "include",
       });
+
       if (!res.ok) throw new Error("Nie udało się zamknąć eventu");
       await reloadAll();
     } catch (err: any) {
@@ -183,6 +203,7 @@ export default function EventDashboard() {
 
   const handlePhaseChange = async (phase: string) => {
     if (!slug) return;
+
     try {
       setBusy(true);
       const res = await fetch(`/api/dashboard/${slug}/phase`, {
@@ -207,6 +228,7 @@ export default function EventDashboard() {
 
   const handleRecalculate = async () => {
     if (!slug) return;
+
     try {
       setBusy(true);
       const res = await fetch(`/api/dashboard/${slug}/recalculate`, {
@@ -234,121 +256,109 @@ export default function EventDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black p-12 text-white">
-      <div className="max-w-6xl mx-auto space-y-12">
+      <div className="mx-auto max-w-6xl space-y-12">
         <div
-          className="relative overflow-hidden rounded-3xl p-12
-          bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-transparent
-          border border-indigo-500/30"
+          className="relative overflow-hidden rounded-3xl border border-indigo-500/30
+          bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-transparent p-12"
         >
           <div className="relative z-10 space-y-4">
             <h1 className="text-5xl font-extrabold">{data.event.name}</h1>
 
             {timeLeft && (
-              <div className="text-indigo-400 text-lg font-mono">
-                ⏳ {timeLeft}
-              </div>
+              <div className="font-mono text-lg text-indigo-400">⏳ {timeLeft}</div>
             )}
 
             <div className="flex flex-wrap items-center gap-4">
               <span
-                className={`px-5 py-2 rounded-full text-sm font-semibold ${
-                  data.tournament.isOpen
-                    ? "bg-green-500/20 text-green-400 animate-pulse"
-                    : "bg-red-500/20 text-red-400"
-                }`}
+                className={`rounded-full px-5 py-2 text-sm font-semibold ${data.tournament.isOpen
+                  ? "animate-pulse bg-green-500/20 text-green-400"
+                  : "bg-red-500/20 text-red-400"
+                  }`}
               >
                 {status}
               </span>
 
               <span className="text-gray-400">
-                Faza:{" "}
-                <span className="text-white">{data.tournament.phase}</span>
+                Faza: <span className="text-white">{data.tournament.phase}</span>
               </span>
 
               <span className="text-gray-400">
                 Deadline:{" "}
-                <span className="text-white">
-                  {formatDate(data.event.deadline)}
-                </span>
+                <span className="text-white">{formatDate(data.event.deadline)}</span>
               </span>
             </div>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-zinc-900 p-8 rounded-2xl">
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl bg-zinc-900 p-8">
             <p className="text-gray-400">Uczestnicy</p>
             <p className="text-2xl font-semibold">{data.stats.participants}</p>
           </div>
 
-          <div className="bg-zinc-900 p-8 rounded-2xl">
+          <div className="rounded-2xl bg-zinc-900 p-8">
             <p className="text-gray-400">Predykcje</p>
             <p className="text-2xl font-semibold">{data.stats.predictions}</p>
           </div>
         </div>
 
-        <div className="bg-zinc-900 p-8 rounded-2xl space-y-4">
+        <div className="space-y-4 rounded-2xl bg-zinc-900 p-8">
           <h2 className="text-xl font-semibold text-indigo-400">
             📦 Rozbicie predykcji
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-4 text-sm">
-            <div className="bg-zinc-800 rounded-xl p-4">
-              Swiss: {data.stats.byType.swiss}
-            </div>
-            <div className="bg-zinc-800 rounded-xl p-4">
-              Playoffs: {data.stats.byType.playoffs}
-            </div>
-            <div className="bg-zinc-800 rounded-xl p-4">
+          <div className="grid gap-4 text-sm md:grid-cols-3">
+            <div className="rounded-xl bg-zinc-800 p-4">Swiss: {data.stats.byType.swiss}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">Playoffs: {data.stats.byType.playoffs}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">
               Double Elimination: {data.stats.byType.doubleElimination}
             </div>
-            <div className="bg-zinc-800 rounded-xl p-4">
-              Play-In: {data.stats.byType.playIn}
-            </div>
-            <div className="bg-zinc-800 rounded-xl p-4">
-              Matches: {data.stats.byType.matches}
-            </div>
-            <div className="bg-zinc-800 rounded-xl p-4">
-              Maps: {data.stats.byType.maps}
-            </div>
+            <div className="rounded-xl bg-zinc-800 p-4">Play-In: {data.stats.byType.playIn}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">Matches: {data.stats.byType.matches}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">Maps: {data.stats.byType.maps}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">MVP: {data.stats.byType.mvp ?? 0}</div>
           </div>
         </div>
 
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-yellow-400">
-            🏆 Top 5 graczy
-          </h2>
+          <h2 className="text-xl font-semibold text-yellow-400">🏆 Top 5 graczy</h2>
 
-          {top.length === 0 && (
+          {(!top || top.rows.length === 0) && (
             <div className="text-zinc-500">Brak danych w rankingu</div>
           )}
 
-          {top.map((player) => (
-            <div
+          {top?.rows.map((player) => (
+            <button
               key={player.userId}
-              className="flex justify-between items-center p-6 rounded-2xl bg-zinc-900"
+              type="button"
+              onClick={() => handleOpenUserDetails(player.userId)}
+              className="flex w-full items-center justify-between rounded-2xl bg-zinc-900 p-6 text-left transition hover:bg-zinc-800"
             >
               <div className="flex items-center gap-4">
-                <span className="text-xl font-bold w-8">{player.rank}.</span>
-                <span>{player.userId}</span>
+                <span className="w-8 text-xl font-bold">{player.rank}.</span>
+                <div>
+                  <div>{player.username}</div>
+                  <div className="text-xs text-zinc-400">
+                    Swiss: {player.swissPoints ?? 0} · Playoffs: {player.playoffPoints ?? 0} ·
+                    MVP: {player.mvpPoints ?? 0} · Mecze: {player.matchPoints ?? 0}
+                  </div>
+                </div>
               </div>
               <span className="font-semibold">{player.points} pkt</span>
-            </div>
+            </button>
           ))}
         </div>
 
         {data.permissions.isAdmin && (
           <>
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-red-400">
-                🛠 Panel admina
-              </h2>
+              <h2 className="text-xl font-semibold text-red-400">🛠 Panel admina</h2>
 
               <div className="flex flex-wrap gap-4">
                 <button
                   onClick={handleOpen}
                   disabled={busy}
-                  className="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50"
+                  className="rounded-xl bg-green-600 px-6 py-3 hover:bg-green-500 disabled:opacity-50"
                 >
                   🔓 Otwórz
                 </button>
@@ -356,7 +366,7 @@ export default function EventDashboard() {
                 <button
                   onClick={handleClose}
                   disabled={busy}
-                  className="px-6 py-3 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-50"
+                  className="rounded-xl bg-red-600 px-6 py-3 hover:bg-red-500 disabled:opacity-50"
                 >
                   🔒 Zamknij
                 </button>
@@ -364,7 +374,7 @@ export default function EventDashboard() {
                 <button
                   onClick={handleRecalculate}
                   disabled={busy}
-                  className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-xl bg-indigo-600 px-6 py-3 hover:bg-indigo-500 disabled:opacity-50"
                 >
                   🔄 Przelicz punkty
                 </button>
@@ -372,9 +382,7 @@ export default function EventDashboard() {
             </div>
 
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-cyan-400">
-                🎯 Zmień fazę
-              </h2>
+              <h2 className="text-xl font-semibold text-cyan-400">🎯 Zmień fazę</h2>
 
               <div className="flex flex-wrap gap-3">
                 {PHASES.map((phase, index) => {
@@ -386,13 +394,12 @@ export default function EventDashboard() {
                       key={phase}
                       onClick={() => handlePhaseChange(phase)}
                       disabled={busy || isCurrent}
-                      className={`px-5 py-3 rounded-xl border transition ${
-                        isCurrent
-                          ? "bg-indigo-500/20 border-indigo-400 text-indigo-300"
-                          : isPast
-                          ? "bg-zinc-800 border-zinc-700 text-zinc-400"
-                          : "bg-zinc-900 border-zinc-700 hover:border-cyan-400 text-white"
-                      } disabled:opacity-50`}
+                      className={`rounded-xl border px-5 py-3 transition ${isCurrent
+                        ? "border-indigo-400 bg-indigo-500/20 text-indigo-300"
+                        : isPast
+                          ? "border-zinc-700 bg-zinc-800 text-zinc-400"
+                          : "border-zinc-700 bg-zinc-900 text-white hover:border-cyan-400"
+                        } disabled:opacity-50`}
                     >
                       {phase}
                     </button>
@@ -402,6 +409,13 @@ export default function EventDashboard() {
             </div>
           </>
         )}
+
+        <PickemUserDetailsModal
+          slug={slug!}
+          userId={selectedUserId}
+          open={detailsOpen}
+          onClose={handleCloseUserDetails}
+        />
       </div>
     </div>
   );

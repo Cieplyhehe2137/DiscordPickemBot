@@ -1,22 +1,53 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useApi } from "../api/useApi";
-import { PickemUserDetailsDTO } from "./types";
+import type { PickemUserDetailsDTO } from "./types";
 
-export function usePickemUserDetails() {
-  const { userId } = useParams();
-  const api = useApi();
-
+export function usePickemUserDetails(slug: string, userId: string | null) {
   const [data, setData] = useState<PickemUserDetailsDTO | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!slug || !userId) {
+      setData(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
-    api.get<PickemUserDetailsDTO>(`/pickem/users/${userId}`)
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, [userId]);
+    let cancelled = false;
 
-  return { data, loading };
+    const run = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(`/api/dashboard/${slug}/users/${userId}`, {
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          throw new Error("Nie udało się pobrać szczegółów gracza.");
+        }
+
+        const json = await res.json();
+
+        if (cancelled) return;
+        setData(json);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message || "Nie udało się pobrać szczegółów gracza.");
+      } finally {
+        if (cancelled) return;
+        setLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, userId]);
+
+  return { data, loading, error };
 }

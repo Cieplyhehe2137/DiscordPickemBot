@@ -31,6 +31,7 @@ export type PickemOverviewDTO = {
       playIn: number;
       matches: number;
       maps: number;
+      mvp?: number;
     };
   };
   permissions: {
@@ -41,5 +42,46 @@ export type PickemOverviewDTO = {
 export type PickemTopEntryDTO = {
   rank: number;
   userId: string;
+  username: string;
   points: number;
+  swissPoints?: number;
+  playoffPoints?: number;
+  mvpPoints?: number;
+  matchPoints?: number;
+};
+
+export type PickemLeaderboardDTO = {
+  event: {
+    id: number | string;
+    name: string;
+    slug?: string;
+  } | null;
+  rows: PickemTopEntryDTO[];
+};
+
+export type UserPickRow = {
+  stage: string;
+  label: string;
+  points: number;
+};
+
+export type UserMatchBreakdownRow = {
+  matchId: number;
+  phase: string;
+  matchNo: number | null;
+  teamA: string;
+  teamB: string;
+  seriesPoints: number;
+  mapPoints: number;
+  totalPoints: number;
+};
+
+export type PickemUserDetailsDTO = {
+  user: {
+    id: string;
+    username: string;
+  };
+  totalPoints: number;
+  picks: UserPickRow[];
+  matchBreakdown?: UserMatchBreakdownRow[];
 };
