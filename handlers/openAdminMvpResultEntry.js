@@ -1,5 +1,5 @@
 const getActiveOrLatestEventId = require('../utils/getActiveOrLatestEventId');
-const openAdminMvpResult = require('./openAdminMvpResult');
+const openAdminMvpResult = require('../handlers/openAdminMvpResult');
 
 module.exports = async function openAdminMvpResultEntry(interaction) {
   const eventId = await getActiveOrLatestEventId(interaction.guildId);
