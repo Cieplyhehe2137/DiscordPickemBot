@@ -98,7 +98,6 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
 async function resolveEventId(pool, guildId, preferredEventId) {
   if (preferredEventId) return preferredEventId;
 
-  // 1) aktywny event z tabeli events
   try {
     const [rows] = await pool.query(
       `
@@ -113,7 +112,6 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     if (rows?.[0]?.id) return rows[0].id;
   } catch (_) {}
 
-  // 2) fallback: najnowszy event z matches
   try {
     const [rows] = await pool.query(
       `
@@ -140,6 +138,7 @@ function createEmptyUser(id, displayname = null) {
     playoffs: 0,
     double: 0,
     playin: 0,
+    mvp: 0,
     matches: 0,
     picks: {}
   };
@@ -196,6 +195,7 @@ module.exports = async function exportClassification(arg) {
     const sheetSwiss2 = workbook.addWorksheet('Swiss Stage 2');
     const sheetSwiss3 = workbook.addWorksheet('Swiss Stage 3');
     const sheetPlayoffs = workbook.addWorksheet('Playoffs');
+    const sheetMvp = workbook.addWorksheet('MVP');
     const sheetDouble = workbook.addWorksheet('Double Elim');
     const sheetPlayIn = workbook.addWorksheet('Play-In');
     const sheetMatches = workbook.addWorksheet('Mecze');
@@ -230,10 +230,10 @@ module.exports = async function exportClassification(arg) {
 
     // === Punkty Swiss
     const [swissRows] = await pool.query(
-      `SELECT user_id, displayname, stage, points AS score
-       FROM swiss_scores
-       WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ? AND event_id = ?`
+        : `SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of swissRows) {
@@ -250,8 +250,10 @@ module.exports = async function exportClassification(arg) {
 
     // === Typy Swiss
     const [swissPredictions] = await pool.query(
-      `SELECT * FROM swiss_predictions WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT * FROM swiss_predictions WHERE guild_id = ? AND event_id = ?`
+        : `SELECT * FROM swiss_predictions WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of swissPredictions) {
@@ -269,8 +271,10 @@ module.exports = async function exportClassification(arg) {
 
     // === Playoffs
     const [playoffRows] = await pool.query(
-      `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ? AND event_id = ?`
+        : `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of playoffRows) {
@@ -282,8 +286,10 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [playoffPreds] = await pool.query(
-      `SELECT * FROM playoffs_predictions WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT * FROM playoffs_predictions WHERE guild_id = ? AND event_id = ?`
+        : `SELECT * FROM playoffs_predictions WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of playoffPreds) {
@@ -301,8 +307,10 @@ module.exports = async function exportClassification(arg) {
 
     // === Double Elim
     const [doubleRows] = await pool.query(
-      `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ? AND event_id = ?`
+        : `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of doubleRows) {
@@ -314,8 +322,10 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [doublePreds] = await pool.query(
-      `SELECT * FROM doubleelim_predictions WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT * FROM doubleelim_predictions WHERE guild_id = ? AND event_id = ?`
+        : `SELECT * FROM doubleelim_predictions WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of doublePreds) {
@@ -331,10 +341,71 @@ module.exports = async function exportClassification(arg) {
       };
     }
 
+    // === MVP
+    const [mvpRows] = await pool.query(
+      eventId
+        ? `SELECT user_id, displayname, points FROM mvp_scores WHERE guild_id = ? AND event_id = ?`
+        : `SELECT user_id, displayname, points FROM mvp_scores WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
+    );
+
+    for (const row of mvpRows) {
+      const id = row.user_id;
+      if (!users[id]) {
+        users[id] = createEmptyUser(id, row.displayname || id);
+      }
+      users[id].mvp = row.points || 0;
+    }
+
+    const [mvpPreds] = await pool.query(
+      eventId
+        ? `SELECT * FROM mvp_predictions WHERE guild_id = ? AND event_id = ?`
+        : `SELECT * FROM mvp_predictions WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
+    );
+
+    for (const row of mvpPreds) {
+      const id = row.user_id;
+      if (!users[id]) {
+        users[id] = createEmptyUser(id, row.username || id);
+      }
+      users[id].picks.mvp = {
+        candidate_id: row.candidate_id
+      };
+    }
+
+    const [mvpCandidatesRows] = await pool.query(
+      eventId
+        ? `
+          SELECT id, nickname, team_name
+          FROM mvp_candidates
+          WHERE guild_id = ?
+            AND event_id = ?
+        `
+        : `
+          SELECT id, nickname, team_name
+          FROM mvp_candidates
+          WHERE guild_id = ?
+        `,
+      eventId ? [guildId, eventId] : [guildId]
+    );
+
+    const mvpCandidatesMap = new Map(
+      mvpCandidatesRows.map(r => [
+        Number(r.id),
+        {
+          nickname: r.nickname,
+          team_name: r.team_name
+        }
+      ])
+    );
+
     // === Play-In
     const [playinRows] = await pool.query(
-      `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ? AND event_id = ?`
+        : `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of playinRows) {
@@ -346,8 +417,10 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [playinPreds] = await pool.query(
-      `SELECT * FROM playin_predictions WHERE guild_id = ?`,
-      [guildId]
+      eventId
+        ? `SELECT * FROM playin_predictions WHERE guild_id = ? AND event_id = ?`
+        : `SELECT * FROM playin_predictions WHERE guild_id = ?`,
+      eventId ? [guildId, eventId] : [guildId]
     );
 
     for (const row of playinPreds) {
@@ -410,6 +483,7 @@ module.exports = async function exportClassification(arg) {
       { header: 'Swiss 2', key: 'swiss2' },
       { header: 'Swiss 3', key: 'swiss3' },
       { header: 'Playoffs', key: 'playoffs' },
+      { header: 'MVP', key: 'mvp' },
       { header: 'Double Elim', key: 'double' },
       { header: 'Mecze', key: 'matches' },
       { header: 'Suma', key: 'total' }
@@ -429,7 +503,16 @@ module.exports = async function exportClassification(arg) {
       const swiss2 = u.swiss['swiss_stage_2'] || 0;
       const swiss3 = u.swiss['swiss_stage_3'] || 0;
       const matches = u.matches || 0;
-      const total = swiss1 + swiss2 + swiss3 + u.playoffs + u.double + u.playin + matches;
+      const mvp = u.mvp || 0;
+      const total =
+        swiss1 +
+        swiss2 +
+        swiss3 +
+        u.playoffs +
+        u.double +
+        u.playin +
+        mvp +
+        matches;
 
       return {
         user_id,
@@ -439,6 +522,7 @@ module.exports = async function exportClassification(arg) {
         swiss2,
         swiss3,
         playoffs: u.playoffs,
+        mvp,
         double: u.double,
         matches,
         total
@@ -505,7 +589,7 @@ module.exports = async function exportClassification(arg) {
         `
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
-        WHERE active=1 AND stage='stage1'
+        WHERE active = 1 AND stage = 'stage1'
         ORDER BY id DESC LIMIT 1
         `
       );
@@ -522,7 +606,7 @@ module.exports = async function exportClassification(arg) {
         `
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
-        WHERE active=1 AND stage='stage2'
+        WHERE active = 1 AND stage = 'stage2'
         ORDER BY id DESC LIMIT 1
         `
       );
@@ -539,7 +623,7 @@ module.exports = async function exportClassification(arg) {
         `
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
-        WHERE active=1 AND stage='stage3'
+        WHERE active = 1 AND stage = 'stage3'
         ORDER BY id DESC LIMIT 1
         `
       );
@@ -578,13 +662,25 @@ module.exports = async function exportClassification(arg) {
 
     try {
       const [po] = await pool.query(
-        `
-        SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
-        FROM playoffs_results
-        WHERE active = 1
-        ORDER BY id DESC
-        LIMIT 1
-        `
+        eventId
+          ? `
+            SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
+            FROM playoffs_results
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND active = 1
+            ORDER BY id DESC
+            LIMIT 1
+          `
+          : `
+            SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
+            FROM playoffs_results
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY id DESC
+            LIMIT 1
+          `,
+        eventId ? [guildId, eventId] : [guildId]
       );
 
       if (po && po.length) {
@@ -613,6 +709,75 @@ module.exports = async function exportClassification(arg) {
       console.error('❌ Błąd Playoffs official block:', e);
     }
 
+    const rowsMvp = Object.entries(users)
+      .filter(([, u]) => u.picks.mvp)
+      .map(([id, u]) => {
+        const candidate = mvpCandidatesMap.get(Number(u.picks.mvp.candidate_id));
+
+        const pickedMvp = candidate
+          ? `${candidate.nickname}${candidate.team_name ? ` (${candidate.team_name})` : ''}`
+          : `ID ${u.picks.mvp.candidate_id}`;
+
+        return [
+          id,
+          u.displayname,
+          pickedMvp,
+          u.mvp || 0
+        ];
+      })
+      .sort((a, b) => b[3] - a[3]);
+
+    addSheet(
+      sheetMvp,
+      ['User ID', 'Nick', 'Typ MVP', 'Punkty'],
+      rowsMvp
+    );
+    prettifySheet(sheetMvp);
+
+    try {
+      const [mvpOfficial] = await pool.query(
+        eventId
+          ? `
+            SELECT mr.candidate_id, mc.nickname, mc.team_name
+            FROM mvp_results mr
+            LEFT JOIN mvp_candidates mc
+              ON mc.id = mr.candidate_id
+            WHERE mr.guild_id = ?
+              AND mr.event_id = ?
+              AND mr.active = 1
+            ORDER BY mr.id DESC
+            LIMIT 1
+          `
+          : `
+            SELECT mr.candidate_id, mc.nickname, mc.team_name
+            FROM mvp_results mr
+            LEFT JOIN mvp_candidates mc
+              ON mc.id = mr.candidate_id
+            WHERE mr.guild_id = ?
+              AND mr.active = 1
+            ORDER BY mr.id DESC
+            LIMIT 1
+          `,
+        eventId ? [guildId, eventId] : [guildId]
+      );
+
+      if (mvpOfficial.length) {
+        const row = mvpOfficial[0];
+
+        const officialMvp =
+          row.nickname
+            ? `${row.nickname}${row.team_name ? ` (${row.team_name})` : ''}`
+            : `ID ${row.candidate_id}`;
+
+        const col = sheetMvp.columnCount + 2;
+        putOfficialBlock(sheetMvp, col, 1, 'Oficjalne — MVP', [
+          ['MVP', officialMvp]
+        ]);
+      }
+    } catch (e) {
+      console.error('❌ Błąd MVP official block:', e);
+    }
+
     const rowsDouble = Object.entries(users)
       .filter(([, u]) => u.picks.double)
       .map(([id, u]) => {
@@ -634,11 +799,23 @@ module.exports = async function exportClassification(arg) {
 
     try {
       const [de] = await pool.query(
-        `
-        SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
-        FROM doubleelim_results
-        WHERE active=1 ORDER BY id DESC LIMIT 1
-        `
+        eventId
+          ? `
+            SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+            FROM doubleelim_results
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND active = 1
+            ORDER BY id DESC LIMIT 1
+          `
+          : `
+            SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+            FROM doubleelim_results
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY id DESC LIMIT 1
+          `,
+        eventId ? [guildId, eventId] : [guildId]
       );
       if (de.length) {
         const col = sheetDouble.columnCount + 2;
@@ -663,22 +840,45 @@ module.exports = async function exportClassification(arg) {
       let po;
       try {
         [po] = await pool.query(
-          `
-          SELECT *
-          FROM playin_results
-          WHERE active = 1
-          ORDER BY id DESC
-          LIMIT 1
-          `
+          eventId
+            ? `
+              SELECT *
+              FROM playin_results
+              WHERE guild_id = ?
+                AND event_id = ?
+                AND active = 1
+              ORDER BY id DESC
+              LIMIT 1
+            `
+            : `
+              SELECT *
+              FROM playin_results
+              WHERE guild_id = ?
+                AND active = 1
+              ORDER BY id DESC
+              LIMIT 1
+            `,
+          eventId ? [guildId, eventId] : [guildId]
         );
       } catch (_) {
         [po] = await pool.query(
-          `
-          SELECT *
-          FROM playin_results
-          ORDER BY id DESC
-          LIMIT 1
-          `
+          eventId
+            ? `
+              SELECT *
+              FROM playin_results
+              WHERE guild_id = ?
+                AND event_id = ?
+              ORDER BY id DESC
+              LIMIT 1
+            `
+            : `
+              SELECT *
+              FROM playin_results
+              WHERE guild_id = ?
+              ORDER BY id DESC
+              LIMIT 1
+            `,
+          eventId ? [guildId, eventId] : [guildId]
         );
       }
 

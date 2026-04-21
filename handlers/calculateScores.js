@@ -141,31 +141,17 @@ module.exports = async function calculateScores(guildId, eventId) {
         }
 
         if (scoreRows.length) {
-          if (eventId) {
-            await pool.query(
-              `
-              INSERT INTO swiss_scores
-                (guild_id, event_id, user_id, stage, displayname, points)
-              VALUES ?
-              ON DUPLICATE KEY UPDATE
-                displayname = VALUES(displayname),
-                points = VALUES(points)
-              `,
-              [scoreRows]
-            );
-          } else {
-            await pool.query(
-              `
-              INSERT INTO swiss_scores
-                (guild_id, event_id, user_id, stage, displayname, points)
-              VALUES ?
-              ON DUPLICATE KEY UPDATE
-                displayname = VALUES(displayname),
-                points = VALUES(points)
-              `,
-              [scoreRows]
-            );
-          }
+          await pool.query(
+            `
+            INSERT INTO swiss_scores
+              (guild_id, event_id, user_id, stage, displayname, points)
+            VALUES ?
+            ON DUPLICATE KEY UPDATE
+              displayname = VALUES(displayname),
+              points = VALUES(points)
+            `,
+            [scoreRows]
+          );
         }
       }
 
@@ -703,6 +689,132 @@ module.exports = async function calculateScores(guildId, eventId) {
     }
 
     /* =========================
+       MVP
+    ========================= */
+    try {
+      if (eventId) {
+        await pool.query(
+          `
+          DELETE FROM mvp_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId]
+        );
+      } else {
+        await pool.query(
+          `
+          DELETE FROM mvp_scores
+          WHERE guild_id = ?
+          `,
+          [guildId]
+        );
+      }
+
+      let resultRows = [];
+
+      if (eventId) {
+        [resultRows] = await pool.query(
+          `
+          SELECT candidate_id
+          FROM mvp_results
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND active = 1
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [guildId, eventId]
+        );
+      } else {
+        [resultRows] = await pool.query(
+          `
+          SELECT candidate_id
+          FROM mvp_results
+          WHERE guild_id = ?
+            AND active = 1
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [guildId]
+        );
+      }
+
+      if (!resultRows.length) {
+        logger.warn('scores', 'No MVP result, skipping phase', {
+          guildId,
+          eventId: eventId || null
+        });
+      } else {
+        const correctCandidateId = Number(resultRows[0].candidate_id);
+
+        let preds = [];
+
+        if (eventId) {
+          [preds] = await pool.query(
+            `
+            SELECT *
+            FROM mvp_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+            `,
+            [guildId, eventId]
+          );
+        } else {
+          [preds] = await pool.query(
+            `
+            SELECT *
+            FROM mvp_predictions
+            WHERE guild_id = ?
+            `,
+            [guildId]
+          );
+        }
+
+        const scoreRows = [];
+
+        for (const p of preds) {
+          const points = Number(p.candidate_id) === correctCandidateId ? 5 : 0;
+
+          scoreRows.push([
+            guildId,
+            eventId,
+            p.user_id,
+            p.username || p.user_id,
+            points
+          ]);
+        }
+
+        if (scoreRows.length) {
+          await pool.query(
+            `
+            INSERT INTO mvp_scores
+              (guild_id, event_id, user_id, displayname, points)
+            VALUES ?
+            ON DUPLICATE KEY UPDATE
+              displayname = VALUES(displayname),
+              points = VALUES(points)
+            `,
+            [scoreRows]
+          );
+        }
+
+        logger.info('scores', 'MVP done', {
+          guildId,
+          eventId: eventId || null,
+          correctCandidateId
+        });
+      }
+    } catch (e) {
+      logger.error('scores', 'MVP failed', {
+        guildId,
+        eventId: eventId || null,
+        message: e.message,
+        stack: e.stack
+      });
+    }
+
+    /* =========================
        GLOBAL LEADERBOARD
     ========================= */
     try {
@@ -734,10 +846,14 @@ module.exports = async function calculateScores(guildId, eventId) {
             UNION ALL
             SELECT user_id, points FROM match_points
               WHERE guild_id = ? AND event_id = ?
+            UNION ALL
+            SELECT user_id, points FROM mvp_scores
+              WHERE guild_id = ? AND event_id = ?
           ) all_points
           GROUP BY user_id
           `,
           [
+            guildId, eventId,
             guildId, eventId,
             guildId, eventId,
             guildId, eventId,
@@ -790,10 +906,13 @@ module.exports = async function calculateScores(guildId, eventId) {
             UNION ALL
             SELECT user_id, points FROM match_points
               WHERE guild_id = ?
+            UNION ALL
+            SELECT user_id, points FROM mvp_scores
+              WHERE guild_id = ?
           ) all_points
           GROUP BY user_id
           `,
-          [guildId, guildId, guildId, guildId, guildId]
+          [guildId, guildId, guildId, guildId, guildId, guildId]
         );
 
         if (rows.length) {
