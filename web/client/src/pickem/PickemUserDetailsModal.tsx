@@ -8,6 +8,43 @@ type Props = {
   onClose: () => void;
 };
 
+function getExplanationClasses(explanation: string) {
+  if (explanation.toLowerCase().includes("idealny")) {
+    return "bg-green-500/15 text-green-300 border border-green-500/30";
+  }
+
+  if (
+    explanation.toLowerCase().includes("dobry zwycięzca") ||
+    explanation.toLowerCase().includes("zły dokładny wynik")
+  ) {
+    return "bg-yellow-500/15 text-yellow-300 border border-yellow-500/30";
+  }
+
+  if (
+    explanation.toLowerCase().includes("nietrafiony") ||
+    explanation.toLowerCase().includes("brak")
+  ) {
+    return "bg-red-500/15 text-red-300 border border-red-500/30";
+  }
+
+  return "bg-zinc-700/40 text-zinc-300 border border-zinc-600";
+}
+
+function formatStage(stage: string) {
+  const map: Record<string, string> = {
+    stage1: "Etap 1",
+    stage2: "Etap 2",
+    stage3: "Etap 3",
+    playoffs: "Playoffs",
+    double_elimination: "Double Elimination",
+    play_in: "Play-In",
+    mvp: "MVP",
+    matches: "Mecze",
+  };
+
+  return map[stage] || stage;
+}
+
 export default function PickemUserDetailsModal({
   slug,
   userId,
@@ -22,13 +59,11 @@ export default function PickemUserDetailsModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-white">
-              Szczegóły punktów
-            </h2>
+            <h2 className="text-2xl font-bold text-white">Szczegóły punktów</h2>
             {data?.user && (
               <p className="mt-1 text-zinc-400">
                 {data.user.username} • ID: {data.user.id}
@@ -38,7 +73,7 @@ export default function PickemUserDetailsModal({
 
           <button
             onClick={onClose}
-            className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900"
+            className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-900"
           >
             Zamknij
           </button>
@@ -67,7 +102,7 @@ export default function PickemUserDetailsModal({
 
             <div className="rounded-2xl bg-zinc-900 p-5">
               <h3 className="mb-4 text-lg font-semibold text-indigo-400">
-                Rozbicie
+                Rozbicie punktów
               </h3>
 
               <div className="space-y-3">
@@ -82,7 +117,9 @@ export default function PickemUserDetailsModal({
                   >
                     <div>
                       <div className="font-medium text-white">{pick.label}</div>
-                      <div className="text-sm text-zinc-400">{pick.stage}</div>
+                      <div className="text-sm text-zinc-400">
+                        {formatStage(pick.stage)}
+                      </div>
                     </div>
 
                     <div className="text-lg font-semibold text-white">
@@ -93,21 +130,23 @@ export default function PickemUserDetailsModal({
               </div>
             </div>
 
-            {data.matchBreakdown && data.matchBreakdown.length > 0 && (
-              <div className="rounded-2xl bg-zinc-900 p-5">
-                <h3 className="mb-4 text-lg font-semibold text-yellow-400">
-                  Szczegóły meczów
-                </h3>
+            <div className="rounded-2xl bg-zinc-900 p-5">
+              <h3 className="mb-4 text-lg font-semibold text-yellow-400">
+                Szczegóły meczów
+              </h3>
 
-                <div className="space-y-3">
+              {!data.matchBreakdown || data.matchBreakdown.length === 0 ? (
+                <div className="text-zinc-500">Brak punktów za mecze</div>
+              ) : (
+                <div className="space-y-4">
                   {data.matchBreakdown.map(
                     (match: UserMatchBreakdownRow) => (
                       <div
                         key={match.matchId}
-                        className="rounded-xl bg-zinc-800 px-4 py-3"
+                        className="rounded-xl bg-zinc-800 px-4 py-4"
                       >
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-2">
                             <div className="font-medium text-white">
                               {match.matchNo
                                 ? `Mecz ${match.matchNo}`
@@ -117,6 +156,32 @@ export default function PickemUserDetailsModal({
 
                             <div className="text-sm text-zinc-400">
                               {match.phase}
+                            </div>
+
+                            <div className="text-sm text-zinc-300">
+                              Typ serii:{" "}
+                              <span className="font-semibold text-white">
+                                {match.predA !== null && match.predB !== null
+                                  ? `${match.predA}:${match.predB}`
+                                  : "brak"}
+                              </span>
+                            </div>
+
+                            <div className="text-sm text-zinc-300">
+                              Wynik oficjalny:{" "}
+                              <span className="font-semibold text-white">
+                                {match.resA !== null && match.resB !== null
+                                  ? `${match.resA}:${match.resB}`
+                                  : "brak"}
+                              </span>
+                            </div>
+
+                            <div
+                              className={`inline-block rounded-lg px-3 py-1 text-xs font-medium ${getExplanationClasses(
+                                match.explanation
+                              )}`}
+                            >
+                              {match.explanation}
                             </div>
                           </div>
 
@@ -134,8 +199,8 @@ export default function PickemUserDetailsModal({
                     )
                   )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

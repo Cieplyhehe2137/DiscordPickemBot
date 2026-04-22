@@ -455,6 +455,8 @@ router.get("/:slug/users/:userId", async (req, res) => {
       }
 
       const eventId = event.id;
+      const userIdNorm = String(userId);
+      const guildIdNorm = String(guildId);
 
       const normalizeUserIdSql = `
         CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
@@ -463,9 +465,6 @@ router.get("/:slug/users/:userId", async (req, res) => {
       const normalizeGuildIdSql = `
         CAST(guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
       `;
-
-      const userIdNorm = String(userId);
-      const guildIdNorm = String(guildId);
 
       const picks = [];
 
@@ -604,37 +603,57 @@ router.get("/:slug/users/:userId", async (req, res) => {
 
       const [matchBreakdownRows] = await pool.query(
         `
-        SELECT
-          m.id AS match_id,
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          SUM(CASE WHEN mp.source = 'series' THEN mp.points ELSE 0 END) AS series_points,
-          SUM(CASE WHEN mp.source = 'map' THEN mp.points ELSE 0 END) AS map_points,
-          SUM(mp.points) AS total_points
-        FROM match_points mp
-        JOIN matches m
-          ON m.id = mp.match_id
-         AND CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
-             CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
-        WHERE CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
-              CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
-          AND mp.event_id = ?
-          AND CAST(mp.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
-              CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
-        GROUP BY
-          m.id,
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b
-        ORDER BY
-          m.phase ASC,
-          COALESCE(m.match_no, 999999) ASC,
-          m.id ASC
-        `,
-        [guildIdNorm, eventId, userIdNorm]
+  SELECT
+    m.id AS match_id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    pred.pred_a,
+    pred.pred_b,
+    res.res_a,
+    res.res_b,
+    COALESCE(SUM(CASE WHEN mp.source = 'series' THEN mp.points ELSE 0 END), 0) AS series_points,
+    COALESCE(SUM(CASE WHEN mp.source = 'map' THEN mp.points ELSE 0 END), 0) AS map_points,
+    COALESCE(SUM(mp.points), 0) AS total_points
+  FROM matches m
+  LEFT JOIN match_predictions pred
+    ON pred.match_id = m.id
+   AND CAST(pred.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+       CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+   AND CAST(pred.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+       CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+  LEFT JOIN match_results res
+    ON res.match_id = m.id
+   AND CAST(res.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+       CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+  LEFT JOIN match_points mp
+    ON mp.match_id = m.id
+   AND CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+       CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+   AND CAST(mp.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+       CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+   AND mp.event_id = m.event_id
+  WHERE CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+        CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+    AND m.event_id = ?
+    AND pred.match_id IS NOT NULL
+  GROUP BY
+    m.id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    pred.pred_a,
+    pred.pred_b,
+    res.res_a,
+    res.res_b
+  ORDER BY
+    m.phase ASC,
+    COALESCE(m.match_no, 999999) ASC,
+    m.id ASC
+  `,
+        [userIdNorm, userIdNorm, guildIdNorm, eventId]
       );
 
       const totalPoints = picks.reduce(
@@ -649,16 +668,46 @@ router.get("/:slug/users/:userId", async (req, res) => {
         },
         totalPoints,
         picks,
-        matchBreakdown: matchBreakdownRows.map((row) => ({
-          matchId: Number(row.match_id),
-          phase: row.phase,
-          matchNo: row.match_no !== null ? Number(row.match_no) : null,
-          teamA: row.team_a,
-          teamB: row.team_b,
-          seriesPoints: Number(row.series_points || 0),
-          mapPoints: Number(row.map_points || 0),
-          totalPoints: Number(row.total_points || 0),
-        })),
+        matchBreakdown: matchBreakdownRows.map((row) => {
+          const predA = row.pred_a !== null ? Number(row.pred_a) : null;
+          const predB = row.pred_b !== null ? Number(row.pred_b) : null;
+          const resA = row.res_a !== null ? Number(row.res_a) : null;
+          const resB = row.res_b !== null ? Number(row.res_b) : null;
+
+          let explanation = "Brak wyniku meczu";
+
+          if (predA !== null && predB !== null && resA !== null && resB !== null) {
+            const predictedWinner =
+              predA > predB ? "A" : predB > predA ? "B" : null;
+
+            const actualWinner =
+              resA > resB ? "A" : resB > resA ? "B" : null;
+
+            if (predA === resA && predB === resB) {
+              explanation = "Idealny typ serii";
+            } else if (predictedWinner && actualWinner && predictedWinner === actualWinner) {
+              explanation = "Dobry zwycięzca, ale zły dokładny wynik";
+            } else {
+              explanation = "Nietrafiony zwycięzca";
+            }
+          }
+
+          return {
+            matchId: Number(row.match_id),
+            phase: row.phase,
+            matchNo: row.match_no !== null ? Number(row.match_no) : null,
+            teamA: row.team_a,
+            teamB: row.team_b,
+            predA,
+            predB,
+            resA,
+            resB,
+            seriesPoints: Number(row.series_points || 0),
+            mapPoints: Number(row.map_points || 0),
+            totalPoints: Number(row.total_points || 0),
+            explanation,
+          };
+        }),
       };
     });
 

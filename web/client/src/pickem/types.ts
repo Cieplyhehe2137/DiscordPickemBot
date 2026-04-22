@@ -71,9 +71,14 @@ export type UserMatchBreakdownRow = {
   matchNo: number | null;
   teamA: string;
   teamB: string;
+  predA: number | null;
+  predB: number | null;
+  resA: number | null;
+  resB: number | null;
   seriesPoints: number;
   mapPoints: number;
   totalPoints: number;
+  explanation: string;
 };
 
 export type PickemUserDetailsDTO = {
