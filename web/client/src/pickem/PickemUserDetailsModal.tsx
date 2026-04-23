@@ -6,6 +6,7 @@ type Props = {
   userId: string | null;
   open: boolean;
   onClose: () => void;
+  guildId: string;
 };
 
 function getExplanationClasses(explanation: string) {

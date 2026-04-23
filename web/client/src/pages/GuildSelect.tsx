@@ -44,7 +44,7 @@ export default function GuildSelect() {
     throw new Error(text || "select-guild failed");
   }
 
-  navigate("/dashboard");
+  navigate(`/guilds/#{guildId}`);
 }
 
   return (

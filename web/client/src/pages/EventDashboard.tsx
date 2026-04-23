@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { PickemLeaderboardDTO } from "../pickem/types";
 import PickemUserDetailsModal from "../pickem/PickemUserDetailsModal";
+import { useApi } from "../api/useApi";
 
 type SummaryResponse = {
   event: {
@@ -45,15 +46,37 @@ const PHASES = [
 
 function formatDate(value: string | null) {
   if (!value) return "Brak";
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("pl-PL");
 }
 
 function normalizeStatus(status: string) {
   return status?.toUpperCase?.() || "UNKNOWN";
 }
 
+function formatPhaseLabel(phase: string) {
+  switch (phase) {
+    case "SWISS_STAGE_1":
+      return "Swiss Stage 1";
+    case "SWISS_STAGE_2":
+      return "Swiss Stage 2";
+    case "SWISS_STAGE_3":
+      return "Swiss Stage 3";
+    case "PLAYOFFS":
+      return "Playoffs";
+    case "DOUBLE_ELIMINATION":
+      return "Double Elimination";
+    case "PLAY_IN":
+      return "Play-In";
+    case "FINISHED":
+      return "Zakończony";
+    default:
+      return phase || "Nieznana";
+  }
+}
+
 export default function EventDashboard() {
-  const { slug } = useParams();
+  const { slug, guildId } = useParams();
+  const api = useApi();
 
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [top, setTop] = useState<PickemLeaderboardDTO | null>(null);
@@ -63,6 +86,8 @@ export default function EventDashboard() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [timeLeft, setTimeLeft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   const handleOpenUserDetails = (userId: string) => {
     setSelectedUserId(userId);
@@ -74,37 +99,23 @@ export default function EventDashboard() {
     setSelectedUserId(null);
   };
 
-  const loadSummary = async () => {
+  const loadSummary = useCallback(async () => {
     if (!slug) return;
 
-    const res = await fetch(`/api/dashboard/${slug}/summary`, {
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error("Błąd ładowania eventu");
-    }
-
-    const json = await res.json();
+    const json = await api.get<SummaryResponse>(`/events/${slug}/summary`);
     setData(json);
-  };
+  }, [api, slug]);
 
-  const loadTop = async () => {
+  const loadTop = useCallback(async () => {
     if (!slug) return;
 
-    const res = await fetch(`/api/dashboard/${slug}/top`, {
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error("Błąd ładowania rankingu");
-    }
-
-    const json = await res.json();
+    const json = await api.get<PickemLeaderboardDTO>(`/events/${slug}/top`);
     setTop(json);
-  };
+  }, [api, slug]);
 
-  const reloadAll = async () => {
+  const reloadAll = useCallback(async () => {
+    if (!slug) return;
+
     setError(null);
     setLoading(true);
 
@@ -115,11 +126,11 @@ export default function EventDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadSummary, loadTop, slug]);
 
   useEffect(() => {
     reloadAll();
-  }, [slug]);
+  }, [reloadAll, guildId, slug]);
 
   useEffect(() => {
     if (!data?.event.deadline) {
@@ -163,96 +174,71 @@ export default function EventDashboard() {
 
   const currentIndex = PHASES.indexOf(data?.tournament.phase || "");
 
-  const handleOpen = async () => {
-    if (!slug) return;
-
+  const runAdminAction = async (
+    fn: () => Promise<void>,
+    successMessage?: string
+  ) => {
     try {
       setBusy(true);
-      const res = await fetch(`/api/dashboard/${slug}/open`, {
-        method: "POST",
-        credentials: "include",
-      });
+      setActionError(null);
+      setActionSuccess(null);
 
-      if (!res.ok) throw new Error("Nie udało się otworzyć eventu");
+      await fn();
       await reloadAll();
+
+      if (successMessage) {
+        setActionSuccess(successMessage);
+      }
     } catch (err: any) {
-      alert(err?.message || "Błąd");
+      setActionError(err?.message || "Wystąpił błąd");
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleOpen = async () => {
+    if (!slug) return;
+
+    await runAdminAction(async () => {
+      await api.post(`/events/${slug}/open`);
+    }, "Event został otwarty.");
   };
 
   const handleClose = async () => {
     if (!slug) return;
 
-    try {
-      setBusy(true);
-      const res = await fetch(`/api/dashboard/${slug}/close`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) throw new Error("Nie udało się zamknąć eventu");
-      await reloadAll();
-    } catch (err: any) {
-      alert(err?.message || "Błąd");
-    } finally {
-      setBusy(false);
-    }
+    await runAdminAction(async () => {
+      await api.post(`/events/${slug}/close`);
+    }, "Event został zamknięty.");
   };
 
   const handlePhaseChange = async (phase: string) => {
     if (!slug) return;
 
-    try {
-      setBusy(true);
-      const res = await fetch(`/api/dashboard/${slug}/phase`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Nie udało się zmienić fazy");
-      }
-
-      await reloadAll();
-    } catch (err: any) {
-      alert(err?.message || "Błąd");
-    } finally {
-      setBusy(false);
-    }
+    await runAdminAction(async () => {
+      await api.post(`/events/${slug}/phase`, { phase });
+    }, `Faza została zmieniona na ${formatPhaseLabel(phase)}.`);
   };
 
   const handleRecalculate = async () => {
     if (!slug) return;
 
-    try {
-      setBusy(true);
-      const res = await fetch(`/api/dashboard/${slug}/recalculate`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Nie udało się przeliczyć punktów");
-      }
-
-      await reloadAll();
-      alert("Punkty przeliczone ✅");
-    } catch (err: any) {
-      alert(err?.message || "Błąd");
-    } finally {
-      setBusy(false);
-    }
+    await runAdminAction(async () => {
+      await api.post(`/events/${slug}/recalculate`);
+    }, "Punkty zostały przeliczone.");
   };
 
-  if (loading) return <div className="p-10 text-white">Ładowanie...</div>;
-  if (error) return <div className="p-10 text-red-400">{error}</div>;
-  if (!data) return <div className="p-10 text-white">Brak danych</div>;
+  if (loading) {
+    return <div className="p-10 text-white">Ładowanie...</div>;
+  }
+
+  if (error) {
+    return <div className="p-10 text-red-400">{error}</div>;
+  }
+
+  if (!data) {
+    return <div className="p-10 text-white">Brak danych</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black p-12 text-white">
@@ -270,16 +256,20 @@ export default function EventDashboard() {
 
             <div className="flex flex-wrap items-center gap-4">
               <span
-                className={`rounded-full px-5 py-2 text-sm font-semibold ${data.tournament.isOpen
-                  ? "animate-pulse bg-green-500/20 text-green-400"
-                  : "bg-red-500/20 text-red-400"
-                  }`}
+                className={`rounded-full px-5 py-2 text-sm font-semibold ${
+                  data.tournament.isOpen
+                    ? "animate-pulse bg-green-500/20 text-green-400"
+                    : "bg-red-500/20 text-red-400"
+                }`}
               >
                 {status}
               </span>
 
               <span className="text-gray-400">
-                Faza: <span className="text-white">{data.tournament.phase}</span>
+                Faza:{" "}
+                <span className="text-white">
+                  {formatPhaseLabel(data.tournament.phase)}
+                </span>
               </span>
 
               <span className="text-gray-400">
@@ -308,19 +298,31 @@ export default function EventDashboard() {
           </h2>
 
           <div className="grid gap-4 text-sm md:grid-cols-3">
-            <div className="rounded-xl bg-zinc-800 p-4">Swiss: {data.stats.byType.swiss}</div>
-            <div className="rounded-xl bg-zinc-800 p-4">Playoffs: {data.stats.byType.playoffs}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              Swiss: {data.stats.byType.swiss}
+            </div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              Playoffs: {data.stats.byType.playoffs}
+            </div>
             <div className="rounded-xl bg-zinc-800 p-4">
               Double Elimination: {data.stats.byType.doubleElimination}
             </div>
-            <div className="rounded-xl bg-zinc-800 p-4">Play-In: {data.stats.byType.playIn}</div>
-            <div className="rounded-xl bg-zinc-800 p-4">Matches: {data.stats.byType.matches}</div>
-            <div className="rounded-xl bg-zinc-800 p-4">Maps: {data.stats.byType.maps}</div>
-            <div className="rounded-xl bg-zinc-800 p-4">MVP: {data.stats.byType.mvp ?? 0}</div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              Play-In: {data.stats.byType.playIn}
+            </div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              Matches: {data.stats.byType.matches}
+            </div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              Maps: {data.stats.byType.maps}
+            </div>
+            <div className="rounded-xl bg-zinc-800 p-4">
+              MVP: {data.stats.byType.mvp ?? 0}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 rounded-2xl bg-zinc-900 p-8">
           <h2 className="text-xl font-semibold text-yellow-400">🏆 Top 5 graczy</h2>
 
           {(!top || top.rows.length === 0) && (
@@ -332,15 +334,16 @@ export default function EventDashboard() {
               key={player.userId}
               type="button"
               onClick={() => handleOpenUserDetails(player.userId)}
-              className="flex w-full items-center justify-between rounded-2xl bg-zinc-900 p-6 text-left transition hover:bg-zinc-800"
+              className="flex w-full items-center justify-between rounded-2xl bg-zinc-800 p-6 text-left transition hover:bg-zinc-700"
             >
               <div className="flex items-center gap-4">
                 <span className="w-8 text-xl font-bold">{player.rank}.</span>
                 <div>
                   <div>{player.username}</div>
                   <div className="text-xs text-zinc-400">
-                    Swiss: {player.swissPoints ?? 0} · Playoffs: {player.playoffPoints ?? 0} ·
-                    MVP: {player.mvpPoints ?? 0} · Mecze: {player.matchPoints ?? 0}
+                    Swiss: {player.swissPoints ?? 0} · Playoffs:{" "}
+                    {player.playoffPoints ?? 0} · MVP: {player.mvpPoints ?? 0} ·
+                    Mecze: {player.matchPoints ?? 0}
                   </div>
                 </div>
               </div>
@@ -351,6 +354,18 @@ export default function EventDashboard() {
 
         {data.permissions.isAdmin && (
           <>
+            {(actionError || actionSuccess) && (
+              <div
+                className={`rounded-2xl border p-4 ${
+                  actionError
+                    ? "border-red-500/40 bg-red-500/10 text-red-300"
+                    : "border-green-500/40 bg-green-500/10 text-green-300"
+                }`}
+              >
+                {actionError || actionSuccess}
+              </div>
+            )}
+
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-red-400">🛠 Panel admina</h2>
 
@@ -394,14 +409,15 @@ export default function EventDashboard() {
                       key={phase}
                       onClick={() => handlePhaseChange(phase)}
                       disabled={busy || isCurrent}
-                      className={`rounded-xl border px-5 py-3 transition ${isCurrent
-                        ? "border-indigo-400 bg-indigo-500/20 text-indigo-300"
-                        : isPast
+                      className={`rounded-xl border px-5 py-3 transition ${
+                        isCurrent
+                          ? "border-indigo-400 bg-indigo-500/20 text-indigo-300"
+                          : isPast
                           ? "border-zinc-700 bg-zinc-800 text-zinc-400"
                           : "border-zinc-700 bg-zinc-900 text-white hover:border-cyan-400"
-                        } disabled:opacity-50`}
+                      } disabled:opacity-50`}
                     >
-                      {phase}
+                      {formatPhaseLabel(phase)}
                     </button>
                   );
                 })}
@@ -411,6 +427,7 @@ export default function EventDashboard() {
         )}
 
         <PickemUserDetailsModal
+          guildId={guildId!}
           slug={slug!}
           userId={selectedUserId}
           open={detailsOpen}
