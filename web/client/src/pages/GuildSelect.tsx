@@ -8,72 +8,128 @@ type Guild = {
   icon: string | null;
 };
 
+type MeResponse = {
+  id: string;
+  username: string;
+  avatar?: string;
+  guilds?: Guild[];
+};
+
 export default function GuildSelect() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
+
     async function load() {
       try {
-        const res = await apiFetch<{ guilds: Guild[] }>("/auth/me");
-        setGuilds(res.guilds || []);
+        setLoading(true);
+        setError(null);
+
+        const res = await apiFetch<MeResponse>("/auth/me");
+
+        if (!cancelled) {
+          setGuilds(Array.isArray(res.guilds) ? res.guilds : []);
+        }
       } catch {
-        navigate("/");
+        window.location.href = "/api/auth/discord";
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     load();
-  }, [navigate]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function selectGuild(guildId: string) {
-  // console.log("SELECT GUILD CLICK:", guildId);
+    try {
+      setError(null);
 
-  const res = await fetch("/api/auth/select-guild", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ guildId }),
-  });
+      const res = await fetch("/api/auth/select-guild", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ guildId }),
+      });
 
-  const text = await res.text();
-  // console.log("SELECT GUILD RESPONSE:", res.status, text);
+      const text = await res.text();
 
-  if (!res.ok) {
-    throw new Error(text || "select-guild failed");
+      if (!res.ok) {
+        throw new Error(text || "select-guild failed");
+      }
+
+      navigate(`/guilds/${guildId}`);
+    } catch (err: any) {
+      setError(err?.message || "Nie udało się wybrać serwera");
+    }
   }
 
-  navigate(`/guilds/${guildId}`);
-}
+  if (loading) {
+    return <div className="p-10 text-white">Ładowanie serwerów...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white p-12">
-      <div className="max-w-5xl mx-auto space-y-10">
-        <h1 className="text-4xl font-bold">Wybierz serwer</h1>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {guilds.map((g) => (
-            <div
-              key={g.id}
-              onClick={() => selectGuild(g.id)}
-              className="p-6 rounded-2xl bg-zinc-900 hover:bg-zinc-800 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-4">
-                {g.icon ? (
-                  <img
-                    src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`}
-                    className="w-12 h-12 rounded-xl"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-zinc-700 rounded-xl" />
-                )}
-
-                <div>{g.name}</div>
-              </div>
-            </div>
-          ))}
+    <div className="min-h-screen bg-black px-6 py-10 text-white">
+      <div className="mx-auto max-w-6xl space-y-8">
+        <div>
+          <h1 className="text-5xl font-extrabold">Wybierz serwer</h1>
         </div>
+
+        {error && (
+          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-red-300">
+            {error}
+          </div>
+        )}
+
+        {guilds.length === 0 ? (
+          <div className="rounded-2xl bg-zinc-900 p-6 text-zinc-400">
+            Nie znaleziono serwerów, na których masz uprawnienia administratora.
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {guilds.map((guild) => {
+              const iconUrl = guild.icon
+                ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`
+                : null;
+
+              return (
+                <button
+                  key={guild.id}
+                  type="button"
+                  onClick={() => selectGuild(guild.id)}
+                  className="flex items-center gap-5 rounded-3xl bg-zinc-900 p-6 text-left transition hover:bg-zinc-800"
+                >
+                  {iconUrl ? (
+                    <img
+                      src={iconUrl}
+                      alt={guild.name}
+                      className="h-16 w-16 rounded-2xl object-cover"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-2xl bg-zinc-700" />
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="truncate text-2xl font-semibold">
+                      {guild.name}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

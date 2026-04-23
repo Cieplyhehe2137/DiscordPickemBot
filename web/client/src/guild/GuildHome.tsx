@@ -11,6 +11,27 @@ type EventRow = {
   status: string;
 };
 
+function formatPhaseLabel(phase: string) {
+  switch (phase) {
+    case "SWISS_STAGE_1":
+      return "Swiss Stage 1";
+    case "SWISS_STAGE_2":
+      return "Swiss Stage 2";
+    case "SWISS_STAGE_3":
+      return "Swiss Stage 3";
+    case "PLAYOFFS":
+      return "Playoffs";
+    case "DOUBLE_ELIMINATION":
+      return "Double Elimination";
+    case "PLAY_IN":
+      return "Play-In";
+    case "FINISHED":
+      return "Zakończony";
+    default:
+      return phase || "Nieznana";
+  }
+}
+
 export default function GuildHome() {
   const api = useApi();
   const { guild } = useGuild();
@@ -31,66 +52,85 @@ export default function GuildHome() {
           api.get<EventRow[]>("/events/archived"),
         ]);
 
-        setActive(activeRows);
-        setArchived(archivedRows);
+        setActive(Array.isArray(activeRows) ? activeRows : []);
+        setArchived(Array.isArray(archivedRows) ? archivedRows : []);
       } catch (err: any) {
-        setError(err?.message || "Błąd ładowania eventów");
+        setError(err?.message || "Nie udało się załadować eventów");
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, []);
+  }, [api]);
 
-  if (loading) return <div className="p-8 text-white">Ładowanie...</div>;
-  if (error) return <div className="p-8 text-red-400">{error}</div>;
+  if (loading) {
+    return <div className="text-white">Ładowanie eventów...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-400">{error}</div>;
+  }
 
   return (
-    <div className="space-y-10">
+    <div className="mx-auto max-w-6xl space-y-10">
       <div>
-        <h1 className="text-3xl font-bold text-white">
+        <h1 className="text-4xl font-extrabold text-white">
           {guild?.name || "Panel serwera"}
         </h1>
-        <p className="text-zinc-400 mt-2">
-          Aktywne i archiwalne eventy Pick&apos;Em.
+        <p className="mt-2 text-zinc-400">
+          Zarządzaj eventami Pick&apos;Em dla tego serwera.
         </p>
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-white">Aktywne eventy</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {active.map((event) => (
-            <Link
-              key={event.id}
-              to={`events/${event.slug}`}
-              className="rounded-2xl bg-zinc-900 p-5 hover:bg-zinc-800 transition"
-            >
-              <div className="text-lg font-semibold text-white">{event.name}</div>
-              <div className="text-sm text-zinc-400 mt-2">
-                {event.phase} • {event.status}
-              </div>
-            </Link>
-          ))}
-        </div>
+        <h2 className="text-2xl font-semibold text-white">Aktywne eventy</h2>
+
+        {active.length === 0 ? (
+          <div className="rounded-2xl bg-zinc-900 p-6 text-zinc-400">
+            Brak aktywnych eventów.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {active.map((event) => (
+              <Link
+                key={event.id}
+                to={`events/${event.slug}`}
+                className="rounded-2xl bg-zinc-900 p-5 transition hover:bg-zinc-800"
+              >
+                <div className="text-xl font-semibold text-white">{event.name}</div>
+                <div className="mt-2 text-sm text-zinc-400">
+                  {formatPhaseLabel(event.phase)} • {event.status}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-white">Archiwum</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {archived.map((event) => (
-            <Link
-              key={event.id}
-              to={`events/${event.slug}`}
-              className="rounded-2xl bg-zinc-950 p-5 hover:bg-zinc-900 transition border border-zinc-800"
-            >
-              <div className="text-lg font-semibold text-white">{event.name}</div>
-              <div className="text-sm text-zinc-500 mt-2">
-                {event.phase} • {event.status}
-              </div>
-            </Link>
-          ))}
-        </div>
+        <h2 className="text-2xl font-semibold text-white">Archiwum</h2>
+
+        {archived.length === 0 ? (
+          <div className="rounded-2xl bg-zinc-900 p-6 text-zinc-400">
+            Brak archiwalnych eventów.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {archived.map((event) => (
+              <Link
+                key={event.id}
+                to={`events/${event.slug}`}
+                className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 transition hover:bg-zinc-900"
+              >
+                <div className="text-xl font-semibold text-white">{event.name}</div>
+                <div className="mt-2 text-sm text-zinc-500">
+                  {formatPhaseLabel(event.phase)} • {event.status}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

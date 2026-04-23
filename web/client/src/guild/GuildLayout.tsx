@@ -1,10 +1,13 @@
 import { Outlet } from "react-router-dom";
+import TopBar from "../components/TopBar";
 
 export default function GuildLayout() {
   return (
-    <div style={{ minHeight: "100vh", background: "black", color: "white", padding: 20 }}>
-      <div>GuildLayout działa</div>
-      <Outlet />
+    <div className="min-h-screen bg-black text-white">
+      <TopBar />
+      <main className="p-6">
+        <Outlet />
+      </main>
     </div>
   );
 }

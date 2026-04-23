@@ -15,17 +15,13 @@ export default function TopBar() {
     apiFetch<Me>("/auth/me").then(setUser).catch(() => {});
   }, []);
 
-  async function logout() {
-    await apiFetch("/auth/logout", {
-      method: "POST",
-    });
-
-    navigate("/");
+  function logout() {
+    window.location.href = "/api/auth/logout";
   }
 
   return (
-    <div className="flex justify-between items-center px-6 py-4 border-b border-zinc-800 bg-black">
-      <div className="font-semibold">Pick'Em panel</div>
+    <div className="flex items-center justify-between border-b border-zinc-800 bg-black px-6 py-4">
+      <div className="font-semibold">Pick&apos;Em panel</div>
 
       <div className="flex items-center gap-4">
         {user && (
