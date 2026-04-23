@@ -182,6 +182,50 @@ export default function PickemUserDetailsModal({
                               )}`}
                             >
                               {match.explanation}
+                              {match.maps && match.maps.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                  {match.maps.map((map) => (
+                                    <div
+                                      key={`${match.matchId}-${map.mapNo}`}
+                                      className="rounded-lg bg-zinc-900/80 px-3 py-2"
+                                    >
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div className="space-y-1">
+                                          <div className="text-xs font-medium text-zinc-300">
+                                            Mapa {map.mapNo}
+                                          </div>
+
+                                          <div className="text-xs text-zinc-400">
+                                            Typ:{" "}
+                                            <span className="text-zinc-200">
+                                              {map.predA !== null && map.predB !== null
+                                                ? `${map.predA}:${map.predB}`
+                                                : "brak"}
+                                            </span>
+                                          </div>
+
+                                          <div className="text-xs text-zinc-400">
+                                            Wynik:{" "}
+                                            <span className="text-zinc-200">
+                                              {map.resA !== null && map.resB !== null
+                                                ? `${map.resA}:${map.resB}`
+                                                : "brak"}
+                                            </span>
+                                          </div>
+
+                                          <div className="text-[11px] text-zinc-500">
+                                            {map.explanation}
+                                          </div>
+                                        </div>
+
+                                        <div className="text-sm font-semibold text-white">
+                                          {map.points} pkt
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
 

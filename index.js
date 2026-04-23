@@ -9,7 +9,7 @@ const resolvedEnvPath = path.isAbsolute(envPath)
 
 dotenv.config({ path: resolvedEnvPath });
 
-console.log('ENV_FILE:', resolvedEnvPath);
+// console.log('ENV_FILE:', resolvedEnvPath);
 if (!fs.existsSync(resolvedEnvPath)) {
   console.warn(`⚠️ ENV_FILE path nie istnieje: ${resolvedEnvPath}`);
 }
@@ -36,24 +36,24 @@ function getGitCommit() {
   }
 }
 
-console.log("=== DEPLOY DEBUG ===");
-console.log("CWD:", process.cwd());
-console.log("ENTRY __dirname:", __dirname);
-console.log("GIT COMMIT:", getGitCommit());
-console.log("DEPLOY TS:", new Date().toISOString());
-console.log("====================");
+// console.log("=== DEPLOY DEBUG ===");
+// console.log("CWD:", process.cwd());
+// console.log("ENTRY __dirname:", __dirname);
+// console.log("GIT COMMIT:", getGitCommit());
+// console.log("DEPLOY TS:", new Date().toISOString());
+// console.log("====================");
 
 
 // 🌍 Debugowanie zmiennych środowiskowych
-console.log('==================== 🌍 DEBUG ENV ====================');
-[
-  'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
-  'DB_HOST', 'DB_USER', 'DB_NAME', 'DB_PORT'
-].forEach((key) => {
-  const val = process.env[key];
-  console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
-});
-console.log('=====================================================');
+// ('==================== 🌍 DEBUG ENV ====================');
+// [
+//   'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
+//   'DB_HOST', 'DB_USER', 'DBconsole.log_NAME', 'DB_PORT'
+// ].forEach((key) => {
+//   const val = process.env[key];
+//   // console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
+// });
+// console.log('=====================================================');
 
 // 🔧 Konfiguracja klienta Discord
 const client = new Client({
@@ -78,13 +78,13 @@ client.on('shardDisconnect', (event, id) => {
   );
 });
 
-client.on('shardResume', (id, replayed) => {
-  console.log(`✅ [SHARD RESUME] shard ${id} replayed=${replayed}`);
-});
+// client.on('shardResume', (id, replayed) => {
+//   console.log(`✅ [SHARD RESUME] shard ${id} replayed=${replayed}`);
+// });
 
-client.on('invalidated', () => {
-  console.warn('🚫 [INVALIDATED] sesja unieważniona (często: druga instancja bota albo problem z tokenem)');
-});
+// client.on('invalidated', () => {
+//   console.warn('🚫 [INVALIDATED] sesja unieważniona (często: druga instancja bota albo problem z tokenem)');
+// });
 
 
 
@@ -114,10 +114,10 @@ const startPresence = require('./utils/startPresence');
 
 client.once('ready', async () => {
   try {
-    console.log(`🤖 Discord READY jako ${client.user.tag} (id: ${client.user.id})`);
+    // console.log(`🤖 Discord READY jako ${client.user.tag} (id: ${client.user.id})`);
 
     await onReady(client);
-    console.log('✅ onReady() zakończone');
+    // console.log('✅ onReady() zakończone');
 
     // ✅ PRESENCE – TYLKO TU
     startPresence(client);
@@ -129,7 +129,7 @@ client.once('ready', async () => {
       );
     }, 15_000);
 
-    console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
+    // console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
   } catch (e) {
     console.error('❌ Błąd w ready-handlerze:', e);
   }
@@ -153,7 +153,7 @@ const TOKEN = (rawToken || '').trim();
 if (!TOKEN) {
   console.error('❌ Brak DISCORD_TOKEN w ENV!');
 } else {
-  console.log('🔎 DISCORD_TOKEN length =', TOKEN.length);
+  // console.log('🔎 DISCORD_TOKEN length =', TOKEN.length);
   if (/\s/.test(rawToken)) {
     console.warn('⚠️ Uwaga: w oryginalnym DISCORD_TOKEN wykryto znak białej spacji — .trim() to usuwa, ale usuń ją też z ENV.');
   }
@@ -165,11 +165,11 @@ if (!TOKEN) {
 
   client.login(TOKEN)
     .then(() => {
-      console.log('✅ client.login() OK — czekam na READY…');
+      // console.log('✅ client.login() OK — czekam na READY…');
     })
     .catch((e) => {
       clearTimeout(readyTimeout);
-      console.error('❌ client.login error:', e);
+      // console.error('❌ client.login error:', e);
     });
 
   // czytelniejsze info o nieobsłużonych wyjątkach

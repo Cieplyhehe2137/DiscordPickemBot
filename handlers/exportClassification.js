@@ -185,7 +185,7 @@ module.exports = async function exportClassification(arg) {
         await calculateScores(guildId);
       }
     } catch (e) {
-      console.log('⚠️ calculateScores failed, continuing export:', e?.message || e);
+      // console.log('⚠️ calculateScores failed, continuing export:', e?.message || e);
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -471,7 +471,7 @@ module.exports = async function exportClassification(arg) {
         users[id].matches = Number(row.points || 0);
       }
     } catch (e) {
-      console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
+      // console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
     }
 
     // === Klasyfikacja ogólna
@@ -1288,7 +1288,7 @@ module.exports = async function exportClassification(arg) {
           mapRows = rows;
         }
       } catch (e) {
-        console.log('⚠️ MAPY: nie udało się pobrać map (pomijam):', e?.message || e);
+        // console.log('⚠️ MAPY: nie udało się pobrać map (pomijam):', e?.message || e);
       }
 
       const mapUserIds2 = mapRows.map((r) => r.user_id).filter(Boolean);
@@ -1318,18 +1318,18 @@ module.exports = async function exportClassification(arg) {
       prettifySheet(sheetMatches);
       prettifySheet(sheetMaps);
     } catch (e) {
-      console.log('⚠️ MATCHES/MAPY: nie udało się wygenerować arkuszy (pomijam):', e?.message || e);
+      // console.log('⚠️ MATCHES/MAPY: nie udało się wygenerować arkuszy (pomijam):', e?.message || e);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
 
     if (outputPath && typeof outputPath === 'string') {
       await fs.promises.writeFile(outputPath, buffer);
-      console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
+      // console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
     } else {
       const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
       await fs.promises.writeFile(filePath, buffer);
-      console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
+      // console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
     }
 
     if (interaction && (interaction.deferred || interaction.replied)) {
@@ -1344,7 +1344,7 @@ module.exports = async function exportClassification(arg) {
     }
 
     if (!interaction) {
-      console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
+      // console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
     }
   });
 };

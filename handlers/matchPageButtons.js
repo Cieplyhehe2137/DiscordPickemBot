@@ -113,8 +113,8 @@ function buildPagedMatchSelect({ matches, phase, eventId, page = 0 }) {
 }
 
 module.exports = async (interaction) => {
-    console.log('[matchPageButtons] customId =', interaction.customId);
-    console.log('[matchPageButtons] selected =', interaction.values?.[0]);
+    // console.log('[matchPageButtons] customId =', interaction.customId);
+    // console.log('[matchPageButtons] selected =', interaction.values?.[0]);
     if (!interaction.isStringSelectMenu()) return;
     if (!interaction.customId.startsWith('match_select_page:')) return;
 

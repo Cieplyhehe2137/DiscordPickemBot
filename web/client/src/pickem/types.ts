@@ -65,6 +65,17 @@ export type UserPickRow = {
   points: number;
 };
 
+export type UserMapBreakdownRow = {
+  matchId: number;
+  mapNo: number;
+  predA: number | null;
+  predB: number | null;
+  resA: number | null;
+  resB: number | null;
+  points: number;
+  explanation: string;
+};
+
 export type UserMatchBreakdownRow = {
   matchId: number;
   phase: string;
@@ -79,6 +90,7 @@ export type UserMatchBreakdownRow = {
   mapPoints: number;
   totalPoints: number;
   explanation: string;
+  maps?: UserMapBreakdownRow[];
 };
 
 export type PickemUserDetailsDTO = {
@@ -90,3 +102,4 @@ export type PickemUserDetailsDTO = {
   picks: UserPickRow[];
   matchBreakdown?: UserMatchBreakdownRow[];
 };
+

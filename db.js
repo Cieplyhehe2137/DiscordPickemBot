@@ -47,14 +47,14 @@ function getPoolForGuild(guildId) {
     const database = cfg.DB_NAME || cfg.db_name || cfg.database;
     const port = Number(cfg.DB_PORT || cfg.db_port || 3306);
 
-    console.log("DB CONFIG CHECK", {
-      guildId,
-      host,
-      user,
-      password: password ? "SET" : "MISSING",
-      database,
-      port,
-    });
+    // console.log("DB CONFIG CHECK", {
+    //   guildId,
+    //   host,
+    //   user,
+    //   password: password ? "SET" : "MISSING",
+    //   database,
+    //   port,
+    // // });
 
     if (!host || !user || !database) {
       throw new Error(

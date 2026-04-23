@@ -656,6 +656,43 @@ router.get("/:slug/users/:userId", async (req, res) => {
         [userIdNorm, userIdNorm, guildIdNorm, eventId]
       );
 
+            const [mapBreakdownRows] = await pool.query(
+        `
+        SELECT
+          mp.match_id,
+          mp.map_no,
+          mp.pred_exact_a,
+          mp.pred_exact_b,
+          mr.exact_a,
+          mr.exact_b,
+          CASE
+            WHEN mp.pred_exact_a = mr.exact_a
+             AND mp.pred_exact_b = mr.exact_b
+            THEN 3
+            ELSE 0
+          END AS points
+        FROM match_map_predictions mp
+        JOIN matches m
+          ON m.id = mp.match_id
+         AND CAST(m.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+             CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+        LEFT JOIN match_map_results mr
+          ON mr.match_id = mp.match_id
+         AND mr.map_no = mp.map_no
+         AND CAST(mr.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+             CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+        WHERE CAST(mp.guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+              CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+          AND m.event_id = ?
+          AND CAST(mp.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci =
+              CAST(? AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_0900_ai_ci
+        ORDER BY
+          mp.match_id ASC,
+          mp.map_no ASC
+        `,
+        [guildIdNorm, eventId, userIdNorm]
+      );
+
       const totalPoints = picks.reduce(
         (sum, row) => sum + Number(row.points || 0),
         0
@@ -668,7 +705,7 @@ router.get("/:slug/users/:userId", async (req, res) => {
         },
         totalPoints,
         picks,
-        matchBreakdown: matchBreakdownRows.map((row) => {
+                matchBreakdown: matchBreakdownRows.map((row) => {
           const predA = row.pred_a !== null ? Number(row.pred_a) : null;
           const predB = row.pred_b !== null ? Number(row.pred_b) : null;
           const resA = row.res_a !== null ? Number(row.res_a) : null;
@@ -692,6 +729,40 @@ router.get("/:slug/users/:userId", async (req, res) => {
             }
           }
 
+          const maps = mapBreakdownRows
+            .filter((m) => Number(m.match_id) === Number(row.match_id))
+            .map((m) => {
+              const mapPredA = m.pred_exact_a !== null ? Number(m.pred_exact_a) : null;
+              const mapPredB = m.pred_exact_b !== null ? Number(m.pred_exact_b) : null;
+              const mapResA = m.exact_a !== null ? Number(m.exact_a) : null;
+              const mapResB = m.exact_b !== null ? Number(m.exact_b) : null;
+
+              let mapExplanation = "Brak wyniku mapy";
+
+              if (
+                mapPredA !== null &&
+                mapPredB !== null &&
+                mapResA !== null &&
+                mapResB !== null
+              ) {
+                mapExplanation =
+                  mapPredA === mapResA && mapPredB === mapResB
+                    ? "Idealny typ mapy"
+                    : "Nietrafiony dokładny wynik mapy";
+              }
+
+              return {
+                matchId: Number(m.match_id),
+                mapNo: Number(m.map_no),
+                predA: mapPredA,
+                predB: mapPredB,
+                resA: mapResA,
+                resB: mapResB,
+                points: Number(m.points || 0),
+                explanation: mapExplanation,
+              };
+            });
+
           return {
             matchId: Number(row.match_id),
             phase: row.phase,
@@ -706,6 +777,7 @@ router.get("/:slug/users/:userId", async (req, res) => {
             mapPoints: Number(row.map_points || 0),
             totalPoints: Number(row.total_points || 0),
             explanation,
+            maps,
           };
         }),
       };

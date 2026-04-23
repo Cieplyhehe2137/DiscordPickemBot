@@ -177,23 +177,23 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
   });
 
   try {
-    console.log(`[RESTORE] start guildId=${guildId}`);
+    // console.log(`[RESTORE] start guildId=${guildId}`);
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
 
-    console.log('[RESTORE] clearing guild data...');
+    // console.log('[RESTORE] clearing guild data...');
     await clearGuildData(connection, guildId);
 
     const statements = splitSqlStatements(dump)
       .filter(s => s && !shouldSkipStatement(s));
 
-    console.log(`[RESTORE] executing ${statements.length} statements`);
+    // console.log(`[RESTORE] executing ${statements.length} statements`);
 
     for (const stmt of statements) {
       await execStatement(connection, stmt);
     }
 
-    console.log('[RESTORE] SUCCESS');
+    // console.log('[RESTORE] SUCCESS');
   } catch (err) {
     console.error('[RESTORE] FAIL', err);
     throw err;

@@ -94,7 +94,7 @@ module.exports = async (interaction) => {
 
     setCache(key, local);
 
-    console.log("CACHE SET:", key, local);
+    // console.log("CACHE SET:", key, local);
 
     await interaction.deferUpdate().catch(() => { });
     return;
@@ -110,9 +110,9 @@ module.exports = async (interaction) => {
     const key = `${guildId}:${adminId}:${stage}`;
     const sel = getCache(key);
 
-    console.log("CONFIRM STAGE:", stage);
-    console.log("CONFIRM CACHE KEY:", key);
-    console.log("CACHE HIT:", sel);
+    // console.log("CONFIRM STAGE:", stage);
+    // console.log("CONFIRM CACHE KEY:", key);
+    // console.log("CACHE HIT:", sel);
 
     if (!sel) {
       return interaction.followUp({
@@ -161,13 +161,13 @@ module.exports = async (interaction) => {
         });
       }
 
-      console.log("SAVING SWISS:", {
-        guildId,
-        stage,
-        m3: m3.merged,
-        m0: m0.merged,
-        mA: mA.merged
-      });
+      // console.log("SAVING SWISS:", {
+      //   guildId,
+      //   stage,
+      //   m3: m3.merged,
+      //   m0: m0.merged,
+      //   mA: mA.merged
+      // });
 
       try {
         await pool.query(

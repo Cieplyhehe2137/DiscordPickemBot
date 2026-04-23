@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
-console.log("CLIENT_ID:", process.env.DISCORD_CLIENT_ID);
+// console.log("CLIENT_ID:", process.env.DISCORD_CLIENT_ID);
 
 /* ================== LOAD GUILD CONFIGS ================== */
 
@@ -77,5 +77,5 @@ app.get("/health", (req, res) => {
 const PORT = process.env.WEB_PORT || 3301;
 
 app.listen(PORT, () => {
-  console.log(`WEB SERWER DZIAŁA NA http://localhost:${PORT}`);
+  // console.log(`WEB SERWER DZIAŁA NA http://localhost:${PORT}`);
 });

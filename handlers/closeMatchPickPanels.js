@@ -18,7 +18,7 @@ async function closeMatchPickPanels(client) {
     if (!rows.length) return;
 
     for (const panel of rows) {
-      console.log('[MATCH WATCHER] closing panel', panel.id);
+      // console.log('[MATCH WATCHER] closing panel', panel.id);
 
       const channel = await client.channels.fetch(panel.channel_id).catch(() => null);
       if (!channel) continue;

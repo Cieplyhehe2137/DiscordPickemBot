@@ -47,7 +47,7 @@ async function getLatestEventId(pool, guildId) {
 }
 
 module.exports = async function openPlayoffsDropdown(interaction) {
-  console.log('🔥 OPEN PLAYOFFS DROPDOWN WITH MVP + CONFIRM MESSAGE');
+  // console.log('🔥 OPEN PLAYOFFS DROPDOWN WITH MVP + CONFIRM MESSAGE');
 
   try {
     if (!interaction.guildId) {
@@ -64,10 +64,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
     await withGuild(interaction, async ({ pool, guildId }) => {
       const eventId = await getLatestEventId(pool, guildId);
 
-      console.log('EVENT DEBUG', {
-        guildId,
-        eventId
-      });
+      // console.log('EVENT DEBUG', {
+      //   guildId,
+      //   eventId
+      // });
 
       if (!eventId) {
         return interaction.editReply({
@@ -77,9 +77,9 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
       const teams = await loadTeamsFromDB(pool, guildId);
 
-      console.log('TEAMS DEBUG', {
-        count: teams.length
-      });
+      // console.log('TEAMS DEBUG', {
+      //   count: teams.length
+      // });
 
       if (!teams.length) {
         return interaction.editReply({
@@ -89,10 +89,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
       const mvpCandidates = await loadMvpCandidates(pool, guildId, eventId);
 
-      console.log('MVP DEBUG', {
-        count: mvpCandidates.length,
-        candidates: mvpCandidates
-      });
+      // console.log('MVP DEBUG', {
+      //   count: mvpCandidates.length,
+      //   candidates: mvpCandidates
+      // });
 
       const embed = new EmbedBuilder()
         .setColor('#f1c40f')

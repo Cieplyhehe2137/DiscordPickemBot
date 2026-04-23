@@ -26,13 +26,26 @@ export default function GuildSelect() {
   }, [navigate]);
 
   async function selectGuild(guildId: string) {
-    await apiFetch("/auth/select-guild", {
-      method: "POST",
-      body: JSON.stringify({ guildId }),
-    });
+  // console.log("SELECT GUILD CLICK:", guildId);
 
-    navigate("/dashboard");
+  const res = await fetch("/api/auth/select-guild", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ guildId }),
+  });
+
+  const text = await res.text();
+  // console.log("SELECT GUILD RESPONSE:", res.status, text);
+
+  if (!res.ok) {
+    throw new Error(text || "select-guild failed");
   }
+
+  navigate("/dashboard");
+}
 
   return (
     <div className="min-h-screen bg-black text-white p-12">

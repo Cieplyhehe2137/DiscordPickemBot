@@ -116,13 +116,13 @@ module.exports = {
         dbPhase = `swiss_stage${stageNumber}`;
         dbStageKey = `stage${stageNumber}`;
 
-        console.log('[set_deadline] swiss lookup', {
-          guildId,
-          phase,
-          dbPhase,
-          dbStageKey,
-          inputStage,
-        });
+        // console.log('[set_deadline] swiss lookup', {
+        //   guildId,
+        //   phase,
+        //   dbPhase,
+        //   dbStageKey,
+        //   inputStage,
+        // });
 
         const [result] = await pool.query(
           `SELECT id, channel_id, message_id, phase, stage_key
@@ -138,10 +138,10 @@ module.exports = {
 
         rows = result;
       } else {
-        console.log('[set_deadline] non-swiss lookup', {
-          guildId,
-          phase,
-        });
+        // console.log('[set_deadline] non-swiss lookup', {
+        //   guildId,
+        //   phase,
+        // });
 
         const [result] = await pool.query(
           `SELECT id, channel_id, message_id, phase, stage_key
@@ -157,7 +157,7 @@ module.exports = {
         rows = result;
       }
 
-      console.log('[set_deadline] rows', rows);
+      // console.log('[set_deadline] rows', rows);
 
       const row = rows?.[0];
 

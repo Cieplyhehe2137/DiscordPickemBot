@@ -31,7 +31,7 @@ module.exports = {
 
   async execute(interaction) {
     const guildId = interaction.guildId;
-    console.log('[SET_MATCH_DEADLINE] start', { guildId });
+    // console.log('[SET_MATCH_DEADLINE] start', { guildId });
 
     if (!guildId) {
       console.warn('[SET_MATCH_DEADLINE] no guildId');
@@ -44,7 +44,7 @@ module.exports = {
     const phase = interaction.options.getString('phase');
     const raw = interaction.options.getString('data');
 
-    console.log('[SET_MATCH_DEADLINE] input', { phase, raw });
+    // console.log('[SET_MATCH_DEADLINE] input', { phase, raw });
 
     const dt = DateTime.fromFormat(
       raw,
@@ -52,10 +52,10 @@ module.exports = {
       { zone: 'Europe/Warsaw' }
     );
 
-    console.log('[SET_MATCH_DEADLINE] parsed date', {
-      isValid: dt.isValid,
-      value: dt.toISO()
-    });
+    // console.log('[SET_MATCH_DEADLINE] parsed date', {
+    //   isValid: dt.isValid,
+    //   value: dt.toISO()
+    // });
 
     if (!dt.isValid || dt <= DateTime.now()) {
       console.warn('[SET_MATCH_DEADLINE] invalid or past date');
@@ -66,10 +66,10 @@ module.exports = {
     }
 
     const matchDeadlineUTC = dt.toUTC().toJSDate();
-    console.log('[SET_MATCH_DEADLINE] UTC deadline', matchDeadlineUTC);
+    // console.log('[SET_MATCH_DEADLINE] UTC deadline', matchDeadlineUTC);
 
     return withGuild(guildId, async ({ pool }) => {
-      console.log('[SET_MATCH_DEADLINE] DB context ready');
+      // console.log('[SET_MATCH_DEADLINE] DB context ready');
 
       const [rows] = await pool.query(
   `
@@ -84,7 +84,7 @@ module.exports = {
   [guildId, phase]
 );
 
-      console.log('[SET_MATCH_DEADLINE] panel rows', rows);
+      // console.log('[SET_MATCH_DEADLINE] panel rows', rows);
 
       if (!rows.length) {
         console.warn('[SET_MATCH_DEADLINE] no panel found for phase', phase);
@@ -95,7 +95,7 @@ module.exports = {
       }
 
       const panelId = rows[0].id;
-      console.log('[SET_MATCH_DEADLINE] updating panel', panelId);
+      // console.log('[SET_MATCH_DEADLINE] updating panel', panelId);
 
       await pool.query(
         `
@@ -106,7 +106,7 @@ module.exports = {
         [matchDeadlineUTC, panelId]
       );
 
-      console.log('[SET_MATCH_DEADLINE] match_deadline updated OK');
+      // console.log('[SET_MATCH_DEADLINE] match_deadline updated OK');
 
       await interaction.reply({
         ephemeral: true,

@@ -1,30 +1,28 @@
-type ApiOptions = RequestInit & {
-  raw?: boolean;
-};
-
-const API_BASE = "/api";
-
 export async function apiFetch<T = any>(
-  url: string,
-  options: ApiOptions = {}
+  path: string,
+  options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(API_BASE + url, {
+  const res = await fetch(`/api${path}`, {
     credentials: "include",
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
-    ...options,
   });
 
+  const text = await res.text();
+  let data;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(text || "Invalid server response");
+  }
+
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || res.statusText);
+    throw new Error(data?.error || "Request failed");
   }
 
-  if (options.raw) {
-    return res as T;
-  }
-
-  return res.json();
+  return data;
 }
