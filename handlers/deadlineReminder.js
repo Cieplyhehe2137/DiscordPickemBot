@@ -10,6 +10,8 @@ const { DateTime } = require('luxon');
 const logger = require('../utils/logger.js');
 const { withGuild } = require('../utils/guildContext');
 
+const _startedReminders = new Set();
+
 function formatLeft(deadlineUtc, nowUtc) {
   const diff = deadlineUtc.diff(nowUtc, ['days', 'hours', 'minutes']).toObject();
   let d = Math.max(0, Math.floor(diff.days || 0));
@@ -59,6 +61,13 @@ function startDeadlineReminder(client, guildId) {
     return;
   }
 
+  if (_startedReminders.has(String(guildId))) {
+    logger.warn('deadline', 'Deadline reminder already running for guild', { guildId });
+    return;
+  }
+
+  _startedReminders.add(String(guildId));
+
   setInterval(async () => {
     try {
       await withGuild(guildId, async ({ pool }) => {
@@ -93,7 +102,6 @@ function startDeadlineReminder(client, guildId) {
             ? EmbedBuilder.from(message.embeds[0])
             : new EmbedBuilder();
 
-          // ⏳ aktualizacja footera
           const left = formatLeft(deadlineUtc, nowUtc);
           await safeEditFooter(
             message,
@@ -101,13 +109,11 @@ function startDeadlineReminder(client, guildId) {
             `🕒 Deadline za ${left || 'mniej niż minutę'}`
           );
 
-          // 🔔 reminder (≤ 60 min)
           if (
             diffInMinutes <= 60 &&
             reminded === 0 &&
             isMessageOlderThan(message_id, 1)
           ) {
-
             const embed = new EmbedBuilder()
               .setColor('Orange')
               .setTitle(`⏰ Przypomnienie o typowaniu (${phase}${stage ? ` – ${String(stage).toUpperCase()}` : ''})`)

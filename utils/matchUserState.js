@@ -1,43 +1,40 @@
-//utils/matchUserState.js
+// utils/matchUserState.js
 
 const state = new Map();
 
 function makeKey(guildId, userId) {
-  if (!guildId || !userId) return null;
+  if (!guildId) {
+    throw new Error('matchUserState: missing guildId');
+  }
+  if (!userId) {
+    throw new Error('matchUserState: missing userId');
+  }
+
   return `${String(guildId)}:${String(userId)}`;
 }
 
-
-function normalizeArgsForSet(a, b, c) {
-  if (c !== undefined) return { guildId: a, userId: b, ctx: c };
-  return { guildId: null, userId: a, ctx: b };
-}
-
-function normalizeArgsForGetClear(a, b) {
-  if (b !== undefined) return { guildId: a, userId: b };
-  return { guildId: null, userId: a };
-}
-
 module.exports = {
-  set(a, b, c) {
-    const { guildId, userId, ctx } = normalizeArgsForSet(a, b, c);
+  set(guildId, userId, ctx) {
+    if (!ctx) {
+      throw new Error('matchUserState.set: missing ctx');
+    }
+
     const key = makeKey(guildId, userId);
-    if (!key) return;
     state.set(key, ctx);
   },
 
-  get(a, b) {
-    const { guildId, userId } = normalizeArgsForGetClear(a, b);
+  get(guildId, userId) {
     const key = makeKey(guildId, userId);
-    if (!key) return null;
     return state.get(key) || null;
   },
 
-  clear(a, b) {
-    const { guildId, userId } = normalizeArgsForGetClear(a, b);
+  clear(guildId, userId) {
     const key = makeKey(guildId, userId);
-    if (!key) return;
     state.delete(key);
   },
 
+  has(guildId, userId) {
+    const key = makeKey(guildId, userId);
+    return state.has(key);
+  },
 };
