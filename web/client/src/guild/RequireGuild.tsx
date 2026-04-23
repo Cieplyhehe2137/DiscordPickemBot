@@ -5,7 +5,7 @@ export default function RequireGuild() {
   const { guildId } = useParams();
 
   if (!guildId) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/guilds" replace />;
   }
 
   return (
