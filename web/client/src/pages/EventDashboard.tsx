@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { PickemLeaderboardDTO } from "../pickem/types";
 import PickemUserDetailsModal from "../pickem/PickemUserDetailsModal";
 import { useApi } from "../api/useApi";
@@ -243,15 +243,14 @@ export default function EventDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black p-12 text-white">
       <div className="mx-auto max-w-6xl space-y-12">
-        <div
-          className="relative overflow-hidden rounded-3xl border border-indigo-500/30
-          bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-transparent p-12"
-        >
+        <div className="relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-transparent p-12">
           <div className="relative z-10 space-y-4">
             <h1 className="text-5xl font-extrabold">{data.event.name}</h1>
 
             {timeLeft && (
-              <div className="font-mono text-lg text-indigo-400">⏳ {timeLeft}</div>
+              <div className="font-mono text-lg text-indigo-400">
+                ⏳ {timeLeft}
+              </div>
             )}
 
             <div className="flex flex-wrap items-center gap-4">
@@ -274,7 +273,9 @@ export default function EventDashboard() {
 
               <span className="text-gray-400">
                 Deadline:{" "}
-                <span className="text-white">{formatDate(data.event.deadline)}</span>
+                <span className="text-white">
+                  {formatDate(data.event.deadline)}
+                </span>
               </span>
             </div>
           </div>
@@ -323,7 +324,9 @@ export default function EventDashboard() {
         </div>
 
         <div className="space-y-6 rounded-2xl bg-zinc-900 p-8">
-          <h2 className="text-xl font-semibold text-yellow-400">🏆 Top 5 graczy</h2>
+          <h2 className="text-xl font-semibold text-yellow-400">
+            🏆 Top 5 graczy
+          </h2>
 
           {(!top || top.rows.length === 0) && (
             <div className="text-zinc-500">Brak danych w rankingu</div>
@@ -342,14 +345,24 @@ export default function EventDashboard() {
                   <div>{player.username}</div>
                   <div className="text-xs text-zinc-400">
                     Swiss: {player.swissPoints ?? 0} · Playoffs:{" "}
-                    {player.playoffPoints ?? 0} · MVP: {player.mvpPoints ?? 0} ·
-                    Mecze: {player.matchPoints ?? 0}
+                    {player.playoffPoints ?? 0} · MVP:{" "}
+                    {player.mvpPoints ?? 0} · Mecze: {player.matchPoints ?? 0}
                   </div>
                 </div>
               </div>
+
               <span className="font-semibold">{player.points} pkt</span>
             </button>
           ))}
+
+          <div className="pt-4">
+            <Link
+              to="leaderboard"
+              className="inline-block rounded-xl bg-indigo-600 px-6 py-3 hover:bg-indigo-500"
+            >
+              Zobacz pełny ranking →
+            </Link>
+          </div>
         </div>
 
         {data.permissions.isAdmin && (
@@ -367,7 +380,9 @@ export default function EventDashboard() {
             )}
 
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-red-400">🛠 Panel admina</h2>
+              <h2 className="text-xl font-semibold text-red-400">
+                🛠 Panel admina
+              </h2>
 
               <div className="flex flex-wrap gap-4">
                 <button
@@ -397,7 +412,9 @@ export default function EventDashboard() {
             </div>
 
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-cyan-400">🎯 Zmień fazę</h2>
+              <h2 className="text-xl font-semibold text-cyan-400">
+                🎯 Zmień fazę
+              </h2>
 
               <div className="flex flex-wrap gap-3">
                 {PHASES.map((phase, index) => {

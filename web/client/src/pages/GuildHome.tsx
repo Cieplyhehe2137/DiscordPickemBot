@@ -62,7 +62,7 @@ export default function GuildHome() {
     }
 
     load();
-  }, []);
+  }, [api]);
 
   if (loading) {
     return <div className="text-white">Ładowanie eventów...</div>;

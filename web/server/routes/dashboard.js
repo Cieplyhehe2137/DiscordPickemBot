@@ -428,6 +428,117 @@ router.get("/:slug/top", async (req, res) => {
   }
 });
 
+router.get("/:slug/leaderboard", async (req, res) => {
+  if (!requireAuth(req, res)) return;
+
+  const { slug } = req.params;
+  const guildId = req.user.guildId;
+
+  try {
+    const result = await withGuild(guildId, async () => {
+      const pool = db.getPoolForGuild(guildId);
+
+      const [[event]] = await pool.query(
+        `
+        SELECT id, name, slug
+        FROM events
+        WHERE slug = ? AND guild_id = ?
+        LIMIT 1
+        `,
+        [slug, guildId]
+      );
+
+      if (!event) {
+        return {
+          event: null,
+          rows: [],
+        };
+      }
+
+      const eventId = event.id;
+
+      const [rows] = await pool.query(
+        `
+        SELECT
+          CAST(lb.user_id AS CHAR) AS user_id,
+          COALESCE(u.username, lb.user_id) AS username,
+          lb.total_points AS points,
+
+          COALESCE((
+            SELECT SUM(points)
+            FROM swiss_scores ss
+            WHERE ss.guild_id = lb.guild_id
+              AND ss.event_id = lb.event_id
+              AND ss.user_id = lb.user_id
+          ), 0) AS swiss_points,
+
+          COALESCE((
+            SELECT SUM(points)
+            FROM playoffs_scores ps
+            WHERE ps.guild_id = lb.guild_id
+              AND ps.event_id = lb.event_id
+              AND ps.user_id = lb.user_id
+          ), 0) AS playoff_points,
+
+          COALESCE((
+            SELECT SUM(points)
+            FROM mvp_scores ms
+            WHERE ms.guild_id = lb.guild_id
+              AND ms.event_id = lb.event_id
+              AND ms.user_id = lb.user_id
+          ), 0) AS mvp_points,
+
+          COALESCE((
+            SELECT SUM(points)
+            FROM match_points mp
+            WHERE mp.guild_id = lb.guild_id
+              AND mp.event_id = lb.event_id
+              AND mp.user_id = lb.user_id
+          ), 0) AS match_points
+
+        FROM leaderboard lb
+
+        LEFT JOIN (
+          SELECT user_id, MAX(displayname) AS username
+          FROM swiss_scores
+          WHERE guild_id = ? AND event_id = ?
+          GROUP BY user_id
+        ) u ON u.user_id = lb.user_id
+
+        WHERE lb.guild_id = ?
+          AND lb.event_id = ?
+
+        ORDER BY lb.total_points DESC
+        `,
+        [guildId, eventId, guildId, eventId]
+      );
+
+      return {
+        event: {
+          id: event.id,
+          name: event.name,
+          slug: event.slug,
+        },
+        rows: rows.map((row, index) => ({
+          rank: index + 1,
+          userId: row.user_id,
+          username: row.username,
+          points: Number(row.points || 0),
+          swissPoints: Number(row.swiss_points || 0),
+          playoffPoints: Number(row.playoff_points || 0),
+          mvpPoints: Number(row.mvp_points || 0),
+          matchPoints: Number(row.match_points || 0),
+        })),
+      };
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("[leaderboard]", err);
+    return res.status(500).json({ error: "Leaderboard error" });
+  }
+});
+
 /* ================= USER DETAILS ================= */
 
 router.get("/:slug/users/:userId", async (req, res) => {
@@ -656,7 +767,7 @@ router.get("/:slug/users/:userId", async (req, res) => {
         [userIdNorm, userIdNorm, guildIdNorm, eventId]
       );
 
-            const [mapBreakdownRows] = await pool.query(
+      const [mapBreakdownRows] = await pool.query(
         `
         SELECT
           mp.match_id,
@@ -705,7 +816,7 @@ router.get("/:slug/users/:userId", async (req, res) => {
         },
         totalPoints,
         picks,
-                matchBreakdown: matchBreakdownRows.map((row) => {
+        matchBreakdown: matchBreakdownRows.map((row) => {
           const predA = row.pred_a !== null ? Number(row.pred_a) : null;
           const predB = row.pred_b !== null ? Number(row.pred_b) : null;
           const resA = row.res_a !== null ? Number(row.res_a) : null;

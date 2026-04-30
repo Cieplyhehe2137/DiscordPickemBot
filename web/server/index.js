@@ -10,6 +10,7 @@ import eventsRoutes from "./routes/events.js";
 import authRoutes from "./routes/auth.js";
 import { loadGuildConfigsOnce } from "../../utils/guildRegistry.js";
 import { requireGuild } from "./middleware/requireGuild.js";
+import guildRoutes from "./routes/guilds.js";
 
 /* ================== FIX __dirname w ES modules ================== */
 
@@ -61,6 +62,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", requireGuild, dashboardRoutes);
 app.use("/api/events", eventsRoutes);
 app.use("/api/public", publicRoutes);
+
+// alias pod nowy frontend guild-aware
+app.use("/api/guilds/:guildId/events", requireGuild, dashboardRoutes);
+
+app.use("/api/guilds", guildRoutes);
 
 /* ================== HEALTH ================== */
 
