@@ -1,9 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
-console.log("ENV_FILE:", process.env.ENV_FILE);
-console.log("DISCORD_TOKEN:", process.env.DISCORD_TOKEN ? "OK" : "BRAK");
-
 const envPath = process.env.ENV_FILE || '.env';
 const resolvedEnvPath = path.isAbsolute(envPath)
   ? envPath
