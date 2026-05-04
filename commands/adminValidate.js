@@ -42,7 +42,7 @@ module.exports = {
                 const lines = report.checks.map(formatCheck);
                 const chunks = chunkLines(lines);
 
-                chunk.slice(0, 6).forEach((chunk, index) => {
+                chunks.slice(0, 6).forEach((chunk, index) => {
                     embed.addFields({
                         name: index === 0 ? "Wynik kontroli" : `Wynik kontroli ${index + 1}`,
                         value: chunk,
