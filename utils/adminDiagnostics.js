@@ -613,7 +613,7 @@ async function getMissingReport({ pool, guildId }) {
         LEFT JOIN match_results mr
           ON ${joinOn.length ? joinOn.join(" AND ") : "mr.match_id = m.id"}
         WHERE ${matchesWhere.sql.replaceAll("event_id", "m.event_id").replaceAll("guild_id", "m.guild_id")}
-          AND (mr.id IS NULL OR ${missingCondition})
+          AND (${missingCondition})
         ORDER BY m.id ASC
         LIMIT 25
         `,
