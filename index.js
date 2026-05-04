@@ -159,7 +159,7 @@ if (!TOKEN) {
 
   // watchdog: jeśli READY nie przyjdzie w 25s, zgłoś
   const readyTimeout = setTimeout(() => {
-    console.error('⏱️ 25s bez READY — to zwykle token/sieć/gateway. Sprawdź logi powyżej.');
+    // console.error('⏱️ 25s bez READY — to zwykle token/sieć/gateway. Sprawdź logi powyżej.');
   }, 25000);
 
   client.login(TOKEN)
