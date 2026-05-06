@@ -91,7 +91,7 @@ function logCommandStart(interaction) {
 }
 
 function logCommandSuccess(interaction) {
-  logInteracti(interaction, "COMMAND_SUCCESS");
+  logInteraction(interaction, "COMMAND_SUCCESS");
 }
 
 function logCommandError(interaction, error) {
