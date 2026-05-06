@@ -67,7 +67,7 @@ module.exports = async function matchUserMapSelect(interaction) {
         mapNo
       });
 
-      logger.info('matches', 'User selected map', {
+      logInfo('matches', 'User selected map', {
         guild_id: guildId,
         matchId: m.id,
         mapNo,
@@ -83,7 +83,7 @@ module.exports = async function matchUserMapSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchUserMapSelect failed', {
+    logError('matches', 'matchUserMapSelect failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

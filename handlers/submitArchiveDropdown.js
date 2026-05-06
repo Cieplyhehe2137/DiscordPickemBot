@@ -64,7 +64,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('archive', 'Send archive file failed', {
+    logError('archive', 'Send archive file failed', {
       guildId,
       userId: interaction.user?.id,
       username: interaction.user?.username,

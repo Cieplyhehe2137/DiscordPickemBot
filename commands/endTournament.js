@@ -104,7 +104,7 @@ module.exports = {
           ]
         );
 
-        logger.info('[end_tournament] export ok', {
+        logInfo('[end_tournament] export ok', {
           guildId,
           filePath,
         });
@@ -181,7 +181,7 @@ module.exports = {
 
         // ===== ODSWIEŻ ARCHIWUM PANEL =====
         await sendArchivePanel(interaction.client, guildId).catch(err =>
-          logger.warn('[end_tournament] archive panel refresh failed', {
+          logWarn('[end_tournament] archive panel refresh failed', {
             guildId,
             message: err?.message,
           })
@@ -195,7 +195,7 @@ module.exports = {
           `• Lokalnie: \`archiwum/${guildId}/${filename}\``
         );
       } catch (err) {
-        logger.error('[end_tournament] error', {
+        logError('[end_tournament] error', {
           guildId,
           message: err?.message,
           stack: err?.stack,

@@ -82,7 +82,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
         ? `\n… i jeszcze **${names.length - 10}**`
         : '';
 
-    logger.info('teams', 'teams deleted', {
+    logInfo('teams', 'teams deleted', {
       guildId,
       userId,
       count: ids.length,
@@ -97,7 +97,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     });
 
   } catch (err) {
-    logger.error('teams', 'teamsDeleteConfirm failed', {
+    logError('teams', 'teamsDeleteConfirm failed', {
       guildId,
       userId,
       message: err.message,

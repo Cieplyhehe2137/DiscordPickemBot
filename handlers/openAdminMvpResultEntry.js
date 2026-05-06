@@ -100,7 +100,7 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
 
   } catch (err) {
 
-    logger.error('mvp', 'openAdminMvpResultEntry failed', {
+    logError('mvp', 'openAdminMvpResultEntry failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

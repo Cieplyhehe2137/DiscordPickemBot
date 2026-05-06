@@ -116,7 +116,7 @@ module.exports = async function matchAdminMatchSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminMatchSelect failed', {
+    logError('matches', 'matchAdminMatchSelect failed', {
       message: err.message,
       stack: err.stack
     });

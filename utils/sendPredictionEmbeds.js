@@ -18,7 +18,7 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
     userId = c;
     data = d || {};
   } else {
-    logger.warn(
+    logWarn(
       'prediction_embed',
       'Deprecated call without guildId – embed NOT sent',
       { args: [a, b, c] }
@@ -27,7 +27,7 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
   }
 
   if (!guildId || !typeIn || !userId) {
-    logger.warn('prediction_embed', 'Missing required params', {
+    logWarn('prediction_embed', 'Missing required params', {
       guildId,
       typeIn,
       userId,
@@ -44,7 +44,7 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
       : null;
 
   if (!type) {
-    logger.warn('prediction_embed', 'Unknown prediction type', {
+    logWarn('prediction_embed', 'Unknown prediction type', {
       guildId,
       typeIn,
     });
@@ -53,7 +53,7 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
 
   const cfg = getGuildConfig(guildId);
   if (!cfg) {
-    logger.warn('prediction_embed', 'Missing guild config', { guildId });
+    logWarn('prediction_embed', 'Missing guild config', { guildId });
     return;
   }
 
@@ -64,7 +64,7 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
       : cfg.PREDICTIONS_CHANNEL_ID;
 
   if (!channelId) {
-    logger.warn('prediction_embed', 'No channel configured', { guildId, type });
+    logWarn('prediction_embed', 'No channel configured', { guildId, type });
     return;
   }
 
@@ -145,14 +145,14 @@ module.exports = async function sendPredictionEmbed(client, a, b, c, d) {
     }
 
     await channel.send({ embeds: [embed] });
-    logger.info('prediction_embed', 'Embed sent', {
+    logInfo('prediction_embed', 'Embed sent', {
       guildId,
       type,
       channelId,
       userId,
     });
   } catch (err) {
-    logger.error('prediction_embed', 'Failed to send embed', {
+    logError('prediction_embed', 'Failed to send embed', {
       guildId,
       channelId,
       message: err.message,

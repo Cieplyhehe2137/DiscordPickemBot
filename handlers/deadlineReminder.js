@@ -51,18 +51,18 @@ async function safeEditFooter(message, baseEmbed, footerText) {
 
     await message.edit({ embeds: [updated] });
   } catch (err) {
-    logger.warn('deadline', 'safeEditFooter failed', { message: err.message });
+    logWarn('deadline', 'safeEditFooter failed', { message: err.message });
   }
 }
 
 function startDeadlineReminder(client, guildId) {
   if (!guildId) {
-    logger.error('deadline', 'startDeadlineReminder called without guildId');
+    logError('deadline', 'startDeadlineReminder called without guildId');
     return;
   }
 
   if (_startedReminders.has(String(guildId))) {
-    logger.warn('deadline', 'Deadline reminder already running for guild', { guildId });
+    logWarn('deadline', 'Deadline reminder already running for guild', { guildId });
     return;
   }
 
@@ -151,7 +151,7 @@ function startDeadlineReminder(client, guildId) {
         }
       });
     } catch (err) {
-      logger.error('deadline', 'Deadline reminder error', {
+      logError('deadline', 'Deadline reminder error', {
         guildId,
         message: err.message,
         stack: err.stack,

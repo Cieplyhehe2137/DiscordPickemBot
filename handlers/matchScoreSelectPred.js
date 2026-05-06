@@ -137,7 +137,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchScoreSelectPred failed', {
+    logError('matches', 'matchScoreSelectPred failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

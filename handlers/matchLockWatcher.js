@@ -9,7 +9,7 @@ const _startedWatchers = new Set();
 
 function startMatchLockWatcher(client, guildId) {
   if (!guildId) {
-    logger.error('matches', 'startMatchLockWatcher called without guildId');
+    logError('matches', 'startMatchLockWatcher called without guildId');
     return;
   }
 
@@ -78,7 +78,7 @@ function startMatchLockWatcher(client, guildId) {
 
           if (!res.affectedRows) continue;
 
-          logger.info('matches', 'Auto-locked match', {
+          logInfo('matches', 'Auto-locked match', {
             guildId,
             matchId: m.id,
             lockBeforeSec,
@@ -101,14 +101,14 @@ function startMatchLockWatcher(client, guildId) {
             
             await disableMatchComponents(msg);
 
-            logger.info('matches', 'Disabled match panel components', {
+            logInfo('matches', 'Disabled match panel components', {
               guildId,
               matchId: m.id,
               channelId: m.panel_channel_id,
               messageId: m.panel_message_id,
             });
           } catch (err) {
-            logger.warn('matches', 'Failed to disable match panel UI', {
+            logWarn('matches', 'Failed to disable match panel UI', {
               guildId,
               matchId: m.id,
               channelId: m.panel_channel_id,
@@ -129,7 +129,7 @@ function startMatchLockWatcher(client, guildId) {
         5 * 60_000
       );
 
-      logger.warn('matches', 'matchLockWatcher failed', {
+      logWarn('matches', 'matchLockWatcher failed', {
         guildId,
         message: err.message,
         consecutiveDbFails,

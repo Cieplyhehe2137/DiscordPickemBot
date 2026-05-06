@@ -176,7 +176,7 @@ module.exports = async (interaction) => {
         await conn.commit();
         adminCache.delete(cacheKey);
 
-        logger.info('doubleelim_results', 'official results saved', {
+        logInfo('doubleelim_results', 'official results saved', {
           guildId,
           adminId
         });
@@ -190,7 +190,7 @@ module.exports = async (interaction) => {
         );
       } catch (e) {
         await conn.rollback();
-        logger.error('doubleelim_results', 'DB error', {
+        logError('doubleelim_results', 'DB error', {
           guildId,
           adminId,
           message: e.message,
@@ -203,7 +203,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('doubleelim_results', 'top-level error', {
+    logError('doubleelim_results', 'top-level error', {
       message: err.message,
       stack: err.stack
     });

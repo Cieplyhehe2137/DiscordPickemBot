@@ -44,7 +44,7 @@ module.exports = async function adminMvpResultSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('mvp', 'adminMvpResultSelect failed', {
+    logError('mvp', 'adminMvpResultSelect failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

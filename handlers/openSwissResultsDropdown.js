@@ -195,7 +195,7 @@ module.exports = async function openSwissResultsDropdown(
     });
 
   } catch (err) {
-    logger.error('interaction', 'openSwissResultsDropdown failed', {
+    logError('interaction', 'openSwissResultsDropdown failed', {
       message: err.message,
       stack: err.stack
     });

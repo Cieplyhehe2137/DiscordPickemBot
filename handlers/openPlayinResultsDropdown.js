@@ -88,7 +88,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('playin', 'open official play-in results failed', {
+    logError('playin', 'open official play-in results failed', {
       guildId: interaction.guildId,
       userId,
       message: err.message,

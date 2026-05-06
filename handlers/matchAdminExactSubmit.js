@@ -246,7 +246,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminExactSubmit failed', {
+    logError('matches', 'matchAdminExactSubmit failed', {
       message: err.message,
       stack: err.stack
     });

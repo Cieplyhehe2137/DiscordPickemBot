@@ -193,7 +193,7 @@ module.exports = async (interaction) => {
 
     cache.delete(cacheKey);
 
-    logger.info('submit', 'Double Elim predictions saved', {
+    logInfo('submit', 'Double Elim predictions saved', {
       guildId,
       userId
     });

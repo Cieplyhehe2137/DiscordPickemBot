@@ -156,7 +156,7 @@ module.exports = async (interaction) => {
 
     cache.delete(cacheKey);
 
-    logger.info('submit', 'Play-In predictions saved', {
+    logInfo('submit', 'Play-In predictions saved', {
       guildId,
       userId,
       teams: teamsString

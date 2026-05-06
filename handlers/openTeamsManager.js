@@ -227,7 +227,7 @@ module.exports = async function openTeamsManager(interaction) {
 
     return interaction.reply({ ...payload, ephemeral: true });
   } catch (err) {
-    logger.error('teams', 'openTeamsManager failed', {
+    logError('teams', 'openTeamsManager failed', {
       message: err.message,
       stack: err.stack
     });

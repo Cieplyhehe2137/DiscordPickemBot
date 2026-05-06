@@ -68,12 +68,12 @@ module.exports = async function calculateScores(guildId, eventId) {
   await withGuild({ guildId }, async ({ pool, guildId }) => {
     eventId = await resolveEventId(pool, guildId, eventId).catch(() => null);
 
-    logger.info('scores', 'Score calculation started', {
+    logInfo('scores', 'Score calculation started', {
       guildId,
       eventId: eventId || null
     });
 
-    logger.info('scores', '=== SCORE RUN START ===', {
+    logInfo('scores', '=== SCORE RUN START ===', {
       guildId,
       eventId: eventId || null
     });
@@ -95,7 +95,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Swiss data, skipping phase', {
+        logWarn('scores', 'No Swiss data, skipping phase', {
           guildId,
           eventId: eventId || null
         });
@@ -155,9 +155,9 @@ module.exports = async function calculateScores(guildId, eventId) {
         }
       }
 
-      logger.info('scores', 'Swiss done', { guildId, eventId: eventId || null });
+      logInfo('scores', 'Swiss done', { guildId, eventId: eventId || null });
     } catch (e) {
-      logger.error('scores', 'Swiss failed', {
+      logError('scores', 'Swiss failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -182,7 +182,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Playoffs data, skipping phase', {
+        logWarn('scores', 'No Playoffs data, skipping phase', {
           guildId,
           eventId: eventId || null
         });
@@ -233,10 +233,10 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'Playoffs done', { guildId, eventId: eventId || null });
+        logInfo('scores', 'Playoffs done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
-      logger.error('scores', 'Playoffs failed', {
+      logError('scores', 'Playoffs failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -280,7 +280,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No DoubleElim data, skipping phase', {
+        logWarn('scores', 'No DoubleElim data, skipping phase', {
           guildId,
           eventId: eventId || null
         });
@@ -336,10 +336,10 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'DoubleElim done', { guildId, eventId: eventId || null });
+        logInfo('scores', 'DoubleElim done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
-      logger.error('scores', 'DoubleElim failed', {
+      logError('scores', 'DoubleElim failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -383,7 +383,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logger.warn('scores', 'No Play-In data, skipping phase', {
+        logWarn('scores', 'No Play-In data, skipping phase', {
           guildId,
           eventId: eventId || null
         });
@@ -435,10 +435,10 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'Play-In done', { guildId, eventId: eventId || null });
+        logInfo('scores', 'Play-In done', { guildId, eventId: eventId || null });
       }
     } catch (e) {
-      logger.error('scores', 'Play-In failed', {
+      logError('scores', 'Play-In failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -630,7 +630,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             });
           }
 
-          logger.info('scores', 'MATCH SCORE DEBUG', {
+          logInfo('scores', 'MATCH SCORE DEBUG', {
             guildId,
             eventId: eventId || null,
             matchId: m.match_id,
@@ -674,13 +674,13 @@ module.exports = async function calculateScores(guildId, eventId) {
         );
       }
 
-      logger.info('scores', 'Matches score done', {
+      logInfo('scores', 'Matches score done', {
         guildId,
         eventId: eventId || null,
         rowsInserted: rows.length
       });
     } catch (e) {
-      logger.error('scores', 'Matches failed', {
+      logError('scores', 'Matches failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -741,7 +741,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       }
 
       if (!resultRows.length) {
-        logger.warn('scores', 'No MVP result, skipping phase', {
+        logWarn('scores', 'No MVP result, skipping phase', {
           guildId,
           eventId: eventId || null
         });
@@ -799,14 +799,14 @@ module.exports = async function calculateScores(guildId, eventId) {
           );
         }
 
-        logger.info('scores', 'MVP done', {
+        logInfo('scores', 'MVP done', {
           guildId,
           eventId: eventId || null,
           correctCandidateId
         });
       }
     } catch (e) {
-      logger.error('scores', 'MVP failed', {
+      logError('scores', 'MVP failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -945,12 +945,12 @@ module.exports = async function calculateScores(guildId, eventId) {
         }
       }
 
-      logger.info('scores', 'Leaderboard rebuilt', {
+      logInfo('scores', 'Leaderboard rebuilt', {
         guildId,
         eventId: eventId || null
       });
     } catch (e) {
-      logger.error('scores', 'Leaderboard rebuild failed', {
+      logError('scores', 'Leaderboard rebuild failed', {
         guildId,
         eventId: eventId || null,
         message: e.message,
@@ -958,7 +958,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       });
     }
 
-    logger.info('scores', 'Score calculation finished', {
+    logInfo('scores', 'Score calculation finished', {
       guildId,
       eventId: eventId || null
     });

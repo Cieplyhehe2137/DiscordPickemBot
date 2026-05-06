@@ -173,7 +173,7 @@ module.exports = async function exportClassification(arg) {
       eventId = null;
     }
 
-    logger.info('export', 'Starting classification export', {
+    logInfo('export', 'Starting classification export', {
       guildId,
       eventId: eventId || null
     });

@@ -168,7 +168,7 @@ module.exports = async function validateAllGuilds(client) {
     try {
       reports.push(await validateGuild(client, guildId));
     } catch (e) {
-      logger.error('validator', 'Guild validation failed', {
+      logError('validator', 'Guild validation failed', {
         guildId,
         message: e.message,
       });

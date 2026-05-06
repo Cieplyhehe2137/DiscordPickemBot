@@ -100,7 +100,7 @@ module.exports = async function matchAdminResultSelect(interaction) {
 
         await pool.query('COMMIT');
 
-        logger.info('matches', 'Match result set', {
+        logInfo('matches', 'Match result set', {
           guildId,
           matchId,
           resA,
@@ -122,7 +122,7 @@ module.exports = async function matchAdminResultSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminResultSelect failed', {
+    logError('matches', 'matchAdminResultSelect failed', {
       guildId: interaction.guildId,
       matchId,
       message: err.message,

@@ -48,7 +48,7 @@ module.exports = async function teamsExport(interaction) {
       files: [file]
     });
   } catch (err) {
-    logger.error('teams', 'teamsExport failed', {
+    logError('teams', 'teamsExport failed', {
       message: err.message,
       stack: err.stack
     });

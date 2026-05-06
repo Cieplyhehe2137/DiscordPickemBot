@@ -109,7 +109,7 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminPhaseSelect failed', {
+    logError('matches', 'matchAdminPhaseSelect failed', {
       message: err.message,
       stack: err.stack
     });

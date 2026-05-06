@@ -13,7 +13,7 @@ const { startDeadlineReminder } = require('./handlers/deadlineReminder');
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();
 
-  logger.info('ready', 'Booting multi-guild', { guildCount: guildIds.length, guildIds });
+  logInfo('ready', 'Booting multi-guild', { guildCount: guildIds.length, guildIds });
 
   for (const guildId of guildIds) {
     try {
@@ -27,9 +27,9 @@ module.exports = async function onReady(client) {
         startMatchLockWatcher(client, guildId);
       });
 
-      logger.info('ready', 'Guild boot OK', { guildId });
+      logInfo('ready', 'Guild boot OK', { guildId });
     } catch (err) {
-      logger.error('ready', 'Guild boot FAILED', {
+      logError('ready', 'Guild boot FAILED', {
         guildId,
         message: err?.message,
         stack: err?.stack,
@@ -37,5 +37,5 @@ module.exports = async function onReady(client) {
     }
   }
 
-  logger.info('ready', `✅ Logged in as ${client.user.tag}`);
+  logInfo('ready', `✅ Logged in as ${client.user.tag}`);
 };

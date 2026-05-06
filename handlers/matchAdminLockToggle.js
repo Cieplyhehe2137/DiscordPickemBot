@@ -62,7 +62,7 @@ module.exports = async function matchAdminLockToggle(interaction) {
       [newVal, match.id, guildId]
     );
 
-    logger.info('matches', 'Admin toggled match lock', {
+    logInfo('matches', 'Admin toggled match lock', {
       guild_id: guildId,
       matchId: match.id,
       from: !!match.is_locked,

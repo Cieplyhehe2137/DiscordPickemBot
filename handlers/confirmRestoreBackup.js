@@ -61,7 +61,7 @@ module.exports = async (interaction) => {
       // Przekaż guildId jawnie (nawet jeśli restore potrafi go wziąć z kontekstu)
       await restoreBackup(backupPath, { guildId });
 
-      logger.info('restore', 'Backup restored', { guildId, fileName });
+      logInfo('restore', 'Backup restored', { guildId, fileName });
 
       // edit tego samego message (ephemeral też się da update'ować)
       await interaction.editReply({
@@ -69,7 +69,7 @@ module.exports = async (interaction) => {
         components: []
       });
     } catch (err) {
-      logger.error('restore', 'Restore failed', {
+      logError('restore', 'Restore failed', {
         guildId,
         fileName,
         message: err.message,

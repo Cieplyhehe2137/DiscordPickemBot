@@ -85,7 +85,7 @@ module.exports = async function backupDatabase(interaction) {
         dumpToFile: filePath,
       });
 
-      logger.info('backup', 'Guild backup created', {
+      logInfo('backup', 'Guild backup created', {
         guildId,
         fileName,
         filePath
@@ -99,7 +99,7 @@ module.exports = async function backupDatabase(interaction) {
       });
 
     } catch (error) {
-      logger.error('backup', 'Backup failed', {
+      logError('backup', 'Backup failed', {
         guildId,
         message: error.message,
         stack: error.stack,

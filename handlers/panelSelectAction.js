@@ -1,5 +1,5 @@
 // handlers/panelSelectAction.js
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 const VALUE_TO_TARGET_CUSTOM_ID = {
   'results:export': 'export_ranking',
@@ -42,7 +42,7 @@ module.exports = async function panelSelectAction(
   try {
     const value = interaction.values?.[0];
 
-    logger.info('panel', 'Panel select received', {
+    logInfo('panel', 'Panel select received', {
       guildId: interaction.guildId,
       customId: interaction.customId,
       value,
@@ -50,7 +50,7 @@ module.exports = async function panelSelectAction(
 
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
     if (!targetCustomId) {
-      logger.warn('panel', 'Unknown select value', { value });
+      logWarn('panel', 'Unknown select value', { value });
       return interaction.reply({
         content: '❌ Nieznana akcja.',
         ephemeral: true,
@@ -67,7 +67,7 @@ module.exports = async function panelSelectAction(
       )
       ];
     if (!handlerName) {
-      logger.error('panel', 'No handler mapped for targetCustomId', {
+      logError('panel', 'No handler mapped for targetCustomId', {
         targetCustomId,
       });
       return interaction.reply({
@@ -78,7 +78,7 @@ module.exports = async function panelSelectAction(
 
     const handler = handlers?.[handlerName];
     if (typeof handler !== 'function') {
-      logger.error('panel', 'Handler not loaded or invalid', {
+      logError('panel', 'Handler not loaded or invalid', {
         handlerName,
       });
       return interaction.reply({
@@ -94,7 +94,7 @@ module.exports = async function panelSelectAction(
 
     const proxied = proxyCustomId(interaction, targetCustomId);
 
-    logger.info('panel', 'Dispatching select to handler', {
+    logInfo('panel', 'Dispatching select to handler', {
       handlerName,
       targetCustomId,
     });
@@ -109,7 +109,7 @@ module.exports = async function panelSelectAction(
     }
 
   } catch (err) {
-    logger.error('panel', 'panelSelectAction failed', {
+    logError('panel', 'panelSelectAction failed', {
       message: err.message,
       stack: err.stack,
     });

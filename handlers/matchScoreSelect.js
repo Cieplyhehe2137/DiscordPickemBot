@@ -142,7 +142,7 @@ module.exports = async function matchScoreSelect(interaction) {
         [guildId, matchId]
       );
 
-      logger.info('matches', 'Official match result saved', {
+      logInfo('matches', 'Official match result saved', {
         guild_id: guildId,
         matchId,
         a,
@@ -159,7 +159,7 @@ module.exports = async function matchScoreSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchScoreSelect failed', {
+    logError('matches', 'matchScoreSelect failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

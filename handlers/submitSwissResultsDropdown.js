@@ -206,7 +206,7 @@ module.exports = async (interaction) => {
         });
 
       } catch (err) {
-        logger.error('swiss_results', 'DB error', {
+        logError('swiss_results', 'DB error', {
           guildId,
           stage,
           message: err.message,

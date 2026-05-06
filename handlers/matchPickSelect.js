@@ -27,7 +27,7 @@ module.exports = async function matchPickSelect(interaction) {
             });
         }
 
-        logger.info('matches', 'matchPickSelect value', {
+        logInfo('matches', 'matchPickSelect value', {
             customId: interaction.customId,
             picked
         });
@@ -162,7 +162,7 @@ module.exports = async function matchPickSelect(interaction) {
             });
         });
     } catch (err) {
-        logger.error('matches', 'matchPickSelect failed', {
+        logError('matches', 'matchPickSelect failed', {
             message: err.message,
             stack: err.stack
         });

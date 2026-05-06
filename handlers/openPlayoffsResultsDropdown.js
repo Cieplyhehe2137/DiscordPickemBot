@@ -113,7 +113,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('playoffs', 'open_results_playoffs failed', {
+    logError('playoffs', 'open_results_playoffs failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

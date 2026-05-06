@@ -197,7 +197,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       });
     });
   } catch (err) {
-    logger.error('playoffs', 'openPlayoffsDropdown failed', {
+    logError('playoffs', 'openPlayoffsDropdown failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

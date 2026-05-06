@@ -53,7 +53,7 @@ module.exports = async function teamsSelect(interaction) {
     return openTeamsManager(interaction);
 
   } catch (err) {
-    logger.error('teams', 'teamsSelect failed', {
+    logError('teams', 'teamsSelect failed', {
       message: err.message,
       stack: err.stack,
       guildId: interaction.guildId,

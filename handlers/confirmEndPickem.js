@@ -16,7 +16,7 @@ module.exports = async (interaction) => {
 
   // 🔒 ADMIN ONLY
   if (!isAdmin(interaction)) {
-    logger.warn('endPickem', 'Unauthorized confirmEndPickem attempt', {
+    logWarn('endPickem', 'Unauthorized confirmEndPickem attempt', {
       guildId,
       userId: interaction.user.id,
       customId: interaction.customId,
@@ -42,7 +42,7 @@ module.exports = async (interaction) => {
     username: interaction.user.tag,
   };
 
-  logger.info('endPickem', 'Confirm end pickem requested', userMeta);
+  logInfo('endPickem', 'Confirm end pickem requested', userMeta);
 
   try {
     await interaction.deferReply({ ephemeral: true });
@@ -73,7 +73,7 @@ module.exports = async (interaction) => {
 
       const channel = await interaction.client.channels.fetch(channel_id).catch(() => null);
       if (!channel || !channel.isTextBased?.()) {
-        logger.warn('endPickem', 'Channel not found, cleaning DB', userMeta);
+        logWarn('endPickem', 'Channel not found, cleaning DB', userMeta);
 
         await pool.query(
           `UPDATE active_panels SET active = 0, closed = 1 WHERE id = ? AND guild_id = ?`,
@@ -115,7 +115,7 @@ module.exports = async (interaction) => {
         [id, guildId]
       );
 
-      logger.info('endPickem', 'Pickem closed', userMeta);
+      logInfo('endPickem', 'Pickem closed', userMeta);
 
       return interaction.followUp({
         content: `✅ Typowanie dla fazy **${phase}** zostało zakończone.`,
@@ -124,7 +124,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('endPickem', 'confirmEndPickem failed', {
+    logError('endPickem', 'confirmEndPickem failed', {
       ...userMeta,
       message: err.message,
       stack: err.stack,

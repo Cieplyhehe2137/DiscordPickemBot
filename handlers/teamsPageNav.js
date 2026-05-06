@@ -40,7 +40,7 @@ module.exports = async function teamsPageNav(interaction) {
     return openTeamsManager(interaction);
 
   } catch (err) {
-    logger.error('teams', 'teamsPageNav failed', {
+    logError('teams', 'teamsPageNav failed', {
       guildId: interaction.guildId,
       userId: interaction.user?.id,
       message: err.message,

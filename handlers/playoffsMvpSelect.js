@@ -63,7 +63,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
   }
   catch (err) {
 
-    logger.error('mvp', 'playoffsMvpSelect failed', {
+    logError('mvp', 'playoffsMvpSelect failed', {
 
       guildId: interaction.guildId,
       message: err.message,

@@ -38,7 +38,7 @@ module.exports = async function submitSetMatchTime(interaction) {
 
   });
 
-  logger.info('matches', 'start_time_utc updated', {
+  logInfo('matches', 'start_time_utc updated', {
     guildId: interaction.guildId,
     matchId,
     start_time_utc: utc ? utc.toISO() : null

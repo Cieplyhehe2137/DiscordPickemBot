@@ -122,7 +122,7 @@ module.exports = async (interaction) => {
     });
 
   } catch (err) {
-    logger.error('swiss', 'openSwissDropdown failed', {
+    logError('swiss', 'openSwissDropdown failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

@@ -85,7 +85,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
 
         await pool.query('COMMIT');
 
-        logger.info('matches', 'Cleared matches phase (guild-safe)', {
+        logInfo('matches', 'Cleared matches phase (guild-safe)', {
           guildId,
           phase,
           deleted_points: r1?.affectedRows ?? 0,
@@ -112,7 +112,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'clearMatchesPhaseSelect failed', {
+    logError('matches', 'clearMatchesPhaseSelect failed', {
       guildId,
       phase,
       message: err.message,

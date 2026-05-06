@@ -246,7 +246,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
           ]
         );
       } catch (e) {
-        logger.warn('matches', 'match_map_predictions insert failed', {
+        logWarn('matches', 'match_map_predictions insert failed', {
           message: e.message
         });
 
@@ -324,7 +324,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
       });
     });
   } catch (err) {
-    logger.error('matches', 'matchUserExactSubmit failed', {
+    logError('matches', 'matchUserExactSubmit failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

@@ -28,7 +28,7 @@ async function getTournamentState(guildId, pool) {
       isOpen: !!row?.is_open,
     };
   } catch (err) {
-    logger.error('tournament', 'getTournamentState failed', {
+    logError('tournament', 'getTournamentState failed', {
       guildId,
       message: err.message,
       stack: err.stack,

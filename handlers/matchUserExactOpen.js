@@ -181,7 +181,7 @@ module.exports = async function matchUserExactOpen(interaction) {
       return interaction.showModal(modal);
     });
   } catch (err) {
-    logger.error('matches', 'matchUserExactOpen failed', {
+    logError('matches', 'matchUserExactOpen failed', {
       message: err.message,
       stack: err.stack
     });

@@ -40,7 +40,7 @@ module.exports = async (interaction) => {
   const filePath = path.join(archiveDir, filename);
 
   if (!fs.existsSync(filePath)) {
-    logger.warn('[archive_select] file not found', {
+    logWarn('[archive_select] file not found', {
       guildId,
       filename,
       filePath

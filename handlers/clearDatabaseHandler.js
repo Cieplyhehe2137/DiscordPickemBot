@@ -28,7 +28,7 @@ module.exports = async (interaction) => {
     customId: interaction.customId,
   };
 
-  logger.warn('clear', 'Clear interaction triggered', userMeta);
+  logWarn('clear', 'Clear interaction triggered', userMeta);
 
   const aliasMap = {
     clear_user_picks: 'clear_db_confirm',
@@ -165,7 +165,7 @@ module.exports = async (interaction) => {
       return respond({ content: `❌ Nieznana akcja: ${action}` });
     });
   } catch (err) {
-    logger.error('clear', 'Clear operation failed', {
+    logError('clear', 'Clear operation failed', {
       ...userMeta,
       message: err.message,
       stack: err.stack,

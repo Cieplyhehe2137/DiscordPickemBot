@@ -38,14 +38,14 @@ function listArchiveFiles(dir) {
 module.exports = async function sendArchivePanel(client, guildId) {
   const gid = String(guildId || '').trim();
   if (!gid) {
-    logger.error('archivePanel', 'Called without guildId');
+    logError('archivePanel', 'Called without guildId');
     return;
   }
 
   try {
     const cfg = getGuildConfig(gid);
     if (!cfg) {
-      logger.error('archivePanel', 'Missing guild config', { guildId: gid });
+      logError('archivePanel', 'Missing guild config', { guildId: gid });
       return;
     }
 
@@ -54,13 +54,13 @@ module.exports = async function sendArchivePanel(client, guildId) {
 
     const channelId = String(cfg.ARCHIVE_CHANNEL_ID || '').trim();
     if (!channelId) {
-      logger.error('archivePanel', 'Missing ARCHIVE_CHANNEL_ID', { guildId: gid });
+      logError('archivePanel', 'Missing ARCHIVE_CHANNEL_ID', { guildId: gid });
       return;
     }
 
     const channel = await client.channels.fetch(channelId).catch(() => null);
     if (!channel || channel.type !== ChannelType.GuildText) {
-      logger.error('archivePanel', 'Archive channel invalid', {
+      logError('archivePanel', 'Archive channel invalid', {
         guildId: gid,
         channelId,
       });
@@ -105,13 +105,13 @@ module.exports = async function sendArchivePanel(client, guildId) {
 
     if (existing) {
       await existing.edit({ embeds: [embed], components: [row] });
-      logger.info('archivePanel', 'Updated', { guildId: gid });
+      logInfo('archivePanel', 'Updated', { guildId: gid });
     } else {
       await channel.send({ embeds: [embed], components: [row] });
-      logger.info('archivePanel', 'Sent', { guildId: gid });
+      logInfo('archivePanel', 'Sent', { guildId: gid });
     }
   } catch (err) {
-    logger.error('archivePanel', 'Failed', {
+    logError('archivePanel', 'Failed', {
       guildId: gid,
       message: err.message,
       stack: err.stack,

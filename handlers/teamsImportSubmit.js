@@ -42,7 +42,7 @@ module.exports = async function teamsImportSubmit(interaction) {
     });
 
   } catch (err) {
-    logger.error('teams', 'teamsImportSubmit failed', {
+    logError('teams', 'teamsImportSubmit failed', {
       guildId: interaction.guildId,
       userId: interaction.user?.id,
       message: err.message,

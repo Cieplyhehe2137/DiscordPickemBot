@@ -27,7 +27,7 @@ async function getActiveTeams(source) {
       });
     });
   } catch (err) {
-    logger.error('teamsRepo', 'getActiveTeams failed', {
+    logError('teamsRepo', 'getActiveTeams failed', {
       message: err.message,
       stack: err.stack,
     });

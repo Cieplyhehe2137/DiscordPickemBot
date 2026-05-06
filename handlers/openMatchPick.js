@@ -146,7 +146,7 @@ module.exports = async function openMatchPick(interaction) {
       isUpdate: false,
     });
   } catch (err) {
-    logger.error('matches', 'openMatchPick failed', {
+    logError('matches', 'openMatchPick failed', {
       message: err.message,
       stack: err.stack,
     });

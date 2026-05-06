@@ -197,7 +197,7 @@ module.exports = async (interaction) => {
       delete interaction.client._playoffsCache[guildId][userId];
     }
 
-    logger.info('submit', 'Playoffs predictions saved', {
+    logInfo('submit', 'Playoffs predictions saved', {
       guildId,
       userId
     });

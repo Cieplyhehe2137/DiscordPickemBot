@@ -72,7 +72,7 @@ module.exports = async function teamsAddSubmit(interaction) {
     });
 
   } catch (err) {
-    logger.error('teams', 'teamsAddSubmit failed', {
+    logError('teams', 'teamsAddSubmit failed', {
       guildId: interaction.guildId,
       userId: interaction.user?.id,
       message: err.message,

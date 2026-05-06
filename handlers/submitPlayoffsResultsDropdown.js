@@ -131,7 +131,7 @@ module.exports = async (interaction) => {
 
     setCache(cacheKey, local);
 
-    logger.info('playoffs_results', 'slot updated', {
+    logInfo('playoffs_results', 'slot updated', {
       guildId,
       adminId,
       type,
@@ -227,7 +227,7 @@ module.exports = async (interaction) => {
         );
       } catch (err) {
         await conn.rollback();
-        logger.error('playoffs_results', 'DB error', {
+        logError('playoffs_results', 'DB error', {
           guildId,
           adminId,
           message: err.message,

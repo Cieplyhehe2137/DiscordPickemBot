@@ -195,7 +195,7 @@ module.exports = async (interaction) => {
           await conn.commit();
           cache.delete(cacheKey);
 
-          logger.info('playin', 'Play-In results saved', {
+          logInfo('playin', 'Play-In results saved', {
             guildId,
             adminId,
             teams: data.teams
@@ -206,7 +206,7 @@ module.exports = async (interaction) => {
           );
         } catch (err) {
           await conn.rollback();
-          logger.error('playin', 'Error saving Play-In results', {
+          logError('playin', 'Error saving Play-In results', {
             guildId,
             adminId,
             message: err.message
@@ -222,7 +222,7 @@ module.exports = async (interaction) => {
     }
 
   } catch (err) {
-    logger.error('playin', 'submitPlayinResultsDropdown crash', {
+    logError('playin', 'submitPlayinResultsDropdown crash', {
       message: err.message,
       stack: err.stack
     });

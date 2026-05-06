@@ -100,7 +100,7 @@ module.exports = async function matchAdminStartOpen(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminStartOpen failed', {
+    logError('matches', 'matchAdminStartOpen failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack

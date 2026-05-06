@@ -106,7 +106,7 @@ module.exports = async function matchAdminStartSubmit(interaction) {
       const localStr = utcDt.setZone(DEFAULT_ZONE).toFormat('yyyy-LL-dd HH:mm');
       const utcStr = utcDt.toFormat("yyyy-LL-dd HH:mm 'UTC'");
 
-      logger.info('matches', 'Match start_time_utc updated', {
+      logInfo('matches', 'Match start_time_utc updated', {
         guild_id: guildId,
         matchId: match.id,
         local: localStr,
@@ -128,7 +128,7 @@ module.exports = async function matchAdminStartSubmit(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminStartSubmit failed', {
+    logError('matches', 'matchAdminStartSubmit failed', {
       guild_id: interaction.guildId,
       message: err.message,
       stack: err.stack

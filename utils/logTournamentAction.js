@@ -45,7 +45,7 @@ async function logTournamentAction({
     );
   } catch (err) {
     // ❗ audit log NIGDY nie może wywalić głównej operacji
-    logger.error('audit', 'logTournamentAction failed', {
+    logError('audit', 'logTournamentAction failed', {
       guildId,
       actorId,
       action,

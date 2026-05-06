@@ -212,7 +212,7 @@ async function migrateTeamsJsonToDb(source) {
 
   await replaceTeams(source, names);
 
-  logger.info('teams', 'Migrated teams.json -> DB', {
+  logInfo('teams', 'Migrated teams.json -> DB', {
     guildId: typeof source === 'string' ? source : source?.guildId,
     count: names.length
   });

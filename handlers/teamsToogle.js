@@ -46,7 +46,7 @@ module.exports = async function teamsToggle(interaction) {
     return openTeamsManager(interaction);
 
   } catch (err) {
-    logger.error('teams', 'teamsToggle failed', {
+    logError('teams', 'teamsToggle failed', {
       message: err.message,
       stack: err.stack,
       guildId: interaction.guildId,

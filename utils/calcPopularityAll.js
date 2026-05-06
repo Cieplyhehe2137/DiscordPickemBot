@@ -300,7 +300,7 @@ async function calculatePopularityForPanel({
 
     return { totalUsers: 0, buckets: {} };
   } catch (err) {
-    logger.error('stats', 'calculatePopularityForPanel failed', {
+    logError('stats', 'calculatePopularityForPanel failed', {
       guildId,
       phase,
       stage,

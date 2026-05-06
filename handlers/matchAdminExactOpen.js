@@ -165,7 +165,7 @@ module.exports = async function matchAdminExactOpen(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchAdminExactOpen failed', {
+    logError('matches', 'matchAdminExactOpen failed', {
       message: err.message,
       stack: err.stack
     });

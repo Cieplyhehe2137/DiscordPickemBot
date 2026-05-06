@@ -100,15 +100,15 @@ module.exports = async function startExportPanel(client, guildId) {
 
     if (existing) {
       await existing.edit(payload);
-      logger.info('panel', 'Export panel refreshed', { guildId });
+      logInfo('panel', 'Export panel refreshed', { guildId });
       return;
     }
 
     await channel.send(payload);
-    logger.info('panel', 'Export panel sent', { guildId });
+    logInfo('panel', 'Export panel sent', { guildId });
 
   } catch (err) {
-    logger.error('panel', 'startExportPanel failed', {
+    logError('panel', 'startExportPanel failed', {
       guildId,
       message: err.message
     });

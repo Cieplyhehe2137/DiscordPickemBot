@@ -65,7 +65,7 @@ module.exports = async function teamsSeedFromFile(interaction) {
     });
 
   } catch (err) {
-    logger.error('teams', 'teamsSeedFromFile failed', {
+    logError('teams', 'teamsSeedFromFile failed', {
       message: err.message,
       stack: err.stack
     });

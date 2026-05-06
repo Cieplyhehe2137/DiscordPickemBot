@@ -83,7 +83,7 @@ module.exports = async function teamsRenameSubmit(interaction) {
     });
 
   } catch (err) {
-    logger.error('teams', 'teamsRenameSubmit failed', {
+    logError('teams', 'teamsRenameSubmit failed', {
       message: err.message,
       stack: err.stack
     });

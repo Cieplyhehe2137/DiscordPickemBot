@@ -295,7 +295,7 @@ async function onTeamBSelect(interaction) {
 
     state.delete(stateKey(interaction));
 
-    logger.info('matches', 'Match added', {
+    logInfo('matches', 'Match added', {
       guildId,
       eventId,
       matchId,

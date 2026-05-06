@@ -176,7 +176,7 @@ module.exports = async function panelOpenMenu(interaction) {
     }
 
   } catch (err) {
-    logger.error('interaction', 'panelOpenMenu failed', {
+    logError('interaction', 'panelOpenMenu failed', {
       message: err.message,
       stack: err.stack
     });

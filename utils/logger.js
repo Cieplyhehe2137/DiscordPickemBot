@@ -60,15 +60,15 @@ const logger = createLogger({
 });
 
 function logInfo(message, meta = {}) {
-  logger.info(message, meta);
+  logInfo(message, meta);
 }
 
 function logWarn(message, meta = {}) {
-  logger.warn(message, meta);
+  logWarn(message, meta);
 }
 
 function logError(message, error = null, meta = {}) {
-  logger.error(message, {
+  logError(message, {
     ...meta,
     stack: error?.stack || null,
     extra: error && !error.stack ? String(error) : meta.extra || null,
@@ -76,7 +76,7 @@ function logError(message, error = null, meta = {}) {
 }
 
 function logInteraction(interaction, message, extra = {}) {
-  logger.info(message, {
+  logInfo(message, {
     guildId: interaction.guildId || null,
     userId: interaction.user?.id || null,
     username: interaction.user?.tag || interaction.user?.username || null,

@@ -177,7 +177,7 @@ module.exports = async function matchUserSeriesSelect(interaction) {
     });
 
   } catch (err) {
-    logger.error('matches', 'matchUserSeriesSelect failed', {
+    logError('matches', 'matchUserSeriesSelect failed', {
       message: err.message,
       stack: err.stack
     });

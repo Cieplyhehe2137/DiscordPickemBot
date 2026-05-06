@@ -69,7 +69,7 @@ module.exports = async function openAdminMvpResult(interaction, eventId) {
       });
     });
   } catch (err) {
-    logger.error('mvp', 'openAdminMvpResult failed', {
+    logError('mvp', 'openAdminMvpResult failed', {
       guildId: interaction.guildId,
       message: err.message,
       stack: err.stack
