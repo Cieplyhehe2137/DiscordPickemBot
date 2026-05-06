@@ -1,72 +1,116 @@
-// utils/logger.js
-//
-// Jeden, spójny logger dla całego bota.
-// - Bazuje na pino (../logger.js)
-// - Zachowuje stary interfejs: logger.info(scope, message, data)
+const { log } = require('console');
+const fs = require('fs');
+const path = require('path');
+const { createLogger, format, transports } = require('winston');
 
-const base = require('../logger');
+const logsDir = path.join(process.cwd(), "logs");
 
-const LEVELS = new Set(['info', 'warn', 'error', 'debug']);
-
-function normalizeError(err) {
-  if (!(err instanceof Error)) return err;
-  return {
-    err: {
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
-    },
-  };
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
 }
 
-function normalizeData(data) {
-  if (!data) return undefined;
+const jsonFormat = format.printf((info) => {
+  return JSON.stringify({
+    timestamp: info.timestamp,
+    level: info.level,
+    message: info.message,
+    guildId: info.guildId || null,
+    userId: info.userId || null,
+    username: info.username || null,
+    command: info.command || null,
+    customId: info.customId || null,
+    eventId: info.eventId || null,
+    phase: info.phase || null,
+    stack: info.stack || null,
+    extra: info.extra || null,
+  });
+});
 
-  if (data instanceof Error) {
-    return normalizeError(data);
-  }
+const logger = createLogger({
+  level: "info",
+  format: format.combine(
+    format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    format.errors({ stack: true }),
+    jsonFormat
+  ),
+  transports: [
+    new transports.File({
+      filename: path.join(logsDir, "bot.log"),
+      level: "info",
+    }),
 
-  return data;
+    new transports.File({
+      filename: path.join(logsDir, "errors.log"),
+      level: "error",
+    }),
+
+    new transports.File({
+      filename: path.join(logsDir, "warnings.log"),
+      level: "warn",
+    }),
+
+    new transports.Console({
+      level: "info",
+      format: format.combine(
+        format.colorize(),
+        format.simple()
+      ),
+    }),
+  ],
+});
+
+function logInfo(message, meta = {}) {
+  logger.info(message, meta);
 }
 
-function log(level, scope, message, data) {
-  const lvl = LEVELS.has(level) ? level : 'info';
-  const scp = scope ? String(scope) : 'app';
+function logWarn(message, meta = {}) {
+  logger.warn(message, meta);
+}
 
-  // przypadek: logger.error('x', err)
-  if (message instanceof Error) {
-    const extra = normalizeError(message);
-    return base[lvl]({ scope: scp, ...extra }, message.message);
-  }
+function logError(message, error = null, meta = {}) {
+  logger.error(message, {
+    ...meta,
+    stack: error?.stack || null,
+    extra: error && !error.stack ? String(error) : meta.extra || null,
+  });
+}
 
-  const extra = normalizeData(data);
+function logInteraction(interaction, message, extra = {}) {
+  logger.info(message, {
+    guildId: interaction.guildId || null,
+    userId: interaction.user?.id || null,
+    username: interaction.user?.tag || interaction.user?.username || null,
+    command: interaction.commandName || null,
+    customId: interaction.customId || null,
+    extra,
+  });
+}
 
-  if (extra) {
-    return base[lvl]({ scope: scp, ...extra }, message);
-  }
+function logCommandStart(interaction) {
+  logInteraction(interaction, "COMMAND_START");
+}
 
-  return base[lvl]({ scope: scp }, message);
+function logCommandSuccess(interaction) {
+  logInteracti(interaction, "COMMAND_SUCCESS");
+}
+
+function logCommandError(interaction, error) {
+  logError("COMMAND_ERROR", error, {
+    guildId: interaction.guildId || null,
+    userId: interaction.user?.id || null,
+    username: interaction.user?.tag || interaction.user?.username || null,
+    command: interaction.commandName || null,
+    customId: interaction.customId || null,
+  });
 }
 
 module.exports = {
-  info(scope, message, data) {
-    log('info', scope, message, data);
-  },
-  warn(scope, message, data) {
-    log('warn', scope, message, data);
-  },
-  error(scope, message, data) {
-    log('error', scope, message, data);
-  },
-  debug(scope, message, data) {
-    log('debug', scope, message, data);
-  },
-
-  // 🔥 bardzo przydatne przy większych modułach
-  child(ctx = {}) {
-    return base.child(ctx);
-  },
-
-  // surowy pino (jak naprawdę potrzeba)
-  raw: base,
+  logger,
+  logInfo,
+  logWarn,
+  logError,
+  logInteraction,
+  logCommandStart,
+  logCommandSuccess,
+  logCommandError,
 };

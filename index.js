@@ -1,12 +1,22 @@
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const { logInfo, logError, logCommandStart, logCommandSuccess, logCommandError } = require("./utils/logger");
 const envPath = process.env.ENV_FILE || '.env';
 const resolvedEnvPath = path.isAbsolute(envPath)
   ? envPath
   : path.join(process.cwd(), envPath);
 
 dotenv.config({ path: resolvedEnvPath });
+
+process.on("unhandledRejection", (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  logError("UNHANDLED_REJECTION", err);
+});
+
+process.on("uncaughtException", (err) => {
+  logError("UNCAUGHT_EXCEPTION", err);
+});
 
 // console.log('ENV_FILE:', resolvedEnvPath);
 if (!fs.existsSync(resolvedEnvPath)) {
@@ -72,9 +82,14 @@ client.on('shardDisconnect', (event, id) => {
   const reason = event?.reason ?? event?.closeReason ?? 'unknown';
   const clean = event?.wasClean ?? 'unknown';
 
-  console.warn(
-    `⚠️ [SHARD DISCONNECT] shard ${id} code=${code} clean=${clean} reason=${reason}`
-  );
+  logInfo("SHARD_DISCONNECT", {
+    extra: {
+      shardId: id,
+      code,
+      reason,
+      clean,
+    },
+  });
 });
 
 // client.on('shardResume', (id, replayed) => {
@@ -105,43 +120,47 @@ const maps = {
 };
 
 // 🚀 Eventy (diag)
-client.on('error', (e) => console.error('💥 client error:', e));
-client.on('warn', (w) => console.warn('⚠️ client warn:', w));
+client.on("error", (e) => {
+  logError("DISCORD_CLIENT_ERROR", e);
+  console.error("💥 client error:", e);
+});
+
+client.on("warn", (w) => {
+  logInfo("DISCORD_CLIENT_WARN", {
+    extra: w,
+  });
+
+  console.warn("⚠️ client warn:", w);
+});
 
 // Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
 const startPresence = require('./utils/startPresence');
 
-client.once('ready', async () => {
-  try {
-    // console.log(`🤖 Discord READY jako ${client.user.tag} (id: ${client.user.id})`);
+client.once("ready", () => {
+  logInfo("BOT_READY", {
+    extra: {
+      botTag: client.user.tag,
+      botId: client.user.id,
+    },
+  });
 
-    await onReady(client);
-    // console.log('✅ onReady() zakończone');
-
-    // ✅ PRESENCE – TYLKO TU
-    startPresence(client);
-
-    // 🕒 closeExpiredPanels
-    setInterval(() => {
-      closeExpiredPanels(client).catch(err =>
-        console.error('❌ Błąd w closeExpiredPanels tick:', err)
-      );
-    }, 15_000);
-
-    // console.log('⏱️ Uruchomiono automatyczne sprawdzanie paneli (co 15s)');
-  } catch (e) {
-    console.error('❌ Błąd w ready-handlerze:', e);
-  }
+  console.log(`✅ Zalogowano jako ${client.user.tag}`);
 });
 
 
 const handlers = loadHandlers('handlers');
 
-client.on('interactionCreate', async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
   try {
+    logCommandStart(interaction);
+
     await handleInteraction(interaction, client, handlers, maps);
+
+    logCommandSuccess(interaction);
   } catch (e) {
-    console.error('❌ interactionCreate error:', e);
+    logCommandError(interaction, e);
+
+    console.error("❌ interactionCreate error:", e);
   }
 });
 
@@ -168,12 +187,13 @@ if (!TOKEN) {
     })
     .catch((e) => {
       clearTimeout(readyTimeout);
-      // console.error('❌ client.login error:', e);
+      logError("CLIENT_LOGIN_ERROR", e);
+      console.error('❌ client.login error:', e);
     });
 
   // czytelniejsze info o nieobsłużonych wyjątkach
-  process.on('unhandledRejection', (r) => console.error('❌ UnhandledRejection:', r));
-  process.on('uncaughtException', (e) => console.error('❌ UncaughtException:', e));
+  // process.on('unhandledRejection', (r) => console.error('❌ UnhandledRejection:', r));
+  // process.on('uncaughtException', (e) => console.error('❌ UncaughtException:', e));
 }
 
 
