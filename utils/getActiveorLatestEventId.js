@@ -1,53 +1,73 @@
-const { withGuild } = require('./guildContext');
+// utils/getActiveOrLatestEventId.js
 
-module.exports = async function getActiveOrLatestEventId(guildId) {
-  if (!guildId) return null;
+async function getActiveOrLatestEventId(pool, guildId) {
+  if (!pool || typeof pool.query !== "function") {
+    throw new Error("getActiveOrLatestEventId: invalid pool");
+  }
 
-  return withGuild({ guildId }, async ({ pool, guildId }) => {
-    try {
-      const [rows] = await pool.query(
-        `
-          SELECT id
-          FROM events
-          WHERE guild_id = ?
-            AND (archived = 0 OR archived IS NULL)
-          ORDER BY id DESC
-          LIMIT 1
-        `,
-        [guildId]
-      );
+  if (!guildId) {
+    throw new Error("getActiveOrLatestEventId: missing guildId");
+  }
 
-      if (rows.length) return rows[0].id;
-    } catch (_) {
-      // fallback niżej
-    }
-
-    try {
-      const [rows2] = await pool.query(
-        `
-          SELECT id
-          FROM events
-          WHERE guild_id = ?
-          ORDER BY id DESC
-          LIMIT 1
-        `,
-        [guildId]
-      );
-
-      if (rows2.length) return rows2[0].id;
-    } catch (_) {
-      // fallback niżej
-    }
-
-    const [rows3] = await pool.query(
+  // 1. Najpierw próbujemy aktywny event
+  try {
+    const [activeRows] = await pool.query(
       `
-        SELECT id
-        FROM events
-        ORDER BY id DESC
-        LIMIT 1
-      `
+      SELECT id
+      FROM events
+      WHERE guild_id = ?
+        AND is_active = 1
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [guildId]
     );
 
-    return rows3[0]?.id ?? null;
-  });
+    if (activeRows?.[0]?.id) {
+      return activeRows[0].id;
+    }
+  } catch (err) {
+    // Fallback, jeśli np. nie masz kolumny is_active
+  }
+
+  // 2. Fallback: najnowszy event
+  const [latestRows] = await pool.query(
+    `
+    SELECT id
+    FROM events
+    WHERE guild_id = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [guildId]
+  );
+
+  if (latestRows?.[0]?.id) {
+    return latestRows[0].id;
+  }
+
+  // 3. Fallback: event_id z matches
+  try {
+    const [matchRows] = await pool.query(
+      `
+      SELECT event_id AS id
+      FROM matches
+      WHERE guild_id = ?
+        AND event_id IS NOT NULL
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [guildId]
+    );
+
+    if (matchRows?.[0]?.id) {
+      return matchRows[0].id;
+    }
+  } catch (err) {}
+
+  throw new Error(`Nie znaleziono aktywnego ani ostatniego eventu dla guildId=${guildId}`);
+}
+
+module.exports = {
+  getActiveOrLatestEventId,
 };
