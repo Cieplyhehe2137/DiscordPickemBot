@@ -27,49 +27,77 @@ function proxyCustomId(interaction, forcedCustomId) {
   return new Proxy(interaction, {
     get(target, prop) {
       if (prop === 'customId') return forcedCustomId;
-      const v = target[prop];
-      return typeof v === 'function' ? v.bind(target) : v;
+
+      const value = target[prop];
+      return typeof value === 'function' ? value.bind(target) : value;
     },
   });
+}
+
+function resolveHandlerName(targetCustomId, maps) {
+  const buttonMap = maps?.buttonMap || {};
+
+  if (buttonMap[targetCustomId]) {
+    return buttonMap[targetCustomId];
+  }
+
+  const matchedKey = Object.keys(buttonMap).find((key) =>
+    targetCustomId.startsWith(key)
+  );
+
+  return matchedKey ? buttonMap[matchedKey] : null;
 }
 
 module.exports = async function panelSelectAction(
   interaction,
   client,
   handlers,
-  maps,
+  maps
 ) {
   try {
     const value = interaction.values?.[0];
 
-    logInfo('panel', 'Panel select received', {
+    logInfo('PANEL_SELECT_RECEIVED', {
       guildId: interaction.guildId,
+      userId: interaction.user?.id || null,
+      username: interaction.user?.tag || interaction.user?.username || null,
       customId: interaction.customId,
-      value,
+      extra: {
+        value,
+      },
     });
 
     const targetCustomId = VALUE_TO_TARGET_CUSTOM_ID[value];
+
     if (!targetCustomId) {
-      logWarn('panel', 'Unknown select value', { value });
+      logWarn('UNKNOWN_PANEL_SELECT_VALUE', {
+        guildId: interaction.guildId,
+        userId: interaction.user?.id || null,
+        customId: interaction.customId,
+        extra: {
+          value,
+        },
+      });
+
       return interaction.reply({
         content: '❌ Nieznana akcja.',
         ephemeral: true,
       });
     }
 
-    const handlerName =
-      maps?.buttonMap?.[targetCustomId] ||
-      Object.keys(maps?.buttonMap || {}).find(key =>
-        targetCustomId.startsWith(key)
-      ) && maps.buttonMap[
-      Object.keys(maps.buttonMap).find(key =>
-        targetCustomId.startsWith(key)
-      )
-      ];
+    const handlerName = resolveHandlerName(targetCustomId, maps);
+
     if (!handlerName) {
-      logError('panel', 'No handler mapped for targetCustomId', {
-        targetCustomId,
+      logError('NO_HANDLER_MAPPED_FOR_TARGET_CUSTOM_ID', null, {
+        guildId: interaction.guildId,
+        userId: interaction.user?.id || null,
+        customId: interaction.customId,
+        extra: {
+          value,
+          targetCustomId,
+        },
       });
+
       return interaction.reply({
         content: '❌ Brak obsługi tej akcji.',
         ephemeral: true,
@@ -77,49 +105,72 @@ module.exports = async function panelSelectAction(
     }
 
     const handler = handlers?.[handlerName];
+
     if (typeof handler !== 'function') {
-      logError('panel', 'Handler not loaded or invalid', {
-        handlerName,
+      logError('HANDLER_NOT_LOADED_OR_INVALID', null, {
+        guildId: interaction.guildId,
+        userId: interaction.user?.id || null,
+        customId: interaction.customId,
+        extra: {
+          value,
+          targetCustomId,
+          handlerName,
+        },
       });
+
       return interaction.reply({
         content: '❌ Handler nie jest dostępny.',
         ephemeral: true,
       });
     }
 
-    // 🔑 ZAWSZE ACK DLA SELECTA (ephemeral)
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({ ephemeral: true });
     }
 
-    const proxied = proxyCustomId(interaction, targetCustomId);
+    const proxiedInteraction = proxyCustomId(interaction, targetCustomId);
 
-    logInfo('panel', 'Dispatching select to handler', {
-      handlerName,
-      targetCustomId,
+    logInfo('PANEL_SELECT_DISPATCHING_TO_HANDLER', {
+      guildId: interaction.guildId,
+      userId: interaction.user?.id || null,
+      username: interaction.user?.tag || interaction.user?.username || null,
+      customId: interaction.customId,
+      extra: {
+        value,
+        targetCustomId,
+        handlerName,
+      },
     });
 
-    await handler(proxied, client);
+    await handler(proxiedInteraction, client);
 
-    // ⚠️ Jeśli handler NIC nie zrobił → pokaż fallback
-    if (!interaction.replied) {
+    if (!interaction.replied && interaction.deferred) {
       await interaction.editReply({
         content: '✅ Akcja została wykonana.',
       });
     }
-
   } catch (err) {
-    logError('panel', 'panelSelectAction failed', {
-      message: err.message,
-      stack: err.stack,
+    logError('PANEL_SELECT_ACTION_FAILED', err, {
+      guildId: interaction.guildId,
+      userId: interaction.user?.id || null,
+      username: interaction.user?.tag || interaction.user?.username || null,
+      customId: interaction.customId,
+      extra: {
+        values: interaction.values,
+      },
     });
 
-    if (!interaction.replied) {
-      try {
+    try {
+      if (interaction.deferred || interaction.replied) {
         await interaction.editReply({
           content: '❌ Wystąpił błąd podczas wykonywania akcji.',
         });
-      } catch (_) { }
-    }
+      } else {
+        await interaction.reply({
+          content: '❌ Wystąpił błąd podczas wykonywania akcji.',
+          ephemeral: true,
+        });
+      }
+    } catch (_) {}
   }
 };
