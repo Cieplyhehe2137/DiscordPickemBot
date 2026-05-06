@@ -3,13 +3,14 @@ const calculateScores = require('./calculateScores');
 const path = require('path');
 const fs = require('fs');
 const { withGuild } = require('../utils/guildContext');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 function parseList(input) {
   if (!input) return [];
   try {
     const parsed = JSON.parse(input);
     if (Array.isArray(parsed)) return parsed;
-  } catch (err) {}
+  } catch (err) { }
   return String(input)
     .replace(/[[\]"']/g, '')
     .split(/[;,]+/)
@@ -86,7 +87,7 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
         try {
           const u = await interaction.client.users.fetch(id);
           if (u?.username) map.set(id, u.username);
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }
@@ -110,7 +111,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (rows?.[0]?.id) return rows[0].id;
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     const [rows] = await pool.query(
@@ -126,7 +127,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     );
 
     if (rows?.[0]?.event_id) return rows[0].event_id;
-  } catch (_) {}
+  } catch (_) { }
 
   return null;
 }
@@ -145,7 +146,7 @@ function createEmptyUser(id, displayname = null) {
 }
 
 module.exports = async function exportClassification(arg) {
-  const logger = require('../utils/logger');
+
 
   const isInteraction =
     arg &&
@@ -173,7 +174,7 @@ module.exports = async function exportClassification(arg) {
       eventId = null;
     }
 
-    logInfo('export', 'Starting classification export', {
+    logInfo('EXPORT_CLASSIFICATION_START', {
       guildId,
       eventId: eventId || null
     });
@@ -826,7 +827,7 @@ module.exports = async function exportClassification(arg) {
           ['Lower Final B', joinOrDash(parseList(de[0].lower_final_b))]
         ]);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const rowsPlayIn = Object.entries(users)
       .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
