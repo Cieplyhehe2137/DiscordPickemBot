@@ -60,15 +60,15 @@ const logger = createLogger({
 });
 
 function logInfo(message, meta = {}) {
-  logInfo(message, meta);
+  logger.info(message, meta);
 }
 
 function logWarn(message, meta = {}) {
-  logWarn(message, meta);
+  logger.warn(message, meta);
 }
 
 function logError(message, error = null, meta = {}) {
-  logError(message, {
+  logger.error(message, {
     ...meta,
     stack: error?.stack || null,
     extra: error && !error.stack ? String(error) : meta.extra || null,
