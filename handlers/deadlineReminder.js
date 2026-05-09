@@ -59,15 +59,9 @@ async function safeEnsureDeadlineDescription(message, baseEmbed, deadline) {
   try {
     if (!message || typeof message.edit !== 'function') return;
 
-    const oldDescription =
-      baseEmbed?.data?.description ||
-      '';
-
-    const cleanedDescription =
-      stripOldDeadlineLines(oldDescription);
-
-    const deadlineLines =
-      buildDeadlineLines(deadline);
+    const oldDescription = baseEmbed?.data?.description || '';
+    const cleanedDescription = stripOldDeadlineLines(oldDescription);
+    const deadlineLines = buildDeadlineLines(deadline);
 
     const newDescription = cleanedDescription
       ? `${cleanedDescription}\n\n${deadlineLines}`
@@ -84,16 +78,38 @@ async function safeEnsureDeadlineDescription(message, baseEmbed, deadline) {
     await message.edit({
       embeds: [updated]
     });
+
+    console.log('[DEADLINE] panel description updated');
   } catch (err) {
     logWarn('deadline', 'safeEnsureDeadlineDescription failed', {
       message: err.message
     });
+
+    console.error('[DEADLINE] safeEnsureDeadlineDescription failed', err);
+  }
+}
+
+async function canPingEveryone(channel) {
+  try {
+    const me =
+      channel.guild.members.me ||
+      await channel.guild.members.fetchMe().catch(() => null);
+
+    if (!me) return false;
+
+    return !!channel
+      .permissionsFor(me)
+      ?.has(PermissionFlagsBits.MentionEveryone);
+  } catch (err) {
+    console.error('[DEADLINE] canPingEveryone failed', err);
+    return false;
   }
 }
 
 function startDeadlineReminder(client, guildId) {
   if (!guildId) {
     logError('deadline', 'startDeadlineReminder called without guildId');
+    console.error('[DEADLINE] startDeadlineReminder called without guildId');
     return;
   }
 
@@ -101,13 +117,27 @@ function startDeadlineReminder(client, guildId) {
     logWarn('deadline', 'Deadline reminder already running for guild', {
       guildId
     });
+
+    console.log('[DEADLINE] reminder already running', {
+      guildId
+    });
+
     return;
   }
 
   _startedReminders.add(String(guildId));
 
+  console.log('[DEADLINE] reminder started', {
+    guildId
+  });
+
   setInterval(async () => {
     try {
+      console.log('[DEADLINE] tick', {
+        guildId,
+        now: new Date().toISOString()
+      });
+
       await withGuild(guildId, async ({ pool }) => {
         const [panels] = await pool.query(
           `
@@ -128,6 +158,11 @@ function startDeadlineReminder(client, guildId) {
           [guildId]
         );
 
+        console.log('[DEADLINE] panels fetched', {
+          guildId,
+          count: panels.length
+        });
+
         for (const panel of panels) {
           const {
             id,
@@ -140,9 +175,27 @@ function startDeadlineReminder(client, guildId) {
             reminded = 0
           } = panel;
 
-          if (!deadline) continue;
+          console.log('[DEADLINE] checking panel', {
+            guildId,
+            panelId: id,
+            phase,
+            stage,
+            stage_key,
+            channel_id,
+            message_id,
+            deadline,
+            reminded
+          });
+
+          if (!deadline) {
+            console.log('[DEADLINE] skipped - no deadline', {
+              panelId: id
+            });
+            continue;
+          }
 
           const nowUtc = DateTime.utc();
+
           const deadlineUtc = DateTime.fromJSDate(
             deadline instanceof Date ? deadline : new Date(deadline)
           ).toUTC();
@@ -150,17 +203,53 @@ function startDeadlineReminder(client, guildId) {
           const diffInMinutes =
             deadlineUtc.diff(nowUtc, 'minutes').minutes;
 
+          const oldEnough = isMessageOlderThan(message_id, 1);
+
+          console.log('[DEADLINE] diff calculated', {
+            guildId,
+            panelId: id,
+            nowUtc: nowUtc.toISO(),
+            deadlineUtc: deadlineUtc.toISO(),
+            diffInMinutes,
+            reminded,
+            oldEnough
+          });
+
           const channel = await client.channels
             .fetch(channel_id)
-            .catch(() => null);
+            .catch(err => {
+              console.error('[DEADLINE] channel fetch failed', {
+                channel_id,
+                error: err.message
+              });
+              return null;
+            });
 
-          if (!channel) continue;
+          if (!channel) {
+            console.log('[DEADLINE] skipped - channel not found', {
+              panelId: id,
+              channel_id
+            });
+            continue;
+          }
 
           const message = await channel.messages
             .fetch(message_id)
-            .catch(() => null);
+            .catch(err => {
+              console.error('[DEADLINE] message fetch failed', {
+                message_id,
+                error: err.message
+              });
+              return null;
+            });
 
-          if (!message) continue;
+          if (!message) {
+            console.log('[DEADLINE] skipped - message not found', {
+              panelId: id,
+              message_id
+            });
+            continue;
+          }
 
           const baseEmbed = message.embeds?.[0]
             ? EmbedBuilder.from(message.embeds[0])
@@ -173,42 +262,74 @@ function startDeadlineReminder(client, guildId) {
           );
 
           if (diffInMinutes <= 0) {
+            console.log('[DEADLINE] skipped - deadline already passed', {
+              panelId: id,
+              diffInMinutes
+            });
             continue;
           }
 
+          console.log('[DEADLINE] reminder condition check', {
+            guildId,
+            panelId: id,
+            diffInMinutes,
+            reminded,
+            oldEnough,
+            shouldSend:
+              diffInMinutes <= 60 &&
+              Number(reminded) === 0 &&
+              oldEnough
+          });
+
           if (
             diffInMinutes <= 60 &&
-            reminded === 0 &&
-            isMessageOlderThan(message_id, 1)
+            Number(reminded) === 0 &&
+            oldEnough
           ) {
-            const stageLabel =
-              stage_key ||
-              stage ||
-              null;
+            const stageLabel = stage_key || stage || null;
+            const canMentionEveryone = await canPingEveryone(channel);
 
-            const embed = new EmbedBuilder()
-              .setColor('Orange')
-              .setTitle(
-                `⏰ Przypomnienie o typowaniu (${phase}${stageLabel ? ` – ${String(stageLabel).toUpperCase()}` : ''})`
-              )
-              .setDescription(
-                'Została mniej niż 1 godzina do zakończenia typowania!'
-              )
-              .setTimestamp();
+            const pingText = canMentionEveryone
+              ? '@everyone\n\n'
+              : '';
 
-            const me = channel.guild.members.me;
+            const content =
+              `${pingText}` +
+              `⏰ **Przypomnienie o typowaniu!**\n` +
+              `Faza: **${phase}${stageLabel ? ` – ${String(stageLabel).toUpperCase()}` : ''}**\n` +
+              `Została mniej niż **1 godzina** do zakończenia typowania.\n\n` +
+              `⏳ Deadline: <t:${Math.floor(new Date(deadline).getTime() / 1000)}:R>`;
 
-            const canMentionEveryone = channel
-              .permissionsFor(me)
-              ?.has(PermissionFlagsBits.MentionEveryone);
-
-            await channel.send({
-              embeds: [embed],
-              content: canMentionEveryone ? '@everyone' : undefined,
-              allowedMentions: canMentionEveryone
-                ? { parse: ['everyone'] }
-                : { parse: [] }
+            console.log('[DEADLINE] sending reminder', {
+              guildId,
+              panelId: id,
+              channelId: channel_id,
+              canMentionEveryone
             });
+
+            try {
+              await channel.send({
+                content,
+                allowedMentions: canMentionEveryone
+                  ? { parse: ['everyone'] }
+                  : { parse: [] }
+              });
+
+              console.log('[DEADLINE] reminder sent successfully', {
+                guildId,
+                panelId: id
+              });
+            } catch (err) {
+              console.error('[DEADLINE] SEND FAILED', {
+                guildId,
+                panelId: id,
+                channelId: channel_id,
+                message: err.message,
+                stack: err.stack
+              });
+
+              continue;
+            }
 
             await pool.query(
               `
@@ -219,6 +340,11 @@ function startDeadlineReminder(client, guildId) {
               [id]
             );
 
+            console.log('[DEADLINE] reminded updated', {
+              guildId,
+              panelId: id
+            });
+
             logInfo('deadline', 'Deadline reminder sent', {
               guildId,
               panelId: id,
@@ -226,13 +352,20 @@ function startDeadlineReminder(client, guildId) {
               stage,
               stage_key,
               channelId: channel_id,
-              messageId: message_id
+              messageId: message_id,
+              canMentionEveryone
             });
           }
         }
       });
     } catch (err) {
       logError('deadline', 'Deadline reminder error', {
+        guildId,
+        message: err.message,
+        stack: err.stack
+      });
+
+      console.error('[DEADLINE] reminder error', {
         guildId,
         message: err.message,
         stack: err.stack
