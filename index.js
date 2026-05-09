@@ -8,6 +8,8 @@ const resolvedEnvPath = path.isAbsolute(envPath)
   : path.join(process.cwd(), envPath);
 
 dotenv.config({ path: resolvedEnvPath });
+const { getAllGuildIds } = require('./utils/guildRegistry');
+const { startDeadlineReminder } = require('./handlers/deadlineReminder');
 
 process.on("unhandledRejection", (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
