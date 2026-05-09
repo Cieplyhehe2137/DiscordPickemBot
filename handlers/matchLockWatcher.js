@@ -1,9 +1,7 @@
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { getLockBeforeSec } = require('../utils/matchLock');
 const { withGuild } = require('../utils/guildContext');
 const { disableMatchComponents } = require('../utils/disableMatchComponents');
-
-
 
 const _startedWatchers = new Set();
 
