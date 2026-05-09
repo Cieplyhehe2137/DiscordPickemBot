@@ -203,13 +203,32 @@ module.exports = {
         [deadlineUTC, row.id]
       );
 
-      const timeLeft = formatTimeLeft(deadlineUTC);
+      const unix = Math.floor(deadlineUTC.getTime() / 1000);
 
       const embed = message.embeds?.[0]
         ? EmbedBuilder.from(message.embeds[0])
         : new EmbedBuilder();
 
-      embed.setFooter({ text: `🕒 Deadline za ${timeLeft}` });
+      embed.setFooter({
+        text: `Deadline: ${rawInput} czasu PL`
+      });
+
+      const oldDescription = embed.data.description || '';
+
+      const cleanedDescription = oldDescription
+        .split('\n')
+        .filter(line =>
+          !line.includes('Deadline:') &&
+          !line.includes('Pozostało:') &&
+          !line.includes('⏰') &&
+          !line.includes('⏳')
+        )
+        .join('\n')
+        .trim();
+
+      embed.setDescription(
+        `${cleanedDescription}\n\n⏰ Deadline: <t:${unix}:F>\n⏳ Pozostało: <t:${unix}:R>`
+      );
 
       await message.edit({ embeds: [embed] });
 
