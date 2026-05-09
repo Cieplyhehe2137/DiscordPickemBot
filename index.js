@@ -47,24 +47,6 @@ function getGitCommit() {
   }
 }
 
-// console.log("=== DEPLOY DEBUG ===");
-// console.log("CWD:", process.cwd());
-// console.log("ENTRY __dirname:", __dirname);
-// console.log("GIT COMMIT:", getGitCommit());
-// console.log("DEPLOY TS:", new Date().toISOString());
-// console.log("====================");
-
-
-// 🌍 Debugowanie zmiennych środowiskowych
-// ('==================== 🌍 DEBUG ENV ====================');
-// [
-//   'DISCORD_TOKEN', 'CLIENT_ID', 'GUILD_ID', 'EXPORT_PANEL_CHANNEL_ID', 'LOG_CHANNEL_ID',
-//   'DB_HOST', 'DB_USER', 'DBconsole.log_NAME', 'DB_PORT'
-// ].forEach((key) => {
-//   const val = process.env[key];
-//   // console.log(`${key}:`, val ? '✅ załadowany' : '❌ BRAK');
-// });
-// console.log('=====================================================');
 
 // 🔧 Konfiguracja klienta Discord
 const client = new Client({
@@ -93,15 +75,6 @@ client.on('shardDisconnect', (event, id) => {
     },
   });
 });
-
-// client.on('shardResume', (id, replayed) => {
-//   console.log(`✅ [SHARD RESUME] shard ${id} replayed=${replayed}`);
-// });
-
-// client.on('invalidated', () => {
-//   console.warn('🚫 [INVALIDATED] sesja unieważniona (często: druga instancja bota albo problem z tokenem)');
-// });
-
 
 
 // 📦 Ładowanie komend
@@ -138,7 +111,7 @@ client.on("warn", (w) => {
 // Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
 const startPresence = require('./utils/startPresence');
 
-client.once("ready", () => {
+client.once("ready", async () => {
   logInfo("BOT_READY", {
     extra: {
       botTag: client.user.tag,
@@ -153,6 +126,13 @@ client.once("ready", () => {
   }, 30 * 1000);
 
   closeExpiredPanels(client);
+
+  try {
+    await onReady(client);
+  } catch (err) {
+    logError("ON_READY_FAILED", err);
+    console.error("❌ onReady failed:", err);
+  }
 });
 
 
@@ -186,12 +166,10 @@ if (!TOKEN) {
 
   // watchdog: jeśli READY nie przyjdzie w 25s, zgłoś
   const readyTimeout = setTimeout(() => {
-    // console.error('⏱️ 25s bez READY — to zwykle token/sieć/gateway. Sprawdź logi powyżej.');
   }, 25000);
 
   client.login(TOKEN)
     .then(() => {
-      // console.log('✅ client.login() OK — czekam na READY…');
     })
     .catch((e) => {
       clearTimeout(readyTimeout);
@@ -199,11 +177,6 @@ if (!TOKEN) {
       console.error('❌ client.login error:', e);
     });
 
-  // czytelniejsze info o nieobsłużonych wyjątkach
-  // process.on('unhandledRejection', (r) => console.error('❌ UnhandledRejection:', r));
-  // process.on('uncaughtException', (e) => console.error('❌ UncaughtException:', e));
 }
 
 
-//test
-//test test

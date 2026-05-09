@@ -1,5 +1,5 @@
 // onReady.js
-const logger = require('./utils/logger');
+const { logInfo, logError } = require('./utils/logger');
 const { getAllGuildIds, ensureGuildDirs } = require('./utils/guildRegistry');
 const { withGuild } = require('./utils/guildContext');
 
@@ -8,7 +8,6 @@ const startExportPanel = require('./utils/startExportPanel');
 
 const { startMatchLockWatcher } = require('./handlers/matchLockWatcher');
 const { startDeadlineReminder } = require('./handlers/deadlineReminder');
-
 
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();
