@@ -7,7 +7,7 @@ const {
   ChannelType,
 } = require('discord.js');
 
-const logger = require('./logger');
+const { logInfo, logWarn, logError } = require('./logger');
 const { getGuildConfig } = require('./guildRegistry');
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
