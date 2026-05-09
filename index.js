@@ -145,6 +145,12 @@ client.once("ready", () => {
   });
 
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
+
+  setInterval(() => {
+    closeExpiredPanels(client);
+  }, 30 * 1000);
+
+  closeExpiredPanels(client);
 });
 
 
