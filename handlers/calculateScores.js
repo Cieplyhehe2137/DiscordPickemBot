@@ -1,9 +1,51 @@
-const logger = require('../utils/logger');
+const {
+  logInfo: baseLogInfo,
+  logWarn: baseLogWarn,
+  logError: baseLogError
+} = require('../utils/logger');
+
 const { withGuild } = require('../utils/guildContext');
 const {
   computeSeriesPoints,
   computeMapPoints
 } = require('../utils/matchScoring');
+
+function logInfo(scope, message, meta = {}) {
+  baseLogInfo(message, {
+    ...meta,
+    extra: {
+      ...(meta.extra || {}),
+      scope
+    }
+  });
+}
+
+function logWarn(scope, message, meta = {}) {
+  baseLogWarn(message, {
+    ...meta,
+    extra: {
+      ...(meta.extra || {}),
+      scope
+    }
+  });
+}
+
+function logError(scope, message, meta = {}) {
+  baseLogError(message, null, {
+    guildId: meta.guildId || null,
+    userId: meta.userId || null,
+    command: meta.command || null,
+    customId: meta.customId || null,
+    eventId: meta.eventId || null,
+    phase: meta.phase || null,
+    stack: meta.stack || null,
+    extra: {
+      ...(meta.extra || {}),
+      scope,
+      errorMessage: meta.message || null
+    }
+  });
+}
 
 // =========================
 // HELPERY
