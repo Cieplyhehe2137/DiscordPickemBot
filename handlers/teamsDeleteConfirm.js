@@ -122,12 +122,21 @@ module.exports = async function teamsDeleteConfirm(interaction) {
           content: '❌ Nie udało się usunąć drużyn.',
           ephemeral: true
         });
-      } catch (_) {}
+      } catch (_) { }
     }
 
     await safeEditMessage(interaction, {
-      content: '❌ Nie udało się usunąć drużyn.',
-      components: []
+      content:
+        `✅ Usunięto **${ids.length}** drużyn:\n\n` +
+        `${preview}${extra}`,
+      components: [backRow]
     });
+
+    try {
+      await interaction.followUp({
+        content: `✅ Usunięto ${ids.length} drużyn.`,
+        ephemeral: true
+      });
+    } catch (_) { }
   }
 };
