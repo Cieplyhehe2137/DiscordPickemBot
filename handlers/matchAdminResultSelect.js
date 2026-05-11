@@ -1,4 +1,4 @@
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 const { computeTotalPoints } = require('../utils/matchScoring');
 

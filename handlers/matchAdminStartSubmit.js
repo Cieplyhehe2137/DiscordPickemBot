@@ -1,4 +1,4 @@
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 const { DateTime } = require('luxon');
 const { withGuild } = require('../utils/guildContext');

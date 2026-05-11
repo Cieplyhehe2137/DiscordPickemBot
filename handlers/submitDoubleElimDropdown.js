@@ -2,7 +2,7 @@
 
 const { withGuild } = require('../utils/guildContext');
 // const { safeQuery } = require('../utils/safeQuery');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 const uniq = (arr) => Array.from(new Set(arr));

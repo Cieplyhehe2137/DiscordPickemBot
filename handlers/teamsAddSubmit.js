@@ -1,5 +1,5 @@
 // handlers/teamsAddSubmit.js
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const {
   ActionRowBuilder,
   ButtonBuilder,

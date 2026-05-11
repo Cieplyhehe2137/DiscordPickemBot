@@ -6,7 +6,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 const exportClassification = require('../handlers/exportClassification');
 const sendArchivePanel = require('../utils/sendArchivePanel');

@@ -1,4 +1,4 @@
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { validateScore } = require('../utils/matchScoring');
 const userState = require('../utils/matchUserState');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');

@@ -7,7 +7,7 @@ const {
   ensureGuildDirs
 } = require('../utils/guildRegistry');
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 module.exports = async function backupDatabase(interaction) {
   const guildId = interaction.guildId;

@@ -1,7 +1,7 @@
 // handlers/submitPlayinDropdown.js
 
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 // cache: `${guildId}:${userId}` -> { teams: [], ts }

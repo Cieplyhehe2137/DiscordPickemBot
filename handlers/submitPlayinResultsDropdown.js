@@ -8,7 +8,7 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 
 const CACHE_TTL = 15 * 60 * 1000;

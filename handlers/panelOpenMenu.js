@@ -4,7 +4,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 function isAdmin(interaction) {
   return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);

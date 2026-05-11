@@ -1,5 +1,5 @@
 const userState = require('../utils/matchUserState');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 
 module.exports = async function matchUserMapSelect(interaction) {

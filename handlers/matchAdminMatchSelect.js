@@ -8,7 +8,7 @@ const {
 
 const { withGuild } = require('../utils/guildContext');
 const adminState = require('../utils/matchAdminState');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 function safeLabel(str) {
   const s = String(str || 'opcja');

@@ -3,7 +3,7 @@ const path = require('path');
 const restoreBackup = require('../utils/restoreBackup');
 const { getGuildPaths, ensureGuildDirs } = require('../utils/guildRegistry');
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;

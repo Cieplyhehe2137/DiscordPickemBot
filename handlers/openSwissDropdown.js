@@ -7,7 +7,7 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 async function loadTeamsWithFlags(pool, guildId) {
   const [rows] = await pool.query(

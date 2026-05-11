@@ -6,7 +6,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const teamsState = require('../utils/teamsState');
 const { deleteTeams, listTeams } = require('../utils/teamsStore');
 

@@ -1,6 +1,6 @@
 // handlers/teamsExport.js
 const { PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { getTeamNames } = require('../utils/teamsStore');
 
 module.exports = async function teamsExport(interaction) {

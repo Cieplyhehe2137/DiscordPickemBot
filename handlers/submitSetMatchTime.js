@@ -1,5 +1,5 @@
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { parseStartInputToUtc, formatStartLocal } = require('../utils/matchLock');
 
 module.exports = async function submitSetMatchTime(interaction) {

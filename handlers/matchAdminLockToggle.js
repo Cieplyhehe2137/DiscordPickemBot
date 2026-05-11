@@ -2,7 +2,7 @@
 
 const { PermissionFlagsBits } = require('discord.js');
 const pool = require('../db');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { isMatchStarted } = require('../utils/matchLock');
 const { DateTime } = require('luxon');
 

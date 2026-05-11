@@ -5,7 +5,7 @@ const {
   ActionRowBuilder
 } = require('discord.js');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 const { withGuild } = require('../utils/guildContext');

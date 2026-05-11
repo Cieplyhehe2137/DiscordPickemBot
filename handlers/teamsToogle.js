@@ -1,5 +1,5 @@
 // handlers/teamsToggle.js
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const teamsState = require('../utils/teamsState');
 const { toggleTeamActive } = require('../utils/teamsStore');
 const openTeamsManager = require('./openTeamsManager');

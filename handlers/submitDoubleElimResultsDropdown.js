@@ -1,6 +1,6 @@
 // handlers/submitDoubleElimResultsDropdown.js
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const { PermissionFlagsBits } = require('discord.js');
 const { withGuild } = require('../utils/guildContext');
 

@@ -5,7 +5,7 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 function safeLabel(str) {
   if (!str) return 'mecz';

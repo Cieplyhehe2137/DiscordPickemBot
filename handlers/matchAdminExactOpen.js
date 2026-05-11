@@ -6,7 +6,7 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 const { withGuild } = require('../utils/guildContext');
 

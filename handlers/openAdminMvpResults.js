@@ -5,7 +5,7 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 
 module.exports = async function openAdminMvpResult(interaction, eventId) {
   try {

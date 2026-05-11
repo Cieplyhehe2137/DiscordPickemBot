@@ -1,4 +1,4 @@
-const logger = require('../utils/logger');
+const { logInfo, logWarn, logError } = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { isMatchLocked } = require('../utils/matchLock');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
