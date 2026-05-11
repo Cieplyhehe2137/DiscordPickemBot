@@ -144,6 +144,14 @@ module.exports = async (interaction) => {
         await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
         await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
         await del('DELETE FROM playin_predictions WHERE guild_id = ?');
+        await del('DELETE FROM swiss_results WHERE guild_id = ?');
+        await del('DELETE FROM playoffs_results WHERE guild_id =?');
+        await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
+        await del('DELETE FROM playin_results WHERE guild_id = ?');
+        await del('DELETE FROM swiss_scores WHERE guild_id = ?');
+        await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
+        await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
+        await del('DELETE FROM playin_scores WHERE guild_id = ?');
         await pool.query('COMMIT');
         return respond({ content: '💣 Wykonano pełny reset.' });
       }

@@ -16,12 +16,28 @@ function getSelectedIds(st) {
   return [];
 }
 
+async function safeEditMessage(interaction, payload) {
+  try {
+    if (interaction.message?.editable !== false) {
+      return await interaction.message.edit(payload);
+    }
+  } catch (err) {
+    logWarn('teams', 'safeEditMessage failed', {
+      guildId: interaction.guildId,
+      userId: interaction.user?.id || null,
+      code: err.code,
+      message: err.message
+    });
+  }
+
+  return null;
+}
+
 module.exports = async function teamsDeleteConfirm(interaction) {
   const guildId = interaction.guildId;
   const userId = interaction.user?.id;
 
   try {
-    // tylko serwer
     if (!guildId) {
       return interaction.reply({
         content: '❌ Ta akcja działa tylko na serwerze.',
@@ -29,12 +45,15 @@ module.exports = async function teamsDeleteConfirm(interaction) {
       });
     }
 
-    // tylko admin
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
       return interaction.reply({
         content: '⛔ Tylko administracja.',
         ephemeral: true
       });
+    }
+
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
     }
 
     const st = teamsState.getState(guildId, userId) || {};
@@ -43,26 +62,19 @@ module.exports = async function teamsDeleteConfirm(interaction) {
       .filter(n => Number.isFinite(n) && n > 0);
 
     if (!ids.length) {
-      const payload = {
+      await safeEditMessage(interaction, {
         content: '⚠️ Nie wybrano żadnych drużyn do usunięcia.',
         components: []
-      };
-
-      if (interaction.isButton() || interaction.isStringSelectMenu()) {
-        return interaction.update(payload);
-      }
-      return interaction.reply({ ...payload, ephemeral: true });
+      });
+      return;
     }
 
-    // pobierz nazwy przed usunięciem (do podglądu)
     const all = await listTeams(guildId, { includeInactive: true });
     const byId = new Map(all.map(t => [Number(t.id), t.name]));
     const names = ids.map(id => byId.get(id) || `ID:${id}`);
 
-    // USUWANIE
     await deleteTeams(guildId, ids);
 
-    // reset stanu selekcji
     teamsState.setState(guildId, userId, {
       page: st.page || 0,
       selectedTeamIds: [],
@@ -89,7 +101,7 @@ module.exports = async function teamsDeleteConfirm(interaction) {
       ids
     });
 
-    return interaction.update({
+    await safeEditMessage(interaction, {
       content:
         `✅ Usunięto **${ids.length}** drużyn:\n\n` +
         `${preview}${extra}`,
@@ -105,10 +117,17 @@ module.exports = async function teamsDeleteConfirm(interaction) {
     });
 
     if (!interaction.replied && !interaction.deferred) {
-      return interaction.reply({
-        content: '❌ Nie udało się usunąć drużyn.',
-        ephemeral: true
-      });
+      try {
+        return interaction.reply({
+          content: '❌ Nie udało się usunąć drużyn.',
+          ephemeral: true
+        });
+      } catch (_) {}
     }
+
+    await safeEditMessage(interaction, {
+      content: '❌ Nie udało się usunąć drużyn.',
+      components: []
+    });
   }
 };
