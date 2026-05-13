@@ -9,6 +9,7 @@ const { logInfo, logWarn, logError } = require('../utils/logger.js');
 const { withGuild } = require('../utils/guildContext');
 
 const _startedReminders = new Set();
+const _deadlineIdleState = new Map();
 
 function isMessageOlderThan(messageId, minutes = 1) {
   try {
@@ -133,35 +134,66 @@ function startDeadlineReminder(client, guildId) {
 
   setInterval(async () => {
     try {
-      console.log('[DEADLINE] tick', {
-        guildId,
-        now: new Date().toISOString()
-      });
+      // console.log('[DEADLINE] tick', {
+      // guildId,
+      // now: new Date().toISOString()
+      // });
 
       await withGuild(guildId, async ({ pool }) => {
         const [panels] = await pool.query(
           `
           SELECT
-            id,
-            phase,
-            stage,
-            stage_key,
-            channel_id,
-            message_id,
-            deadline,
-            reminded
+          id,
+          phase,
+          stage,
+          stage_key,
+          channel_id,
+          message_id,
+          deadline,
+          reminded
           FROM active_panels
           WHERE active = 1
-            AND deadline IS NOT NULL
-            AND guild_id = ?
+          AND closed = 0
+          AND deadline IS NOT NULL
+          AND guild_id = ?
           `,
           [guildId]
         );
+
+        if (!panels.length) {
+          if (_deadlineIdleState.get(String(guildId)) !== 'idle') {
+            _deadlineIdleState.set(String(guildId), 'idle');
+
+            logInfo('deadline', 'Deadline reminder idle - no active panels', {
+              guildId
+            });
+
+            console.log('[DEADLINE] idle - no active panels', {
+              guildId
+            });
+          }
+
+          return;
+        }
 
         console.log('[DEADLINE] panels fetched', {
           guildId,
           count: panels.length
         });
+
+        if (_deadlineIdleState.get(String(guildId)) !== 'active') {
+          _deadlineIdleState.set(String(guildId), 'active');
+
+          logInfo('deadline', 'Deadline reminder active panels found', {
+            guildId,
+            count: panels.length
+          });
+
+          console.log('[DEADLINE] active panels found', {
+            guildId,
+            count: panels.length
+          });
+        }
 
         for (const panel of panels) {
           const {
