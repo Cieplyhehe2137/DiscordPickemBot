@@ -98,242 +98,284 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    if (
-      !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
-      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-    ) {
-      return interaction.reply({
-        content: '🚫 Nie masz uprawnień do użycia tej komendy.',
-        ephemeral: true
-      });
-    }
-
-    const guildId = interaction.guildId;
-    if (!guildId) {
-      return interaction.reply({
-        content: '❌ Ta funkcja działa tylko na serwerze.',
-        ephemeral: true
-      });
-    }
-
-    const eventName = interaction.options.getString('event', true).trim();
-
-    if (!eventName) {
-      return interaction.reply({
-        content: '❌ Podaj poprawną nazwę eventu.',
-        ephemeral: true
-      });
-    }
-
-    await interaction.deferReply({ ephemeral: true });
-
-    return withGuild(guildId, async ({ pool }) => {
-      const baseSlug = makeSlug(eventName);
-      const slug = baseSlug || `event-${Date.now()}`;
-
-      const [existing] = await pool.query(
-        `
-        SELECT id
-        FROM events
-        WHERE guild_id = ?
-          AND slug = ?
-        LIMIT 1
-        `,
-        [guildId, slug]
-      );
-
-      if (existing.length) {
-        return interaction.editReply({
-          content:
-            `❌ Event o nazwie **${eventName}** już istnieje.\n` +
-            `Zmień nazwę albo zamknij/usuń stary event.`
+    try {
+      if (
+        !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
+        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+      ) {
+        return interaction.reply({
+          content: '🚫 Nie masz uprawnień do użycia tej komendy.',
+          ephemeral: true
         });
       }
 
-      const [result] = await pool.query(
-        `
-        INSERT INTO events (
-          guild_id,
-          slug,
-          name,
-          phase,
-          status
-        )
-        VALUES (?, ?, ?, ?, ?)
-        `,
-        [
-          guildId,
-          slug,
-          eventName,
-          'NOT_STARTED',
-          'OPEN'
-        ]
-      );
+      const guildId = interaction.guildId;
+      if (!guildId) {
+        return interaction.reply({
+          content: '❌ Ta funkcja działa tylko na serwerze.',
+          ephemeral: true
+        });
+      }
 
-      const eventId = result.insertId;
+      const eventName = interaction.options.getString('event', true).trim();
 
-      const embed = new EmbedBuilder()
-        .setTitle('📌 Wybierz fazę turnieju, którą chcesz rozpocząć:')
-        .setDescription(
-          `Event: **${eventName}**\n` +
-          `Slug: \`${slug}\`\n` +
-          `ID eventu: \`${eventId}\``
-        )
-        .setColor('Orange');
+      if (!eventName) {
+        return interaction.reply({
+          content: '❌ Podaj poprawną nazwę eventu.',
+          ephemeral: true
+        });
+      }
 
-      const selectMenu = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`select_pickem_phase:${eventId}`)
-          .setPlaceholder('Wybierz fazę turnieju')
-          .addOptions(
-            { label: 'Swiss', value: 'swiss' },
-            { label: 'Playoffs', value: 'playoffs' },
-            { label: 'Double Elimination', value: 'doubleelim' },
-            { label: 'Play-In', value: 'playin' }
+      await interaction.deferReply({ ephemeral: true });
+
+      return withGuild(guildId, async ({ pool }) => {
+        const baseSlug = makeSlug(eventName);
+        const slug = baseSlug || `event-${Date.now()}`;
+
+        const [existing] = await pool.query(
+          `
+          SELECT id
+          FROM events
+          WHERE guild_id = ?
+            AND slug = ?
+          LIMIT 1
+          `,
+          [guildId, slug]
+        );
+
+        if (existing.length) {
+          return interaction.editReply({
+            content:
+              `❌ Event o nazwie **${eventName}** już istnieje.\n` +
+              `Zmień nazwę albo zamknij/usuń stary event.`
+          });
+        }
+
+        const [result] = await pool.query(
+          `
+          INSERT INTO events (
+            guild_id,
+            slug,
+            name,
+            phase,
+            status
           )
-      );
+          VALUES (?, ?, ?, ?, ?)
+          `,
+          [
+            guildId,
+            slug,
+            eventName,
+            'NOT_STARTED',
+            'OPEN'
+          ]
+        );
 
-      return interaction.editReply({
-        embeds: [embed],
-        components: [selectMenu]
+        const eventId = result.insertId;
+
+        const embed = new EmbedBuilder()
+          .setTitle('📌 Wybierz fazę turnieju, którą chcesz rozpocząć:')
+          .setDescription(
+            `Event: **${eventName}**\n` +
+            `Slug: \`${slug}\`\n` +
+            `ID eventu: \`${eventId}\``
+          )
+          .setColor('Orange');
+
+        const selectMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId('select_pickem_phase')
+            .setPlaceholder('Wybierz fazę turnieju')
+            .addOptions(
+              { label: 'Swiss', value: `swiss:${eventId}` },
+              { label: 'Playoffs', value: `playoffs:${eventId}` },
+              { label: 'Double Elimination', value: `doubleelim:${eventId}` },
+              { label: 'Play-In', value: `playin:${eventId}` }
+            )
+        );
+
+        return interaction.editReply({
+          embeds: [embed],
+          components: [selectMenu]
+        });
       });
-    });
+    } catch (err) {
+      console.error('[PICKEM] execute error', err);
+
+      try {
+        if (!interaction.deferred && !interaction.replied) {
+          return interaction.reply({
+            content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
+            ephemeral: true
+          });
+        }
+
+        return interaction.editReply({
+          content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
+          components: []
+        });
+      } catch (_) {}
+    }
   },
 
   async handlePhaseSelect(interaction) {
-    if (!interaction.isStringSelectMenu()) return;
-    if (!interaction.customId.startsWith('select_pickem_phase')) return;
+    try {
+      if (!interaction.isStringSelectMenu()) return;
+      if (interaction.customId !== 'select_pickem_phase') return;
 
-    if (
-      !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
-      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
-    ) {
-      return interaction.reply({
-        content: '🚫 Nie masz uprawnień do tej akcji.',
-        ephemeral: true
+      console.log('[PICKEM] handlePhaseSelect fired', {
+        customId: interaction.customId,
+        values: interaction.values
       });
-    }
 
-    const guildId = interaction.guildId;
-    if (!guildId) {
-      return interaction.reply({
-        content: '❌ Ta funkcja działa tylko na serwerze.',
-        ephemeral: true
-      });
-    }
-
-    const eventId = Number(interaction.customId.split(':')[1]);
-
-    if (!eventId) {
-      return interaction.reply({
-        content: '❌ Brak ID eventu w wyborze fazy.',
-        ephemeral: true
-      });
-    }
-
-    await interaction.deferReply({ ephemeral: true });
-
-    return withGuild(guildId, async ({ pool }) => {
-      const selected = interaction.values[0];
-      const config = phasesConfig[selected];
-
-      if (!config) {
-        return interaction.editReply({
-          content: `❌ Nieznana faza: ${selected}`
+      if (
+        !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) &&
+        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+      ) {
+        return interaction.reply({
+          content: '🚫 Nie masz uprawnień do tej akcji.',
+          ephemeral: true
         });
       }
 
-      const [events] = await pool.query(
-        `
-        SELECT id, name, slug, status
-        FROM events
-        WHERE id = ?
-          AND guild_id = ?
-        LIMIT 1
-        `,
-        [eventId, guildId]
-      );
-
-      if (!events.length) {
-        return interaction.editReply({
-          content: '❌ Nie znaleziono eventu dla tego panelu.'
+      const guildId = interaction.guildId;
+      if (!guildId) {
+        return interaction.reply({
+          content: '❌ Ta funkcja działa tylko na serwerze.',
+          ephemeral: true
         });
       }
 
-      const event = events[0];
+      const rawValue = String(interaction.values?.[0] || '');
+      const [selected, rawEventId] = rawValue.split(':');
+      const eventId = Number(rawEventId);
 
-      await pool.query(
-        `
-        UPDATE events
-        SET phase = ?, status = 'OPEN'
-        WHERE id = ?
-          AND guild_id = ?
-        `,
-        [selected, eventId, guildId]
-      );
+      if (!selected || !eventId) {
+        return interaction.reply({
+          content: '❌ Brak poprawnego ID eventu w wyborze fazy.',
+          ephemeral: true
+        });
+      }
 
-      await pool.query(
-        `
-        UPDATE active_panels
-        SET active = 0
-        WHERE guild_id = ?
-          AND phase = ?
-        `,
-        [guildId, selected]
-      );
+      await interaction.deferReply({ ephemeral: true });
 
-      const embed = new EmbedBuilder()
-        .setTitle(config.title)
-        .setDescription(
-          `🏆 Event: **${event.name}**\n\n` +
-          config.description
-        )
-        .setColor(config.color);
+      return withGuild(guildId, async ({ pool }) => {
+        const config = phasesConfig[selected];
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(config.buttonId)
-          .setLabel(config.buttonLabel)
-          .setStyle(ButtonStyle.Primary),
+        if (!config) {
+          return interaction.editReply({
+            content: `❌ Nieznana faza: ${selected}`
+          });
+        }
 
-        new ButtonBuilder()
-          .setCustomId(`match_pick:${selected}`)
-          .setLabel('🎯 Typuj wyniki meczów')
-          .setStyle(ButtonStyle.Success)
-      );
+        const [events] = await pool.query(
+          `
+          SELECT id, name, slug, status
+          FROM events
+          WHERE id = ?
+            AND guild_id = ?
+          LIMIT 1
+          `,
+          [eventId, guildId]
+        );
 
-      const message = await interaction.channel.send({
-        embeds: [embed],
-        components: [row]
+        if (!events.length) {
+          return interaction.editReply({
+            content: '❌ Nie znaleziono eventu dla tego panelu.'
+          });
+        }
+
+        const event = events[0];
+
+        await pool.query(
+          `
+          UPDATE events
+          SET phase = ?, status = 'OPEN'
+          WHERE id = ?
+            AND guild_id = ?
+          `,
+          [selected, eventId, guildId]
+        );
+
+        await pool.query(
+          `
+          UPDATE active_panels
+          SET active = 0
+          WHERE guild_id = ?
+            AND phase = ?
+          `,
+          [guildId, selected]
+        );
+
+        const embed = new EmbedBuilder()
+          .setTitle(config.title)
+          .setDescription(
+            `🏆 Event: **${event.name}**\n\n` +
+            config.description
+          )
+          .setColor(config.color);
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(config.buttonId)
+            .setLabel(config.buttonLabel)
+            .setStyle(ButtonStyle.Primary),
+
+          new ButtonBuilder()
+            .setCustomId(`match_pick:${selected}`)
+            .setLabel('🎯 Typuj wyniki meczów')
+            .setStyle(ButtonStyle.Success)
+        );
+
+        const message = await interaction.channel.send({
+          embeds: [embed],
+          components: [row]
+        });
+
+        await pool.query(
+          `
+          INSERT INTO active_panels (
+            guild_id,
+            phase,
+            channel_id,
+            message_id,
+            active,
+            reminded,
+            deadline
+          )
+          VALUES (?, ?, ?, ?, 1, 0, NULL)
+          ON DUPLICATE KEY UPDATE
+            message_id = VALUES(message_id),
+            channel_id = VALUES(channel_id),
+            active = 1,
+            reminded = 0,
+            deadline = NULL
+          `,
+          [guildId, selected, interaction.channel.id, message.id]
+        );
+
+        return interaction.editReply({
+          content:
+            `✅ Utworzono panel dla fazy **${config.title}**\n` +
+            `🏆 Event: **${event.name}**`
+        });
       });
+    } catch (err) {
+      console.error('[PICKEM] handlePhaseSelect error', err);
 
-      await pool.query(
-        `
-        INSERT INTO active_panels (
-          guild_id,
-          phase,
-          channel_id,
-          message_id,
-          active,
-          reminded,
-          deadline
-        )
-        VALUES (?, ?, ?, ?, 1, 0, NULL)
-        ON DUPLICATE KEY UPDATE
-          message_id = VALUES(message_id),
-          channel_id = VALUES(channel_id),
-          active = 1,
-          reminded = 0,
-          deadline = NULL
-        `,
-        [guildId, selected, interaction.channel.id, message.id]
-      );
+      try {
+        if (!interaction.deferred && !interaction.replied) {
+          return interaction.reply({
+            content: '❌ Błąd przy wyborze fazy.',
+            ephemeral: true
+          });
+        }
 
-      return interaction.editReply({
-        content:
-          `✅ Utworzono panel dla fazy **${config.title}**\n` +
-          `🏆 Event: **${event.name}**`
-      });
-    });
+        return interaction.editReply({
+          content: '❌ Błąd przy wyborze fazy.',
+          components: []
+        });
+      } catch (_) {}
+    }
   }
 };
