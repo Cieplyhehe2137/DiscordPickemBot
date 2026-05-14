@@ -11,7 +11,7 @@ const dotenv = require('dotenv');
 // Wybór ENV:
 // ENV_NAME=hyperland  -> config/hyperland.env
 // ENV_NAME=luffastream -> config/luffastream.env
-const envName = process.env.ENV_NAME || 'hyperland';
+const envName = process.env.ENV_NAME || 'luffastream';
 const envPath = path.join(__dirname, 'config', `${envName}.env`);
 
 if (!fs.existsSync(envPath)) {
