@@ -110,6 +110,7 @@ module.exports = {
       }
 
       const guildId = interaction.guildId;
+
       if (!guildId) {
         return interaction.reply({
           content: '❌ Ta funkcja działa tylko na serwerze.',
@@ -129,12 +130,11 @@ module.exports = {
       await interaction.deferReply({ ephemeral: true });
 
       return withGuild(guildId, async ({ pool }) => {
-        const baseSlug = makeSlug(eventName);
-        const slug = baseSlug || `event-${Date.now()}`;
+        const slug = makeSlug(eventName) || `event-${Date.now()}`;
 
         const [existing] = await pool.query(
           `
-          SELECT id
+          SELECT id, name, slug, phase, status
           FROM events
           WHERE guild_id = ?
             AND slug = ?
@@ -143,42 +143,57 @@ module.exports = {
           [guildId, slug]
         );
 
+        let eventId;
+        let finalEventName = eventName;
+        let wasExistingEvent = false;
+
         if (existing.length) {
-          return interaction.editReply({
-            content:
-              `❌ Event o nazwie **${eventName}** już istnieje.\n` +
-              `Zmień nazwę albo zamknij/usuń stary event.`
-          });
+          const event = existing[0];
+
+          eventId = event.id;
+          finalEventName = event.name;
+          wasExistingEvent = true;
+
+          await pool.query(
+            `
+            UPDATE events
+            SET status = 'OPEN'
+            WHERE id = ?
+              AND guild_id = ?
+            `,
+            [eventId, guildId]
+          );
+        } else {
+          const [result] = await pool.query(
+            `
+            INSERT INTO events (
+              guild_id,
+              slug,
+              name,
+              phase,
+              status
+            )
+            VALUES (?, ?, ?, ?, ?)
+            `,
+            [
+              guildId,
+              slug,
+              eventName,
+              'NOT_STARTED',
+              'OPEN'
+            ]
+          );
+
+          eventId = result.insertId;
         }
-
-        const [result] = await pool.query(
-          `
-          INSERT INTO events (
-            guild_id,
-            slug,
-            name,
-            phase,
-            status
-          )
-          VALUES (?, ?, ?, ?, ?)
-          `,
-          [
-            guildId,
-            slug,
-            eventName,
-            'NOT_STARTED',
-            'OPEN'
-          ]
-        );
-
-        const eventId = result.insertId;
 
         const embed = new EmbedBuilder()
           .setTitle('📌 Wybierz fazę turnieju, którą chcesz rozpocząć:')
           .setDescription(
-            `Event: **${eventName}**\n` +
+            `Event: **${finalEventName}**\n` +
             `Slug: \`${slug}\`\n` +
-            `ID eventu: \`${eventId}\``
+            `ID eventu: \`${eventId}\`\n` +
+            `${wasExistingEvent ? '♻️ Używam istniejącego eventu.' : '🆕 Utworzono nowy event.'}`
           )
           .setColor('Orange');
 
@@ -214,7 +229,9 @@ module.exports = {
           content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
           components: []
         });
-      } catch (_) { }
+      } catch (_) {
+        return null;
+      }
     }
   },
 
@@ -239,6 +256,7 @@ module.exports = {
       }
 
       const guildId = interaction.guildId;
+
       if (!guildId) {
         return interaction.reply({
           content: '❌ Ta funkcja działa tylko na serwerze.',
@@ -247,10 +265,8 @@ module.exports = {
       }
 
       const rawValue = String(interaction.values?.[0] || '');
-      const parts = rawValue.split(':');
-
-      const selected = parts[0];
-      let eventId = Number(parts[1]);
+      const [selected, rawEventId] = rawValue.split(':');
+      let eventId = Number(rawEventId);
 
       await interaction.deferReply({ ephemeral: true });
 
@@ -266,13 +282,13 @@ module.exports = {
         if (!eventId) {
           const [latestEvents] = await pool.query(
             `
-          SELECT id
-          FROM events
-          WHERE guild_id = ?
-            AND status = 'OPEN'
-          ORDER BY id DESC
-          LIMIT 1
-          `,
+            SELECT id
+            FROM events
+            WHERE guild_id = ?
+              AND status = 'OPEN'
+            ORDER BY id DESC
+            LIMIT 1
+            `,
             [guildId]
           );
 
@@ -287,12 +303,12 @@ module.exports = {
 
         const [events] = await pool.query(
           `
-        SELECT id, name, slug, status
-        FROM events
-        WHERE id = ?
-          AND guild_id = ?
-        LIMIT 1
-        `,
+          SELECT id, name, slug, status
+          FROM events
+          WHERE id = ?
+            AND guild_id = ?
+          LIMIT 1
+          `,
           [eventId, guildId]
         );
 
@@ -306,21 +322,21 @@ module.exports = {
 
         await pool.query(
           `
-        UPDATE events
-        SET phase = ?, status = 'OPEN'
-        WHERE id = ?
-          AND guild_id = ?
-        `,
+          UPDATE events
+          SET phase = ?, status = 'OPEN'
+          WHERE id = ?
+            AND guild_id = ?
+          `,
           [selected, eventId, guildId]
         );
 
         await pool.query(
           `
-        UPDATE active_panels
-        SET active = 0
-        WHERE guild_id = ?
-          AND phase = ?
-        `,
+          UPDATE active_panels
+          SET active = 0
+          WHERE guild_id = ?
+            AND phase = ?
+          `,
           [guildId, selected]
         );
 
@@ -351,23 +367,23 @@ module.exports = {
 
         await pool.query(
           `
-        INSERT INTO active_panels (
-          guild_id,
-          phase,
-          channel_id,
-          message_id,
-          active,
-          reminded,
-          deadline
-        )
-        VALUES (?, ?, ?, ?, 1, 0, NULL)
-        ON DUPLICATE KEY UPDATE
-          message_id = VALUES(message_id),
-          channel_id = VALUES(channel_id),
-          active = 1,
-          reminded = 0,
-          deadline = NULL
-        `,
+          INSERT INTO active_panels (
+            guild_id,
+            phase,
+            channel_id,
+            message_id,
+            active,
+            reminded,
+            deadline
+          )
+          VALUES (?, ?, ?, ?, 1, 0, NULL)
+          ON DUPLICATE KEY UPDATE
+            message_id = VALUES(message_id),
+            channel_id = VALUES(channel_id),
+            active = 1,
+            reminded = 0,
+            deadline = NULL
+          `,
           [guildId, selected, interaction.channel.id, message.id]
         );
 
@@ -392,7 +408,9 @@ module.exports = {
           content: '❌ Błąd przy wyborze fazy.',
           components: []
         });
-      } catch (_) { }
+      } catch (_) {
+        return null;
+      }
     }
   }
 };
