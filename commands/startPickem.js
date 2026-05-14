@@ -214,7 +214,7 @@ module.exports = {
           content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
           components: []
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   },
 
@@ -247,15 +247,10 @@ module.exports = {
       }
 
       const rawValue = String(interaction.values?.[0] || '');
-      const [selected, rawEventId] = rawValue.split(':');
-      const eventId = Number(rawEventId);
+      const parts = rawValue.split(':');
 
-      if (!selected || !eventId) {
-        return interaction.reply({
-          content: '❌ Brak poprawnego ID eventu w wyborze fazy.',
-          ephemeral: true
-        });
-      }
+      const selected = parts[0];
+      let eventId = Number(parts[1]);
 
       await interaction.deferReply({ ephemeral: true });
 
@@ -264,18 +259,40 @@ module.exports = {
 
         if (!config) {
           return interaction.editReply({
-            content: `❌ Nieznana faza: ${selected}`
+            content: `❌ Nieznana faza: ${rawValue}`
+          });
+        }
+
+        if (!eventId) {
+          const [latestEvents] = await pool.query(
+            `
+          SELECT id
+          FROM events
+          WHERE guild_id = ?
+            AND status = 'OPEN'
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+            [guildId]
+          );
+
+          eventId = Number(latestEvents?.[0]?.id);
+        }
+
+        if (!eventId) {
+          return interaction.editReply({
+            content: '❌ Brak aktywnego eventu. Uruchom `/start_pickem event:nazwa` jeszcze raz.'
           });
         }
 
         const [events] = await pool.query(
           `
-          SELECT id, name, slug, status
-          FROM events
-          WHERE id = ?
-            AND guild_id = ?
-          LIMIT 1
-          `,
+        SELECT id, name, slug, status
+        FROM events
+        WHERE id = ?
+          AND guild_id = ?
+        LIMIT 1
+        `,
           [eventId, guildId]
         );
 
@@ -289,21 +306,21 @@ module.exports = {
 
         await pool.query(
           `
-          UPDATE events
-          SET phase = ?, status = 'OPEN'
-          WHERE id = ?
-            AND guild_id = ?
-          `,
+        UPDATE events
+        SET phase = ?, status = 'OPEN'
+        WHERE id = ?
+          AND guild_id = ?
+        `,
           [selected, eventId, guildId]
         );
 
         await pool.query(
           `
-          UPDATE active_panels
-          SET active = 0
-          WHERE guild_id = ?
-            AND phase = ?
-          `,
+        UPDATE active_panels
+        SET active = 0
+        WHERE guild_id = ?
+          AND phase = ?
+        `,
           [guildId, selected]
         );
 
@@ -334,23 +351,23 @@ module.exports = {
 
         await pool.query(
           `
-          INSERT INTO active_panels (
-            guild_id,
-            phase,
-            channel_id,
-            message_id,
-            active,
-            reminded,
-            deadline
-          )
-          VALUES (?, ?, ?, ?, 1, 0, NULL)
-          ON DUPLICATE KEY UPDATE
-            message_id = VALUES(message_id),
-            channel_id = VALUES(channel_id),
-            active = 1,
-            reminded = 0,
-            deadline = NULL
-          `,
+        INSERT INTO active_panels (
+          guild_id,
+          phase,
+          channel_id,
+          message_id,
+          active,
+          reminded,
+          deadline
+        )
+        VALUES (?, ?, ?, ?, 1, 0, NULL)
+        ON DUPLICATE KEY UPDATE
+          message_id = VALUES(message_id),
+          channel_id = VALUES(channel_id),
+          active = 1,
+          reminded = 0,
+          deadline = NULL
+        `,
           [guildId, selected, interaction.channel.id, message.id]
         );
 
@@ -375,7 +392,7 @@ module.exports = {
           content: '❌ Błąd przy wyborze fazy.',
           components: []
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 };
