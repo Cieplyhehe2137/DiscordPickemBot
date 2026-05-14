@@ -27,7 +27,9 @@ module.exports = async (interaction) => {
     });
   }
 
-  const selected = interaction.values[0];
+  const rawValue = String(interaction.values?.[0] || '');
+  const [selected, rawEventId] = rawValue.split(':');
+  const eventId = Number(rawEventId);
 
   try {
     await interaction.deferReply({ ephemeral: true });
