@@ -45,12 +45,17 @@ function stripOldDeadlineLines(description = '') {
 
       return (
         !l.includes('deadline:') &&
+        !l.includes('deadline typowania') &&
         !l.includes('pozostało:') &&
         !l.includes('pozostalo:') &&
         !l.includes('deadline za') &&
+        !l.includes('wyniki meczów') &&
+        !l.includes('wyniki meczow') &&
+        !l.includes('osobny deadline') &&
         !line.includes('⏰') &&
         !line.includes('⏳') &&
-        !line.includes('🕒')
+        !line.includes('🕒') &&
+        !line.includes('🎯')
       );
     })
     .join('\n')

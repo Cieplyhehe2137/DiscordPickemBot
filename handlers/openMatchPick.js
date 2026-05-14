@@ -3,7 +3,7 @@ const { logInfo, logWarn, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 const { isMatchLocked } = require('../utils/matchLock');
 
-const PAGE_SIZE = 24; // 24 meczów + do 1 opcji nawigacji = max 25
+const PAGE_SIZE = 23; // 23 meczów + PREV + NEXT = max 25
 
 function safeLabel(s) {
   const str = String(s ?? '');
