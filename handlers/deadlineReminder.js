@@ -31,8 +31,9 @@ function buildDeadlineLines(deadline) {
   const unix = Math.floor(deadlineDate.getTime() / 1000);
 
   return [
-    `⏰ Deadline: <t:${unix}:F>`,
-    `⏳ Pozostało: <t:${unix}:R>`
+    `⏰ **Deadline typowania drużyn:** <t:${unix}:F>`,
+    `⏳ **Pozostało:** <t:${unix}:R>`,
+    `🎯 **Wyniki meczów:** Osobny deadline dla każdego meczu.`
   ].join('\n');
 }
 

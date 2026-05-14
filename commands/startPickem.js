@@ -10,19 +10,23 @@ const {
 const { withGuild } = require('../utils/guildContext');
 
 // Mapowanie faz na dane embedów i przycisków
+// Mapowanie faz na dane embedów i przycisków
 const phasesConfig = {
   swiss: {
     title: 'Typowanie fazy Swiss',
     description:
-      'Typujesz:\n\n' +
+      'Typujesz drużyny w fazie Swiss:\n\n' +
       '🆙 2 drużyny na 3-0\n' +
       '🆘 2 drużyny na 0-3\n' +
-      '🏅 6 drużyn awansujących\n\n' +
-      '🔴 Deadline: 15 min przed startem meczu',
-    buttonLabel: 'Typuj Swiss',
+      '🏅 6 drużyn awansujących\n' +
+      '\n━━━━━━━━━━━━━━\n' +
+      '⏰ Deadline typowania drużyn ustawiany jest osobno.\n' +
+      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
+    buttonLabel: 'Typuj drużyny Swiss',
     buttonId: 'open_swiss_modal',
     color: 'Blue'
   },
+
   playoffs: {
     title: 'Typowanie fazy Playoffs',
     description:
@@ -30,12 +34,15 @@ const phasesConfig = {
       '🏆 4 półfinalistów\n' +
       '🥈 2 finalistów\n' +
       '👑 Zwycięzcę turnieju\n' +
-      '🥉 3. miejsce (opcjonalnie)\n\n' +
-      '🔴 Deadline: 15 min przed startem meczu',
+      '🥉 3. miejsce (opcjonalnie)\n' +
+      '\n━━━━━━━━━━━━━━\n' +
+      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
+      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
     buttonLabel: 'Typuj Playoffs',
     buttonId: 'open_playoffs_modal',
     color: 'Green'
   },
+
   doubleelim: {
     title: 'Typowanie fazy Double Elimination',
     description:
@@ -43,18 +50,23 @@ const phasesConfig = {
       '🔵 2 drużyny z Upper Final A\n' +
       '🔴 2 drużyny z Lower Final A\n' +
       '🟢 2 drużyny z Upper Final B\n' +
-      '🟣 2 drużyny z Lower Final B\n\n' +
-      '🔴 Deadline: 15 min przed startem meczu',
+      '🟣 2 drużyny z Lower Final B\n' +
+      '\n━━━━━━━━━━━━━━\n' +
+      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
+      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
     buttonLabel: 'Typuj Double Elim',
     buttonId: 'open_doubleelim_dropdown',
     color: 'Purple'
   },
+
   playin: {
     title: 'Typowanie fazy Play-In',
     description:
       'Typujesz:\n\n' +
-      '🎯 8 drużyn awansujących z Play-In\n\n' +
-      '🔴 Deadline: 15 min przed startem meczu',
+      '🎯 8 drużyn awansujących z Play-In\n' +
+      '\n━━━━━━━━━━━━━━\n' +
+      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
+      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
     buttonLabel: 'Typuj Play-In',
     buttonId: 'open_playin_modal',
     color: 'DarkBlue'
