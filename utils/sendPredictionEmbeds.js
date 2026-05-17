@@ -1,7 +1,7 @@
 // utils/sendPredictionEmbeds.js
 const { EmbedBuilder, ChannelType } = require('discord.js');
 const { getGuildConfig } = require('./guildRegistry');
-const logger = require('./logger');
+const { logInfo, logWarn, logError } = require('./logger');
 
 /**
  * OBSŁUGA:
