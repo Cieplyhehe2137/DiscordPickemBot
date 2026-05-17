@@ -57,7 +57,7 @@ module.exports = async (interaction) => {
 
     setCache(interaction.client, guildId, userId, cache);
 
-    logger.debug('submit', 'Playoffs dropdown updated', {
+    logInfo('PLAYOFFS_DROPDOWN_UPDATED', {
       guildId,
       userId,
       type,
