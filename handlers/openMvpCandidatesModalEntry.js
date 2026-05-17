@@ -1,15 +1,28 @@
-const getActiveOrLatestEventId = require('../utils/getActiveOrLatestEventId');
-const openMvpCandidatesModal = require('./openMvpCandidatesModal');
+const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
+const { getActiveOrLatestEventId } = require('../utils/getActiveOrLatestEventId');
 
-module.exports = async function openMvpCandidatesModalEntry(interaction) {
-  const eventId = await getActiveOrLatestEventId(interaction.guildId);
+module.exports = async function openMvpCandidatesModalEntry(interaction, { pool }) {
+  const eventId = await getActiveOrLatestEventId(pool);
 
   if (!eventId) {
     return interaction.reply({
-      content: '❌ Nie udało się ustalić aktywnego eventu dla MVP.',
+      content: '❌ Nie znaleziono aktywnego ani ostatniego eventu.',
       ephemeral: true
     });
   }
 
-  return openMvpCandidatesModal(interaction, eventId);
+  const modal = new ModalBuilder()
+    .setCustomId(`mvp:candidates:modal:${eventId}`)
+    .setTitle('Ustaw kandydatów MVP');
+
+  const candidatesInput = new TextInputBuilder()
+    .setCustomId('mvp_candidates')
+    .setLabel('Kandydaci MVP')
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder('np. ZywOo, m0NESY, donk')
+    .setRequired(true);
+
+  modal.addComponents(new ActionRowBuilder().addComponents(candidatesInput));
+
+  return interaction.showModal(modal);
 };
