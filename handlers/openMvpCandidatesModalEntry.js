@@ -1,7 +1,16 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { getActiveOrLatestEventId } = require('../utils/getActiveOrLatestEventId');
 
-module.exports = async function openMvpCandidatesModalEntry(interaction, { pool }) {
+module.exports = async function openMvpCandidatesModalEntry(interaction, ctx = {}) {
+  const pool = ctx.pool;
+
+  if (!pool) {
+    return interaction.reply({
+      content: '❌ Brak połączenia z bazą dla tego serwera.',
+      ephemeral: true
+    });
+  }
+
   const eventId = await getActiveOrLatestEventId(pool);
 
   if (!eventId) {
@@ -22,7 +31,9 @@ module.exports = async function openMvpCandidatesModalEntry(interaction, { pool 
     .setPlaceholder('np. ZywOo, m0NESY, donk')
     .setRequired(true);
 
-  modal.addComponents(new ActionRowBuilder().addComponents(candidatesInput));
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(candidatesInput)
+  );
 
   return interaction.showModal(modal);
 };
