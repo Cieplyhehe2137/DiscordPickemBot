@@ -101,4 +101,5 @@ module.exports = {
   'mvp:admin:result': 'openAdminMvpResultEntry',
   'mvp:admin:list': 'showMvpCandidates',
   'mvp:admin:show_result': 'showOfficialMvp',
+  'mvp:set_result': 'openMvpAdminPanel',
 };
