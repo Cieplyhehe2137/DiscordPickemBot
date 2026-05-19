@@ -1,27 +1,13 @@
-const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-const { getActiveOrLatestEventId } = require('../utils/getActiveOrLatestEventId');
+const {
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder
+} = require('discord.js');
 
-module.exports = async function openMvpCandidatesModalEntry(interaction, ctx = {}) {
-  const pool = ctx.pool;
-
-  if (!pool) {
-    return interaction.reply({
-      content: '❌ Brak połączenia z bazą dla tego serwera.',
-      ephemeral: true
-    });
-  }
-
-  const eventId = await getActiveOrLatestEventId(pool);
-
-  if (!eventId) {
-    return interaction.reply({
-      content: '❌ Nie znaleziono aktywnego ani ostatniego eventu.',
-      ephemeral: true
-    });
-  }
-
+module.exports = async function openMvpCandidatesModalEntry(interaction) {
   const modal = new ModalBuilder()
-    .setCustomId(`mvp:candidates:modal:${eventId}`)
+    .setCustomId('mvp:candidates:modal')
     .setTitle('Ustaw kandydatów MVP');
 
   const candidatesInput = new TextInputBuilder()

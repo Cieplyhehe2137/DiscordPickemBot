@@ -11,5 +11,5 @@ module.exports = {
   'teams:add:submit': 'teamsAddSubmit',
 
   // MVP
-  'mvp_admin_candidates_modal': 'mvpCandidatesModalSubmit'
-}
+  'mvp:candidates:modal': 'mvpCandidatesModalSubmit'
+};
