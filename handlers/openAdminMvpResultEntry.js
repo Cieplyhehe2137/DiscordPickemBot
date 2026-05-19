@@ -42,14 +42,16 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
     // pobranie kandydatów MVP
     const candidates = await withGuild({ guildId }, async ({ pool }) => {
 
-      const [rows] = await pool.query(`
-        SELECT id, nickname, team_name
-        FROM mvp_candidates
-        WHERE guild_id = ?
-        AND event_id = ?
-        AND is_active = 1
-        ORDER BY nickname ASC
-      `, [guildId, eventId]);
+      const [rows] = await pool.query(
+        `
+  SELECT id, nickname, team_name
+  FROM mvp_candidates
+  WHERE guild_id = ?
+    AND is_active = 1
+  ORDER BY nickname ASC
+  `,
+        [guildId]
+      );
 
       return rows;
     });
@@ -109,7 +111,7 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
     return interaction.reply({
       content: '❌ Nie udało się otworzyć wyboru MVP.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
 
   }
 };
