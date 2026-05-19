@@ -87,4 +87,5 @@ module.exports = {
 
   'playoffs_mvp': 'playoffsMvpSelect',
   'admin_mvp_result_select': 'adminMvpResultSelect',
+  'mvp:admin:select': 'mvpAdminSelectAction',
 };
