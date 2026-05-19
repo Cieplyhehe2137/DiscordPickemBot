@@ -49,7 +49,6 @@ module.exports = async function openPlayoffsDropdown(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      Id = await getLatestEventId(pool, guildId);
 
       const teams = await loadTeamsFromDB(pool, guildId);
 
@@ -128,7 +127,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
         const row5 = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`playoffs_mvp:`)
+            .setCustomId(`playoffs_mvp`)
             .setPlaceholder('⭐ Wybierz MVP turnieju')
             .setMinValues(1)
             .setMaxValues(1)
