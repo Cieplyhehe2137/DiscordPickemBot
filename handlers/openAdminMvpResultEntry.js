@@ -5,7 +5,7 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 
 module.exports = async function openAdminMvpResultEntry(interaction) {
   try {
@@ -18,38 +18,15 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
       });
     }
 
-    // pobranie aktywnego eventu
-    const eventId = withGuild(interaction, async ({ pool }) => {
-
-      const [rows] = await pool.query(`
-        SELECT id
-        FROM events
-        WHERE guild_id = ?
-        ORDER BY id DESC
-        LIMIT 1
-      `, [guildId]);
-
-      return rows[0]?.id || null;
-    });
-
-    if (!eventId) {
-      return interaction.reply({
-        content: '❌ Nie znaleziono eventu.',
-        ephemeral: true
-      });
-    }
-
-    // pobranie kandydatów MVP
-    const candidates = await withGuild({ guildId }, async ({ pool }) => {
-
+    const candidates = await withGuild(interaction, async ({ pool, guildId }) => {
       const [rows] = await pool.query(
         `
-  SELECT id, nickname, team_name
-  FROM mvp_candidates
-  WHERE guild_id = ?
-    AND is_active = 1
-  ORDER BY nickname ASC
-  `,
+        SELECT id, nickname, team_name
+        FROM mvp_candidates
+        WHERE guild_id = ?
+          AND is_active = 1
+        ORDER BY nickname ASC
+        `,
         [guildId]
       );
 
@@ -74,24 +51,19 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
       );
 
     const row = new ActionRowBuilder().addComponents(
-
       new StringSelectMenuBuilder()
-        .setCustomId(`admin_mvp_result_select:${eventId}`)
+        .setCustomId('admin_mvp_result_select')
         .setPlaceholder('Wybierz MVP')
         .setMinValues(1)
         .setMaxValues(1)
         .addOptions(
-
           candidates.map(c => ({
             label: c.team_name
               ? `${c.nickname} (${c.team_name})`
               : c.nickname,
-
             value: String(c.id)
           }))
-
         )
-
     );
 
     return interaction.reply({
@@ -99,9 +71,7 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
       components: [row],
       ephemeral: true
     });
-
   } catch (err) {
-
     logError('mvp', 'openAdminMvpResultEntry failed', {
       guildId: interaction.guildId,
       message: err.message,
@@ -111,7 +81,6 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
     return interaction.reply({
       content: '❌ Nie udało się otworzyć wyboru MVP.',
       ephemeral: true
-    }).catch(() => { });
-
+    }).catch(() => {});
   }
 };
