@@ -588,11 +588,15 @@ module.exports = async function exportClassification(arg) {
     {
       const [s1] = await pool.query(
         `
-        SELECT correct_3_0, correct_0_3, correct_advancing
-        FROM swiss_results
-        WHERE active = 1 AND stage = 'stage1'
-        ORDER BY id DESC LIMIT 1
-        `
+  SELECT correct_3_0, correct_0_3, correct_advancing
+  FROM swiss_results
+  WHERE guild_id = ?
+    AND active = 1
+    AND stage = 'stage1'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
       );
       if (s1.length) {
         const col = sheetSwiss1.columnCount + 2;
@@ -605,11 +609,15 @@ module.exports = async function exportClassification(arg) {
 
       const [s2] = await pool.query(
         `
-        SELECT correct_3_0, correct_0_3, correct_advancing
-        FROM swiss_results
-        WHERE active = 1 AND stage = 'stage2'
-        ORDER BY id DESC LIMIT 1
-        `
+  SELECT correct_3_0, correct_0_3, correct_advancing
+  FROM swiss_results
+  WHERE guild_id = ?
+    AND active = 1
+    AND stage = 'stage2'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
       );
       if (s2.length) {
         const col = sheetSwiss2.columnCount + 2;
@@ -622,11 +630,15 @@ module.exports = async function exportClassification(arg) {
 
       const [s3] = await pool.query(
         `
-        SELECT correct_3_0, correct_0_3, correct_advancing
-        FROM swiss_results
-        WHERE active = 1 AND stage = 'stage3'
-        ORDER BY id DESC LIMIT 1
-        `
+  SELECT correct_3_0, correct_0_3, correct_advancing
+  FROM swiss_results
+  WHERE guild_id = ?
+    AND active = 1
+    AND stage = 'stage3'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
       );
       if (s3.length) {
         const col = sheetSwiss3.columnCount + 2;
