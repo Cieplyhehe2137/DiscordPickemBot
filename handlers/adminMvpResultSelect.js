@@ -4,7 +4,13 @@ const { logError } = require('../utils/logger');
 module.exports = async function adminMvpResultSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) return;
-    if (interaction.customId !== 'admin_mvp_result_select') return;
+
+    if (
+      interaction.customId !== 'admin_mvp_result_select' &&
+      interaction.customId !== 'mvp_result_select'
+    ) {
+      return;
+    }
 
     const guildId = interaction.guildId;
     const candidateId = interaction.values?.[0];
