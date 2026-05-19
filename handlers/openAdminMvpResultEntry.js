@@ -19,7 +19,7 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
     }
 
     // pobranie aktywnego eventu
-    const eventId = await withGuild({ guildId }, async ({ pool }) => {
+    const eventId = withGuild(interaction, async ({ pool }) => {
 
       const [rows] = await pool.query(`
         SELECT id

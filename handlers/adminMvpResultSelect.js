@@ -17,7 +17,7 @@ module.exports = async function adminMvpResultSelect(interaction) {
       });
     }
 
-    await withGuild({ guildId }, async ({ pool }) => {
+    withGuild(interaction, async ({ pool }) => {
 
       await pool.query(
         `

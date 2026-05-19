@@ -5,9 +5,9 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 
-module.exports = async function openAdminMvpResult(interaction, eventId) {
+module.exports = async function openAdminMvpResult(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
@@ -19,14 +19,13 @@ module.exports = async function openAdminMvpResult(interaction, eventId) {
     await withGuild(interaction, async ({ pool, guildId }) => {
       const [rows] = await pool.query(
         `
-          SELECT id, nickname, team_name
-          FROM mvp_candidates
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND is_active = 1
-          ORDER BY nickname ASC
+        SELECT id, nickname, team_name
+        FROM mvp_candidates
+        WHERE guild_id = ?
+          AND is_active = 1
+        ORDER BY nickname ASC
         `,
-        [guildId, eventId]
+        [guildId]
       );
 
       if (!rows.length) {
@@ -48,7 +47,7 @@ module.exports = async function openAdminMvpResult(interaction, eventId) {
 
       const row = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId(`admin_mvp_result_select:${eventId}`)
+          .setCustomId('admin_mvp_result_select')
           .setPlaceholder('Wybierz oficjalnego MVP')
           .setMinValues(1)
           .setMaxValues(1)

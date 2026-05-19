@@ -21,7 +21,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
       return interaction.deferUpdate();
     }
 
-    await withGuild({ guildId }, async ({ pool }) => {
+    await withGuild(interaction, async ({ pool }) => {
       await pool.query(
         `
         INSERT INTO mvp_predictions (
