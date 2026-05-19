@@ -32,12 +32,11 @@ module.exports = async function playoffsMvpSelect(interaction) {
       await pool.query(`
         INSERT INTO mvp_predictions (
           guild_id,
-          event_id,
           user_id,
           username,
           candidate_id
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
 
         ON DUPLICATE KEY UPDATE
 
@@ -47,7 +46,6 @@ module.exports = async function playoffsMvpSelect(interaction) {
       `,
       [
         guildId,
-        eventId,
         userId,
         username,
         selectedCandidateId

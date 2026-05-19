@@ -21,29 +21,16 @@ async function loadTeamsFromDB(pool, guildId) {
   return rows.map(r => r.name).filter(Boolean);
 }
 
-async function loadMvpCandidates(pool, guildId, eventId) {
+async function loadMvpCandidates(pool, guildId) {
   const [rows] = await pool.query(`
     SELECT id, nickname, team_name
     FROM mvp_candidates
     WHERE guild_id = ?
-    AND event_id = ?
     AND is_active = 1
     ORDER BY nickname ASC
-  `, [guildId, eventId]);
-
-  return rows;
-}
-
-async function getLatestEventId(pool, guildId) {
-  const [rows] = await pool.query(`
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-    ORDER BY id DESC
-    LIMIT 1
   `, [guildId]);
 
-  return rows[0]?.id || null;
+  return rows;
 }
 
 module.exports = async function openPlayoffsDropdown(interaction) {
@@ -62,24 +49,9 @@ module.exports = async function openPlayoffsDropdown(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const eventId = await getLatestEventId(pool, guildId);
-
-      // console.log('EVENT DEBUG', {
-      //   guildId,
-      //   eventId
-      // });
-
-      if (!eventId) {
-        return interaction.editReply({
-          content: '❌ Nie znaleziono eventu.'
-        });
-      }
+      Id = await getLatestEventId(pool, guildId);
 
       const teams = await loadTeamsFromDB(pool, guildId);
-
-      // console.log('TEAMS DEBUG', {
-      //   count: teams.length
-      // });
 
       if (!teams.length) {
         return interaction.editReply({
@@ -87,12 +59,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
         });
       }
 
-      const mvpCandidates = await loadMvpCandidates(pool, guildId, eventId);
-
-      // console.log('MVP DEBUG', {
-      //   count: mvpCandidates.length,
-      //   candidates: mvpCandidates
-      // });
+      const mvpCandidates = await loadMvpCandidates(pool, guildId);
 
       const embed = new EmbedBuilder()
         .setColor('#f1c40f')
@@ -161,7 +128,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
         const row5 = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`playoffs_mvp:${eventId}`)
+            .setCustomId(`playoffs_mvp:`)
             .setPlaceholder('⭐ Wybierz MVP turnieju')
             .setMinValues(1)
             .setMaxValues(1)
