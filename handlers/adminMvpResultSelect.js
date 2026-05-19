@@ -1,48 +1,41 @@
 const { withGuild } = require('../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 
 module.exports = async function adminMvpResultSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) return;
-    if (!interaction.customId.startsWith('admin_mvp_result_select:')) return;
+    if (interaction.customId !== 'admin_mvp_result_select') return;
 
     const guildId = interaction.guildId;
-    const eventId = interaction.customId.split(':')[1];
     const candidateId = interaction.values?.[0];
 
-    if (!guildId || !eventId || !candidateId) {
-      return interaction.reply({
-        content: '❌ Brak danych do zapisania MVP.',
-        ephemeral: true
-      });
+    if (!guildId || !candidateId) {
+      return interaction.deferUpdate();
     }
 
-    withGuild(interaction, async ({ pool }) => {
-
+    await withGuild(interaction, async ({ pool, guildId }) => {
       await pool.query(
         `
-          INSERT INTO mvp_results (
-            guild_id,
-            event_id,
-            candidate_id
-          )
-          VALUES (?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            candidate_id = VALUES(candidate_id),
-            updated_at = CURRENT_TIMESTAMP
+        INSERT INTO mvp_results (
+          guild_id,
+          candidate_id,
+          active
+        )
+        VALUES (?, ?, 1)
+        ON DUPLICATE KEY UPDATE
+          candidate_id = VALUES(candidate_id),
+          active = 1,
+          updated_at = CURRENT_TIMESTAMP
         `,
-        [guildId, eventId, candidateId]
+        [guildId, candidateId]
       );
-
-      await interaction.reply({
-        content:
-          '🏆 Oficjalny MVP zapisany.\n' +
-          'Po przeliczeniu punktów użytkownicy dostaną **+5 pkt** za trafienie.',
-        ephemeral: true
-      });
-
     });
 
+    return interaction.update({
+      content: '✅ Oficjalny MVP został zapisany.',
+      embeds: [],
+      components: []
+    });
   } catch (err) {
     logError('mvp', 'adminMvpResultSelect failed', {
       guildId: interaction.guildId,
@@ -51,7 +44,7 @@ module.exports = async function adminMvpResultSelect(interaction) {
     });
 
     return interaction.reply({
-      content: '❌ Nie udało się zapisać MVP.',
+      content: '❌ Nie udało się zapisać oficjalnego MVP.',
       ephemeral: true
     }).catch(() => {});
   }
