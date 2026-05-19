@@ -96,42 +96,6 @@ async function fetchDisplayNamesFromDiscord(interaction, userIds) {
   return map;
 }
 
-async function resolveEventId(pool, guildId, preferredEventId) {
-  if (preferredEventId) return preferredEventId;
-
-  try {
-    const [rows] = await pool.query(
-      `
-      SELECT id
-      FROM events
-      WHERE is_active = 1
-      ORDER BY id DESC
-      LIMIT 1
-      `
-    );
-
-    if (rows?.[0]?.id) return rows[0].id;
-  } catch (_) { }
-
-  try {
-    const [rows] = await pool.query(
-      `
-      SELECT event_id
-      FROM matches
-      WHERE guild_id = ?
-        AND event_id IS NOT NULL
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [guildId]
-    );
-
-    if (rows?.[0]?.event_id) return rows[0].event_id;
-  } catch (_) { }
-
-  return null;
-}
-
 function createEmptyUser(id, displayname = null) {
   return {
     displayname: displayname || id,
@@ -146,8 +110,6 @@ function createEmptyUser(id, displayname = null) {
 }
 
 module.exports = async function exportClassification(arg) {
-
-
   const isInteraction =
     arg &&
     typeof arg === 'object' &&
@@ -157,7 +119,6 @@ module.exports = async function exportClassification(arg) {
   const interaction = isInteraction ? arg : arg?.interaction || null;
   const guildId = isInteraction ? arg.guildId : arg?.guildId;
   const outputPath = isInteraction ? null : arg?.outputPath;
-  let eventId = isInteraction ? arg?.eventId : arg?.eventId;
 
   if (!guildId) {
     throw new Error('exportClassification: missing guildId');
@@ -168,25 +129,12 @@ module.exports = async function exportClassification(arg) {
   }
 
   await withGuild({ guildId }, async ({ pool, guildId }) => {
-    try {
-      eventId = await resolveEventId(pool, guildId, eventId);
-    } catch (_) {
-      eventId = null;
-    }
-
-    logInfo('EXPORT_CLASSIFICATION_START', {
-      guildId,
-      eventId: eventId || null
-    });
+    logInfo('EXPORT_CLASSIFICATION_START', { guildId });
 
     try {
-      if (eventId) {
-        await calculateScores(guildId, eventId);
-      } else {
-        await calculateScores(guildId);
-      }
+      await calculateScores(guildId);
     } catch (e) {
-      // console.log('⚠️ calculateScores failed, continuing export:', e?.message || e);
+      // eksport ma iść dalej nawet jeśli przeliczanie punktów się wywali
     }
 
     const workbook = new ExcelJS.Workbook();
@@ -231,10 +179,12 @@ module.exports = async function exportClassification(arg) {
 
     // === Punkty Swiss
     const [swissRows] = await pool.query(
-      eventId
-        ? `SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ? AND event_id = ?`
-        : `SELECT user_id, displayname, stage, points AS score FROM swiss_scores WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT user_id, displayname, stage, points AS score
+      FROM swiss_scores
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of swissRows) {
@@ -251,10 +201,12 @@ module.exports = async function exportClassification(arg) {
 
     // === Typy Swiss
     const [swissPredictions] = await pool.query(
-      eventId
-        ? `SELECT * FROM swiss_predictions WHERE guild_id = ? AND event_id = ?`
-        : `SELECT * FROM swiss_predictions WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT *
+      FROM swiss_predictions
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of swissPredictions) {
@@ -262,6 +214,7 @@ module.exports = async function exportClassification(arg) {
       if (!users[id]) {
         users[id] = createEmptyUser(id, row.displayname || row.username || id);
       }
+
       const normalizedStage = `swiss_stage_${row.stage?.replace('stage', '')}`;
       users[id].picks[normalizedStage] = {
         pick_3_0: parseList(row.pick_3_0),
@@ -272,10 +225,12 @@ module.exports = async function exportClassification(arg) {
 
     // === Playoffs
     const [playoffRows] = await pool.query(
-      eventId
-        ? `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ? AND event_id = ?`
-        : `SELECT user_id, displayname, points FROM playoffs_scores WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT user_id, displayname, points
+      FROM playoffs_scores
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of playoffRows) {
@@ -287,10 +242,12 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [playoffPreds] = await pool.query(
-      eventId
-        ? `SELECT * FROM playoffs_predictions WHERE guild_id = ? AND event_id = ?`
-        : `SELECT * FROM playoffs_predictions WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT *
+      FROM playoffs_predictions
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of playoffPreds) {
@@ -308,10 +265,12 @@ module.exports = async function exportClassification(arg) {
 
     // === Double Elim
     const [doubleRows] = await pool.query(
-      eventId
-        ? `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ? AND event_id = ?`
-        : `SELECT user_id, displayname, points FROM doubleelim_scores WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT user_id, displayname, points
+      FROM doubleelim_scores
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of doubleRows) {
@@ -323,10 +282,12 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [doublePreds] = await pool.query(
-      eventId
-        ? `SELECT * FROM doubleelim_predictions WHERE guild_id = ? AND event_id = ?`
-        : `SELECT * FROM doubleelim_predictions WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT *
+      FROM doubleelim_predictions
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of doublePreds) {
@@ -344,10 +305,12 @@ module.exports = async function exportClassification(arg) {
 
     // === MVP
     const [mvpRows] = await pool.query(
-      eventId
-        ? `SELECT user_id, displayname, points FROM mvp_scores WHERE guild_id = ? AND event_id = ?`
-        : `SELECT user_id, displayname, points FROM mvp_scores WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT user_id, displayname, points
+      FROM mvp_scores
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of mvpRows) {
@@ -359,10 +322,12 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [mvpPreds] = await pool.query(
-      eventId
-        ? `SELECT * FROM mvp_predictions WHERE guild_id = ? AND event_id = ?`
-        : `SELECT * FROM mvp_predictions WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT *
+      FROM mvp_predictions
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of mvpPreds) {
@@ -376,19 +341,12 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [mvpCandidatesRows] = await pool.query(
-      eventId
-        ? `
-          SELECT id, nickname, team_name
-          FROM mvp_candidates
-          WHERE guild_id = ?
-            AND event_id = ?
-        `
-        : `
-          SELECT id, nickname, team_name
-          FROM mvp_candidates
-          WHERE guild_id = ?
-        `,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT id, nickname, team_name
+      FROM mvp_candidates
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     const mvpCandidatesMap = new Map(
@@ -403,10 +361,12 @@ module.exports = async function exportClassification(arg) {
 
     // === Play-In
     const [playinRows] = await pool.query(
-      eventId
-        ? `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ? AND event_id = ?`
-        : `SELECT user_id, displayname, points FROM playin_scores WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT user_id, displayname, points
+      FROM playin_scores
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of playinRows) {
@@ -418,10 +378,12 @@ module.exports = async function exportClassification(arg) {
     }
 
     const [playinPreds] = await pool.query(
-      eventId
-        ? `SELECT * FROM playin_predictions WHERE guild_id = ? AND event_id = ?`
-        : `SELECT * FROM playin_predictions WHERE guild_id = ?`,
-      eventId ? [guildId, eventId] : [guildId]
+      `
+      SELECT *
+      FROM playin_predictions
+      WHERE guild_id = ?
+      `,
+      [guildId]
     );
 
     for (const row of playinPreds) {
@@ -432,37 +394,17 @@ module.exports = async function exportClassification(arg) {
       users[id].picks.playin = parseList(row.teams);
     }
 
-    // === MATCHES: suma punktów za wyniki meczów
+        // === MATCHES: suma punktów za wyniki meczów
     try {
-      let matchPointRows = [];
-
-      if (eventId) {
-        const [rows] = await pool.query(
-          `
-          SELECT mp.user_id, SUM(mp.points) AS points
-          FROM match_points mp
-          JOIN matches m
-            ON m.id = mp.match_id
-           AND m.guild_id = mp.guild_id
-          WHERE mp.guild_id = ?
-            AND m.event_id = ?
-          GROUP BY mp.user_id
-          `,
-          [guildId, eventId]
-        );
-        matchPointRows = rows;
-      } else {
-        const [rows] = await pool.query(
-          `
-          SELECT mp.user_id, SUM(mp.points) AS points
-          FROM match_points mp
-          WHERE mp.guild_id = ?
-          GROUP BY mp.user_id
-          `,
-          [guildId]
-        );
-        matchPointRows = rows;
-      }
+      const [matchPointRows] = await pool.query(
+        `
+        SELECT user_id, SUM(points) AS points
+        FROM match_points
+        WHERE guild_id = ?
+        GROUP BY user_id
+        `,
+        [guildId]
+      );
 
       for (const row of matchPointRows) {
         const id = row.user_id;
@@ -472,7 +414,7 @@ module.exports = async function exportClassification(arg) {
         users[id].matches = Number(row.points || 0);
       }
     } catch (e) {
-      // console.log('⚠️ MATCHES: nie udało się pobrać match_points (pomijam):', e?.message || e);
+      // pomijamy mecze, jeśli tabela/kolumny nie istnieją
     }
 
     // === Klasyfikacja ogólna
@@ -505,6 +447,7 @@ module.exports = async function exportClassification(arg) {
       const swiss3 = u.swiss['swiss_stage_3'] || 0;
       const matches = u.matches || 0;
       const mvp = u.mvp || 0;
+
       const total =
         swiss1 +
         swiss2 +
@@ -537,11 +480,14 @@ module.exports = async function exportClassification(arg) {
 
     summary.forEach((row) => sheetMain.addRow(row));
     prettifySheet(sheetMain);
+
     sheetMain.columns.forEach((col) => {
       let maxLength = col.header.length;
       col.eachCell({ includeEmpty: true }, (cell) => {
         const val = cell.value;
-        if (val && val.toString().length > maxLength) maxLength = val.toString().length;
+        if (val && val.toString().length > maxLength) {
+          maxLength = val.toString().length;
+        }
       });
       col.width = maxLength + 2;
     });
@@ -549,11 +495,14 @@ module.exports = async function exportClassification(arg) {
     const addSheet = (sheet, headers, dataRows) => {
       sheet.addRow(headers);
       dataRows.forEach((row) => sheet.addRow(row));
+
       sheet.columns.forEach((col) => {
         let maxLength = 10;
         col.eachCell({ includeEmpty: true }, (cell) => {
           const val = cell.value;
-          if (val && val.toString().length > maxLength) maxLength = val.toString().length;
+          if (val && val.toString().length > maxLength) {
+            maxLength = val.toString().length;
+          }
         });
         col.width = maxLength + 2;
       });
@@ -576,7 +525,11 @@ module.exports = async function exportClassification(arg) {
         })
         .sort((a, b) => b[5] - a[5]);
 
-      addSheet(sheet, ['User ID', 'Nick', 'Pick 3-0', 'Pick 0-3', 'Awansujące', 'Punkty'], rows);
+      addSheet(
+        sheet,
+        ['User ID', 'Nick', 'Pick 3-0', 'Pick 0-3', 'Awansujące', 'Punkty'],
+        rows
+      );
       prettifySheet(sheet);
     };
 
@@ -588,16 +541,17 @@ module.exports = async function exportClassification(arg) {
     {
       const [s1] = await pool.query(
         `
-  SELECT correct_3_0, correct_0_3, correct_advancing
-  FROM swiss_results
-  WHERE guild_id = ?
-    AND active = 1
-    AND stage = 'stage1'
-  ORDER BY id DESC
-  LIMIT 1
-  `,
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE guild_id = ?
+          AND active = 1
+          AND stage = 'stage1'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
         [guildId]
       );
+
       if (s1.length) {
         const col = sheetSwiss1.columnCount + 2;
         putOfficialBlock(sheetSwiss1, col, 1, 'Oficjalne — Swiss 1', [
@@ -609,16 +563,17 @@ module.exports = async function exportClassification(arg) {
 
       const [s2] = await pool.query(
         `
-  SELECT correct_3_0, correct_0_3, correct_advancing
-  FROM swiss_results
-  WHERE guild_id = ?
-    AND active = 1
-    AND stage = 'stage2'
-  ORDER BY id DESC
-  LIMIT 1
-  `,
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE guild_id = ?
+          AND active = 1
+          AND stage = 'stage2'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
         [guildId]
       );
+
       if (s2.length) {
         const col = sheetSwiss2.columnCount + 2;
         putOfficialBlock(sheetSwiss2, col, 1, 'Oficjalne — Swiss 2', [
@@ -630,16 +585,17 @@ module.exports = async function exportClassification(arg) {
 
       const [s3] = await pool.query(
         `
-  SELECT correct_3_0, correct_0_3, correct_advancing
-  FROM swiss_results
-  WHERE guild_id = ?
-    AND active = 1
-    AND stage = 'stage3'
-  ORDER BY id DESC
-  LIMIT 1
-  `,
+        SELECT correct_3_0, correct_0_3, correct_advancing
+        FROM swiss_results
+        WHERE guild_id = ?
+          AND active = 1
+          AND stage = 'stage3'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
         [guildId]
       );
+
       if (s3.length) {
         const col = sheetSwiss3.columnCount + 2;
         putOfficialBlock(sheetSwiss3, col, 1, 'Oficjalne — Swiss 3', [
@@ -650,6 +606,7 @@ module.exports = async function exportClassification(arg) {
       }
     }
 
+    // === Playoffs sheet
     const rowsPlayoffs = Object.entries(users)
       .filter(([, u]) => u.picks.playoffs)
       .map(([id, u]) => {
@@ -675,25 +632,15 @@ module.exports = async function exportClassification(arg) {
 
     try {
       const [po] = await pool.query(
-        eventId
-          ? `
-            SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
-            FROM playoffs_results
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND active = 1
-            ORDER BY id DESC
-            LIMIT 1
-          `
-          : `
-            SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
-            FROM playoffs_results
-            WHERE guild_id = ?
-              AND active = 1
-            ORDER BY id DESC
-            LIMIT 1
-          `,
-        eventId ? [guildId, eventId] : [guildId]
+        `
+        SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
+        FROM playoffs_results
+        WHERE guild_id = ?
+          AND active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId]
       );
 
       if (po && po.length) {
@@ -708,10 +655,8 @@ module.exports = async function exportClassification(arg) {
           sheetPlayoffs.columnCount || 0,
           7
         );
-        const startCol = usedCols + 2;
-        const startRow = 1;
 
-        putOfficialBlock(sheetPlayoffs, startCol, startRow, 'Oficjalne — Playoffs', [
+        putOfficialBlock(sheetPlayoffs, usedCols + 2, 1, 'Oficjalne — Playoffs', [
           ['Półfinaliści', semifinalists.length ? semifinalists.join(', ') : '—'],
           ['Finaliści', finalists.length ? finalists.join(', ') : '—'],
           ['Zwycięzca', winner],
@@ -722,6 +667,7 @@ module.exports = async function exportClassification(arg) {
       console.error('❌ Błąd Playoffs official block:', e);
     }
 
+    // === MVP sheet
     const rowsMvp = Object.entries(users)
       .filter(([, u]) => u.picks.mvp)
       .map(([id, u]) => {
@@ -749,29 +695,17 @@ module.exports = async function exportClassification(arg) {
 
     try {
       const [mvpOfficial] = await pool.query(
-        eventId
-          ? `
-            SELECT mr.candidate_id, mc.nickname, mc.team_name
-            FROM mvp_results mr
-            LEFT JOIN mvp_candidates mc
-              ON mc.id = mr.candidate_id
-            WHERE mr.guild_id = ?
-              AND mr.event_id = ?
-              AND mr.active = 1
-            ORDER BY mr.id DESC
-            LIMIT 1
-          `
-          : `
-            SELECT mr.candidate_id, mc.nickname, mc.team_name
-            FROM mvp_results mr
-            LEFT JOIN mvp_candidates mc
-              ON mc.id = mr.candidate_id
-            WHERE mr.guild_id = ?
-              AND mr.active = 1
-            ORDER BY mr.id DESC
-            LIMIT 1
-          `,
-        eventId ? [guildId, eventId] : [guildId]
+        `
+        SELECT mr.candidate_id, mc.nickname, mc.team_name
+        FROM mvp_results mr
+        LEFT JOIN mvp_candidates mc
+          ON mc.id = mr.candidate_id
+        WHERE mr.guild_id = ?
+          AND mr.active = 1
+        ORDER BY mr.id DESC
+        LIMIT 1
+        `,
+        [guildId]
       );
 
       if (mvpOfficial.length) {
@@ -791,6 +725,7 @@ module.exports = async function exportClassification(arg) {
       console.error('❌ Błąd MVP official block:', e);
     }
 
+    // === Double Elim sheet
     const rowsDouble = Object.entries(users)
       .filter(([, u]) => u.picks.double)
       .map(([id, u]) => {
@@ -799,7 +734,16 @@ module.exports = async function exportClassification(arg) {
         const lfa = parseList(p.lower_final_a).join(', ');
         const ufb = parseList(p.upper_final_b).join(', ');
         const lfb = parseList(p.lower_final_b).join(', ');
-        return [id, u.displayname, ufa || '—', lfa || '—', ufb || '—', lfb || '—', u.double || 0];
+
+        return [
+          id,
+          u.displayname,
+          ufa || '—',
+          lfa || '—',
+          ufb || '—',
+          lfb || '—',
+          u.double || 0
+        ];
       })
       .sort((a, b) => b[6] - a[6]);
 
@@ -812,24 +756,17 @@ module.exports = async function exportClassification(arg) {
 
     try {
       const [de] = await pool.query(
-        eventId
-          ? `
-            SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
-            FROM doubleelim_results
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND active = 1
-            ORDER BY id DESC LIMIT 1
-          `
-          : `
-            SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
-            FROM doubleelim_results
-            WHERE guild_id = ?
-              AND active = 1
-            ORDER BY id DESC LIMIT 1
-          `,
-        eventId ? [guildId, eventId] : [guildId]
+        `
+        SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+        FROM doubleelim_results
+        WHERE guild_id = ?
+          AND active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId]
       );
+
       if (de.length) {
         const col = sheetDouble.columnCount + 2;
         putOfficialBlock(sheetDouble, col, 1, 'Oficjalne — Double Elim', [
@@ -841,74 +778,49 @@ module.exports = async function exportClassification(arg) {
       }
     } catch (e) { }
 
+    // === Play-In sheet
     const rowsPlayIn = Object.entries(users)
       .filter(([, u]) => Array.isArray(u.picks.playin) && u.picks.playin.length > 0)
-      .map(([id, u]) => [id, u.displayname, u.picks.playin.join(', '), u.playin || 0])
+      .map(([id, u]) => [
+        id,
+        u.displayname,
+        u.picks.playin.join(', '),
+        u.playin || 0
+      ])
       .sort((a, b) => b[3] - a[3]);
 
-    addSheet(sheetPlayIn, ['User ID', 'Nick', 'Drużyny', 'Punkty'], rowsPlayIn);
+    addSheet(
+      sheetPlayIn,
+      ['User ID', 'Nick', 'Drużyny', 'Punkty'],
+      rowsPlayIn
+    );
     prettifySheet(sheetPlayIn);
 
     try {
-      let po;
-      try {
-        [po] = await pool.query(
-          eventId
-            ? `
-              SELECT *
-              FROM playin_results
-              WHERE guild_id = ?
-                AND event_id = ?
-                AND active = 1
-              ORDER BY id DESC
-              LIMIT 1
-            `
-            : `
-              SELECT *
-              FROM playin_results
-              WHERE guild_id = ?
-                AND active = 1
-              ORDER BY id DESC
-              LIMIT 1
-            `,
-          eventId ? [guildId, eventId] : [guildId]
-        );
-      } catch (_) {
-        [po] = await pool.query(
-          eventId
-            ? `
-              SELECT *
-              FROM playin_results
-              WHERE guild_id = ?
-                AND event_id = ?
-              ORDER BY id DESC
-              LIMIT 1
-            `
-            : `
-              SELECT *
-              FROM playin_results
-              WHERE guild_id = ?
-              ORDER BY id DESC
-              LIMIT 1
-            `,
-          eventId ? [guildId, eventId] : [guildId]
-        );
-      }
+      const [po] = await pool.query(
+        `
+        SELECT *
+        FROM playin_results
+        WHERE guild_id = ?
+          AND active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId]
+      );
 
       if (po && po.length) {
         const row = po[0];
         const teamsRaw = row.correct_teams ?? row.official_playin_teams ?? row.teams ?? null;
-
         const qualified = parseList(teamsRaw);
+
         const usedCols = Math.max(
           sheetPlayIn?.actualColumnCount || 0,
           sheetPlayIn?.columnCount || 0,
           3
         );
-        const startCol = usedCols + 2;
-        const startRow = 1;
 
-        putOfficialBlock(sheetPlayIn, startCol, startRow, 'Oficjalne — Play-In', [
+        putOfficialBlock(sheetPlayIn, usedCols + 2, 1, 'Oficjalne — Play-In', [
           ['Zakwalifikowane', joinOrDash(qualified)]
         ]);
       }
@@ -935,233 +847,110 @@ module.exports = async function exportClassification(arg) {
         { header: 'User ID', key: 'user_id', width: 20 }
       ];
 
-      let matchRows = [];
-
-      if (eventId) {
-        const [rows] = await pool.query(
-          `
+      const [matchRows] = await pool.query(
+        `
+        SELECT
+          m.id AS match_id,
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          m.best_of,
+          r.res_a,
+          r.res_b,
+          p.user_id,
+          p.pred_a,
+          p.pred_b,
+          pts.series_points,
+          pts.map_points,
+          pts.map_hits,
+          pts.points
+        FROM matches m
+        JOIN match_predictions p
+          ON p.match_id = m.id
+         AND p.guild_id = m.guild_id
+        LEFT JOIN match_results r
+          ON r.match_id = m.id
+         AND r.guild_id = m.guild_id
+        LEFT JOIN (
           SELECT
-            m.id AS match_id,
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            m.best_of,
-            r.res_a,
-            r.res_b,
-            p.user_id,
-            p.pred_a,
-            p.pred_b,
-            pts.series_points,
-            pts.map_points,
-            pts.map_hits,
-            pts.points
-          FROM matches m
-          JOIN match_predictions p
-            ON p.match_id = m.id
-           AND p.guild_id = m.guild_id
-          LEFT JOIN match_results r
-            ON r.match_id = m.id
-           AND r.guild_id = m.guild_id
-          LEFT JOIN (
-            SELECT
-              mp.match_id,
-              mp.user_id,
-              SUM(CASE WHEN mp.source='series' THEN mp.points ELSE 0 END) AS series_points,
-              SUM(CASE WHEN mp.source='map' THEN mp.points ELSE 0 END) AS map_points,
-              COUNT(CASE WHEN mp.source='map' THEN 1 END) AS map_hits,
-              SUM(mp.points) AS points
-            FROM match_points mp
-            JOIN matches mm
-              ON mm.id = mp.match_id
-             AND mm.guild_id = mp.guild_id
-            WHERE mp.guild_id = ?
-              AND mm.event_id = ?
-            GROUP BY mp.match_id, mp.user_id
-          ) pts
-            ON pts.match_id = m.id
-           AND pts.user_id = p.user_id
-          WHERE m.guild_id = ?
-            AND m.event_id = ?
-          ORDER BY
-            m.phase,
-            COALESCE(m.match_no, 999999),
-            m.id,
-            p.user_id
-          `,
-          [guildId, eventId, guildId, eventId]
-        );
-        matchRows = rows;
-      } else {
-        const [rows] = await pool.query(
-          `
-          SELECT
-            m.id AS match_id,
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            m.best_of,
-            r.res_a,
-            r.res_b,
-            p.user_id,
-            p.pred_a,
-            p.pred_b,
-            pts.series_points,
-            pts.map_points,
-            pts.map_hits,
-            pts.points
-          FROM matches m
-          JOIN match_predictions p
-            ON p.match_id = m.id
-           AND p.guild_id = m.guild_id
-          LEFT JOIN match_results r
-            ON r.match_id = m.id
-           AND r.guild_id = m.guild_id
-          LEFT JOIN (
-            SELECT
-              mp.match_id,
-              mp.user_id,
-              SUM(CASE WHEN mp.source='series' THEN mp.points ELSE 0 END) AS series_points,
-              SUM(CASE WHEN mp.source='map' THEN mp.points ELSE 0 END) AS map_points,
-              COUNT(CASE WHEN mp.source='map' THEN 1 END) AS map_hits,
-              SUM(mp.points) AS points
-            FROM match_points mp
-            WHERE mp.guild_id = ?
-            GROUP BY mp.match_id, mp.user_id
-          ) pts
-            ON pts.match_id = m.id
-           AND pts.user_id = p.user_id
-          WHERE m.guild_id = ?
-          ORDER BY
-            m.phase,
-            COALESCE(m.match_no, 999999),
-            m.id,
-            p.user_id
-          `,
-          [guildId, guildId]
-        );
-        matchRows = rows;
-      }
-
-      let mapSummaryRows = [];
-
-      if (eventId) {
-        const [rows] = await pool.query(
-          `
-          SELECT
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
+            mp.match_id,
             mp.user_id,
-            CONCAT(
-              GROUP_CONCAT(
-                CONCAT(
-                  'M', mp.map_no, ': ',
-                  mp.pred_exact_a, ':', mp.pred_exact_b,
-                  CASE
-                    WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                      THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
-                    ELSE ''
-                  END
-                )
-                ORDER BY mp.map_no
-                SEPARATOR ', '
-              ),
-              ' (+',
-              SUM(
+            SUM(CASE WHEN mp.source='series' THEN mp.points ELSE 0 END) AS series_points,
+            SUM(CASE WHEN mp.source='map' THEN mp.points ELSE 0 END) AS map_points,
+            COUNT(CASE WHEN mp.source='map' THEN 1 END) AS map_hits,
+            SUM(mp.points) AS points
+          FROM match_points mp
+          WHERE mp.guild_id = ?
+          GROUP BY mp.match_id, mp.user_id
+        ) pts
+          ON pts.match_id = m.id
+         AND pts.user_id = p.user_id
+        WHERE m.guild_id = ?
+        ORDER BY
+          m.phase,
+          COALESCE(m.match_no, 999999),
+          m.id,
+          p.user_id
+        `,
+        [guildId, guildId]
+      );
+
+      const [mapSummaryRows] = await pool.query(
+        `
+        SELECT
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          mp.user_id,
+          CONCAT(
+            GROUP_CONCAT(
+              CONCAT(
+                'M', mp.map_no, ': ',
+                mp.pred_exact_a, ':', mp.pred_exact_b,
                 CASE
-                  WHEN mp.pred_exact_a = mr.exact_a
-                   AND mp.pred_exact_b = mr.exact_b
-                  THEN 3 ELSE 0
+                  WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+                    THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
+                  ELSE ''
                 END
-              ),
-              ' pkt)'
-            ) AS maps_summary
-          FROM matches m
-          JOIN match_map_predictions mp
-            ON mp.match_id = m.id
-           AND mp.guild_id = m.guild_id
-          LEFT JOIN match_map_results mr
-            ON mr.match_id = mp.match_id
-           AND mr.map_no = mp.map_no
-           AND mr.guild_id = mp.guild_id
-          WHERE m.guild_id = ?
-            AND m.event_id = ?
-          GROUP BY
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            mp.user_id
-          ORDER BY
-            m.phase,
-            COALESCE(m.match_no, 999999),
-            m.match_no,
-            mp.user_id
-          `,
-          [guildId, eventId]
-        );
-        mapSummaryRows = rows;
-      } else {
-        const [rows] = await pool.query(
-          `
-          SELECT
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            mp.user_id,
-            CONCAT(
-              GROUP_CONCAT(
-                CONCAT(
-                  'M', mp.map_no, ': ',
-                  mp.pred_exact_a, ':', mp.pred_exact_b,
-                  CASE
-                    WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                      THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
-                    ELSE ''
-                  END
-                )
-                ORDER BY mp.map_no
-                SEPARATOR ', '
-              ),
-              ' (+',
-              SUM(
-                CASE
-                  WHEN mp.pred_exact_a = mr.exact_a
-                   AND mp.pred_exact_b = mr.exact_b
-                  THEN 3 ELSE 0
-                END
-              ),
-              ' pkt)'
-            ) AS maps_summary
-          FROM matches m
-          JOIN match_map_predictions mp
-            ON mp.match_id = m.id
-           AND mp.guild_id = m.guild_id
-          LEFT JOIN match_map_results mr
-            ON mr.match_id = mp.match_id
-           AND mr.map_no = mp.map_no
-           AND mr.guild_id = mp.guild_id
-          WHERE m.guild_id = ?
-          GROUP BY
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            mp.user_id
-          ORDER BY
-            m.phase,
-            COALESCE(m.match_no, 999999),
-            m.match_no,
-            mp.user_id
-          `,
-          [guildId]
-        );
-        mapSummaryRows = rows;
-      }
+              )
+              ORDER BY mp.map_no
+              SEPARATOR ', '
+            ),
+            ' (+',
+            SUM(
+              CASE
+                WHEN mp.pred_exact_a = mr.exact_a
+                 AND mp.pred_exact_b = mr.exact_b
+                THEN 3 ELSE 0
+              END
+            ),
+            ' pkt)'
+          ) AS maps_summary
+        FROM matches m
+        JOIN match_map_predictions mp
+          ON mp.match_id = m.id
+         AND mp.guild_id = m.guild_id
+        LEFT JOIN match_map_results mr
+          ON mr.match_id = mp.match_id
+         AND mr.map_no = mp.map_no
+         AND mr.guild_id = mp.guild_id
+        WHERE m.guild_id = ?
+        GROUP BY
+          m.phase,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          mp.user_id
+        ORDER BY
+          m.phase,
+          COALESCE(m.match_no, 999999),
+          m.match_no,
+          mp.user_id
+        `,
+        [guildId]
+      );
 
       const mapSummaryUserIds = mapSummaryRows.map((r) => r.user_id);
       const discordNamesSummary = await fetchDisplayNamesFromDiscord(interaction, mapSummaryUserIds);
@@ -1223,85 +1012,47 @@ module.exports = async function exportClassification(arg) {
       }
 
       let mapRows = [];
+
       try {
-        if (eventId) {
-          const [rows] = await pool.query(
-            `
-            SELECT
-              m.phase,
-              m.match_no,
-              m.id AS match_id,
-              m.team_a,
-              m.team_b,
-              m.best_of,
-              mp.user_id,
-              mp.map_no,
-              CASE
-                WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                  THEN CONCAT(mr.exact_a, ':', mr.exact_b)
-                ELSE '—'
-              END AS off_score,
-              CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
-            FROM match_map_predictions mp
-            JOIN matches m
-              ON m.id = mp.match_id
-             AND m.guild_id = mp.guild_id
-            LEFT JOIN match_map_results mr
-              ON mr.match_id = mp.match_id
-             AND mr.map_no = mp.map_no
-             AND mr.guild_id = mp.guild_id
-            WHERE mp.guild_id = ?
-              AND m.event_id = ?
-            ORDER BY
-              m.phase,
-              COALESCE(m.match_no, 999999),
-              m.id,
-              mp.user_id,
-              mp.map_no
-            `,
-            [guildId, eventId]
-          );
-          mapRows = rows;
-        } else {
-          const [rows] = await pool.query(
-            `
-            SELECT
-              m.phase,
-              m.match_no,
-              m.id AS match_id,
-              m.team_a,
-              m.team_b,
-              m.best_of,
-              mp.user_id,
-              mp.map_no,
-              CASE
-                WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                  THEN CONCAT(mr.exact_a, ':', mr.exact_b)
-                ELSE '—'
-              END AS off_score,
-              CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
-            FROM match_map_predictions mp
-            JOIN matches m
-              ON m.id = mp.match_id
-             AND m.guild_id = mp.guild_id
-            LEFT JOIN match_map_results mr
-              ON mr.match_id = mp.match_id
-             AND mr.map_no = mp.map_no
-             AND mr.guild_id = mp.guild_id
-            WHERE mp.guild_id = ?
-            ORDER BY
-              m.phase,
-              COALESCE(m.match_no, 999999),
-              m.id,
-              mp.user_id,
-              mp.map_no
-            `,
-            [guildId]
-          );
-          mapRows = rows;
-        }
+        const [rows] = await pool.query(
+          `
+          SELECT
+            m.phase,
+            m.match_no,
+            m.id AS match_id,
+            m.team_a,
+            m.team_b,
+            m.best_of,
+            mp.user_id,
+            mp.map_no,
+            CASE
+              WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
+                THEN CONCAT(mr.exact_a, ':', mr.exact_b)
+              ELSE '—'
+            END AS off_score,
+            CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
+          FROM match_map_predictions mp
+          JOIN matches m
+            ON m.id = mp.match_id
+           AND m.guild_id = mp.guild_id
+          LEFT JOIN match_map_results mr
+            ON mr.match_id = mp.match_id
+           AND mr.map_no = mp.map_no
+           AND mr.guild_id = mp.guild_id
+          WHERE mp.guild_id = ?
+          ORDER BY
+            m.phase,
+            COALESCE(m.match_no, 999999),
+            m.id,
+            mp.user_id,
+            mp.map_no
+          `,
+          [guildId]
+        );
+
+        mapRows = rows;
       } catch (e) {
-        // console.log('⚠️ MAPY: nie udało się pobrać map (pomijam):', e?.message || e);
+        // pomijamy mapy
       }
 
       const mapUserIds2 = mapRows.map((r) => r.user_id).filter(Boolean);
@@ -1331,33 +1082,27 @@ module.exports = async function exportClassification(arg) {
       prettifySheet(sheetMatches);
       prettifySheet(sheetMaps);
     } catch (e) {
-      // console.log('⚠️ MATCHES/MAPY: nie udało się wygenerować arkuszy (pomijam):', e?.message || e);
+      // pomijamy arkusze meczów/map przy błędzie
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
 
     if (outputPath && typeof outputPath === 'string') {
       await fs.promises.writeFile(outputPath, buffer);
-      // console.log('✅ Plik klasyfikacji zapisany jako archiwum:', outputPath);
     } else {
       const filePath = path.join(__dirname, '../klasyfikacja.xlsx');
       await fs.promises.writeFile(filePath, buffer);
-      // console.log('✅ Plik klasyfikacji zapisany lokalnie:', filePath);
     }
 
     if (interaction && (interaction.deferred || interaction.replied)) {
       try {
         await interaction.editReply({
-          content: '📤 Oto najnowsza klasyfikacja (pełna historia):',
+          content: '📤 Oto najnowsza klasyfikacja:',
           files: [{ attachment: buffer, name: 'klasyfikacja.xlsx' }]
         });
       } catch (err) {
         console.error('❌ Błąd przy wysyłaniu pliku na Discorda:', err);
       }
-    }
-
-    if (!interaction) {
-      // console.log('📤 Klasyfikacja wygenerowana bez interakcji (np. przy /end_tournament)');
     }
   });
 };
