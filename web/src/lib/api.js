@@ -37,3 +37,32 @@ export async function getEventMatches(slug) {
 export async function getEventLeaderboard(slug) {
   return apiFetch(`/events/${slug}/leaderboard`);
 }
+
+export async function updateEventPhase(slug, phase) {
+  return apiFetch(`/events/${slug}/phase`, {
+    method: 'POST',
+
+    headers: {
+      'Content-Type': 'application/json'
+    },
+
+    body: JSON.stringify({
+      phase
+    })
+  });
+}
+
+export async function updateEventStatus(slug, status) {
+  return apiFetch(`/events/${slug}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status })
+  });
+}
+
+export async function getGuilds() {
+  return apiFetch('/guilds');
+}
+
+export async function getGuildEvents(guildId) {
+  return apiFetch(`/guilds/${guildId}/events`);
+}
