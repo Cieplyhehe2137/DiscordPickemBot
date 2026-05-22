@@ -1,46 +1,84 @@
-# Pick'Em Bot (Discord)
+# Pick'Em Bot
 
-Zaawansowany bot Discord do organizowania turniejowych Pick'Emów (CS / esport), z obsługa wielu faz turnieju, automatycznym liczeniem punktów i archiwizacją wyników.
+Advanced Discord Pick'Em platform for esports tournaments.
 
-Projekt tworzony z myślą o realnych eventach społeczniościowych (Major, IEM, ligi).
-
----
-
-## ✨ Główne funkcje
-
-- Pick'Emy dla wielu formatów:
-    - Swiss (stage 1-3)
-    - Playoffs
-    - Play-In
-    - Double Elimination
-- Automatyczne zamykanie paneli po deadline
-- Lockowanie meczów przed startem
-- Automatyczne liczenie punktów:
-    - etapy turniejowe
-    - wyniki meczów
-- Eksport klasyfikacji do plików (Excel)
-- Archiwum wyników per serwer (guild)
-- Pełne wsparcie **multi-guild** (jeden proces, wiele serwerów)
+Built for real community events such as Majors, IEM tournaments and custom leagues, with support for multiple tournament formats, automated scoring and multi-guild infrastructure.
 
 ---
 
-## 🧱 Stack techiczny
+## ✨ Features
 
-- **Node.js**
-- **Discord.js v14**
-- PM2 / kontenery (Pterodactyl)
-- AsyncLocalStorage (kontekst guild)
+### Tournament Formats
+
+- Swiss Stage (Stage 1 / 2 / 3)
+- Playoffs
+- Play-In
+- Double Elimination
+- Match Predictions
+- Map Score Predictions
+- MVP Voting System
 
 ---
 
-## 🔐 Status projektu
+### Automation
 
-Projekt jest **aktywnie rozwijany** i używany produkcyjnie
-Repozytorium ma charatker **prywatny / proprietarny**.
+- Automatic deadline handling
+- Automatic panel locking
+- Match locking before start
+- Automatic score calculation
+- Live standings generation
+- Result archiving
+- Multi-event support
+
+---
+
+### Multi-Guild Architecture
+
+- One process handling multiple Discord servers
+- Per-guild configuration system
+- Guild-isolated data architecture
+- Shared infrastructure with independent tournaments
+
+---
+
+### Admin Tools
+
+- Interactive Discord panels
+- Result management system
+- Excel exports
+- Database backup utilities
+- Public leaderboard support
+- Frontend dashboard integration
+
+---
+
+## 🧱 Tech Stack
+
+- Node.js
+- Discord.js v14
+- MySQL
+- Express.js
+- React + Vite
+- PM2 / Pterodactyl
+- AsyncLocalStorage
+
+---
+
+## 🚀 Project Status
+
+The project is actively developed and used in production during real community esports events.
+
+### Current Focus
+
+- Frontend dashboard
+- Public Pick'Em pages
+- Match statistics
+- SaaS-ready multi-guild architecture
+- Mobile application
 
 ---
 
 ## 📄 License
 
-This project is private and proprietary.
+This project is private and proprietary.  
 All rights reserved.
