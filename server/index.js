@@ -173,7 +173,7 @@ app.get('/api/events/:slug/matches', async (req, res) => {
         }
 
         const [matches] = await pool.query(
-  `
+            `
   SELECT
     id,
     phase,
@@ -193,8 +193,8 @@ app.get('/api/events/:slug/matches', async (req, res) => {
   WHERE event_id = ?
   ORDER BY match_no ASC, id ASC
   `,
-  [event.id]
-);
+            [event.id]
+        );
 
         res.json({ event, matches });
     } catch (err) {
@@ -263,6 +263,94 @@ app.get('/api/debug/matches-columns', async (req, res) => {
             error: 'Database error'
         });
     }
+});
+
+app.post('/api/events/:slug/status', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { status } = req.body;
+
+        const allowedStatuses = ['active', 'closed', 'archived'];
+
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                error: 'Invalid status',
+                allowedStatuses
+            });
+        }
+
+        const [result] = await pool.query(
+            `
+      UPDATE events
+      SET status = ?
+      WHERE slug = ?
+      LIMIT 1
+      `,
+            [status, slug]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        res.json({
+            ok: true,
+            slug,
+            status
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/guilds', async (req, res) => {
+    res.json({
+        guilds: [
+            {
+                id: '1321222990465073224',
+                name: 'Hyperland',
+                role: 'admin'
+            }
+        ]
+    });
+});
+
+app.get('/api/guilds/:guildId/events', async (req, res) => {
+  try {
+    const { guildId } = req.params;
+
+    const [events] = await pool.query(
+      `
+      SELECT
+        id,
+        name,
+        slug,
+        phase,
+        status
+      FROM events
+      WHERE guild_id = ?
+      ORDER BY id DESC
+      `,
+      [guildId]
+    );
+
+    res.json({
+      guildId,
+      events
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: 'Database error'
+    });
+  }
 });
 
 app.listen(3301, () => {
