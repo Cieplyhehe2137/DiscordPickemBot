@@ -66,3 +66,7 @@ export async function getGuilds() {
 export async function getGuildEvents(guildId) {
   return apiFetch(`/guilds/${guildId}/events`);
 }
+
+export async function getPublicOverview(slug) {
+  return apiFetch(`/public/${slug}/overview`);
+}

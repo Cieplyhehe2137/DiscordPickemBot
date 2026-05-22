@@ -5,12 +5,16 @@ import Dashboard from './pages/Dashboard';
 import EventDashboard from './pages/EventDashboard';
 import GuildSelect from './pages/GuildSelect';
 import GuildDashboard from './pages/GuildDashboard';
+import PublicEventPage from './pages/PublicEventPage';
+
 import AppLayout from './components/layout/AppLayout';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+
+      <Route path="/public/:slug" element={<PublicEventPage />} />
 
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />

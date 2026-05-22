@@ -192,6 +192,7 @@ app.get('/api/events/:slug/matches', async (req, res) => {
   FROM matches
   WHERE event_id = ?
   ORDER BY match_no ASC, id ASC
+  LIMIT 8
   `,
             [event.id]
         );
@@ -322,11 +323,11 @@ app.get('/api/guilds', async (req, res) => {
 });
 
 app.get('/api/guilds/:guildId/events', async (req, res) => {
-  try {
-    const { guildId } = req.params;
+    try {
+        const { guildId } = req.params;
 
-    const [events] = await pool.query(
-      `
+        const [events] = await pool.query(
+            `
       SELECT
         id,
         name,
@@ -337,20 +338,127 @@ app.get('/api/guilds/:guildId/events', async (req, res) => {
       WHERE guild_id = ?
       ORDER BY id DESC
       `,
-      [guildId]
-    );
+            [guildId]
+        );
 
-    res.json({
-      guildId,
-      events
-    });
-  } catch (err) {
-    console.error(err);
+        res.json({
+            guildId,
+            events
+        });
+    } catch (err) {
+        console.error(err);
 
-    res.status(500).json({
-      error: 'Database error'
-    });
-  }
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/public/:slug/overview', async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+      SELECT
+        id,
+        name,
+        slug,
+        phase,
+        status
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
+            [slug]
+        );
+
+
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [leaderboard] = await pool.query(
+            `
+      SELECT
+        user_id,
+        SUM(points) AS total_points
+      FROM match_points
+      WHERE event_id = ?
+      GROUP BY user_id
+      ORDER BY total_points DESC
+      LIMIT 10
+      `,
+            [event.id]
+        );
+
+        const [matches] = await pool.query(
+  `
+  SELECT
+    id,
+    phase,
+    match_no,
+    team_a,
+    team_b,
+    best_of,
+    start_time_utc,
+    is_locked,
+
+    CASE
+      WHEN is_locked = 1 THEN 'LOCKED'
+      ELSE 'OPEN'
+    END AS ui_status
+
+  FROM matches
+  WHERE event_id = ?
+  ORDER BY match_no ASC, id ASC
+  LIMIT 8
+  `,
+  [event.id]
+);
+
+        const [[stats]] = await pool.query(
+            `
+  SELECT
+    COUNT(*) AS matches
+  FROM matches
+  WHERE event_id = ?
+  `,
+            [event.id]
+        );
+
+        const [[predictionStats]] = await pool.query(
+            `
+  SELECT
+    COUNT(DISTINCT user_id) AS participants,
+    COUNT(*) AS predictions
+  FROM match_predictions
+  WHERE event_id = ?
+  `,
+            [event.id]
+        );
+
+        res.json({
+            event,
+            stats: {
+                participants: predictionStats?.participants || 0,
+                predictions: predictionStats?.predictions || 0,
+                matches: stats?.matches || 0,
+                phase: event.phase
+            },
+            leaderboard,
+            matches
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
 });
 
 app.listen(3301, () => {
