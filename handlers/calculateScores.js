@@ -52,7 +52,7 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) {}
+  } catch (_) { }
 
   return String(val)
     .replace(/[\[\]"]+/g, '')
@@ -523,24 +523,25 @@ module.exports = async function calculateScores(guildId, eventId) {
 
       const [allMaps] = await pool.query(
         `
-        SELECT
-          mp.match_id,
-          mp.user_id,
-          mp.pred_exact_a AS predA,
-          mp.pred_exact_b AS predB,
-          mr.exact_a AS resA,
-          mr.exact_b AS resB
-        FROM match_map_predictions mp
-        JOIN matches m
-          ON m.id = mp.match_id
-         AND m.guild_id = mp.guild_id
-        JOIN match_map_results mr
-          ON mr.match_id = mp.match_id
-         AND mr.map_no = mp.map_no
-         AND mr.guild_id = mp.guild_id
-        WHERE mp.guild_id = ?
-          AND m.event_id = ?
-        `,
+  SELECT
+    mp.match_id,
+    mp.user_id,
+    mp.pred_exact_a AS predA,
+    mp.pred_exact_b AS predB,
+    mr.exact_a AS resA,
+    mr.exact_b AS resB
+  FROM match_predictions mp
+  JOIN matches m
+    ON m.id = mp.match_id
+   AND m.guild_id = mp.guild_id
+  JOIN match_results mr
+    ON mr.match_id = mp.match_id
+   AND mr.guild_id = mp.guild_id
+  WHERE mp.guild_id = ?
+    AND m.event_id = ?
+    AND mp.pred_exact_a IS NOT NULL
+    AND mp.pred_exact_b IS NOT NULL
+  `,
         [guildId, eventId]
       );
 

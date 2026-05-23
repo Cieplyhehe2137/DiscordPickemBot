@@ -394,7 +394,7 @@ module.exports = async function exportClassification(arg) {
       users[id].picks.playin = parseList(row.teams);
     }
 
-        // === MATCHES: suma punktów za wyniki meczów
+    // === MATCHES: suma punktów za wyniki meczów
     try {
       const [matchPointRows] = await pool.query(
         `
@@ -898,57 +898,42 @@ module.exports = async function exportClassification(arg) {
 
       const [mapSummaryRows] = await pool.query(
         `
-        SELECT
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          mp.user_id,
-          CONCAT(
-            GROUP_CONCAT(
-              CONCAT(
-                'M', mp.map_no, ': ',
-                mp.pred_exact_a, ':', mp.pred_exact_b,
-                CASE
-                  WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                    THEN CONCAT(' → ', mr.exact_a, ':', mr.exact_b)
-                  ELSE ''
-                END
-              )
-              ORDER BY mp.map_no
-              SEPARATOR ', '
-            ),
-            ' (+',
-            SUM(
-              CASE
-                WHEN mp.pred_exact_a = mr.exact_a
-                 AND mp.pred_exact_b = mr.exact_b
-                THEN 3 ELSE 0
-              END
-            ),
-            ' pkt)'
-          ) AS maps_summary
-        FROM matches m
-        JOIN match_map_predictions mp
-          ON mp.match_id = m.id
-         AND mp.guild_id = m.guild_id
-        LEFT JOIN match_map_results mr
-          ON mr.match_id = mp.match_id
-         AND mr.map_no = mp.map_no
-         AND mr.guild_id = mp.guild_id
-        WHERE m.guild_id = ?
-        GROUP BY
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          mp.user_id
-        ORDER BY
-          m.phase,
-          COALESCE(m.match_no, 999999),
-          m.match_no,
-          mp.user_id
-        `,
+  SELECT
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    p.user_id,
+    CONCAT(
+      COALESCE(p.pred_exact_a, '—'), ':', COALESCE(p.pred_exact_b, '—'),
+      CASE
+        WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
+          THEN CONCAT(' → ', r.exact_a, ':', r.exact_b)
+        ELSE ''
+      END,
+      ' (+',
+      CASE
+        WHEN p.pred_exact_a = r.exact_a
+         AND p.pred_exact_b = r.exact_b
+        THEN 3 ELSE 0 END,
+      ' pkt)'
+    ) AS maps_summary
+  FROM matches m
+  JOIN match_predictions p
+    ON p.match_id = m.id
+   AND p.guild_id = m.guild_id
+  LEFT JOIN match_results r
+    ON r.match_id = m.id
+   AND r.guild_id = m.guild_id
+  WHERE m.guild_id = ?
+    AND p.pred_exact_a IS NOT NULL
+    AND p.pred_exact_b IS NOT NULL
+  ORDER BY
+    m.phase,
+    COALESCE(m.match_no, 999999),
+    m.id,
+    p.user_id
+  `,
         [guildId]
       );
 
@@ -1016,43 +1001,46 @@ module.exports = async function exportClassification(arg) {
       try {
         const [rows] = await pool.query(
           `
-          SELECT
-            m.phase,
-            m.match_no,
-            m.id AS match_id,
-            m.team_a,
-            m.team_b,
-            m.best_of,
-            mp.user_id,
-            mp.map_no,
-            CASE
-              WHEN mr.exact_a IS NOT NULL AND mr.exact_b IS NOT NULL
-                THEN CONCAT(mr.exact_a, ':', mr.exact_b)
-              ELSE '—'
-            END AS off_score,
-            CONCAT(mp.pred_exact_a, ':', mp.pred_exact_b) AS pred_score
-          FROM match_map_predictions mp
-          JOIN matches m
-            ON m.id = mp.match_id
-           AND m.guild_id = mp.guild_id
-          LEFT JOIN match_map_results mr
-            ON mr.match_id = mp.match_id
-           AND mr.map_no = mp.map_no
-           AND mr.guild_id = mp.guild_id
-          WHERE mp.guild_id = ?
-          ORDER BY
-            m.phase,
-            COALESCE(m.match_no, 999999),
-            m.id,
-            mp.user_id,
-            mp.map_no
-          `,
+    SELECT
+      m.phase,
+      m.match_no,
+      m.id AS match_id,
+      m.team_a,
+      m.team_b,
+      m.best_of,
+      p.user_id,
+      1 AS map_no,
+      CASE
+        WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
+          THEN CONCAT(r.exact_a, ':', r.exact_b)
+        ELSE '—'
+      END AS off_score,
+      CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
+    FROM match_predictions p
+    JOIN matches m
+      ON m.id = p.match_id
+     AND m.guild_id = p.guild_id
+    LEFT JOIN match_results r
+      ON r.match_id = p.match_id
+     AND r.guild_id = p.guild_id
+    WHERE p.guild_id = ?
+      AND p.pred_exact_a IS NOT NULL
+      AND p.pred_exact_b IS NOT NULL
+    ORDER BY
+      m.phase,
+      COALESCE(m.match_no, 999999),
+      m.id,
+      p.user_id
+    `,
           [guildId]
         );
 
         mapRows = rows;
       } catch (e) {
-        // pomijamy mapy
+        logWarn('EXPORT_MAPS_SKIPPED', {
+          guildId,
+          message: e.message
+        });
       }
 
       const mapUserIds2 = mapRows.map((r) => r.user_id).filter(Boolean);
