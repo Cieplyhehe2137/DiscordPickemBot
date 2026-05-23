@@ -73,10 +73,9 @@ module.exports = async (interaction) => {
       return;
     }
 
-    const existing = local[type] || [];
     const incoming = interaction.values.map(String);
 
-    local[type] = [...new Set([...existing, ...incoming])];
+    local[type] = incoming;
 
     setCache(cacheKey, local);
 
