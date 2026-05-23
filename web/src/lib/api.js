@@ -52,13 +52,6 @@ export async function updateEventPhase(slug, phase) {
   });
 }
 
-export async function updateEventStatus(slug, status) {
-  return apiFetch(`/events/${slug}/status`, {
-    method: 'POST',
-    body: JSON.stringify({ status })
-  });
-}
-
 export async function getGuilds() {
   return apiFetch('/guilds');
 }
@@ -69,4 +62,30 @@ export async function getGuildEvents(guildId) {
 
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
+}
+
+export async function getGuildMeta(guildId) {
+  return apiFetch(`/guilds/${guildId}/meta`);
+}
+
+export async function createGuildEvent(guildId, payload) {
+  return apiFetch(`/guilds/${guildId}/events`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateEventStatus(slug, status) {
+  return apiFetch(`/events/${slug}/status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      status
+    })
+  });
 }

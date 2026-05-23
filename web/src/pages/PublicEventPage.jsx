@@ -51,7 +51,14 @@ export default function PublicEventPage() {
                     >
                         Copy Public Link
                     </button>
-
+                    <a
+                        href="https://discord.gg/TWOJ-LINK"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Join Discord
+                    </a>
                     <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-white/60">
                         {publicUrl}
                     </div>
@@ -151,8 +158,8 @@ export default function PublicEventPage() {
 
                                         <span
                                             className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${match.ui_status === 'LOCKED'
-                                                    ? 'bg-red-500/20 text-red-300'
-                                                    : 'bg-green-500/20 text-green-300'
+                                                ? 'bg-red-500/20 text-red-300'
+                                                : 'bg-green-500/20 text-green-300'
                                                 }`}
                                         >
                                             {match.ui_status}

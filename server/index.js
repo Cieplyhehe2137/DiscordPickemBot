@@ -314,7 +314,7 @@ app.get('/api/guilds', async (req, res) => {
     res.json({
         guilds: [
             {
-                id: '1321222990465073224',
+                id: '1161660208951607397',
                 name: 'Hyperland',
                 role: 'admin'
             }
@@ -329,21 +329,48 @@ app.get('/api/guilds/:guildId/events', async (req, res) => {
         const [events] = await pool.query(
             `
       SELECT
-        id,
-        name,
-        slug,
-        phase,
-        status
-      FROM events
-      WHERE guild_id = ?
-      ORDER BY id DESC
+  e.id,
+  e.guild_id,
+  e.name,
+  e.slug,
+  e.phase,
+  e.status,
+  e.created_at,
+
+  (
+    SELECT COUNT(*)
+    FROM matches m
+    WHERE m.event_id = e.id
+  ) AS matches_count,
+
+  (
+    SELECT COUNT(*)
+    FROM match_predictions mp
+    WHERE mp.event_id = e.id
+  ) AS predictions_count,
+
+  (
+    SELECT COUNT(DISTINCT mp.user_id)
+    FROM match_predictions mp
+    WHERE mp.event_id = e.id
+  ) AS participants_count
+
+FROM events e
+WHERE e.guild_id = ?
+ORDER BY e.id DESC
       `,
             [guildId]
         );
 
         res.json({
             guildId,
-            events
+            events,
+            stats: {
+                totalEvents: events.length,
+                activeEvents: events.filter(e => e.status === 'active').length,
+                closedEvents: events.filter(e => e.status === 'closed').length,
+                archivedEvents: events.filter(e => e.status === 'archived').length
+            }
         });
     } catch (err) {
         console.error(err);
@@ -396,7 +423,7 @@ app.get('/api/public/:slug/overview', async (req, res) => {
         );
 
         const [matches] = await pool.query(
-  `
+            `
   SELECT
     id,
     phase,
@@ -417,8 +444,8 @@ app.get('/api/public/:slug/overview', async (req, res) => {
   ORDER BY match_no ASC, id ASC
   LIMIT 8
   `,
-  [event.id]
-);
+            [event.id]
+        );
 
         const [[stats]] = await pool.query(
             `
@@ -451,6 +478,72 @@ app.get('/api/public/:slug/overview', async (req, res) => {
             },
             leaderboard,
             matches
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/guilds/:guildId/meta', async (req, res) => {
+    try {
+        const { guildId } = req.params;
+
+        res.json({
+            guild: {
+                id: guildId,
+                name: 'Hyperland',
+                icon: null,
+                description: 'Competitive CS Pick\'Em Community'
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/events', async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const { name, slug } = req.body;
+
+        if (!name || !slug) {
+            return res.status(400).json({
+                error: 'Name and slug are required'
+            });
+        }
+
+        const [result] = await pool.query(
+            `
+      INSERT INTO events (
+        guild_id,
+        name,
+        slug,
+        phase,
+        status
+      )
+      VALUES (?, ?, ?, 'NOT_STARTED', 'open')
+      `,
+            [guildId, name, slug]
+        );
+
+        res.json({
+            ok: true,
+            event: {
+                id: result.insertId,
+                guild_id: guildId,
+                name,
+                slug,
+                phase: 'NOT_STARTED',
+                status: 'OPEN'
+            }
         });
     } catch (err) {
         console.error(err);
