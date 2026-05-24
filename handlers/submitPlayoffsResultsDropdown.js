@@ -178,9 +178,7 @@ module.exports = async (interaction) => {
         guildId,
         eventId
       );
-
-      const current = await getCurrentPlayoffs(pool, guildId);
-
+      
       const mSemi = pickOrKeep(current.semifinalists, local.semifinalists, 4);
       const mFinal = pickOrKeep(current.finalists, local.finalists, 2);
       const mWinner = pickOrKeep(current.winner, local.winner, 1);
