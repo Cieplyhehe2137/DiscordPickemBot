@@ -31,7 +31,7 @@ function parseList(input) {
   try {
     const j = JSON.parse(s);
     if (Array.isArray(j)) return j.map(String);
-  } catch (_) {}
+  } catch (_) { }
 
   return s
     .replace(/[\[\]"]+/g, '')
@@ -54,18 +54,19 @@ async function loadTeamsFromDB(pool, guildId) {
   return rows.map(r => r.name);
 }
 
-async function getCurrentSwiss(pool, guildId, stageDb) {
+async function getCurrentSwiss(pool, guildId, stageDb, eventId) {
   const [rows] = await pool.query(
     `
     SELECT correct_3_0, correct_0_3, correct_advancing
     FROM swiss_results
     WHERE guild_id = ?
+      AND event_id = ?
       AND stage = ?
       AND active = 1
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId, stageDb]
+    [guildId, eventId, stageDb]
   );
 
   if (!rows.length) {
@@ -86,7 +87,7 @@ async function getCurrentSwiss(pool, guildId, stageDb) {
 function buildSwissComponents(stageLabel, stageDb, teams, cur) {
   const left30 = Math.max(0, 2 - cur.x3_0.length);
   const left03 = Math.max(0, 2 - cur.x0_3.length);
-  const leftA  = Math.max(0, 6 - cur.adv.length);
+  const leftA = Math.max(0, 6 - cur.adv.length);
 
   const used = new Set(
     [...cur.x3_0, ...cur.x0_3, ...cur.adv].map(t => String(t).toLowerCase())
@@ -183,7 +184,26 @@ module.exports = async function openSwissResultsDropdown(
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const teams = await loadTeamsFromDB(pool, guildId);
-      const cur = await getCurrentSwiss(pool, guildId, stageDb);
+      const [[eventRow]] = await pool.query(
+        `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
+      );
+
+      if (!eventRow?.id) {
+        return interaction.editReply({
+          content: '❌ Nie znaleziono aktywnego eventu.'
+        });
+      }
+
+      const eventId = eventRow.id;
+      const cur = await getCurrentSwiss(pool, guildId, stageDb, eventId);
 
       const { embed, components } =
         buildSwissComponents(stageLabel, stageDb, teams, cur);

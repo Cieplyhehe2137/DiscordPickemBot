@@ -208,11 +208,11 @@ WHERE guild_id = ?
 
           await conn.query(
             `
-            INSERT INTO playin_results
-              (guild_id, correct_teams, active)
-            VALUES (?, ?, 1)
-            `,
-            [guildId, toString(data.teams)]
+  INSERT INTO playin_results
+    (guild_id, event_id, correct_teams, active)
+  VALUES (?, ?, ?, 1)
+  `,
+            [guildId, eventId, toString(data.teams)]
           );
 
           await conn.commit();
