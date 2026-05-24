@@ -187,6 +187,30 @@ export default function PublicEventPage() {
         (match) => match.ui_status === 'LIVE'
     ).length;
 
+    if (!data) {
+        return (
+            <div className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
+                <div className="mx-auto max-w-7xl">
+                    <div className="h-5 w-40 animate-pulse rounded-full bg-white/10" />
+                    <div className="mt-4 h-16 w-96 max-w-full animate-pulse rounded-2xl bg-white/10" />
+
+                    <div className="mt-10 grid gap-6 md:grid-cols-3">
+                        <PublicSkeletonCard />
+                        <PublicSkeletonCard />
+                        <PublicSkeletonCard />
+                    </div>
+
+                    <div className="mt-10 h-72 animate-pulse rounded-[2rem] bg-white/10" />
+
+                    <div className="mt-10 grid gap-6 lg:grid-cols-2">
+                        <div className="h-96 animate-pulse rounded-[2rem] bg-white/10" />
+                        <div className="h-96 animate-pulse rounded-[2rem] bg-white/10" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
             <div className="mx-auto max-w-7xl">
@@ -194,7 +218,7 @@ export default function PublicEventPage() {
                     Public Event
                 </p>
 
-                <h1 className="mt-3 text-6xl font-black">
+                <h1 className="mt-3 text-4xl font-black md:text-6xl">
                     {event?.name || slug}
                 </h1>
 
@@ -252,6 +276,16 @@ export default function PublicEventPage() {
                                 Featured Match
                             </p>
 
+                            {heroMatch.ui_status === 'LIVE' && (
+                                <div className="mt-4 flex items-center gap-2">
+                                    <div className="h-3 w-3 rounded-full bg-green-400 animate-pulse" />
+
+                                    <span className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
+                                        Live Now
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
                                 <TeamLogoBlock team={heroMatch.team_a} />
 
@@ -283,7 +317,7 @@ export default function PublicEventPage() {
 
                                 <span
                                     className={`rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.15em] ${heroMatch.ui_status === 'LIVE'
-                                        ? 'bg-green-500/20 text-green-300'
+                                        ? 'bg-green-500/20 text-green-300 animate-pulse'
                                         : heroMatch.ui_status === 'LOCKED'
                                             ? 'bg-red-500/20 text-red-300'
                                             : 'bg-yellow-500/20 text-yellow-300'
@@ -410,7 +444,7 @@ export default function PublicEventPage() {
                                             </div>
 
                                             <div>
-                                                <h3 className="text-2xl font-black">
+                                                <h3 className="text-xl font-black md:text-2xl">
                                                     {player.user_id}
                                                 </h3>
 
@@ -485,7 +519,7 @@ export default function PublicEventPage() {
                                     key={match.id}
                                     onClick={() => openMatchModal(match)}
                                     className={`cursor-pointer rounded-2xl border p-5 transition-all ${match.ui_status === 'LIVE'
-                                        ? 'border-green-400/30 bg-green-500/5 shadow-[0_0_40px_rgba(34,197,94,0.12)]'
+                                        ? 'border-green-400/40 bg-green-500/10 shadow-[0_0_60px_rgba(34,197,94,0.18)] animate-pulse'
                                         : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
                                         }`}
                                 >
@@ -582,7 +616,7 @@ function MatchModal({
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-950 p-8 shadow-2xl animate-in zoom-in-95 duration-200"
+                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-950 p-5 shadow-2xl animate-in zoom-in-95 duration-200 md:p-8"
             >
                 <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -590,27 +624,8 @@ function MatchModal({
                             Match Details
                         </p>
 
-                        <div className="mt-6 grid items-center gap-6 md:grid-cols-3">
-                            <div className="text-center">
-                                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/10 bg-black/30 text-3xl font-black overflow-hidden">
-                                    <img
-                                        src={getTeamLogo(selectedMatch.team_a)}
-                                        alt={selectedMatch.team_a}
-                                        className="h-16 w-16 object-contain"
-                                        onError={(e) => {
-                                            e.currentTarget.style.display = 'none';
-                                        }}
-                                    />
-
-                                    <span className="absolute">
-                                        {selectedMatch.team_a?.charAt(0)}
-                                    </span>
-                                </div>
-
-                                <h2 className="mt-4 text-2xl font-black">
-                                    {selectedMatch.team_a}
-                                </h2>
-                            </div>
+                        <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
+                            <TeamLogoBlock team={selectedMatch.team_a} />
 
                             <div className="text-center">
                                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -626,26 +641,7 @@ function MatchModal({
                                 </p>
                             </div>
 
-                            <div className="text-center">
-                                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/10 bg-black/30 text-3xl font-black overflow-hidden">
-                                    <img
-                                        src={getTeamLogo(selectedMatch.team_b)}
-                                        alt={selectedMatch.team_b}
-                                        className="h-16 w-16 object-contain"
-                                        onError={(e) => {
-                                            e.currentTarget.style.display = 'none';
-                                        }}
-                                    />
-
-                                    <span className="absolute">
-                                        {selectedMatch.team_b?.charAt(0)}
-                                    </span>
-                                </div>
-
-                                <h2 className="mt-4 text-2xl font-black">
-                                    {selectedMatch.team_b}
-                                </h2>
-                            </div>
+                            <TeamLogoBlock team={selectedMatch.team_b} />
                         </div>
                     </div>
 
@@ -875,7 +871,7 @@ function TeamLogoBlock({ team }) {
                 />
             </div>
 
-            <h2 className="mt-4 break-words text-2xl font-black">
+            <h2 className="mt-4 break-words text-xl font-black md:text-2xl">
                 {team}
             </h2>
         </div>
@@ -929,4 +925,13 @@ function getTeamColor(teamName) {
         .reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
     return colors[hash % colors.length];
+}
+
+function PublicSkeletonCard() {
+    return (
+        <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+            <div className="h-4 w-24 animate-pulse rounded-full bg-white/10" />
+            <div className="mt-4 h-10 w-20 animate-pulse rounded-xl bg-white/10" />
+        </div>
+    );
 }
