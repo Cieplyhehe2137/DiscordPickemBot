@@ -52,14 +52,12 @@ function validateScore(a, b) {
     return null;
   }
 
-  if (
-    winner >= 16 &&
-    winner - loser === 2 &&
-    (winner - 16) % 3 === 0 &&
-    (loser - 14) % 3 === 0
-  ) {
+  // dogrywki CS2 (MR12)
+  if (winner >= 16 && winner - loser === 2) {
     return null;
   }
+
+  return 'Nieprawidłowy wynik mapy CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.';
 
   return 'Nieprawidłowy wynik mapy CS2. Dozwolone np. 13:8, 13:11, 16:14, 19:17.';
 }
@@ -333,6 +331,6 @@ module.exports = async function matchUserExactSubmit(interaction) {
     return interaction.reply({
       content: '❌ Nie udało się zapisać wyniku.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };
