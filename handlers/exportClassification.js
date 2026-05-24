@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { withGuild } = require('../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../utils/logger');
+const { env } = require('process');
 
 function parseList(input) {
   if (!input) return [];
@@ -129,13 +130,14 @@ module.exports = async function exportClassification(arg) {
   }
 
   await withGuild({ guildId }, async ({ pool, guildId }) => {
-    logInfo('EXPORT_CLASSIFICATION_START', { guildId });
+    const eventId = arg?.eventId || await resolveEventId(pool, guildId);
 
-    try {
-      await calculateScores(guildId);
-    } catch (e) {
-      // eksport ma iść dalej nawet jeśli przeliczanie punktów się wywali
+    if (!eventId) {
+      throw new Error('exportClassification: missing eventId');
     }
+
+    await calculateScores(guildId, eventId);
+    logInfo('EXPORT_CLASSIFICATION_START', { guildId });
 
     const workbook = new ExcelJS.Workbook();
 
@@ -183,8 +185,9 @@ module.exports = async function exportClassification(arg) {
       SELECT user_id, displayname, stage, points AS score
       FROM swiss_scores
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of swissRows) {
@@ -205,8 +208,9 @@ module.exports = async function exportClassification(arg) {
       SELECT *
       FROM swiss_predictions
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of swissPredictions) {
@@ -229,8 +233,9 @@ module.exports = async function exportClassification(arg) {
       SELECT user_id, displayname, points
       FROM playoffs_scores
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of playoffRows) {
@@ -246,8 +251,9 @@ module.exports = async function exportClassification(arg) {
       SELECT *
       FROM playoffs_predictions
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of playoffPreds) {
@@ -269,8 +275,9 @@ module.exports = async function exportClassification(arg) {
       SELECT user_id, displayname, points
       FROM doubleelim_scores
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of doubleRows) {
@@ -286,8 +293,9 @@ module.exports = async function exportClassification(arg) {
       SELECT *
       FROM doubleelim_predictions
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of doublePreds) {
@@ -309,8 +317,9 @@ module.exports = async function exportClassification(arg) {
       SELECT user_id, displayname, points
       FROM mvp_scores
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of mvpRows) {
@@ -326,8 +335,9 @@ module.exports = async function exportClassification(arg) {
       SELECT *
       FROM mvp_predictions
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of mvpPreds) {
@@ -345,8 +355,9 @@ module.exports = async function exportClassification(arg) {
       SELECT id, nickname, team_name
       FROM mvp_candidates
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     const mvpCandidatesMap = new Map(
@@ -365,8 +376,9 @@ module.exports = async function exportClassification(arg) {
       SELECT user_id, displayname, points
       FROM playin_scores
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of playinRows) {
@@ -382,8 +394,9 @@ module.exports = async function exportClassification(arg) {
       SELECT *
       FROM playin_predictions
       WHERE guild_id = ?
+      AND event_id = ?
       `,
-      [guildId]
+      [guildId, eventId]
     );
 
     for (const row of playinPreds) {
@@ -401,9 +414,10 @@ module.exports = async function exportClassification(arg) {
         SELECT user_id, SUM(points) AS points
         FROM match_points
         WHERE guild_id = ?
+        AND event_id = ?
         GROUP BY user_id
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       for (const row of matchPointRows) {
@@ -544,12 +558,13 @@ module.exports = async function exportClassification(arg) {
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
         WHERE guild_id = ?
+          AND event_id = ?
           AND active = 1
           AND stage = 'stage1'
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (s1.length) {
@@ -566,12 +581,13 @@ module.exports = async function exportClassification(arg) {
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
         WHERE guild_id = ?
+          AND event_id = ?
           AND active = 1
           AND stage = 'stage2'
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (s2.length) {
@@ -588,12 +604,13 @@ module.exports = async function exportClassification(arg) {
         SELECT correct_3_0, correct_0_3, correct_advancing
         FROM swiss_results
         WHERE guild_id = ?
+          AND event_id = ?
           AND active = 1
           AND stage = 'stage3'
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (s3.length) {
@@ -636,11 +653,12 @@ module.exports = async function exportClassification(arg) {
         SELECT correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner
         FROM playoffs_results
         WHERE guild_id = ?
+          AND event_id = ?
           AND active = 1
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (po && po.length) {
@@ -702,10 +720,11 @@ module.exports = async function exportClassification(arg) {
           ON mc.id = mr.candidate_id
         WHERE mr.guild_id = ?
           AND mr.active = 1
+          AND mr.event_id = ?
         ORDER BY mr.id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (mvpOfficial.length) {
@@ -761,10 +780,11 @@ module.exports = async function exportClassification(arg) {
         FROM doubleelim_results
         WHERE guild_id = ?
           AND active = 1
+          AND event_id = ?
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (de.length) {
@@ -803,10 +823,11 @@ module.exports = async function exportClassification(arg) {
         FROM playin_results
         WHERE guild_id = ?
           AND active = 1
+          AND event_id = ?
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId]
+        [guildId, eventId]
       );
 
       if (po && po.length) {
@@ -849,51 +870,86 @@ module.exports = async function exportClassification(arg) {
 
       const [matchRows] = await pool.query(
         `
-        SELECT
-          m.id AS match_id,
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          m.best_of,
-          r.res_a,
-          r.res_b,
-          p.user_id,
-          p.pred_a,
-          p.pred_b,
-          pts.series_points,
-          pts.map_points,
-          pts.map_hits,
-          pts.points
-        FROM matches m
-        JOIN match_predictions p
-          ON p.match_id = m.id
-         AND p.guild_id = m.guild_id
-        LEFT JOIN match_results r
-          ON r.match_id = m.id
-         AND r.guild_id = m.guild_id
-        LEFT JOIN (
-          SELECT
-            mp.match_id,
-            mp.user_id,
-            SUM(CASE WHEN mp.source='series' THEN mp.points ELSE 0 END) AS series_points,
-            SUM(CASE WHEN mp.source='map' THEN mp.points ELSE 0 END) AS map_points,
-            COUNT(CASE WHEN mp.source='map' THEN 1 END) AS map_hits,
-            SUM(mp.points) AS points
-          FROM match_points mp
-          WHERE mp.guild_id = ?
-          GROUP BY mp.match_id, mp.user_id
-        ) pts
-          ON pts.match_id = m.id
-         AND pts.user_id = p.user_id
-        WHERE m.guild_id = ?
-        ORDER BY
-          m.phase,
-          COALESCE(m.match_no, 999999),
-          m.id,
-          p.user_id
-        `,
-        [guildId, guildId]
+  SELECT
+    m.id AS match_id,
+    m.phase,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    r.res_a,
+    r.res_b,
+    p.user_id,
+    p.pred_a,
+    p.pred_b,
+    pts.series_points,
+    pts.map_points,
+    pts.map_hits,
+    pts.points
+  FROM matches m
+  JOIN match_predictions p
+    ON p.match_id = m.id
+   AND p.guild_id = m.guild_id
+   AND p.event_id = m.event_id
+
+  LEFT JOIN match_results r
+    ON r.match_id = m.id
+   AND r.guild_id = m.guild_id
+   AND r.event_id = m.event_id
+
+  LEFT JOIN (
+    SELECT
+      mp.match_id,
+      mp.user_id,
+      SUM(
+        CASE
+          WHEN mp.source = 'series'
+          THEN mp.points
+          ELSE 0
+        END
+      ) AS series_points,
+
+      SUM(
+        CASE
+          WHEN mp.source = 'map'
+          THEN mp.points
+          ELSE 0
+        END
+      ) AS map_points,
+
+      COUNT(
+        CASE
+          WHEN mp.source = 'map'
+          THEN 1
+        END
+      ) AS map_hits,
+
+      SUM(mp.points) AS points
+
+    FROM match_points mp
+    WHERE mp.guild_id = ?
+      AND mp.event_id = ?
+
+    GROUP BY mp.match_id, mp.user_id
+  ) pts
+    ON pts.match_id = m.id
+   AND pts.user_id = p.user_id
+
+  WHERE m.guild_id = ?
+    AND m.event_id = ?
+
+  ORDER BY
+    m.phase,
+    COALESCE(m.match_no, 999999),
+    m.id,
+    p.user_id
+  `,
+        [
+          guildId,
+          eventId,
+          guildId,
+          eventId
+        ]
       );
 
       const [mapSummaryRows] = await pool.query(
@@ -904,37 +960,63 @@ module.exports = async function exportClassification(arg) {
     m.team_a,
     m.team_b,
     p.user_id,
+
     CONCAT(
-      COALESCE(p.pred_exact_a, '—'), ':', COALESCE(p.pred_exact_b, '—'),
+      COALESCE(p.pred_exact_a, '—'),
+      ':',
+      COALESCE(p.pred_exact_b, '—'),
+
       CASE
-        WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-          THEN CONCAT(' → ', r.exact_a, ':', r.exact_b)
+        WHEN r.exact_a IS NOT NULL
+         AND r.exact_b IS NOT NULL
+        THEN CONCAT(
+          ' → ',
+          r.exact_a,
+          ':',
+          r.exact_b
+        )
         ELSE ''
       END,
+
       ' (+',
+
       CASE
         WHEN p.pred_exact_a = r.exact_a
          AND p.pred_exact_b = r.exact_b
-        THEN 3 ELSE 0 END,
+        THEN 3
+        ELSE 0
+      END,
+
       ' pkt)'
     ) AS maps_summary
+
   FROM matches m
+
   JOIN match_predictions p
     ON p.match_id = m.id
    AND p.guild_id = m.guild_id
+   AND p.event_id = m.event_id
+
   LEFT JOIN match_results r
     ON r.match_id = m.id
    AND r.guild_id = m.guild_id
+   AND r.event_id = m.event_id
+
   WHERE m.guild_id = ?
+    AND m.event_id = ?
     AND p.pred_exact_a IS NOT NULL
     AND p.pred_exact_b IS NOT NULL
+
   ORDER BY
     m.phase,
     COALESCE(m.match_no, 999999),
     m.id,
     p.user_id
   `,
-        [guildId]
+        [
+          guildId,
+          eventId
+        ]
       );
 
       const mapSummaryUserIds = mapSummaryRows.map((r) => r.user_id);

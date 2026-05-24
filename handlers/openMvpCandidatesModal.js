@@ -6,6 +6,13 @@ const {
 } = require('discord.js');
 
 module.exports = async function openMvpCandidatesModal(interaction, eventId) {
+  if (!eventId) {
+    return interaction.reply({
+      content: '❌ Brak event_id dla modala MVP.',
+      ephemeral: true
+    });
+  }
+
   const modal = new ModalBuilder()
     .setCustomId(`mvp_admin_candidates_modal:${eventId}`)
     .setTitle('Ustaw kandydatów MVP');
