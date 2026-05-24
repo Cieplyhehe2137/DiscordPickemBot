@@ -39,31 +39,7 @@ async function loadTeamsFromDB(pool, guildId) {
   return rows.map(r => r.name);
 }
 
-const [[eventRow]] = await pool.query(
-  `
-  SELECT id
-  FROM events
-  WHERE guild_id = ?
-    AND status = 'OPEN'
-  ORDER BY id DESC
-  LIMIT 1
-  `,
-  [guildId]
-);
 
-if (!eventRow?.id) {
-  return interaction.editReply(
-    '❌ Nie znaleziono aktywnego eventu.'
-  );
-}
-
-const eventId = eventRow.id;
-
-const current = await getCurrentPlayoffs(
-  pool,
-  guildId,
-  eventId
-);
 
 async function getCurrentPlayoffs(pool, guildId, eventId) {
   const [rows] = await pool.query(
@@ -176,6 +152,33 @@ module.exports = async (interaction) => {
     await interaction.deferReply({ ephemeral: true });
 
     await withGuild(interaction, async ({ pool, guildId }) => {
+
+      const [[eventRow]] = await pool.query(
+        `
+    SELECT id
+    FROM events
+    WHERE guild_id = ?
+      AND status = 'OPEN'
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+        [guildId]
+      );
+
+      if (!eventRow?.id) {
+        return interaction.editReply(
+          '❌ Nie znaleziono aktywnego eventu.'
+        );
+      }
+
+      const eventId = eventRow.id;
+
+      const current = await getCurrentPlayoffs(
+        pool,
+        guildId,
+        eventId
+      );
+
       const current = await getCurrentPlayoffs(pool, guildId);
 
       const mSemi = pickOrKeep(current.semifinalists, local.semifinalists, 4);
