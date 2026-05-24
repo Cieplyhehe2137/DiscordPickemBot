@@ -499,15 +499,14 @@ app.get('/api/public/:slug/overview', async (req, res) => {
 
         const [leaderboard] = await pool.query(
             `
-      SELECT
-        user_id,
-        SUM(points) AS total_points
-      FROM match_points
-      WHERE event_id = ?
-      GROUP BY user_id
-      ORDER BY total_points DESC
-      LIMIT 10
-      `,
+  SELECT
+    user_id,
+    total_points
+  FROM leaderboard
+  WHERE event_id = ?
+  ORDER BY total_points DESC
+  LIMIT 10
+  `,
             [event.id]
         );
 
@@ -788,14 +787,14 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
 
         const [[stats]] = await pool.query(
             `
-      SELECT
-        COUNT(*) AS predictions,
-        SUM(predicted_winner = ?) AS team_a_picks,
-        SUM(predicted_winner = ?) AS team_b_picks
-      FROM match_predictions
-      WHERE match_id = ?
-      `,
-            [match.team_a, match.team_b, matchId]
+  SELECT
+    COUNT(*) AS predictions,
+    SUM(pred_a = 1) AS team_a_picks,
+    SUM(pred_b = 1) AS team_b_picks
+  FROM match_predictions
+  WHERE match_id = ?
+  `,
+            [matchId]
         );
 
         res.json({
