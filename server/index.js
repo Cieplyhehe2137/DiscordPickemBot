@@ -6,6 +6,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 import http from 'http';
 import { Server } from 'socket.io';
+import { startCs2LogReceiver } from './live/cs2LogReceiver.js';
+import { parseCs2LogLine } from './live/cs2LogParser.js';
 
 const require = createRequire(import.meta.url);
 const calculateScores = require('../handlers/calculateScores');
@@ -816,4 +818,15 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
 
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
+});
+
+startCs2LogReceiver({
+    port: Number(process.env.CS2_LOG_PORT || 27500),
+    onLine(raw) {
+        const parsed = parseCs2LogLine(raw);
+
+        if (!parsed) return;
+
+        console.log('[CS2 PARSED]', parsed);
+    }
 });
