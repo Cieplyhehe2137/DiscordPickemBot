@@ -416,6 +416,60 @@ ORDER BY e.id DESC
     }
 });
 
+function getPublicMatchStatus(match) {
+    if (Number(match.is_locked) === 1) return 'LOCKED';
+
+    const startTime = match.start_time_utc
+        ? new Date(match.start_time_utc).getTime()
+        : null;
+
+    if (startTime && startTime <= Date.now()) return 'LIVE';
+
+    return 'OPEN';
+}
+
+function getPublicCountdown(startTimeUtc) {
+    if (!startTimeUtc) return 'TBA';
+
+    const target = new Date(startTimeUtc).getTime();
+    const diff = target - Date.now();
+
+    if (diff <= 0) return 'LIVE';
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(
+        (diff % (1000 * 60 * 60)) / (1000 * 60)
+    );
+
+    if (hours <= 0) return `${minutes}m`;
+
+    return `${hours}h ${minutes}m`;
+}
+
+function formatPublicDate(startTimeUtc) {
+    if (!startTimeUtc) return 'Start time TBA';
+
+    return new Date(startTimeUtc).toISOString();
+}
+
+function buildPublicMatch(match) {
+    const uiStatus = getPublicMatchStatus(match);
+
+    return {
+        id: match.id,
+        phase: match.phase,
+        match_no: match.match_no,
+        team_a: match.team_a,
+        team_b: match.team_b,
+        best_of: match.best_of,
+        start_time_utc: match.start_time_utc,
+        formatted_time: formatPublicDate(match.start_time_utc),
+        countdown: getPublicCountdown(match.start_time_utc),
+        is_locked: Number(match.is_locked) === 1,
+        ui_status: uiStatus
+    };
+}
+
 app.get('/api/public/:slug/overview', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -503,6 +557,14 @@ app.get('/api/public/:slug/overview', async (req, res) => {
             [event.id]
         );
 
+        const publicMatches = matches.map(buildPublicMatch);
+
+        const featuredMatch =
+            publicMatches.find((match) => match.ui_status === 'LIVE') ||
+            publicMatches.find((match) => match.ui_status === 'OPEN') ||
+            publicMatches[0] ||
+            null;
+
         res.json({
             event,
             stats: {
@@ -512,7 +574,8 @@ app.get('/api/public/:slug/overview', async (req, res) => {
                 phase: event.phase
             },
             leaderboard,
-            matches
+            featured_match: featuredMatch,
+            matches: publicMatches
         });
     } catch (err) {
         console.error(err);

@@ -58,10 +58,10 @@ module.exports = async function matchScoreSelectPred(interaction) {
       // 🔒 GUILD-SAFE SELECT
       const [[match]] = await pool.query(
         `
-        SELECT id, team_a, team_b, best_of, is_locked, start_time_utc, phase
-        FROM matches
-        WHERE guild_id = ? AND id = ?
-        LIMIT 1
+        SELECT id, event_id, team_a, team_b, best_of, is_locked, start_time_utc, phase
+FROM matches
+WHERE guild_id = ? AND id = ?
+LIMIT 1
         `,
         [guildId, matchId]
       );
@@ -99,17 +99,25 @@ module.exports = async function matchScoreSelectPred(interaction) {
       // ✅ zapis typowania SERII
       await pool.query(
         `
-        INSERT INTO match_predictions
-          (guild_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-        VALUES (?, ?, ?, ?, ?, NULL, NULL)
-        ON DUPLICATE KEY UPDATE
-          pred_a = VALUES(pred_a),
-          pred_b = VALUES(pred_b),
-          pred_exact_a = NULL,
-          pred_exact_b = NULL,
-          updated_at = CURRENT_TIMESTAMP
-        `,
-        [guildId, match.id, interaction.user.id, winA, winB]
+  INSERT INTO match_predictions
+    (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+  VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
+  ON DUPLICATE KEY UPDATE
+    event_id = VALUES(event_id),
+    pred_a = VALUES(pred_a),
+    pred_b = VALUES(pred_b),
+    pred_exact_a = NULL,
+    pred_exact_b = NULL,
+    updated_at = CURRENT_TIMESTAMP
+  `,
+        [
+          guildId,
+          match.event_id,
+          match.id,
+          interaction.user.id,
+          winA,
+          winB
+        ]
       );
 
       const prev = userState.get(guildId, interaction.user.id) || {};
@@ -146,6 +154,6 @@ module.exports = async function matchScoreSelectPred(interaction) {
     return interaction.update({
       content: '❌ Błąd przy wyborze typu.',
       components: []
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };
