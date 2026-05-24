@@ -554,6 +554,125 @@ app.post('/api/guilds/:guildId/events', async (req, res) => {
     }
 });
 
+app.post('/api/events/:slug/recalculate', async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+      SELECT id, slug, name
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        // TODO: tutaj później podepniemy prawdziwe calculateScores z bota
+        res.json({
+            ok: true,
+            message: 'Recalculate placeholder completed',
+            event
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/matches/:matchId/lock', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { locked } = req.body;
+
+        const [result] = await pool.query(
+            `
+      UPDATE matches
+      SET is_locked = ?
+      WHERE id = ?
+      LIMIT 1
+      `,
+            [locked ? 1 : 0, matchId]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: 'Match not found'
+            });
+        }
+
+        res.json({
+            ok: true,
+            matchId,
+            locked: !!locked
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/matches/:matchId/stats', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+
+        const [[match]] = await pool.query(
+            `
+      SELECT id, team_a, team_b
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
+            [matchId]
+        );
+
+        if (!match) {
+            return res.status(404).json({
+                error: 'Match not found'
+            });
+        }
+
+        const [[stats]] = await pool.query(
+            `
+      SELECT
+        COUNT(*) AS predictions,
+        SUM(predicted_winner = ?) AS team_a_picks,
+        SUM(predicted_winner = ?) AS team_b_picks
+      FROM match_predictions
+      WHERE match_id = ?
+      `,
+            [match.team_a, match.team_b, matchId]
+        );
+
+        res.json({
+            match,
+            stats: {
+                predictions: stats?.predictions || 0,
+                team_a_picks: stats?.team_a_picks || 0,
+                team_b_picks: stats?.team_b_picks || 0
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
 app.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });

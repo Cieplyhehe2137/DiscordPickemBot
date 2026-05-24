@@ -89,3 +89,25 @@ export async function updateEventStatus(slug, status) {
     })
   });
 }
+
+export async function recalculateEvent(slug) {
+  return apiFetch(`/events/${slug}/recalculate`, {
+    method: 'POST'
+  });
+}
+
+export async function updateMatchLock(matchId, locked) {
+  return apiFetch(`/matches/${matchId}/lock`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      locked
+    })
+  });
+}
+
+export async function getMatchStats(matchId) {
+  return apiFetch(`/matches/${matchId}/stats`);
+}

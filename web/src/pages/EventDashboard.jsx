@@ -1,27 +1,82 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   getEventSummary,
   getEventMatches,
   getEventLeaderboard,
   updateEventPhase,
-  updateEventStatus
+  updateEventStatus,
+  recalculateEvent,
+  updateMatchLock,
+  getMatchStats
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
 import { useApp } from '../context/AppContext';
 import Skeleton from '../components/ui/Skeleton';
 
-
 export default function EventDashboard() {
   const { slug } = useParams();
+  const navigate = useNavigate();
+  const { setSelectedEvent } = useApp();
 
   const [data, setData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedPhase, setSelectedPhase] = useState('');
   const [phaseLoading, setPhaseLoading] = useState(false);
-  const { setSelectedEvent } = useApp();
+  const [recalculating, setRecalculating] = useState(false);
+
+  const [expandedMatchId, setExpandedMatchId] = useState(null);
+  const [matchSortBy, setMatchSortBy] = useState('match_no');
+  const [matchSearch, setMatchSearch] = useState('');
+  const [matchStatusFilter, setMatchStatusFilter] = useState('ALL');
+  const [matchStats, setMatchStats] = useState({});
+  const [matchStatsLoading, setMatchStatsLoading] = useState({});
+
+  const event = data?.event;
+  const stats = data?.stats;
+  const matchStatus = data?.match_status;
+  const nextMatch = data?.next_match;
+  const phaseInfo = data?.phase_info;
+
+  const sortedMatches = [...matches]
+    .filter((match) => {
+      if (
+        matchStatusFilter !== 'ALL' &&
+        match.ui_status !== matchStatusFilter
+      ) {
+        return false;
+      }
+
+      const query = matchSearch.toLowerCase();
+
+      return (
+        match.team_a?.toLowerCase().includes(query) ||
+        match.team_b?.toLowerCase().includes(query) ||
+        match.phase?.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => {
+      if (matchSortBy === 'match_no') {
+        return (a.match_no || 0) - (b.match_no || 0);
+      }
+
+      if (matchSortBy === 'start_time') {
+        return new Date(a.start_time_utc || 0) - new Date(b.start_time_utc || 0);
+      }
+
+      if (matchSortBy === 'phase') {
+        return (a.phase || '').localeCompare(b.phase || '');
+      }
+
+      if (matchSortBy === 'locked') {
+        return Number(b.is_locked || 0) - Number(a.is_locked || 0);
+      }
+
+      return 0;
+    });
 
   useEffect(() => {
     async function load() {
@@ -29,9 +84,9 @@ export default function EventDashboard() {
         setLoading(true);
 
         const result = await getEventSummary(slug);
+
         setData(result);
         setSelectedEvent(result.event);
-
         setSelectedPhase(result?.event?.phase || '');
 
         const matchesResult = await getEventMatches(slug);
@@ -46,20 +101,29 @@ export default function EventDashboard() {
       }
     }
 
-
-
     load();
-  }, [slug]);
+  }, [slug, setSelectedEvent]);
+
+  async function refreshEventData() {
+    const result = await getEventSummary(slug);
+
+    setData(result);
+    setSelectedPhase(result?.event?.phase || '');
+    setSelectedEvent(result.event);
+
+    const matchesResult = await getEventMatches(slug);
+    setMatches(matchesResult.matches || []);
+
+    const leaderboardResult = await getEventLeaderboard(slug);
+    setLeaderboard(leaderboardResult.leaderboard || []);
+  }
 
   async function handlePhaseUpdate() {
     try {
       setPhaseLoading(true);
 
       await updateEventPhase(slug, selectedPhase);
-
-      const refreshed = await getEventSummary(slug);
-
-      setData(refreshed);
+      await refreshEventData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -67,27 +131,116 @@ export default function EventDashboard() {
     }
   }
 
-  async function handleCloseEvent() {
+  async function handleStatusUpdate(status) {
     try {
-      await updateEventStatus(slug, 'closed');
-
-      const refreshed = await getEventSummary(slug);
-      setData(refreshed);
+      await updateEventStatus(slug, status);
+      await refreshEventData();
     } catch (err) {
       console.error(err);
     }
   }
 
-  const event = data?.event;
-  const stats = data?.stats;
-  const matchStatus = data?.match_status;
-  const nextMatch = data?.next_match;
-  const phaseInfo = data?.phase_info;
+  async function handleCloseEvent() {
+    await handleStatusUpdate('CLOSED');
+  }
+
+  async function handleArchiveEvent() {
+    const confirmed = window.confirm(
+      `Archive event "${event?.name || slug}"?\n\nThis will hide it from active views, but it will not delete data from the database.`
+    );
+
+    if (!confirmed) return;
+
+    await handleStatusUpdate('ARCHIVED');
+  }
+
+  async function handleCopyPublicLink() {
+    const url = `${window.location.origin}/public/${slug}`;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Public link copied!');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleRecalculate() {
+    try {
+      setRecalculating(true);
+
+      await recalculateEvent(slug);
+      await refreshEventData();
+
+      alert('Scores recalculated!');
+    } catch (err) {
+      console.error(err);
+      alert('Could not recalculate scores');
+    } finally {
+      setRecalculating(false);
+    }
+  }
+
+  async function handleMatchLock(matchId, locked) {
+    try {
+      await updateMatchLock(matchId, locked);
+      await refreshEventData();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleBulkMatchLock(locked) {
+    const confirmed = window.confirm(
+      `${locked ? 'Lock' : 'Unlock'} all visible matches?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await Promise.all(
+        sortedMatches.map((match) => updateMatchLock(match.id, locked))
+      );
+
+      await refreshEventData();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleToggleMatchDetails(matchId) {
+    if (expandedMatchId === matchId) {
+      setExpandedMatchId(null);
+      return;
+    }
+
+    setExpandedMatchId(matchId);
+
+    try {
+      setMatchStatsLoading((prev) => ({
+        ...prev,
+        [matchId]: true
+      }));
+
+      const result = await getMatchStats(matchId);
+
+      setMatchStats((prev) => ({
+        ...prev,
+        [matchId]: result.stats
+      }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMatchStatsLoading((prev) => ({
+        ...prev,
+        [matchId]: false
+      }));
+    }
+  }
 
   return (
     <div>
       <main className="mx-auto max-w-7xl px-6 py-8">
-
         <Breadcrumbs
           items={[
             {
@@ -104,8 +257,6 @@ export default function EventDashboard() {
           ]}
         />
 
-        <div className="mb-10"></div>
-
         <div className="mb-10">
           <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
             Event Dashboard
@@ -114,68 +265,105 @@ export default function EventDashboard() {
           <h1 className="mt-2 text-5xl font-black">
             {event?.name || slug}
           </h1>
+
+          <div className="mt-4">
+            <span
+              className={`inline-flex rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] ${
+                event?.status === 'OPEN'
+                  ? 'bg-green-500/15 text-green-300'
+                  : event?.status === 'CLOSED'
+                    ? 'bg-red-500/15 text-red-300'
+                    : 'bg-zinc-500/15 text-zinc-300'
+              }`}
+            >
+              {event?.status || 'UNKNOWN'}
+            </span>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-5">
+            <InfoPill label="Phase" value={event?.phase || '-'} />
+            <InfoPill label="Status" value={event?.status || '-'} />
+            <InfoPill label="Participants" value={stats?.participants ?? 0} />
+            <InfoPill label="Matches" value={stats?.matches ?? 0} />
+            <InfoPill label="Predictions" value={stats?.predictions ?? 0} />
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              onClick={handleCopyPublicLink}
+              className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-5 py-3 font-black text-violet-200 transition hover:bg-violet-500/20"
+            >
+              Copy Public Link
+            </button>
+
+            <button
+              onClick={() => window.open(`/public/${slug}`, '_blank')}
+              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+            >
+              Open Public Page
+            </button>
+
+            <button
+              onClick={() => handleStatusUpdate('OPEN')}
+              disabled={event?.status === 'OPEN'}
+              className="rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 font-black text-green-300 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Open
+            </button>
+
+            <button
+              onClick={() => handleStatusUpdate('CLOSED')}
+              disabled={event?.status === 'CLOSED'}
+              className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Close
+            </button>
+
+            <button
+              onClick={handleArchiveEvent}
+              disabled={event?.status === 'ARCHIVED'}
+              className="rounded-2xl border border-zinc-400/20 bg-zinc-500/10 px-5 py-3 font-black text-zinc-300 transition hover:bg-zinc-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Archive
+            </button>
+
+            <button
+              onClick={() => navigate(-1)}
+              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/70 transition hover:bg-white/10"
+            >
+              Back
+            </button>
+          </div>
         </div>
+
         {loading && (
           <div className="grid gap-6">
             <div className="grid gap-6 lg:grid-cols-4">
               {[...Array(4)].map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="h-40"
-                />
+                <Skeleton key={i} className="h-40" />
               ))}
             </div>
 
             <Skeleton className="h-64" />
-
             <Skeleton className="h-96" />
           </div>
         )}
 
         {!loading && data && (
           <>
-            {/* STATS */}
             <div className="grid gap-6 lg:grid-cols-4">
-              <Panel
-                title="Participants"
-                value={stats?.participants ?? 0}
-              />
-
-              <Panel
-                title="Predictions"
-                value={stats?.predictions ?? 0}
-              />
-
-              <Panel
-                title="Matches"
-                value={stats?.matches ?? 0}
-              />
-
-              <Panel
-                title="Current Phase"
-                value={event?.phase || '-'}
-              />
+              <Panel title="Participants" value={stats?.participants ?? 0} />
+              <Panel title="Predictions" value={stats?.predictions ?? 0} />
+              <Panel title="Matches" value={stats?.matches ?? 0} />
+              <Panel title="Current Phase" value={event?.phase || '-'} />
             </div>
 
-            {/* MATCH STATUS */}
             <div className="mt-10 grid gap-6 lg:grid-cols-3">
-              <StatusCard
-                title="LIVE"
-                value={matchStatus?.live ?? 0}
-              />
-
-              <StatusCard
-                title="LOCKED"
-                value={matchStatus?.locked ?? 0}
-              />
-
-              <StatusCard
-                title="SCHEDULED"
-                value={matchStatus?.scheduled ?? 0}
-              />
+              <StatusCard title="LIVE" value={matchStatus?.live ?? 0} />
+              <StatusCard title="LOCKED" value={matchStatus?.locked ?? 0} />
+              <StatusCard title="SCHEDULED" value={matchStatus?.scheduled ?? 0} />
             </div>
 
-            {/* NEXT MATCH */}
             {nextMatch && (
               <div className="mt-10 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8">
                 <p className="text-sm font-bold uppercase tracking-[0.25em] text-violet-300">
@@ -187,25 +375,13 @@ export default function EventDashboard() {
                 </h2>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <InfoMini
-                    label="Phase"
-                    value={nextMatch.phase || '-'}
-                  />
-
-                  <InfoMini
-                    label="BO"
-                    value={`BO${nextMatch.best_of || 3}`}
-                  />
-
-                  <InfoMini
-                    label="Start UTC"
-                    value={nextMatch.start_time_utc || '-'}
-                  />
+                  <InfoMini label="Phase" value={nextMatch.phase || '-'} />
+                  <InfoMini label="BO" value={`BO${nextMatch.best_of || 3}`} />
+                  <InfoMini label="Start UTC" value={nextMatch.start_time_utc || '-'} />
                 </div>
               </div>
             )}
 
-            {/* TOURNAMENT PROGRESS */}
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <div className="flex items-center justify-between">
                 <div>
@@ -230,29 +406,13 @@ export default function EventDashboard() {
               </div>
 
               <div className="mt-8 flex flex-wrap gap-4">
-                <PhaseStep
-                  active={phaseInfo?.current === 'PLAY_IN'}
-                  label="Play-In"
-                />
-
-                <PhaseStep
-                  active={phaseInfo?.current === 'SWISS'}
-                  label="Swiss"
-                />
-
-                <PhaseStep
-                  active={phaseInfo?.current === 'PLAYOFFS'}
-                  label="Playoffs"
-                />
-
-                <PhaseStep
-                  active={phaseInfo?.current === 'FINISHED'}
-                  label="Finished"
-                />
+                <PhaseStep active={phaseInfo?.current === 'PLAY_IN'} label="Play-In" />
+                <PhaseStep active={phaseInfo?.current === 'SWISS'} label="Swiss" />
+                <PhaseStep active={phaseInfo?.current === 'PLAYOFFS'} label="Playoffs" />
+                <PhaseStep active={phaseInfo?.current === 'FINISHED'} label="Finished" />
               </div>
             </div>
 
-            {/* ADMIN CONTROLS */}
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                 Admin Controls
@@ -263,8 +423,12 @@ export default function EventDashboard() {
               </h2>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <button className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400">
-                  Recalculate Scores
+                <button
+                  onClick={handleRecalculate}
+                  disabled={recalculating}
+                  className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
+                >
+                  {recalculating ? 'Recalculating...' : 'Recalculate Scores'}
                 </button>
 
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
@@ -295,14 +459,14 @@ export default function EventDashboard() {
 
                 <button
                   onClick={handleCloseEvent}
-                  className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20"
+                  disabled={event?.status === 'CLOSED'}
+                  className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Close Event
                 </button>
               </div>
             </div>
 
-            {/* OVERVIEW */}
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <h2 className="text-3xl font-black">
                 Match Overview
@@ -313,55 +477,221 @@ export default function EventDashboard() {
               </p>
             </div>
 
-            {/* MATCHES */}
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <h2 className="text-3xl font-black">
                 Matches
               </h2>
 
+              <div className="sticky top-4 z-20 mt-6 rounded-[2rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl">
+                <div className="grid gap-4 md:grid-cols-[1fr_260px]">
+                  <input
+                    value={matchSearch}
+                    onChange={(e) => setMatchSearch(e.target.value)}
+                    placeholder="Search matches..."
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
+                  />
+
+                  <select
+                    value={matchSortBy}
+                    onChange={(e) => setMatchSortBy(e.target.value)}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
+                  >
+                    <option value="match_no">Sort by Match No</option>
+                    <option value="start_time">Sort by Start Time</option>
+                    <option value="phase">Sort by Phase</option>
+                    <option value="locked">Locked first</option>
+                  </select>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {['ALL', 'LIVE', 'LOCKED', 'SCHEDULED'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setMatchStatusFilter(status)}
+                      className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
+                        matchStatusFilter === status
+                          ? 'bg-violet-500 text-white'
+                          : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 text-sm font-bold text-white/40">
+                  Showing {sortedMatches.length} of {matches.length} matches
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => handleBulkMatchLock(true)}
+                    disabled={sortedMatches.length === 0}
+                    className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Lock Visible
+                  </button>
+
+                  <button
+                    onClick={() => handleBulkMatchLock(false)}
+                    disabled={sortedMatches.length === 0}
+                    className="rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 text-sm font-black text-green-300 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Unlock Visible
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMatchSearch('');
+                      setMatchSortBy('match_no');
+                      setMatchStatusFilter('ALL');
+                    }}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+
               <div className="mt-6 grid gap-4">
-                {matches.length === 0 && (
+                {sortedMatches.length === 0 && (
                   <p className="text-white/50">
-                    No matches found for this event.
+                    {matches.length === 0
+                      ? 'No matches found for this event.'
+                      : 'No matches match your current filters.'}
                   </p>
                 )}
 
-                {matches.map((match) => (
-                  <div
-                    key={match.id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5"
-                  >
-                    <div>
-                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">
-                        {match.phase || 'Match'}
-                      </p>
+                {sortedMatches.map((match) => {
+                  const predictions = matchStats[match.id]?.predictions || 0;
+                  const teamAPicks = matchStats[match.id]?.team_a_picks || 0;
+                  const teamBPicks = matchStats[match.id]?.team_b_picks || 0;
 
-                      <h3 className="mt-2 text-2xl font-black">
-                        {match.team_a} vs {match.team_b}
-                      </h3>
-                    </div>
+                  const teamAPercent = predictions
+                    ? Math.round((teamAPicks / predictions) * 100)
+                    : 0;
 
-                    <div className="text-right">
-                      <div
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em]
-                        ${match.ui_status === 'LOCKED'
-                            ? 'bg-red-500/20 text-red-300'
-                            : 'bg-green-500/20 text-green-300'
-                          }`}
-                      >
-                        {match.ui_status}
+                  const teamBPercent = predictions
+                    ? Math.round((teamBPicks / predictions) * 100)
+                    : 0;
+
+                  return (
+                    <div
+                      key={match.id}
+                      className="rounded-2xl border border-white/10 bg-black/30 p-5"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-6">
+                        <div>
+                          <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">
+                            {match.phase || 'Match'}
+                          </p>
+
+                          <h3 className="mt-2 text-2xl font-black">
+                            {match.team_a} vs {match.team_b}
+                          </h3>
+                        </div>
+
+                        <div className="text-right">
+                          <div
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${
+                              match.ui_status === 'LIVE'
+                                ? 'bg-green-500/20 text-green-300'
+                                : match.ui_status === 'LOCKED'
+                                  ? 'bg-red-500/20 text-red-300'
+                                  : 'bg-yellow-500/20 text-yellow-300'
+                            }`}
+                          >
+                            {match.ui_status}
+                          </div>
+
+                          <p className="mt-2 text-sm text-white/40">
+                            {match.start_time_utc
+                              ? new Date(match.start_time_utc).toLocaleString()
+                              : 'No date'}
+                          </p>
+
+                          <div className="mt-4 flex gap-2">
+                            <button
+                              onClick={() => handleToggleMatchDetails(match.id)}
+                              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white/70 transition hover:bg-white/10"
+                            >
+                              {expandedMatchId === match.id ? 'Hide' : 'Open'}
+                            </button>
+
+                            <button
+                              onClick={() => handleMatchLock(match.id, match.ui_status !== 'LOCKED')}
+                              className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300 transition hover:bg-red-500/20"
+                            >
+                              {match.ui_status === 'LOCKED' ? 'Unlock' : 'Lock'}
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
-                      <p className="mt-2 text-sm text-white/40">
-                        {match.start_time_utc || 'No date'}
-                      </p>
+                      {expandedMatchId === match.id && (
+                        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
+                          <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                            Match Details
+                          </p>
+
+                          {matchStatsLoading[match.id] && (
+                            <p className="mt-4 text-sm font-bold text-white/40">
+                              Loading match stats...
+                            </p>
+                          )}
+
+                          <div className="mt-4 grid gap-4 md:grid-cols-9">
+                            <InfoMini label="Match ID" value={match.id} />
+                            <InfoMini label="Phase" value={match.phase || '-'} />
+                            <InfoMini label="BO" value={`BO${match.best_of || 3}`} />
+                            <InfoMini
+                              label="Locked"
+                              value={match.is_locked ? 'YES' : 'NO'}
+                            />
+                            <InfoMini label="Predictions" value={predictions} />
+                            <InfoMini label={match.team_a} value={teamAPicks} />
+                            <InfoMini label={match.team_b} value={teamBPicks} />
+                            <InfoMini label={`${match.team_a} %`} value={`${teamAPercent}%`} />
+                            <InfoMini label={`${match.team_b} %`} value={`${teamBPercent}%`} />
+                          </div>
+
+                          {predictions > 0 && (
+                            <div className="mt-6">
+                              <div className="flex items-center justify-between text-sm font-bold text-white/50">
+                                <span>
+                                  {match.team_a} — {teamAPercent}%
+                                </span>
+
+                                <span>
+                                  {match.team_b} — {teamBPercent}%
+                                </span>
+                              </div>
+
+                              <div className="mt-3 flex h-4 overflow-hidden rounded-full bg-white/10">
+                                <div
+                                  className="bg-violet-500"
+                                  style={{
+                                    width: `${teamAPercent}%`
+                                  }}
+                                />
+
+                                <div
+                                  className="bg-red-500"
+                                  style={{
+                                    width: `${teamBPercent}%`
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* LEADERBOARD */}
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <h2 className="text-3xl font-black">
                 Leaderboard
@@ -460,12 +790,27 @@ function InfoMini({ label, value }) {
 function PhaseStep({ label, active }) {
   return (
     <div
-      className={`rounded-2xl border px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition ${active
-        ? 'border-violet-400 bg-violet-500/20 text-violet-200'
-        : 'border-white/10 bg-black/20 text-white/40'
-        }`}
+      className={`rounded-2xl border px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition ${
+        active
+          ? 'border-violet-400 bg-violet-500/20 text-violet-200'
+          : 'border-white/10 bg-black/20 text-white/40'
+      }`}
     >
       {label}
+    </div>
+  );
+}
+
+function InfoPill({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl">
+      <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+        {label}
+      </p>
+
+      <h3 className="mt-2 text-2xl font-black">
+        {value}
+      </h3>
     </div>
   );
 }
