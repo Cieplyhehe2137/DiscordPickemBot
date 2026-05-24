@@ -174,13 +174,36 @@ module.exports = async (interaction) => {
           );
         }
 
+        const [[eventRow]] = await pool.query(
+          `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+          [guildId]
+        );
+
+        if (!eventRow?.id) {
+          return interaction.editReply(
+            '❌ Nie znaleziono aktywnego eventu.'
+          );
+        }
+
+        const eventId = eventRow.id;
+
         const conn = await pool.getConnection();
         try {
           await conn.beginTransaction();
 
           await conn.query(
-            `UPDATE playin_results SET active = 0 WHERE guild_id = ?`,
-            [guildId]
+            `UPDATE playin_results
+SET active = 0
+WHERE guild_id = ?
+  AND event_id = ?`,
+            [guildId, eventId]
           );
 
           await conn.query(
@@ -232,7 +255,7 @@ module.exports = async (interaction) => {
         await interaction.reply({
           content: '❌ Wystąpił błąd przy zapisie wyników Play-In.',
           ephemeral: true
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }

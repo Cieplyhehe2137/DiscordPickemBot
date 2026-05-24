@@ -70,7 +70,7 @@ module.exports = async (interaction) => {
     });
 
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
     }
     return;
   }
@@ -132,21 +132,43 @@ module.exports = async (interaction) => {
     /* ===============================
        ZAPIS DO DB
        =============================== */
+
+    const [[eventRow]] = await pool.query(
+      `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [guildId]
+    );
+
+    if (!eventRow?.id) {
+      return interaction.editReply(
+        '❌ Nie znaleziono aktywnego eventu.'
+      );
+    }
+
+    const eventId = eventRow.id;
     const teamsString = picked.join(', ');
 
     await pool.query(
       `
-      INSERT INTO playin_predictions
-        (guild_id, user_id, username, displayname, teams, active, submitted_at)
-      VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-      ON DUPLICATE KEY UPDATE
-        teams         = VALUES(teams),
-        displayname   = VALUES(displayname),
-        active        = 1,
-        submitted_at  = CURRENT_TIMESTAMP
-      `,
+  INSERT INTO playin_predictions
+    (guild_id, event_id, user_id, username, displayname, teams, active, submitted_at)
+  VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+  ON DUPLICATE KEY UPDATE
+    event_id      = VALUES(event_id),
+    teams         = VALUES(teams),
+    displayname   = VALUES(displayname),
+    active        = 1,
+    submitted_at  = CURRENT_TIMESTAMP
+  `,
       [
         guildId,
+        eventId,
         userId,
         username,
         displayName,

@@ -153,22 +153,46 @@ module.exports = async (interaction) => {
     }
 
     // SAVE
+    // Pobierz aktualny event turnieju
+    const [[eventRow]] = await pool.query(
+      `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [guildId]
+    );
+
+    if (!eventRow?.id) {
+      return interaction.editReply(
+        '❌ Nie znaleziono aktywnego turnieju dla tego serwera.'
+      );
+    }
+
+    const eventId = eventRow.id;
+
+    // SAVE
     await pool.query(
       `
-      INSERT INTO swiss_predictions
-        (guild_id, user_id, username, displayname, stage,
-         pick_3_0, pick_0_3, advancing, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      ON DUPLICATE KEY UPDATE
-        pick_3_0 = VALUES(pick_3_0),
-        pick_0_3 = VALUES(pick_0_3),
-        advancing = VALUES(advancing),
-        displayname = VALUES(displayname),
-        active = 1,
-        submitted_at = CURRENT_TIMESTAMP
-      `,
+  INSERT INTO swiss_predictions
+    (guild_id, event_id, user_id, username, displayname, stage,
+     pick_3_0, pick_0_3, advancing, active)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+  ON DUPLICATE KEY UPDATE
+    event_id = VALUES(event_id),
+    pick_3_0 = VALUES(pick_3_0),
+    pick_0_3 = VALUES(pick_0_3),
+    advancing = VALUES(advancing),
+    displayname = VALUES(displayname),
+    active = 1,
+    submitted_at = CURRENT_TIMESTAMP
+  `,
       [
         guildId,
+        eventId,
         userId,
         username,
         displayName,

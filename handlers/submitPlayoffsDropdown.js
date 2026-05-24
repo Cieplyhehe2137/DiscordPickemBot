@@ -160,16 +160,37 @@ module.exports = async (interaction) => {
       );
     }
 
+    const [[eventRow]] = await pool.query(
+      `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [guildId]
+    );
+
+    if (!eventRow?.id) {
+      return interaction.editReply(
+        '❌ Nie znaleziono aktywnego eventu.'
+      );
+    }
+
+    const eventId = eventRow.id;
+
     /* ===============================
        ZAPIS DO DB
        =============================== */
     await pool.query(
       `
   INSERT INTO playoffs_predictions
-    (guild_id, user_id, username, displayname,
+    (guild_id, event_id, user_id, username, displayname,
      semifinalists, finalists, winner, third_place_winner, active)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
   ON DUPLICATE KEY UPDATE
+    event_id = VALUES(event_id),
     semifinalists = VALUES(semifinalists),
     finalists = VALUES(finalists),
     winner = VALUES(winner),
@@ -180,6 +201,7 @@ module.exports = async (interaction) => {
   `,
       [
         guildId,
+        eventId,
         userId,
         username,
         displayName,

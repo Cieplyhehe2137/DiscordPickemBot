@@ -169,18 +169,42 @@ module.exports = async (interaction) => {
       //   mA: mA.merged
       // });
 
+      const [[eventRow]] = await pool.query(
+        `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
+      );
+
+      if (!eventRow?.id) {
+        return interaction.followUp({
+          ephemeral: true,
+          content: '❌ Nie znaleziono aktywnego eventu.'
+        });
+      }
+
+      const eventId = eventRow.id;
+
       try {
         await pool.query(
           `INSERT INTO swiss_results
-           (guild_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
-           VALUES (?, ?, ?, ?, ?, 1)
-           ON DUPLICATE KEY UPDATE
-             correct_3_0 = VALUES(correct_3_0),
-             correct_0_3 = VALUES(correct_0_3),
-             correct_advancing = VALUES(correct_advancing),
-             active = 1`,
+   (guild_id, event_id, stage,
+    correct_3_0, correct_0_3, correct_advancing, active)
+   VALUES (?, ?, ?, ?, ?, ?, 1)
+   ON DUPLICATE KEY UPDATE
+     event_id = VALUES(event_id),
+     correct_3_0 = VALUES(correct_3_0),
+     correct_0_3 = VALUES(correct_0_3),
+     correct_advancing = VALUES(correct_advancing),
+     active = 1`,
           [
             guildId,
+            eventId,
             stage,
             m3.merged.join(', '),
             m0.merged.join(', '),

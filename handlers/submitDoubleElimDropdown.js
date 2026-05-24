@@ -164,13 +164,34 @@ module.exports = async (interaction) => {
       );
     }
 
+    const [[eventRow]] = await pool.query(
+      `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [guildId]
+    );
+
+    if (!eventRow?.id) {
+      return interaction.editReply(
+        '❌ Nie znaleziono aktywnego eventu.'
+      );
+    }
+
+    const eventId = eventRow.id;
+
     await pool.query(
       `
   INSERT INTO doubleelim_predictions
-    (guild_id, user_id, username, displayname,
+    (guild_id, event_id, user_id, username, displayname,
      upper_final_a, lower_final_a, upper_final_b, lower_final_b)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON DUPLICATE KEY UPDATE
+    event_id = VALUES(event_id),
     upper_final_a = VALUES(upper_final_a),
     lower_final_a = VALUES(lower_final_a),
     upper_final_b = VALUES(upper_final_b),
@@ -180,6 +201,7 @@ module.exports = async (interaction) => {
   `,
       [
         guildId,
+        eventId,
         userId,
         username,
         displayName,

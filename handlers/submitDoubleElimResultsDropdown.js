@@ -100,7 +100,7 @@ module.exports = async (interaction) => {
       });
 
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferUpdate().catch(() => {});
+        await interaction.deferUpdate().catch(() => { });
       }
       return;
     }
@@ -149,23 +149,55 @@ module.exports = async (interaction) => {
         );
       }
 
+      const [[eventRow]] = await pool.query(
+        `
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'OPEN'
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+        [guildId]
+      );
+
+      if (!eventRow?.id) {
+        return interaction.editReply(
+          '❌ Nie znaleziono aktywnego eventu.'
+        );
+      }
+
+      const eventId = eventRow.id;
+
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
 
         await conn.query(
           `UPDATE doubleelim_results
-           SET active = 0
-           WHERE guild_id = ? AND active = 1`,
-          [guildId]
+SET active = 0
+WHERE guild_id = ?
+  AND event_id = ?
+  AND active = 1`,
+          [guildId, eventId]
         );
 
         await conn.query(
           `INSERT INTO doubleelim_results
-           (guild_id, upper_final_a, lower_final_a, upper_final_b, lower_final_b, active, created_at)
-           VALUES (?, ?, ?, ?, ?, 1, NOW())`,
+   (
+     guild_id,
+     event_id,
+     upper_final_a,
+     lower_final_a,
+     upper_final_b,
+     lower_final_b,
+     active,
+     created_at
+   )
+   VALUES (?, ?, ?, ?, ?, ?, 1, NOW())`,
           [
             guildId,
+            eventId,
             upper_final_a.join(', ') || null,
             lower_final_a.join(', ') || null,
             upper_final_b.join(', ') || null,
