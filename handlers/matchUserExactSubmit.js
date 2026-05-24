@@ -48,9 +48,16 @@ function validateScore(a, b) {
   const winner = Math.max(scoreA, scoreB);
   const loser = Math.min(scoreA, scoreB);
 
-  // dogrywki CS2 MR12
+  // normalny wynik MR12
+  // 13:0 - 13:11
+  if (winner === 13 && loser <= 11) {
+    return null;
+  }
+
+  // dogrywki MR12
   // 16:12 / 16:13 / 16:14
-  // 19:15 / 19:16 / 19:17 itd.
+  // 19:15 / 19:16 / 19:17
+  // 22:18 itd.
   if (
     winner >= 16 &&
     (winner - 16) % 3 === 0 &&
