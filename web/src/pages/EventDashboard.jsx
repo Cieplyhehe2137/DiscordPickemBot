@@ -13,6 +13,7 @@ import {
 import Breadcrumbs from '../components/layout/Breadcrumbs';
 import { useApp } from '../context/AppContext';
 import Skeleton from '../components/ui/Skeleton';
+import { socket } from '../lib/socket';
 
 export default function EventDashboard() {
   const { slug } = useParams();
@@ -104,6 +105,66 @@ export default function EventDashboard() {
     load();
   }, [slug, setSelectedEvent]);
 
+  useEffect(() => {
+    function handleConnect() {
+      console.log('Socket connected:', socket.id);
+    }
+
+    function handleDashboardRefresh(payload) {
+      console.log('LIVE REFRESH', payload);
+
+      if (payload?.slug !== slug) return;
+
+      refreshEventData();
+      console.log('LIVE DASHBOARD UPDATE');
+    }
+
+    function handleMatchUpdated(payload) {
+      if (payload?.slug !== slug) return;
+
+      setMatches((prev) =>
+        prev.map((m) =>
+          String(m.id) === String(payload.matchId)
+            ? {
+              ...m,
+              is_locked: payload.locked ? 1 : 0,
+              ui_status: payload.locked ? 'LOCKED' : 'OPEN'
+            }
+            : m
+        )
+      );
+    }
+
+    function handleEventStatusUpdated(payload) {
+      if (payload?.slug !== slug) return;
+
+      setData((prev) => ({
+        ...prev,
+        event: {
+          ...prev.event,
+          status: payload.status
+        },
+        phase_info: {
+          ...prev.phase_info,
+          status: payload.status
+        }
+      }));
+    }
+
+    socket.on('connect', handleConnect);
+    socket.on('dashboard:refresh', handleDashboardRefresh);
+    socket.on('match:updated', handleMatchUpdated);
+    socket.on('event:status_updated', handleEventStatusUpdated);
+    
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('dashboard:refresh', handleDashboardRefresh);
+      socket.off('event:status_updated', handleEventStatusUpdated);
+      socket.off('match:updated', handleMatchUpdated);
+    };
+  }, [slug]);
+
   async function refreshEventData() {
     const result = await getEventSummary(slug);
 
@@ -123,7 +184,6 @@ export default function EventDashboard() {
       setPhaseLoading(true);
 
       await updateEventPhase(slug, selectedPhase);
-      await refreshEventData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -134,7 +194,6 @@ export default function EventDashboard() {
   async function handleStatusUpdate(status) {
     try {
       await updateEventStatus(slug, status);
-      await refreshEventData();
     } catch (err) {
       console.error(err);
     }
@@ -170,7 +229,6 @@ export default function EventDashboard() {
       setRecalculating(true);
 
       await recalculateEvent(slug);
-      await refreshEventData();
 
       alert('Scores recalculated!');
     } catch (err) {
@@ -184,7 +242,6 @@ export default function EventDashboard() {
   async function handleMatchLock(matchId, locked) {
     try {
       await updateMatchLock(matchId, locked);
-      await refreshEventData();
     } catch (err) {
       console.error(err);
     }
@@ -202,7 +259,6 @@ export default function EventDashboard() {
         sortedMatches.map((match) => updateMatchLock(match.id, locked))
       );
 
-      await refreshEventData();
     } catch (err) {
       console.error(err);
     }
@@ -268,13 +324,12 @@ export default function EventDashboard() {
 
           <div className="mt-4">
             <span
-              className={`inline-flex rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] ${
-                event?.status === 'OPEN'
-                  ? 'bg-green-500/15 text-green-300'
-                  : event?.status === 'CLOSED'
-                    ? 'bg-red-500/15 text-red-300'
-                    : 'bg-zinc-500/15 text-zinc-300'
-              }`}
+              className={`inline-flex rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] ${event?.status === 'OPEN'
+                ? 'bg-green-500/15 text-green-300'
+                : event?.status === 'CLOSED'
+                  ? 'bg-red-500/15 text-red-300'
+                  : 'bg-zinc-500/15 text-zinc-300'
+                }`}
             >
               {event?.status || 'UNKNOWN'}
             </span>
@@ -508,11 +563,10 @@ export default function EventDashboard() {
                     <button
                       key={status}
                       onClick={() => setMatchStatusFilter(status)}
-                      className={`rounded-2xl px-5 py-3 text-sm font-black transition ${
-                        matchStatusFilter === status
-                          ? 'bg-violet-500 text-white'
-                          : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
-                      }`}
+                      className={`rounded-2xl px-5 py-3 text-sm font-black transition ${matchStatusFilter === status
+                        ? 'bg-violet-500 text-white'
+                        : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                        }`}
                     >
                       {status}
                     </button>
@@ -593,13 +647,12 @@ export default function EventDashboard() {
 
                         <div className="text-right">
                           <div
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${
-                              match.ui_status === 'LIVE'
-                                ? 'bg-green-500/20 text-green-300'
-                                : match.ui_status === 'LOCKED'
-                                  ? 'bg-red-500/20 text-red-300'
-                                  : 'bg-yellow-500/20 text-yellow-300'
-                            }`}
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${match.ui_status === 'LIVE'
+                              ? 'bg-green-500/20 text-green-300'
+                              : match.ui_status === 'LOCKED'
+                                ? 'bg-red-500/20 text-red-300'
+                                : 'bg-yellow-500/20 text-yellow-300'
+                              }`}
                           >
                             {match.ui_status}
                           </div>
@@ -790,11 +843,10 @@ function InfoMini({ label, value }) {
 function PhaseStep({ label, active }) {
   return (
     <div
-      className={`rounded-2xl border px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition ${
-        active
-          ? 'border-violet-400 bg-violet-500/20 text-violet-200'
-          : 'border-white/10 bg-black/20 text-white/40'
-      }`}
+      className={`rounded-2xl border px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition ${active
+        ? 'border-violet-400 bg-violet-500/20 text-violet-200'
+        : 'border-white/10 bg-black/20 text-white/40'
+        }`}
     >
       {label}
     </div>

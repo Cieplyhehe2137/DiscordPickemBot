@@ -1,8 +1,33 @@
 import express from 'express';
 import cors from 'cors';
 import { pool } from './db.js'
+import { createRequire } from 'module';
+import dotenv from 'dotenv';
+dotenv.config();
+import http from 'http';
+import { Server } from 'socket.io';
+
+const require = createRequire(import.meta.url);
+const calculateScores = require('../handlers/calculateScores');
 
 const app = express();
+
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: 'http://localhost:5173',
+        credentials: true
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log('Frontend connected:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('Frontend disconnected:', socket.id);
+    });
+});
 
 app.use(express.json());
 
@@ -295,6 +320,12 @@ app.post('/api/events/:slug/status', async (req, res) => {
                 error: 'Event not found'
             });
         }
+        io.emit('dashboard:refresh', { slug });
+
+        io.emit('event:status_updated', {
+            slug,
+            status
+        });
 
         res.json({
             ok: true,
@@ -361,6 +392,10 @@ ORDER BY e.id DESC
       `,
             [guildId]
         );
+
+        io.emit('dashboard:refresh', {
+            slug
+        });
 
         res.json({
             guildId,
@@ -560,7 +595,7 @@ app.post('/api/events/:slug/recalculate', async (req, res) => {
 
         const [[event]] = await pool.query(
             `
-      SELECT id, slug, name
+      SELECT *
       FROM events
       WHERE slug = ?
       LIMIT 1
@@ -574,17 +609,25 @@ app.post('/api/events/:slug/recalculate', async (req, res) => {
             });
         }
 
-        // TODO: tutaj później podepniemy prawdziwe calculateScores z bota
+        await calculateScores(
+            event.guild_id,
+            event.id
+        );
+
+        io.emit('dashboard:refresh', {
+            slug
+        });
+
         res.json({
-            ok: true,
-            message: 'Recalculate placeholder completed',
-            event
+            success: true,
+            guild_id: event.guild_id,
+            event_id: event.id
         });
     } catch (err) {
         console.error(err);
 
         res.status(500).json({
-            error: 'Database error'
+            error: 'Failed to recalculate scores'
         });
     }
 });
@@ -605,8 +648,44 @@ app.post('/api/matches/:matchId/lock', async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
+            const [[match]] = await pool.query(
+                `
+  SELECT e.slug
+  FROM matches m
+  JOIN events e ON e.id = m.event_id
+  WHERE m.id = ?
+  LIMIT 1
+  `,
+                [matchId]
+            );
             return res.status(404).json({
                 error: 'Match not found'
+            });
+        }
+
+        if (match?.slug) {
+            io.emit('match:updated', {
+                slug: match.slug,
+                matchId,
+                locked: !!locked
+            });
+        }
+
+        const [[match]] = await pool.query(
+            `
+  SELECT e.slug
+  FROM matches m
+  JOIN events e
+    ON e.id = m.event_id
+  WHERE m.id = ?
+  LIMIT 1
+  `,
+            [matchId]
+        );
+
+        if (match?.slug) {
+            io.emit('dashboard:refresh', {
+                slug: match.slug
             });
         }
 
@@ -673,6 +752,6 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
     }
 });
 
-app.listen(3301, () => {
+httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });
