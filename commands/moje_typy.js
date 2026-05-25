@@ -1,4 +1,3 @@
-// commands/moje_typy.js
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
 const { withGuild } = require('../utils/guildContext');
@@ -64,6 +63,37 @@ function normalizePhase(phase, stage = null) {
   return p;
 }
 
+function humanPhaseSafe(phase) {
+  if (phase === 'matches') return 'Mecze';
+  return humanPhase(phase);
+}
+
+function getPredictionWinner(row) {
+  return (
+    row.predicted_winner ||
+    row.winner ||
+    row.pick ||
+    row.team ||
+    row.selected_team ||
+    '—'
+  );
+}
+
+function getPredictionScore(row) {
+  if (row.predicted_score) return row.predicted_score;
+  if (row.series_score) return row.series_score;
+
+  if (row.predicted_score_a != null && row.predicted_score_b != null) {
+    return `${row.predicted_score_a}:${row.predicted_score_b}`;
+  }
+
+  if (row.score_a != null && row.score_b != null) {
+    return `${row.score_a}:${row.score_b}`;
+  }
+
+  return '—';
+}
+
 /* =========================
    COMMAND
 ========================= */
@@ -76,7 +106,10 @@ module.exports = {
       opt
         .setName('faza')
         .setDescription('Wybierz fazę. Bez wyboru pokaże aktywną lub ostatnią z Twoimi typami.')
-        .addChoices(...PHASE_CHOICES.filter(c => c.value !== 'total'))
+        .addChoices(
+          ...PHASE_CHOICES.filter(c => c.value !== 'total'),
+          { name: 'Mecze', value: 'matches' }
+        )
         .setRequired(false)
     ),
 
@@ -142,11 +175,18 @@ module.exports = {
               SELECT 'playin' AS phase, NULL AS stage, submitted_at
               FROM playin_predictions
               WHERE guild_id = ? AND user_id = ?
+
+              UNION ALL
+
+              SELECT 'matches' AS phase, NULL AS stage, submitted_at
+              FROM match_predictions
+              WHERE guild_id = ? AND user_id = ?
             ) t
             ORDER BY submitted_at DESC
             LIMIT 1
             `,
             [
+              guildId, userId,
               guildId, userId,
               guildId, userId,
               guildId, userId,
@@ -168,7 +208,7 @@ module.exports = {
         }
 
         const embed = new EmbedBuilder()
-          .setTitle(`Twoje typy — ${humanPhase(phaseToShow)}`)
+          .setTitle(`Twoje typy — ${humanPhaseSafe(phaseToShow)}`)
           .setColor(0x3b82f6)
           .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
 
@@ -314,6 +354,78 @@ module.exports = {
             name: 'Wytypowane drużyny',
             value: joinOrDash(parseList(rows[0].teams)),
           });
+
+          return interaction.editReply({ embeds: [embed] });
+        }
+
+        /* =========================
+           MATCHES / SERIES
+        ========================= */
+
+        if (phaseToShow === 'matches') {
+          const [rows] = await pool.query(
+            `
+            SELECT
+              mp.*,
+              m.team_a,
+              m.team_b,
+              m.best_of,
+              m.starts_at,
+              mr.winner AS result_winner,
+              mr.score_a AS result_score_a,
+              mr.score_b AS result_score_b,
+              pts.points AS earned_points
+            FROM match_predictions mp
+            INNER JOIN matches m
+              ON m.id = mp.match_id
+             AND m.guild_id = mp.guild_id
+            LEFT JOIN match_results mr
+              ON mr.match_id = m.id
+             AND mr.guild_id = m.guild_id
+            LEFT JOIN match_points pts
+              ON pts.match_id = m.id
+             AND pts.guild_id = mp.guild_id
+             AND pts.user_id = mp.user_id
+            WHERE mp.guild_id = ?
+              AND mp.user_id = ?
+            ORDER BY COALESCE(m.starts_at, mp.submitted_at) DESC, m.id DESC
+            LIMIT 10
+            `,
+            [guildId, userId]
+          );
+
+          if (!rows.length) {
+            return interaction.editReply({
+              embeds: [embed.setDescription('Nie masz jeszcze zapisanych typów meczowych.')],
+            });
+          }
+
+          for (const r of rows.slice(0, 10)) {
+            const teamA = r.team_a || 'Team A';
+            const teamB = r.team_b || 'Team B';
+
+            const pickedWinner = getPredictionWinner(r);
+            const predictedScore = getPredictionScore(r);
+
+            const officialResult =
+              r.result_score_a != null && r.result_score_b != null
+                ? `${r.result_score_a}:${r.result_score_b}`
+                : 'nierozliczone';
+
+            const points =
+              r.earned_points != null
+                ? `${r.earned_points} pkt`
+                : 'jeszcze brak';
+
+            embed.addFields({
+              name: `${teamA} vs ${teamB}`,
+              value:
+                `**Twój zwycięzca:** ${pickedWinner}\n` +
+                `**Twój wynik serii:** ${predictedScore}\n` +
+                `**Oficjalny wynik:** ${officialResult}\n` +
+                `**Punkty:** ${points}`,
+            });
+          }
 
           return interaction.editReply({ embeds: [embed] });
         }
