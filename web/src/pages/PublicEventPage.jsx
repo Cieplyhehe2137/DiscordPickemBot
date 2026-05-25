@@ -123,8 +123,11 @@ export default function PublicEventPage() {
 
                     return {
                         ...prev,
-                        score_a: payload.score_a,
-                        score_b: payload.score_b,
+                        score_a: payload.score_a ?? prev.score_a ?? 0,
+                        score_b: payload.score_b ?? prev.score_b ?? 0,
+                        current_map: payload.current_map || prev.current_map || 1,
+                        live_status: payload.live_status || prev.live_status || 'LIVE',
+                        ui_status: payload.ui_status || 'LIVE',
                         just_updated: true
                     };
                 });
@@ -136,18 +139,29 @@ export default function PublicEventPage() {
 
                     return {
                         ...match,
-                        score_a: payload.score_a,
-                        score_b: payload.score_b,
+                        score_a: payload.score_a ?? match.score_a ?? 0,
+                        score_b: payload.score_b ?? match.score_b ?? 0,
+                        current_map: payload.current_map || match.current_map || 1,
+                        live_status: payload.live_status || match.live_status || 'LIVE',
+                        ui_status:
+                            payload.ui_status ||
+                            (payload.live_status === 'FINAL' ? 'FINAL' : 'LIVE'),
                         just_updated: true
                     };
                 };
 
+                const updatedMatches = (prev.matches || []).map(updateMatch);
+
+                const featuredMatch =
+                    updatedMatches.find((m) => m.ui_status === 'LIVE') ||
+                    updatedMatches.find((m) => m.ui_status === 'OPEN') ||
+                    updatedMatches[0] ||
+                    null;
+
                 return {
                     ...prev,
-                    featured_match: prev.featured_match
-                        ? updateMatch(prev.featured_match)
-                        : prev.featured_match,
-                    matches: (prev.matches || []).map(updateMatch)
+                    featured_match: featuredMatch,
+                    matches: updatedMatches
                 };
             });
 
@@ -243,7 +257,8 @@ export default function PublicEventPage() {
             const order = {
                 LIVE: 0,
                 OPEN: 1,
-                LOCKED: 2
+                LOCKED: 2,
+                FINAL: 3
             };
 
             return (order[a.ui_status] ?? 99) - (order[b.ui_status] ?? 99);
@@ -359,7 +374,17 @@ export default function PublicEventPage() {
                             )}
 
                             <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                                <TeamLogoBlock team={heroMatch.team_a} />
+                                <div
+                                    className={
+                                        heroMatch.ui_status === 'FINAL'
+                                            ? Number(heroMatch.score_a) > Number(heroMatch.score_b)
+                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                                : 'opacity-50'
+                                            : ''
+                                    }
+                                >
+                                    <TeamLogoBlock team={heroMatch.team_a} />
+                                </div>
 
                                 <div className="text-center">
                                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -375,7 +400,17 @@ export default function PublicEventPage() {
                                     </p>
                                 </div>
 
-                                <TeamLogoBlock team={heroMatch.team_b} />
+                                <div
+                                    className={
+                                        heroMatch.ui_status === 'FINAL'
+                                            ? Number(heroMatch.score_b) > Number(heroMatch.score_a)
+                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                                : 'opacity-50'
+                                            : ''
+                                    }
+                                >
+                                    <TeamLogoBlock team={heroMatch.team_b} />
+                                </div>
                             </div>
                             <div
                                 className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${heroMatch.just_updated
@@ -395,6 +430,11 @@ export default function PublicEventPage() {
                                     {heroMatch.score_b ?? 0}
                                 </span>
                             </div>
+                            {heroMatch.live_status && (
+                                <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
+                                    {heroMatch.live_status} • MAP {heroMatch.current_map || 1}
+                                </p>
+                            )}
 
                             <div className="mt-6 flex flex-wrap items-center gap-4">
                                 <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm font-black uppercase tracking-[0.15em] text-white/70">
@@ -577,7 +617,7 @@ export default function PublicEventPage() {
                         </h2>
 
                         <div className="mt-6 flex flex-wrap gap-3">
-                            {['ALL', 'OPEN', 'LOCKED', 'LIVE'].map((status) => (
+                            {['ALL', 'OPEN', 'LIVE', 'FINAL', 'LOCKED'].map((status) => (
                                 <button
                                     key={status}
                                     onClick={() => setMatchFilter(status)}
@@ -608,9 +648,11 @@ export default function PublicEventPage() {
                                 <div
                                     key={match.id}
                                     onClick={() => openMatchModal(match)}
-                                    className={`cursor-pointer rounded-2xl border p-5 transition-all ${match.ui_status === 'LIVE'
-                                        ? 'border-green-400/40 bg-green-500/10 shadow-[0_0_60px_rgba(34,197,94,0.18)] animate-pulse'
-                                        : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                    className={`cursor-pointer rounded-2xl border p-5 transition-all duration-300 ${match.ui_status === 'LIVE'
+                                        ? 'border-green-400/40 bg-green-500/10 shadow-[0_0_60px_rgba(34,197,94,0.18)] scale-[1.01]'
+                                        : match.ui_status === 'FINAL'
+                                            ? 'border-zinc-500/20 bg-zinc-500/5'
+                                            : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between gap-4">
@@ -622,18 +664,51 @@ export default function PublicEventPage() {
                                             <div className="mt-3 flex items-center gap-3">
                                                 <MiniTeamLogo team={match.team_a} />
 
-                                                <h3 className="text-2xl font-black">
-                                                    {match.team_a} vs {match.team_b}
-                                                </h3>
+                                                <div className='flex items-center gap-2 text-2xl font-black'>
+                                                    <span
+                                                        className={
+                                                            match.ui_status === 'FINAL'
+                                                                ? Number(match.score_a) > Number(match.score_b)
+                                                                    ? 'text-green-300'
+                                                                    : 'text-white/40'
+                                                                : ''
+                                                        }
+                                                    >
+                                                        {match.team_a}
+                                                    </span>
 
+                                                    <span className="text-white/30">
+                                                        vs
+                                                    </span>
+
+                                                    <span
+                                                        className={
+                                                            match.ui_status === 'FINAL'
+                                                                ? Number(match.score_b) > Number(match.score_a)
+                                                                    ? 'text-green-300'
+                                                                    : 'text-white/40'
+                                                                : ''
+                                                        }
+                                                    >
+                                                        {match.team_b}
+                                                    </span>
+                                                </div>
                                                 <p
                                                     className={`mt-2 text-lg font-black transition-all duration-500 ${match.just_updated
                                                         ? 'scale-110 text-green-300'
-                                                        : 'text-violet-300'
+                                                        : match.ui_status === 'FINAL'
+                                                            ? 'text-zinc-300'
+                                                            : 'text-violet-300'
                                                         }`}
                                                 >
                                                     {match.score_a ?? 0} : {match.score_b ?? 0}
                                                 </p>
+
+                                                {match.live_status && (
+                                                    <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-green-300">
+                                                        {match.live_status} • MAP {match.current_map || 1}
+                                                    </p>
+                                                )}
 
                                                 <MiniTeamLogo team={match.team_b} />
                                             </div>
@@ -643,16 +718,22 @@ export default function PublicEventPage() {
                                             </p>
                                         </div>
 
-                                        <span
-                                            className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${match.ui_status === 'LOCKED'
-                                                ? 'bg-red-500/20 text-red-300'
-                                                : match.ui_status === 'LIVE'
-                                                    ? 'bg-green-500/20 text-green-300'
-                                                    : 'bg-yellow-500/20 text-yellow-300'
+                                        <div
+                                            className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${match.ui_status === 'LIVE'
+                                                ? 'border border-green-400/30 bg-green-500/10 text-green-300'
+                                                : match.ui_status === 'FINAL'
+                                                    ? 'bg-zinc-500/20 text-zinc-300'
+                                                    : match.ui_status === 'LOCKED'
+                                                        ? 'bg-red-500/20 text-red-300'
+                                                        : 'bg-yellow-500/20 text-yellow-300'
                                                 }`}
                                         >
+                                            {match.ui_status === 'LIVE' && (
+                                                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                                            )}
+
                                             {match.ui_status}
-                                        </span>
+                                        </div>
                                     </div>
 
                                     <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/40">
@@ -724,7 +805,17 @@ function MatchModal({
                         </p>
 
                         <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                            <TeamLogoBlock team={selectedMatch.team_a} />
+                            <div
+                                className={
+                                    selectedMatch.ui_status === 'FINAL'
+                                        ? Number(selectedMatch.score_a) > Number(selectedMatch.score_b)
+                                            ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                            : 'opacity-50'
+                                        : ''
+                                }
+                            >
+                                <TeamLogoBlock team={selectedMatch.team_a} />
+                            </div>
 
                             <div className="text-center">
                                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -740,7 +831,27 @@ function MatchModal({
                                 </p>
                             </div>
 
-                            <TeamLogoBlock team={selectedMatch.team_b} />
+                            <div
+                                className={
+                                    selectedMatch.ui_status === 'FINAL'
+                                        ? Number(selectedMatch.score_b) > Number(selectedMatch.score_a)
+                                            ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                            : 'opacity-50'
+                                        : ''
+                                }
+                            >
+                                <div
+                                    className={
+                                        selectedMatch.ui_status === 'FINAL'
+                                            ? Number(selectedMatch.score_b) > Number(selectedMatch.score_a)
+                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                                : 'opacity-50'
+                                            : ''
+                                    }
+                                >
+                                    <TeamLogoBlock team={selectedMatch.team_b} />
+                                </div>
+                            </div>
                         </div>
                         <div
                             className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${selectedMatch.just_updated
@@ -760,6 +871,11 @@ function MatchModal({
                                 {selectedMatch.score_b ?? 0}
                             </span>
                         </div>
+                        {selectedMatch.live_status && (
+                            <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
+                                {selectedMatch.live_status} • MAP {selectedMatch.current_map || 1}
+                            </p>
+                        )}
                     </div>
 
                     <button

@@ -418,18 +418,6 @@ ORDER BY e.id DESC
     }
 });
 
-function getPublicMatchStatus(match) {
-    if (Number(match.is_locked) === 1) return 'LOCKED';
-
-    const startTime = match.start_time_utc
-        ? new Date(match.start_time_utc).getTime()
-        : null;
-
-    if (startTime && startTime <= Date.now()) return 'LIVE';
-
-    return 'OPEN';
-}
-
 function getPublicCountdown(startTimeUtc) {
     if (!startTimeUtc) return 'TBA';
 
@@ -454,8 +442,33 @@ function formatPublicDate(startTimeUtc) {
     return new Date(startTimeUtc).toISOString();
 }
 
+function getPublicMatchStatus(match) {
+    if (Number(match.is_locked) === 1) {
+        return 'LOCKED';
+    }
+
+    const startTime = match.start_time_utc
+        ? new Date(match.start_time_utc).getTime()
+        : null;
+
+    if (startTime && startTime <= Date.now()) {
+        return 'LIVE';
+    }
+
+    return 'OPEN';
+}
+
 function buildPublicMatch(match) {
-    const uiStatus = getPublicMatchStatus(match);
+    let uiStatus = getPublicMatchStatus(match);
+
+    if (match.live_status === 'FINAL') {
+        uiStatus = 'FINAL';
+    } else if (
+        Number(match.score_a || 0) > 0 ||
+        Number(match.score_b || 0) > 0
+    ) {
+        uiStatus = 'LIVE';
+    }
 
     return {
         id: match.id,
@@ -464,9 +477,17 @@ function buildPublicMatch(match) {
         team_a: match.team_a,
         team_b: match.team_b,
         best_of: match.best_of,
+
+        score_a: Number(match.score_a || 0),
+        score_b: Number(match.score_b || 0),
+
+        current_map: match.current_map || 1,
+        live_status: match.live_status || null,
+
         start_time_utc: match.start_time_utc,
         formatted_time: formatPublicDate(match.start_time_utc),
         countdown: getPublicCountdown(match.start_time_utc),
+
         is_locked: Number(match.is_locked) === 1,
         ui_status: uiStatus
     };
@@ -843,7 +864,10 @@ app.post('/api/dev/matches/:matchId/score', async (req, res) => {
         io.emit('match:score_updated', {
             matchId: Number(matchId),
             score_a: Number(score_a),
-            score_b: Number(score_b)
+            score_b: Number(score_b),
+            current_map: 1,
+            live_status: 'LIVE',
+            ui_status: 'LIVE'
         });
 
         res.json({
@@ -857,6 +881,56 @@ app.post('/api/dev/matches/:matchId/score', async (req, res) => {
 
         res.status(500).json({
             error: 'Score update failed'
+        });
+    }
+});
+
+app.post('/api/dev/matches/:matchId/final', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+
+        await pool.query(
+            `
+            UPDATE live_match_scores
+            SET status = 'FINAL',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE match_id = ?
+            `,
+            [matchId]
+        );
+
+        const [[liveScore]] = await pool.query(
+            `
+    SELECT score_a, score_b, current_map
+    FROM live_match_scores
+    WHERE match_id = ?
+    LIMIT 1
+    `,
+            [matchId]
+        );
+
+        io.emit('match:score_updated', {
+            matchId: Number(matchId),
+
+            score_a: Number(liveScore?.score_a || 0),
+            score_b: Number(liveScore?.score_b || 0),
+
+            current_map: Number(liveScore?.current_map || 1),
+
+            live_status: 'FINAL',
+            ui_status: 'FINAL'
+        });
+
+        res.json({
+            ok: true,
+            matchId: Number(matchId),
+            status: 'FINAL'
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Final update failed'
         });
     }
 });
