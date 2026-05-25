@@ -110,14 +110,86 @@ export default function PublicEventPage() {
             });
         }
 
+        function handleScoreUpdated(payload) {
+            setData((prev) => {
+                if (!prev) return prev;
+
+                setSelectedMatch((prev) => {
+                    if (!prev) return prev;
+
+                    if (String(prev.id) !== String(payload.matchId)) {
+                        return prev;
+                    }
+
+                    return {
+                        ...prev,
+                        score_a: payload.score_a,
+                        score_b: payload.score_b,
+                        just_updated: true
+                    };
+                });
+
+                const updateMatch = (match) => {
+                    if (String(match.id) !== String(payload.matchId)) {
+                        return match;
+                    }
+
+                    return {
+                        ...match,
+                        score_a: payload.score_a,
+                        score_b: payload.score_b,
+                        just_updated: true
+                    };
+                };
+
+                return {
+                    ...prev,
+                    featured_match: prev.featured_match
+                        ? updateMatch(prev.featured_match)
+                        : prev.featured_match,
+                    matches: (prev.matches || []).map(updateMatch)
+                };
+            });
+
+            setTimeout(() => {
+                setData((prev) => {
+                    if (!prev) return prev;
+
+                    setSelectedMatch((prev) => {
+                        if (!prev) return prev;
+
+                        return {
+                            ...prev,
+                            just_updated: false
+                        };
+                    });
+
+                    const clearUpdate = (match) => ({
+                        ...match,
+                        just_updated: false
+                    });
+
+                    return {
+                        ...prev,
+                        featured_match: prev.featured_match
+                            ? clearUpdate(prev.featured_match)
+                            : prev.featured_match,
+                        matches: (prev.matches || []).map(clearUpdate)
+                    };
+                });
+            }, 2500);
+        }
+
         socket.on('dashboard:refresh', handleDashboardRefresh);
         socket.on('event:status_updated', handleEventStatusUpdated);
         socket.on('match:updated', handleMatchUpdated);
+        socket.on('match:score_updated', handleScoreUpdated);
 
         return () => {
             socket.off('dashboard:refresh', handleDashboardRefresh);
             socket.off('event:status_updated', handleEventStatusUpdated);
             socket.off('match:updated', handleMatchUpdated);
+            socket.off('match:score_updated', handleScoreUpdated);
         };
     }, [slug]);
 
@@ -304,6 +376,24 @@ export default function PublicEventPage() {
                                 </div>
 
                                 <TeamLogoBlock team={heroMatch.team_b} />
+                            </div>
+                            <div
+                                className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${heroMatch.just_updated
+                                    ? 'scale-110 text-green-300'
+                                    : ''
+                                    }`}
+                            >
+                                <span className="text-6xl font-black">
+                                    {heroMatch.score_a ?? 0}
+                                </span>
+
+                                <span className="text-2xl font-black text-white/30">
+                                    :
+                                </span>
+
+                                <span className="text-6xl font-black">
+                                    {heroMatch.score_b ?? 0}
+                                </span>
                             </div>
 
                             <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -536,6 +626,15 @@ export default function PublicEventPage() {
                                                     {match.team_a} vs {match.team_b}
                                                 </h3>
 
+                                                <p
+                                                    className={`mt-2 text-lg font-black transition-all duration-500 ${match.just_updated
+                                                        ? 'scale-110 text-green-300'
+                                                        : 'text-violet-300'
+                                                        }`}
+                                                >
+                                                    {match.score_a ?? 0} : {match.score_b ?? 0}
+                                                </p>
+
                                                 <MiniTeamLogo team={match.team_b} />
                                             </div>
 
@@ -642,6 +741,24 @@ function MatchModal({
                             </div>
 
                             <TeamLogoBlock team={selectedMatch.team_b} />
+                        </div>
+                        <div
+                            className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${selectedMatch.just_updated
+                                ? 'scale-110 text-green-300'
+                                : 'text-violet-300'
+                                }`}
+                        >
+                            <span className="text-6xl font-black">
+                                {selectedMatch.score_a ?? 0}
+                            </span>
+
+                            <span className="text-2xl font-black text-white/30">
+                                :
+                            </span>
+
+                            <span className="text-6xl font-black">
+                                {selectedMatch.score_b ?? 0}
+                            </span>
                         </div>
                     </div>
 

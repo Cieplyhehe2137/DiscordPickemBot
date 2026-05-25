@@ -479,14 +479,14 @@ app.get('/api/public/:slug/overview', async (req, res) => {
         const [[event]] = await pool.query(
             `
       SELECT
-        id,
-        name,
-        slug,
-        phase,
-        status
-      FROM events
-      WHERE slug = ?
-      LIMIT 1
+  id,
+  name,
+  slug,
+  phase,
+  status
+FROM events
+WHERE slug = ?
+LIMIT 1
       `,
             [slug]
         );
@@ -515,24 +515,31 @@ app.get('/api/public/:slug/overview', async (req, res) => {
         const [matches] = await pool.query(
             `
   SELECT
-    id,
-    phase,
-    match_no,
-    team_a,
-    team_b,
-    best_of,
-    start_time_utc,
-    is_locked,
+  m.id,
+  m.phase,
+  m.match_no,
+  m.team_a,
+  m.team_b,
+  m.best_of,
+  m.start_time_utc,
+  m.is_locked,
 
-    CASE
-      WHEN is_locked = 1 THEN 'LOCKED'
-      ELSE 'OPEN'
-    END AS ui_status
+  COALESCE(lms.score_a, 0) AS score_a,
+  COALESCE(lms.score_b, 0) AS score_b,
+  lms.current_map,
+  lms.status AS live_status,
 
-  FROM matches
-  WHERE event_id = ?
-  ORDER BY match_no ASC, id ASC
-  LIMIT 8
+  CASE
+    WHEN m.is_locked = 1 THEN 'LOCKED'
+    ELSE 'OPEN'
+  END AS ui_status
+
+FROM matches m
+LEFT JOIN live_match_scores lms
+  ON lms.match_id = m.id
+WHERE m.event_id = ?
+ORDER BY m.match_no ASC, m.id ASC
+LIMIT 8
   `,
             [event.id]
         );
@@ -812,6 +819,44 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
 
         res.status(500).json({
             error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/dev/matches/:matchId/score', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { score_a, score_b } = req.body;
+
+        await pool.query(
+            `
+  INSERT INTO live_match_scores (match_id, score_a, score_b)
+  VALUES (?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    score_a = VALUES(score_a),
+    score_b = VALUES(score_b),
+    updated_at = CURRENT_TIMESTAMP
+  `,
+            [matchId, score_a, score_b]
+        );
+
+        io.emit('match:score_updated', {
+            matchId: Number(matchId),
+            score_a: Number(score_a),
+            score_b: Number(score_b)
+        });
+
+        res.json({
+            ok: true,
+            matchId: Number(matchId),
+            score_a: Number(score_a),
+            score_b: Number(score_b)
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Score update failed'
         });
     }
 });
