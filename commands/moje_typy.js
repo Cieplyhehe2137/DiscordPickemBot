@@ -366,11 +366,18 @@ module.exports = {
           const [rows] = await pool.query(
             `
   SELECT
-    mp.*,
+    mp.match_id,
+    mp.guild_id,
+    mp.event_id,
+    mp.user_id,
+    mp.pred_a,
+    mp.pred_b,
+    mp.pred_exact_a,
+    mp.pred_exact_b,
+    mp.updated_at,
     m.team_a,
     m.team_b,
     m.best_of,
-    mr.winner AS result_winner,
     mr.score_a AS result_score_a,
     mr.score_b AS result_score_b,
     pts.points AS earned_points
@@ -387,7 +394,7 @@ module.exports = {
    AND pts.user_id = mp.user_id
   WHERE mp.guild_id = ?
     AND mp.user_id = ?
-  ORDER BY mp.submitted_at DESC, m.id DESC
+  ORDER BY mp.updated_at DESC, m.id DESC
   LIMIT 10
   `,
             [guildId, userId]
