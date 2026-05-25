@@ -1,4 +1,4 @@
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logInfo, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 const { computeTotalPoints } = require('../utils/matchScoring');
 
@@ -28,9 +28,14 @@ module.exports = async function matchAdminResultSelect(interaction) {
       await pool.query('START TRANSACTION');
 
       try {
-        // 🔒 0️⃣ sprawdź, czy mecz należy do tej guildy
         const [[match]] = await pool.query(
-          `SELECT id FROM matches WHERE id = ? AND guild_id = ? LIMIT 1`,
+          `
+          SELECT id, event_id
+          FROM matches
+          WHERE id = ?
+            AND guild_id = ?
+          LIMIT 1
+          `,
           [matchId, guildId]
         );
 
@@ -42,35 +47,51 @@ module.exports = async function matchAdminResultSelect(interaction) {
           });
         }
 
-        // 1️⃣ upsert wyniku serii
+        const eventId = match.event_id;
+
+        if (!eventId) {
+          await pool.query('ROLLBACK');
+          return interaction.update({
+            content: '❌ Ten mecz nie ma przypisanego event_id.',
+            components: []
+          });
+        }
+
         await pool.query(
           `
-          INSERT INTO match_results (guild_id, match_id, res_a, res_b)
-          VALUES (?, ?, ?, ?)
+          INSERT INTO match_results
+            (guild_id, event_id, match_id, res_a, res_b)
+          VALUES
+            (?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
+            event_id = VALUES(event_id),
             res_a = VALUES(res_a),
             res_b = VALUES(res_b)
           `,
-          [guildId, matchId, resA, resB]
+          [guildId, eventId, matchId, resA, resB]
         );
 
-        // 2️⃣ usuń stare punkty
         await pool.query(
-          `DELETE FROM match_points WHERE guild_id = ? AND match_id = ?`,
-          [guildId, matchId]
+          `
+          DELETE FROM match_points
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND match_id = ?
+          `,
+          [guildId, eventId, matchId]
         );
 
-        // 3️⃣ pobierz predykcje
         const [preds] = await pool.query(
           `
           SELECT user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
           FROM match_predictions
-          WHERE guild_id = ? AND match_id = ?
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND match_id = ?
           `,
-          [guildId, matchId]
+          [guildId, eventId, matchId]
         );
 
-        // 4️⃣ policz i zapisz punkty
         if (preds.length) {
           const values = preds.map(p => {
             const points = computeTotalPoints({
@@ -83,14 +104,17 @@ module.exports = async function matchAdminResultSelect(interaction) {
               exactA: null,
               exactB: null
             });
-            return [guildId, matchId, p.user_id, points];
+
+            return [guildId, eventId, matchId, p.user_id, points];
           });
 
           await pool.query(
             `
-            INSERT INTO match_points (guild_id, match_id, user_id, points)
+            INSERT INTO match_points
+              (guild_id, event_id, match_id, user_id, points)
             VALUES ?
             ON DUPLICATE KEY UPDATE
+              event_id = VALUES(event_id),
               points = VALUES(points),
               computed_at = CURRENT_TIMESTAMP
             `,
@@ -102,6 +126,7 @@ module.exports = async function matchAdminResultSelect(interaction) {
 
         logInfo('matches', 'Match result set', {
           guildId,
+          eventId,
           matchId,
           resA,
           resB,
@@ -114,13 +139,11 @@ module.exports = async function matchAdminResultSelect(interaction) {
             `📊 Punkty zostały przeliczone.`,
           components: []
         });
-
       } catch (err) {
         await pool.query('ROLLBACK');
         throw err;
       }
     });
-
   } catch (err) {
     logError('matches', 'matchAdminResultSelect failed', {
       guildId: interaction.guildId,
