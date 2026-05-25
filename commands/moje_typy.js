@@ -6,23 +6,34 @@ const { withGuild } = require('../utils/guildContext');
 /* =========================
    HELPERS
 ========================= */
+
 function parseList(input) {
   if (input == null) return [];
+
   if (Array.isArray(input)) {
     if (input.length && typeof input[0] === 'object') {
-      return input.map(o => (o?.label ?? o?.value ?? '').toString().trim()).filter(Boolean);
+      return input
+        .map(o => (o?.label ?? o?.value ?? '').toString().trim())
+        .filter(Boolean);
     }
+
     return input.map(x => (x ?? '').toString().trim()).filter(Boolean);
   }
+
   try {
     const parsed = JSON.parse(input);
+
     if (Array.isArray(parsed)) {
       if (parsed.length && typeof parsed[0] === 'object') {
-        return parsed.map(o => (o?.label ?? o?.value ?? '').toString().trim()).filter(Boolean);
+        return parsed
+          .map(o => (o?.label ?? o?.value ?? '').toString().trim())
+          .filter(Boolean);
       }
+
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
   } catch (_) {}
+
   return String(input)
     .replace(/[[\]"]/g, '')
     .split(/[;,\n|]+/)
@@ -30,26 +41,47 @@ function parseList(input) {
     .filter(Boolean);
 }
 
-const joinOrDash = (arr) =>
-  Array.isArray(arr) && arr.length ? arr.join(', ') : '—';
+function joinOrDash(arr) {
+  return Array.isArray(arr) && arr.length ? arr.join(', ') : '—';
+}
+
+function normalizePhase(phase, stage = null) {
+  if (!phase) return null;
+
+  const p = String(phase).trim();
+  const s = stage ? String(stage).trim() : null;
+
+  if (p === 'swiss') {
+    if (s === 'stage1') return 'swiss1';
+    if (s === 'stage2') return 'swiss2';
+    if (s === 'stage3') return 'swiss3';
+  }
+
+  if (p === 'swiss_stage_1') return 'swiss1';
+  if (p === 'swiss_stage_2') return 'swiss2';
+  if (p === 'swiss_stage_3') return 'swiss3';
+
+  return p;
+}
 
 /* =========================
    COMMAND
 ========================= */
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('moje_typy')
-    .setDescription('Pokaż Twoje złożone typy — aktualna faza lub ostatnia, w której brałeś udział.')
+    .setDescription('Pokaż Twoje zapisane typy.')
     .addStringOption(opt =>
-      opt.setName('faza')
-        .setDescription('Wybierz fazę (opcjonalnie)')
+      opt
+        .setName('faza')
+        .setDescription('Wybierz fazę. Bez wyboru pokaże aktywną lub ostatnią z Twoimi typami.')
         .addChoices(...PHASE_CHOICES.filter(c => c.value !== 'total'))
         .setRequired(false)
     ),
 
   async execute(interaction) {
-    const guildId = interaction.guildId;
-    if (!guildId) {
+    if (!interaction.guildId) {
       return interaction.reply({
         content: '❌ Ta komenda działa tylko na serwerze.',
         ephemeral: true,
@@ -58,85 +90,92 @@ module.exports = {
 
     await interaction.deferReply({ ephemeral: true });
 
-    return withGuild(guildId, async ({ pool }) => {
-      const userId = interaction.user.id;
-      const manualPhase = interaction.options.getString('faza');
+    const userId = interaction.user.id;
+    const guildId = interaction.guildId;
+    const manualPhase = normalizePhase(interaction.options.getString('faza'));
 
-      try {
-        /* =========================
-           AUTO-DETEKCJA FAZY
-        ========================= */
+    try {
+      await withGuild(interaction, async ({ pool }) => {
         let autoPhase = null;
-        let autoStage = null;
 
-        // 1️⃣ aktywny panel (TYLKO TEN GUILD)
-        const [panels] = await pool.query(
-          `
-          SELECT phase, stage
-          FROM active_panels
-          WHERE guild_id = ?
-            AND active = 1
-          ORDER BY id DESC
-          LIMIT 1
-          `,
-          [guildId]
-        );
+        if (!manualPhase) {
+          const [panels] = await pool.query(
+            `
+            SELECT phase, stage
+            FROM active_panels
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY id DESC
+            LIMIT 1
+            `,
+            [guildId]
+          );
 
-        if (panels.length) {
-          autoPhase = panels[0].phase;
-          autoStage = panels[0].stage;
+          if (panels.length) {
+            autoPhase = normalizePhase(panels[0].phase, panels[0].stage);
+          }
         }
 
-        // 2️⃣ fallback: ostatnia faza, w której user typował (TEN GUILD)
-        if (!autoPhase) {
+        if (!manualPhase && !autoPhase) {
           const [last] = await pool.query(
             `
-            SELECT phase, stage FROM (
+            SELECT phase, stage
+            FROM (
               SELECT 'swiss' AS phase, stage, submitted_at
               FROM swiss_predictions
               WHERE guild_id = ? AND user_id = ?
 
               UNION ALL
-              SELECT 'playoffs', NULL, submitted_at
+
+              SELECT 'playoffs' AS phase, NULL AS stage, submitted_at
               FROM playoffs_predictions
               WHERE guild_id = ? AND user_id = ?
 
               UNION ALL
-              SELECT 'double_elim', NULL, submitted_at
+
+              SELECT 'double_elim' AS phase, NULL AS stage, submitted_at
               FROM doubleelim_predictions
               WHERE guild_id = ? AND user_id = ?
 
               UNION ALL
-              SELECT 'playin', NULL, submitted_at
+
+              SELECT 'playin' AS phase, NULL AS stage, submitted_at
               FROM playin_predictions
               WHERE guild_id = ? AND user_id = ?
             ) t
             ORDER BY submitted_at DESC
             LIMIT 1
             `,
-            [guildId, userId, guildId, userId, guildId, userId, guildId, userId]
+            [
+              guildId, userId,
+              guildId, userId,
+              guildId, userId,
+              guildId, userId,
+            ]
           );
 
           if (last.length) {
-            autoPhase = last[0].phase;
-            autoStage = last[0].stage;
+            autoPhase = normalizePhase(last[0].phase, last[0].stage);
           }
         }
 
         const phaseToShow = manualPhase || autoPhase;
+
         if (!phaseToShow) {
           return interaction.editReply({
-            content: 'Nie masz żadnych typów i nie ma aktywnej fazy.',
+            content: 'Nie masz jeszcze żadnych zapisanych typów.',
           });
         }
 
         const embed = new EmbedBuilder()
           .setTitle(`Twoje typy — ${humanPhase(phaseToShow)}`)
-          .setColor(0x3B82F6);
+          .setColor(0x3b82f6)
+          .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
 
         /* =========================
            SWISS
         ========================= */
+
         if (phaseToShow.startsWith('swiss')) {
           const aliases = getSwissStageAliases(phaseToShow);
 
@@ -146,6 +185,7 @@ module.exports = {
             WHERE guild_id = ?
               AND user_id = ?
           `;
+
           const params = [guildId, userId];
 
           if (aliases.length) {
@@ -153,7 +193,10 @@ module.exports = {
             params.push(...aliases);
           }
 
-          sql += ` ORDER BY id DESC LIMIT 1`;
+          sql += `
+            ORDER BY submitted_at DESC, id DESC
+            LIMIT 1
+          `;
 
           const [rows] = await pool.query(sql, params);
 
@@ -164,6 +207,7 @@ module.exports = {
           }
 
           const r = rows[0];
+
           embed.addFields(
             { name: '3-0 (2)', value: joinOrDash(parseList(r.pick_3_0)) },
             { name: '0-3 (2)', value: joinOrDash(parseList(r.pick_0_3)) },
@@ -176,13 +220,15 @@ module.exports = {
         /* =========================
            PLAYOFFS
         ========================= */
+
         if (phaseToShow === 'playoffs') {
           const [rows] = await pool.query(
             `
             SELECT *
             FROM playoffs_predictions
-            WHERE guild_id = ? AND user_id = ?
-            ORDER BY id DESC
+            WHERE guild_id = ?
+              AND user_id = ?
+            ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
             [guildId, userId]
@@ -195,6 +241,7 @@ module.exports = {
           }
 
           const r = rows[0];
+
           embed.addFields(
             { name: 'Półfinaliści (4)', value: joinOrDash(parseList(r.semifinalists)) },
             { name: 'Finaliści (2)', value: joinOrDash(parseList(r.finalists)) },
@@ -208,13 +255,15 @@ module.exports = {
         /* =========================
            DOUBLE ELIM
         ========================= */
+
         if (phaseToShow === 'double_elim') {
           const [rows] = await pool.query(
             `
             SELECT *
             FROM doubleelim_predictions
-            WHERE guild_id = ? AND user_id = ?
-            ORDER BY id DESC
+            WHERE guild_id = ?
+              AND user_id = ?
+            ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
             [guildId, userId]
@@ -227,6 +276,7 @@ module.exports = {
           }
 
           const r = rows[0];
+
           embed.addFields(
             { name: 'Upper Final A (2)', value: joinOrDash(parseList(r.upper_final_a)) },
             { name: 'Lower Final A (2)', value: joinOrDash(parseList(r.lower_final_a)) },
@@ -240,13 +290,15 @@ module.exports = {
         /* =========================
            PLAY-IN
         ========================= */
+
         if (phaseToShow === 'playin') {
           const [rows] = await pool.query(
             `
             SELECT *
             FROM playin_predictions
-            WHERE guild_id = ? AND user_id = ?
-            ORDER BY id DESC
+            WHERE guild_id = ?
+              AND user_id = ?
+            ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
             [guildId, userId]
@@ -269,13 +321,13 @@ module.exports = {
         return interaction.editReply({
           embeds: [embed.setDescription('Nieobsługiwana faza.')],
         });
+      });
+    } catch (err) {
+      console.error('[moje_typy] error', err);
 
-      } catch (err) {
-        console.error('[moje_typy] error', err);
-        return interaction.editReply({
-          content: '⚠️ Wystąpił błąd podczas pobierania typów.',
-        });
-      }
-    });
+      return interaction.editReply({
+        content: '⚠️ Wystąpił błąd podczas pobierania typów.',
+      });
+    }
   },
 };
