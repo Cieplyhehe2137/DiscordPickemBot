@@ -432,6 +432,11 @@ module.exports = {
                 ? `${r.result_exact_a}:${r.result_exact_b}`
                 : 'nierozliczone';
 
+            const points =
+              r.earned_points != null
+                ? `${r.earned_points} pkt`
+                : '0 pkt';
+
             embed.addFields({
               name: `${teamA} vs ${teamB}`,
               value:
