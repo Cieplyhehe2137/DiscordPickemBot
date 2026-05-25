@@ -31,7 +31,7 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return String(input)
     .replace(/[[\]"]/g, '')
@@ -365,32 +365,31 @@ module.exports = {
         if (phaseToShow === 'matches') {
           const [rows] = await pool.query(
             `
-            SELECT
-              mp.*,
-              m.team_a,
-              m.team_b,
-              m.best_of,
-              m.starts_at,
-              mr.winner AS result_winner,
-              mr.score_a AS result_score_a,
-              mr.score_b AS result_score_b,
-              pts.points AS earned_points
-            FROM match_predictions mp
-            INNER JOIN matches m
-              ON m.id = mp.match_id
-             AND m.guild_id = mp.guild_id
-            LEFT JOIN match_results mr
-              ON mr.match_id = m.id
-             AND mr.guild_id = m.guild_id
-            LEFT JOIN match_points pts
-              ON pts.match_id = m.id
-             AND pts.guild_id = mp.guild_id
-             AND pts.user_id = mp.user_id
-            WHERE mp.guild_id = ?
-              AND mp.user_id = ?
-            ORDER BY COALESCE(m.starts_at, mp.submitted_at) DESC, m.id DESC
-            LIMIT 10
-            `,
+  SELECT
+    mp.*,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    mr.winner AS result_winner,
+    mr.score_a AS result_score_a,
+    mr.score_b AS result_score_b,
+    pts.points AS earned_points
+  FROM match_predictions mp
+  INNER JOIN matches m
+    ON m.id = mp.match_id
+   AND m.guild_id = mp.guild_id
+  LEFT JOIN match_results mr
+    ON mr.match_id = m.id
+   AND mr.guild_id = m.guild_id
+  LEFT JOIN match_points pts
+    ON pts.match_id = m.id
+   AND pts.guild_id = mp.guild_id
+   AND pts.user_id = mp.user_id
+  WHERE mp.guild_id = ?
+    AND mp.user_id = ?
+  ORDER BY mp.submitted_at DESC, m.id DESC
+  LIMIT 10
+  `,
             [guildId, userId]
           );
 
