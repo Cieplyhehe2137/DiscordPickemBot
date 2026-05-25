@@ -301,6 +301,29 @@ export default function PublicEventPage() {
     return (
         <div className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
             <div className="mx-auto max-w-7xl">
+                <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <a
+                        href="/public"
+                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+                    >
+                        Communities
+                    </a>
+
+                    <div className="h-5 w-px bg-white/10" />
+
+                    <a
+                        href="/public/hyperland"
+                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+                    >
+                        Hyperland
+                    </a>
+
+                    <div className="h-5 w-px bg-white/10" />
+
+                    <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
+                        {event?.name || slug}
+                    </span>
+                </div>
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                     Public Event
                 </p>

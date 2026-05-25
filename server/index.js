@@ -493,6 +493,73 @@ function buildPublicMatch(match) {
     };
 }
 
+app.get('/api/public/:guildSlug', async (req, res) => {
+    try {
+        const { guildSlug } = req.params;
+
+        const guildId =
+            guildSlug === 'hyperland'
+                ? '1161660208951607397'
+                : guildSlug;
+
+        const [events] = await pool.query(
+            `
+            SELECT
+                id,
+                name,
+                slug,
+                phase,
+                status
+            FROM events
+            WHERE guild_id = ?
+            ORDER BY id DESC
+            LIMIT 12
+            `,
+            [guildId]
+        );
+
+        const [[stats]] = await pool.query(
+            `
+    SELECT
+        COUNT(DISTINCT e.id) AS events_count,
+        COUNT(DISTINCT mp.user_id) AS participants,
+        COUNT(mp.user_id) AS predictions
+    FROM events e
+    LEFT JOIN match_predictions mp
+        ON mp.event_id = e.id
+    WHERE e.guild_id = ?
+    `,
+            [guildId]
+        );
+
+        const featuredEvent =
+            events.find((e) => e.status === 'OPEN') ||
+            events[0] ||
+            null;
+
+        res.json({
+            guild: {
+                guild_id: guildId,
+                slug: guildSlug,
+                name: guildId === '1161660208951607397'
+                    ? 'Hyperland'
+                    : guildId,
+                discord_url: 'https://discord.gg/NJhspKrXNK'
+            },
+            stats: {
+                events: Number(stats?.events_count || 0),
+                participants: Number(stats?.participants || 0),
+                predictions: Number(stats?.predictions || 0)
+            },
+            featured_event: featuredEvent,
+            events
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 app.get('/api/public/:slug/overview', async (req, res) => {
     try {
         const { slug } = req.params;
@@ -931,6 +998,101 @@ app.post('/api/dev/matches/:matchId/final', async (req, res) => {
 
         res.status(500).json({
             error: 'Final update failed'
+        });
+    }
+});
+
+app.get('/api/public/servers', async (req, res) => {
+    try {
+        const [servers] = await pool.query(
+            `
+    SELECT
+        e.guild_id,
+        COUNT(*) AS events_count,
+        SUM(e.status = 'OPEN') AS open_events,
+        MAX(e.id) AS latest_event_id
+    FROM events e
+    WHERE e.guild_id IS NOT NULL
+    GROUP BY e.guild_id
+    ORDER BY events_count DESC
+    `
+        );
+
+        res.json({
+            servers: servers.map((server) => ({
+                guild_id: server.guild_id,
+                name:
+                    server.guild_id === '1161660208951607397'
+                        ? 'Hyperland'
+                        : server.guild_id,
+                slug:
+                    server.guild_id === '1161660208951607397'
+                        ? 'hyperland'
+                        : server.guild_id,
+                events_count: Number(server.events_count || 0),
+                open_events: Number(server.open_events),
+                discord_url: 'https://discord.gg/NJhspKrXNK'
+            }))
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        })
+    }
+})
+
+app.get('/api/public/:guildSlug', async (req, res) => {
+    try {
+        const { guildSlug } = req.params;
+
+        const guildId =
+            guildSlug === 'hyperland'
+                ? '1161660208951607397'
+                : guildSlug;
+
+        const [events] = await pool.query(
+            `
+            SELECT
+                id,
+                name,
+                slug,
+                phase,
+                status
+            FROM events
+            WHERE guild_id = ?
+            ORDER BY id DESC
+            LIMIT 12
+            `,
+            [guildId]
+        );
+
+        const featuredEvent =
+            events.find((e) => e.status === 'OPEN') ||
+            events[0] ||
+            null;
+
+        res.json({
+            guild: {
+                guild_id: guildId,
+                slug: guildSlug,
+                name:
+                    guildId === '1161660208951607397'
+                        ? 'Hyperland'
+                        : guildId,
+                discord_url: 'https://discord.gg/NJhspKrXNK'
+            },
+
+            featured_event: featuredEvent,
+
+            events
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
         });
     }
 });

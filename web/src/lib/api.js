@@ -111,3 +111,11 @@ export async function updateMatchLock(matchId, locked) {
 export async function getMatchStats(matchId) {
   return apiFetch(`/matches/${matchId}/stats`);
 }
+
+export async function getPublicServers() {
+  return apiFetch('/public/servers');
+}
+
+export async function getPublicGuild(guildSlug) {
+    return apiFetch(`/public/${guildSlug}`);
+}
