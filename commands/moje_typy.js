@@ -378,8 +378,10 @@ module.exports = {
     m.team_a,
     m.team_b,
     m.best_of,
-    mr.score_a AS result_score_a,
-    mr.score_b AS result_score_b,
+    mr.res_a AS result_a,
+    mr.res_b AS result_b,
+    mr.exact_a AS result_exact_a,
+    mr.exact_b AS result_exact_b,
     pts.points AS earned_points
   FROM match_predictions mp
   INNER JOIN matches m
@@ -387,7 +389,7 @@ module.exports = {
    AND m.guild_id = mp.guild_id
   LEFT JOIN match_results mr
     ON mr.match_id = m.id
-   AND mr.guild_id = m.guild_id
+   AND mr.guild_id = mp.guild_id
   LEFT JOIN match_points pts
     ON pts.match_id = m.id
    AND pts.guild_id = mp.guild_id
@@ -410,24 +412,32 @@ module.exports = {
             const teamA = r.team_a || 'Team A';
             const teamB = r.team_b || 'Team B';
 
-            const pickedWinner = getPredictionWinner(r);
-            const predictedScore = getPredictionScore(r);
+            const pickedWinner =
+              Number(r.pred_a) === 1 ? teamA :
+                Number(r.pred_b) === 1 ? teamB :
+                  '—';
+
+            const predictedScore =
+              r.pred_exact_a != null && r.pred_exact_b != null
+                ? `${r.pred_exact_a}:${r.pred_exact_b}`
+                : '—';
+
+            const officialWinner =
+              Number(r.result_a) === 1 ? teamA :
+                Number(r.result_b) === 1 ? teamB :
+                  'nierozliczone';
 
             const officialResult =
-              r.result_score_a != null && r.result_score_b != null
-                ? `${r.result_score_a}:${r.result_score_b}`
+              r.result_exact_a != null && r.result_exact_b != null
+                ? `${r.result_exact_a}:${r.result_exact_b}`
                 : 'nierozliczone';
-
-            const points =
-              r.earned_points != null
-                ? `${r.earned_points} pkt`
-                : 'jeszcze brak';
 
             embed.addFields({
               name: `${teamA} vs ${teamB}`,
               value:
                 `**Twój zwycięzca:** ${pickedWinner}\n` +
-                `**Twój wynik serii:** ${predictedScore}\n` +
+                `**Twój wynik:** ${predictedScore}\n` +
+                `**Zwycięzca meczu:** ${officialWinner}\n` +
                 `**Oficjalny wynik:** ${officialResult}\n` +
                 `**Punkty:** ${points}`,
             });
