@@ -299,23 +299,21 @@ module.exports = async function matchUserExactSubmit(interaction) {
       if (hasTarget) {
         await pool.query(
           `
-          INSERT INTO match_predictions
-            (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            pred_a = VALUES(pred_a),
-            pred_b = VALUES(pred_b),
-            pred_exact_a = VALUES(pred_exact_a),
-            pred_exact_b = VALUES(pred_exact_b),
-            updated_at = CURRENT_TIMESTAMP
-          `,
+    INSERT INTO match_predictions
+      (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
+    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
+    ON DUPLICATE KEY UPDATE
+      pred_a = VALUES(pred_a),
+      pred_b = VALUES(pred_b),
+      pred_exact_a = NULL,
+      pred_exact_b = NULL,
+      updated_at = CURRENT_TIMESTAMP
+    `,
           [
             guildId,
             match.event_id,
             match.id,
             interaction.user.id,
-            targetWinsA,
-            targetWinsB,
             targetWinsA,
             targetWinsB
           ]

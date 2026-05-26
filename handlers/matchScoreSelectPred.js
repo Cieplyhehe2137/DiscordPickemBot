@@ -1,4 +1,4 @@
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { isMatchLocked } = require('../utils/matchLock');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
@@ -22,6 +22,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const picked = interaction.values?.[0];
+
       if (!picked) {
         return interaction.update({
           content: '❌ Nie wybrano typu.',
@@ -47,7 +48,10 @@ module.exports = async function matchScoreSelectPred(interaction) {
         !Number.isInteger(matchId) ||
         matchId <= 0 ||
         !Number.isInteger(winA) ||
-        !Number.isInteger(winB)
+        !Number.isInteger(winB) ||
+        winA < 0 ||
+        winB < 0 ||
+        winA === winB
       ) {
         return interaction.update({
           content: '❌ Niepoprawna wartość typu.',
@@ -55,13 +59,13 @@ module.exports = async function matchScoreSelectPred(interaction) {
         });
       }
 
-      // 🔒 GUILD-SAFE SELECT
       const [[match]] = await pool.query(
         `
         SELECT id, event_id, team_a, team_b, best_of, is_locked, start_time_utc, phase
-FROM matches
-WHERE guild_id = ? AND id = ?
-LIMIT 1
+        FROM matches
+        WHERE guild_id = ?
+          AND id = ?
+        LIMIT 1
         `,
         [guildId, matchId]
       );
@@ -73,6 +77,13 @@ LIMIT 1
         });
       }
 
+      if (!match.event_id) {
+        return interaction.update({
+          content: '❌ Ten mecz nie ma przypisanego eventu.',
+          components: []
+        });
+      }
+
       if (isMatchLocked(match)) {
         return interaction.update({
           content: '🔒 Ten mecz jest zablokowany (nie można już typować).',
@@ -80,7 +91,6 @@ LIMIT 1
         });
       }
 
-      // 🔐 global gate (np. deadline)
       const gate = await assertPredictionsAllowed({
         guildId,
         kind: 'MATCHES'
@@ -96,33 +106,14 @@ LIMIT 1
       const maxMaps = maxMapsFromBo(match.best_of);
       const requiredMaps = Math.min(winA + winB, maxMaps);
 
-      // ✅ zapis typowania SERII
-      await pool.query(
-        `
-  INSERT INTO match_predictions
-    (guild_id, event_id, match_id, user_id, pred_a, pred_b, pred_exact_a, pred_exact_b)
-  VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
-  ON DUPLICATE KEY UPDATE
-    event_id = VALUES(event_id),
-    pred_a = VALUES(pred_a),
-    pred_b = VALUES(pred_b),
-    pred_exact_a = NULL,
-    pred_exact_b = NULL,
-    updated_at = CURRENT_TIMESTAMP
-  `,
-        [
-          guildId,
-          match.event_id,
-          match.id,
-          interaction.user.id,
-          winA,
-          winB
-        ]
-      );
+      if (requiredMaps <= 0) {
+        return interaction.update({
+          content: '❌ Niepoprawna liczba map.',
+          components: []
+        });
+      }
 
-      const prev = userState.get(guildId, interaction.user.id) || {};
       userState.set(guildId, interaction.user.id, {
-        ...prev,
         matchId: match.id,
         teamA: match.team_a,
         teamB: match.team_b,
@@ -139,11 +130,10 @@ LIMIT 1
       return interaction.update({
         content:
           `🎯 Typujesz: **${match.team_a} ${winA}:${winB} ${match.team_b}** (BO${match.best_of})\n` +
-          `Możesz teraz kliknąć **🧮 Wpisz dokładny wynik**.`,
+          `📋 Teraz musisz kliknąć **🧮 Wpisz dokładny wynik** — bez tego typ nie zostanie zapisany.`,
         components: interaction.message.components
       });
     });
-
   } catch (err) {
     logError('matches', 'matchScoreSelectPred failed', {
       guild_id: interaction.guildId,
@@ -154,6 +144,6 @@ LIMIT 1
     return interaction.update({
       content: '❌ Błąd przy wyborze typu.',
       components: []
-    }).catch(() => { });
+    }).catch(() => {});
   }
 };
