@@ -114,6 +114,69 @@ module.exports = async function calculateScores(guildId, eventId) {
       eventId
     });
 
+    await pool.query(
+      `
+  DELETE FROM swiss_scores
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM playoffs_scores
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM doubleelim_scores
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM playin_scores
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM mvp_scores
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM match_points
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
+    await pool.query(
+      `
+  DELETE FROM leaderboard
+  WHERE guild_id = ?
+    AND event_id = ?
+  `,
+      [guildId, eventId]
+    );
+
     /* =========================
        SWISS
     ========================= */
