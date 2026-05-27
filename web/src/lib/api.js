@@ -117,5 +117,9 @@ export async function getPublicServers() {
 }
 
 export async function getPublicGuild(guildSlug) {
-    return apiFetch(`/public/${guildSlug}`);
+  return apiFetch(`/public/${guildSlug}`);
+}
+
+export async function getPublicUser(userId) {
+  return apiFetch(`/public/users/${userId}`);
 }

@@ -532,6 +532,22 @@ app.get('/api/public/:guildSlug', async (req, res) => {
             [guildId]
         );
 
+        const [topPlayers] = await pool.query(
+            `
+    SELECT
+        lb.user_id,
+        SUM(lb.total_points) AS total_points
+    FROM leaderboard lb
+    JOIN events e
+        ON e.id = lb.event_id
+    WHERE e.guild_id = ?
+    GROUP BY lb.user_id
+    ORDER BY total_points DESC
+    LIMIT 5
+    `,
+            [guildId]
+        );
+
         const featuredEvent =
             events.find((e) => e.status === 'OPEN') ||
             events[0] ||
@@ -549,7 +565,8 @@ app.get('/api/public/:guildSlug', async (req, res) => {
             stats: {
                 events: Number(stats?.events_count || 0),
                 participants: Number(stats?.participants || 0),
-                predictions: Number(stats?.predictions || 0)
+                predictions: Number(stats?.predictions || 0),
+                top_players: topPlayers,
             },
             featured_event: featuredEvent,
             events
@@ -1018,6 +1035,21 @@ app.get('/api/public/servers', async (req, res) => {
     `
         );
 
+        const [featuredEvents] = await pool.query(
+            `
+    SELECT
+        e.id,
+        e.name,
+        e.slug,
+        e.phase,
+        e.status,
+        e.guild_id
+    FROM events e
+    ORDER BY e.id DESC
+    LIMIT 6
+    `
+        );
+
         res.json({
             servers: servers.map((server) => ({
                 guild_id: server.guild_id,
@@ -1031,6 +1063,7 @@ app.get('/api/public/servers', async (req, res) => {
                         : server.guild_id,
                 events_count: Number(server.events_count || 0),
                 open_events: Number(server.open_events),
+                featured_events: featuredEvents,
                 discord_url: 'https://discord.gg/NJhspKrXNK'
             }))
         });
@@ -1087,6 +1120,64 @@ app.get('/api/public/:guildSlug', async (req, res) => {
             featured_event: featuredEvent,
 
             events
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/public/users/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const [[stats]] = await pool.query(
+            `
+            SELECT
+                user_id,
+                SUM(points) AS total_points,
+                COUNT(*) AS prediction_count
+            FROM match_points
+            WHERE user_id = ?
+            GROUP BY user_id
+            LIMIT 1
+            `,
+            [userId]
+        );
+
+        const [recentPredictions] = await pool.query(
+            `
+            SELECT
+                mp.match_id,
+                mp.pred_a,
+                mp.pred_b,
+                m.team_a,
+                m.team_b,
+                e.name AS event_name,
+                e.slug AS event_slug
+            FROM match_predictions mp
+            JOIN matches m
+                ON m.id = mp.match_id
+            JOIN events e
+                ON e.id = mp.event_id
+            WHERE mp.user_id = ?
+            ORDER BY mp.updated_at DESC
+            LIMIT 10
+            `,
+            [userId]
+        );
+
+        res.json({
+            profile: {
+                user_id: userId,
+                total_points: Number(stats?.total_points || 0),
+                prediction_count: Number(stats?.prediction_count || 0)
+            },
+
+            recent_predictions: recentPredictions
         });
     } catch (err) {
         console.error(err);

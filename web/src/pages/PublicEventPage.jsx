@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
 import { getPublicOverview, getMatchStats } from '../lib/api';
+import PublicFooter from '../components/public/PublicFooter';
 
 export default function PublicEventPage() {
     const { slug } = useParams();
@@ -14,7 +15,7 @@ export default function PublicEventPage() {
     const [matchStats, setMatchStats] = useState({});
     const [matchStatsLoading, setMatchStatsLoading] = useState(false);
 
-    const publicUrl = `${window.location.origin}/public/${slug}`;
+    const publicUrl = `${window.location.origin}/public/event/${slug}`;
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -127,7 +128,9 @@ export default function PublicEventPage() {
                         score_b: payload.score_b ?? prev.score_b ?? 0,
                         current_map: payload.current_map || prev.current_map || 1,
                         live_status: payload.live_status || prev.live_status || 'LIVE',
-                        ui_status: payload.ui_status || 'LIVE',
+                        ui_status:
+                            payload.ui_status ||
+                            (payload.live_status === 'FINAL' ? 'FINAL' : 'LIVE'),
                         just_updated: true
                     };
                 });
@@ -276,8 +279,9 @@ export default function PublicEventPage() {
 
     if (!data) {
         return (
-            <div className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
-                <div className="mx-auto max-w-7xl">
+            <div className="relative min-h-screen overflow-hidden bg-zinc-950 px-6 py-10 text-white">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
+                <div className="relative z-10 mx-auto max-w-7xl">
                     <div className="h-5 w-40 animate-pulse rounded-full bg-white/10" />
                     <div className="mt-4 h-16 w-96 max-w-full animate-pulse rounded-2xl bg-white/10" />
 
@@ -299,8 +303,9 @@ export default function PublicEventPage() {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
-            <div className="mx-auto max-w-7xl">
+        <div className="relative min-h-screen overflow-hidden bg-zinc-950 px-6 py-10 text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
+            <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                     <a
                         href="/public"
@@ -597,9 +602,12 @@ export default function PublicEventPage() {
                                             </div>
 
                                             <div>
-                                                <h3 className="text-xl font-black md:text-2xl">
+                                                <a
+                                                    href={`/public/users/${player.user_id}`}
+                                                    className="text-xl font-black transition hover:text-violet-300 md:text-2xl"
+                                                >
                                                     {player.user_id}
-                                                </h3>
+                                                </a>
 
                                                 <p className="text-sm text-white/40">
                                                     Pick&apos;Em Player
@@ -776,6 +784,7 @@ export default function PublicEventPage() {
                         </div>
                     </div>
                 </div>
+                <PublicFooter />
 
                 {selectedMatch && (
                     <MatchModal
@@ -838,7 +847,7 @@ function MatchModal({
                                 }
                             >
                                 <TeamLogoBlock team={selectedMatch.team_a} />
-                            </div>
+                            
 
                             <div className="text-center">
                                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -863,15 +872,6 @@ function MatchModal({
                                         : ''
                                 }
                             >
-                                <div
-                                    className={
-                                        selectedMatch.ui_status === 'FINAL'
-                                            ? Number(selectedMatch.score_b) > Number(selectedMatch.score_a)
-                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
-                                                : 'opacity-50'
-                                            : ''
-                                    }
-                                >
                                     <TeamLogoBlock team={selectedMatch.team_b} />
                                 </div>
                             </div>
@@ -1062,6 +1062,7 @@ function MatchModal({
             </div>
         </div>
     );
+
 }
 
 function PublicStat({ title, value }) {

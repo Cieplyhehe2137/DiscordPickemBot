@@ -9,6 +9,7 @@ import PublicEventPage from './pages/PublicEventPage';
 import AppLayout from './components/layout/AppLayout';
 import PublicServersPage from './pages/PublicServersPage';
 import PublicGuildPage from './pages/PublicGuildPage';
+import PublicUserPage from './pages/PublicUserPage';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
 
       <Route path="/public" element={<PublicServersPage />} />
+      <Route path="/public/users/:userId" element={<PublicUserPage />} />
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
       <Route path="/public/:guildSlug" element={<PublicGuildPage />} />
 
