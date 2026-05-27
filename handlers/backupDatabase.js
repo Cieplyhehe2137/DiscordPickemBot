@@ -1,13 +1,55 @@
 const mysqldump = require('mysqldump');
 const path = require('path');
-const fs = require('fs');
+const mysql = require('mysql2/promise');
+
 const {
   getGuildConfig,
   getGuildPaths,
   ensureGuildDirs
 } = require('../utils/guildRegistry');
+
 const { withGuild } = require('../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logInfo, logError } = require('../utils/logger');
+
+function sqlEscape(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+async function getDatabaseTablesAndColumns(cfg) {
+  const connection = await mysql.createConnection({
+    host: cfg.DB_HOST,
+    port: Number(cfg.DB_PORT) || 3306,
+    user: cfg.DB_USER,
+    password: cfg.DB_PASS || cfg.DB_PASSWORD,
+    database: cfg.DB_NAME,
+  });
+
+  try {
+    const [rows] = await connection.query(
+      `
+      SELECT TABLE_NAME, COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = ?
+      ORDER BY TABLE_NAME, ORDINAL_POSITION
+      `,
+      [cfg.DB_NAME]
+    );
+
+    const map = new Map();
+
+    for (const row of rows) {
+      if (!map.has(row.TABLE_NAME)) {
+        map.set(row.TABLE_NAME, new Set());
+      }
+
+      map.get(row.TABLE_NAME).add(row.COLUMN_NAME);
+    }
+
+    return map;
+  } finally {
+    await connection.end();
+  }
+}
 
 module.exports = async function backupDatabase(interaction) {
   const guildId = interaction.guildId;
@@ -30,6 +72,7 @@ module.exports = async function backupDatabase(interaction) {
       });
 
       const cfg = getGuildConfig(guildId);
+
       if (!cfg) {
         return interaction.editReply({
           content: '❌ Brak konfiguracji bazy danych dla tego serwera.'
@@ -37,37 +80,25 @@ module.exports = async function backupDatabase(interaction) {
       }
 
       ensureGuildDirs(guildId);
+
       const { backupDir } = getGuildPaths(guildId);
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const fileName = `backup_${guildId}_${timestamp}.sql`;
       const filePath = path.join(backupDir, fileName);
 
-      // 🔒 LISTA TABEL Z guild_id
-      const tablesWithGuild = [
-        'active_panels',
-        'matches',
+      const tablesMap = await getDatabaseTablesAndColumns(cfg);
 
-        'swiss_predictions',
-        'playoffs_predictions',
-        'doubleelim_predictions',
-        'playin_predictions',
+      const tables = [...tablesMap.keys()];
 
-        'swiss_results',
-        'playoffs_results',
-        'doubleelim_results',
-        'playin_results',
+      const escapedGuildId = sqlEscape(guildId);
 
-        'swiss_scores',
-        'playoffs_scores',
-        'doubleelim_scores',
-        'playin_scores'
-      ];
-
-      // 🔑 where per tabela
       const where = {};
-      for (const table of tablesWithGuild) {
-        where[table] = `guild_id = '${guildId}'`;
+
+      for (const [table, columns] of tablesMap.entries()) {
+        if (columns.has('guild_id')) {
+          where[table] = `guild_id = '${escapedGuildId}'`;
+        }
       }
 
       await mysqldump({
@@ -75,11 +106,11 @@ module.exports = async function backupDatabase(interaction) {
           host: cfg.DB_HOST,
           port: Number(cfg.DB_PORT) || 3306,
           user: cfg.DB_USER,
-          password: cfg.DB_PASS,
+          password: cfg.DB_PASS || cfg.DB_PASSWORD,
           database: cfg.DB_NAME,
         },
         dump: {
-          tables: tablesWithGuild,
+          tables,
           where,
         },
         dumpToFile: filePath,
@@ -88,13 +119,16 @@ module.exports = async function backupDatabase(interaction) {
       logInfo('backup', 'Guild backup created', {
         guildId,
         fileName,
-        filePath
+        filePath,
+        tablesCount: tables.length,
+        filteredTablesCount: Object.keys(where).length,
       });
 
       await interaction.editReply({
         content:
           `✅ Backup ukończony!\n` +
-          `📦 Zapisano tylko dane **tego serwera**.\n` +
+          `📦 Backup objął **wszystkie tabele z bazy**.\n` +
+          `🔒 Tabele z \`guild_id\` zapisano tylko dla tego serwera.\n` +
           `🗂️ Plik: \`${fileName}\``
       });
 
