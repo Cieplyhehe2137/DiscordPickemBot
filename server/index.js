@@ -1151,12 +1151,12 @@ app.get('/api/public/users/:userId', async (req, res) => {
         const [recentPredictions] = await pool.query(
             `
             SELECT
-                mp.match_id,
-                mp.pred_a,
-                mp.pred_b,
-                m.team_a,
-                m.team_b,
-                m.updated_at,
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+    m.team_a,
+    m.team_b,
+    mp.updated_at,
                 e.name AS event_name,
                 e.slug AS event_slug
             FROM match_predictions mp
@@ -1506,6 +1506,87 @@ app.get('/api/public/me/predictions', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Predictions load failed' });
+    }
+});
+
+app.get('/api/public/leaderboard', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT
+                mp.user_id,
+
+                COUNT(*) AS total_predictions,
+
+                SUM(
+                    CASE
+                        WHEN m.ui_status = 'FINAL'
+                         AND (
+                            (mp.pred_exact_a > mp.pred_exact_b AND m.score_a > m.score_b)
+                            OR
+                            (mp.pred_exact_b > mp.pred_exact_a AND m.score_b > m.score_a)
+                         )
+                        THEN 1 ELSE 0
+                    END
+                ) AS correct_winners,
+
+                SUM(
+                    CASE
+                        WHEN m.ui_status = 'FINAL'
+                         AND mp.pred_exact_a = m.score_a
+                         AND mp.pred_exact_b = m.score_b
+                        THEN 1 ELSE 0
+                    END
+                ) AS exact_scores,
+
+                COALESCE(SUM(ms.points), 0) AS total_points
+
+            FROM match_predictions mp
+
+            LEFT JOIN matches m
+                ON m.id = mp.match_id
+
+            LEFT JOIN match_scores ms
+                ON ms.match_id = mp.match_id
+               AND ms.user_id = mp.user_id
+
+            GROUP BY mp.user_id
+
+            ORDER BY total_points DESC, correct_winners DESC
+
+            LIMIT 100
+        `);
+
+        const leaderboard = rows.map((row, index) => {
+            const finishedPredictions =
+                Number(row.correct_winners || 0);
+
+            const totalPredictions =
+                Number(row.total_predictions || 0);
+
+            return {
+                rank: index + 1,
+                user_id: row.user_id,
+                total_points: Number(row.total_points || 0),
+                total_predictions: totalPredictions,
+                correct_winners: Number(row.correct_winners || 0),
+                exact_scores: Number(row.exact_scores || 0),
+                accuracy:
+                    totalPredictions > 0
+                        ? Math.round(
+                            (Number(row.correct_winners || 0) /
+                                totalPredictions) * 100
+                        )
+                        : 0
+            };
+        });
+
+        res.json({ leaderboard });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Leaderboard load failed'
+        });
     }
 });
 

@@ -142,3 +142,7 @@ export async function getPublicEventPredictions(eventId, userId) {
 export async function getMyPublicPredictions() {
   return apiFetch('/public/me/predictions');
 }
+
+export async function getPublicLeaderboard() {
+  return apiFetch('/public/leaderboard');
+}

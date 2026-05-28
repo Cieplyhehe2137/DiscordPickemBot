@@ -412,6 +412,15 @@ export default function PublicEventPage() {
 
                     <div className="h-5 w-px bg-white/10" />
 
+                    <a
+                        href="/public/leaderboard"
+                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+                    >
+                        Leaderboard
+                    </a>
+
+                    <div className="h-5 w-px bg-white/10" />
+
                     <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
                         {event?.name || slug}
                     </span>
@@ -456,6 +465,13 @@ export default function PublicEventPage() {
                     >
                         Copy Public Link
                     </button>
+
+                    <a
+                        href="/public/leaderboard"
+                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Leaderboard
+                    </a>
 
                     <a
                         href="https://discord.gg/TWOJ-LINK"

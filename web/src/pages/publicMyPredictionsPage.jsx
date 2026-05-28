@@ -9,6 +9,7 @@ export default function PublicMyPredictionsPage() {
 
     const [data, setData] = useState(null);
     const [filter, setFilter] = useState('ALL');
+    const [sort, setSort] = useState('NEWEST');
 
     useEffect(() => {
         async function loadPredictions() {

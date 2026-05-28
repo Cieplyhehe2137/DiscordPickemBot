@@ -11,6 +11,7 @@ import PublicServersPage from './pages/PublicServersPage';
 import PublicGuildPage from './pages/PublicGuildPage';
 import PublicUserPage from './pages/PublicUserPage';
 import PublicMyPredictionsPage from './pages/PublicMyPredictionsPage';
+import PublicLeaderboardPage from './pages/PublicLeaderboardPage';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
 
       <Route path="/public" element={<PublicServersPage />} />
+      <Route path="/public/leaderboard" element={<PublicLeaderboardPage />} />
       <Route path="/public/me/predictions" element={<PublicMyPredictionsPage />} />
       <Route path="/public/users/:userId" element={<PublicUserPage />} />
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
