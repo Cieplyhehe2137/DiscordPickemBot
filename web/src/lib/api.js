@@ -146,3 +146,14 @@ export async function getMyPublicPredictions() {
 export async function getPublicLeaderboard() {
   return apiFetch('/public/leaderboard');
 }
+
+export async function getSwissPickem(slug) {
+  return apiFetch(`/public/events/${slug}/swiss-pickem`);
+}
+
+export async function saveSwissPickem(slug, payload) {
+  return apiFetch(`/public/events/${slug}/swiss-pickem`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}

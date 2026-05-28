@@ -467,6 +467,13 @@ export default function PublicEventPage() {
                     </button>
 
                     <a
+                        href={`/public/event/${slug}/pickem`}
+                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                    >
+                        Full Pick&apos;Em
+                    </a>
+
+                    <a
                         href="/public/leaderboard"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
@@ -481,6 +488,8 @@ export default function PublicEventPage() {
                     >
                         Join Discord
                     </a>
+
+
 
                     <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-white/60">
                         {publicUrl}
