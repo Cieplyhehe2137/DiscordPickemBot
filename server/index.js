@@ -1389,6 +1389,84 @@ app.get('/api/public/events/:eventId/predictions/:userId', async (req, res) => {
     }
 });
 
+app.get('/api/public/me/predictions', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                error: 'Login required'
+            });
+        }
+
+        const [rows] = await pool.query(
+            `
+            SELECT
+                mp.match_id,
+                mp.pred_a,
+                mp.pred_b,
+                mp.pred_exact_a,
+                mp.pred_exact_b,
+                m.team_a,
+                m.team_b,
+                m.phase,
+                m.best_of,
+                m.is_locked,
+                m.score_a,
+                m.score_b,
+                m.ui_status
+                e.name AS event_name,
+                e.slug AS event_slug
+            FROM match_predictions mp
+            JOIN matches m ON m.id = mp.match_id
+            JOIN events e ON e.id = mp.event_id
+            WHERE mp.user_id = ?
+            ORDER BY mp.updated_at DESC
+            `,
+            [userId]
+        );
+
+        res.json({
+            predictions: rows.map((row) => ({
+                match_id: row.match_id,
+                winner: Number(row.pred_a) === 1 ? 'team_a' : 'team_b',
+                score_a: row.pred_exact_a,
+                score_b: row.pred_exact_b,
+                team_a: row.team_a,
+                team_b: row.team_b,
+                phase: row.phase,
+                best_of: row.best_of,
+                actual_score_a: row.score_a,
+                actual_score_b: row.score_b,
+                match_status: row.ui_status,
+                is_locked: Number(row.is_locked) === 1,
+                event_name: row.event_name,
+                event_slug: row.event_slug,
+                is_correct_winner:
+                    row.ui_status === 'FINAL'
+                        ? (
+                            (Number(row.pred_exact_a) > Number(row.pred_exact_b) &&
+                                Number(row.score_a) > Number(row.score_b)) ||
+
+                            (Number(row.pred_exact_b) > Number(row.pred_exact_a) &&
+                                Number(row.score_b) > Number(row.score_a))
+                        )
+                        : null,
+                is_exact_score:
+                    row.ui_status === 'FINAL'
+                        ? (
+                            Number(row.pred_exact_a) === Number(row.score_a) &&
+                            Number(row.pred_exact_b) === Number(row.score_b)
+                        )
+                        : null,
+            }))
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Predictions load failed' });
+    }
+});
+
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });

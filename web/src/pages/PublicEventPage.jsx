@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
 import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 
+
 export default function PublicEventPage() {
     const { slug } = useParams();
-
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [nowTick, setNowTick] = useState(Date.now());
     const [matchFilter, setMatchFilter] = useState('ALL');
@@ -69,6 +71,26 @@ export default function PublicEventPage() {
     useEffect(() => {
         loadPublicData();
     }, [slug]);
+
+    useEffect(() => {
+        if (!data?.matches?.length) return;
+
+        const matchId = searchParams.get('match');
+        const shouldPredict = searchParams.get('predict');
+
+        if (!matchId || shouldPredict !== '1') {
+            return;
+        }
+
+        const match = data.matches.find(
+            (m) => String(m.id) === String(matchId)
+        );
+
+        if (!match) return;
+
+        openPredictionModal(match);
+        navigate(`/public/event/${slug}`, { replace: true });
+    }, [data, searchParams, navigate, slug]);
 
     useEffect(() => {
         async function loadMyPredictions() {
@@ -492,6 +514,12 @@ export default function PublicEventPage() {
                                 >
                                     View Picks
                                 </button>
+                                <a
+                                    href="/public/me/predictions"
+                                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                                >
+                                    All Predictions
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -885,8 +913,8 @@ export default function PublicEventPage() {
                             <button
                                 onClick={() => setShowOnlyMyPicks((value) => !value)}
                                 className={`rounded-2xl px-5 py-3 text-sm font-black transition ${showOnlyMyPicks
-                                        ? 'bg-violet-500 text-white'
-                                        : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                                    ? 'bg-violet-500 text-white'
+                                    : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
                                     }`}
                             >
                                 My Picks
@@ -1139,6 +1167,12 @@ export default function PublicEventPage() {
                                 >
                                     My Picks
                                 </button>
+                                <a
+                                    href="/public/me/predictions"
+                                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                                >
+                                    All Predictions
+                                </a>
                             </div>
                         </div>
                     </div>

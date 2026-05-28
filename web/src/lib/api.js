@@ -138,3 +138,7 @@ export async function getPublicPrediction(matchId, userId) {
 export async function getPublicEventPredictions(eventId, userId) {
   return apiFetch(`/public/events/${eventId}/predictions/${userId}`);
 }
+
+export async function getMyPublicPredictions() {
+  return apiFetch('/public/me/predictions');
+}

@@ -75,9 +75,17 @@ export default function PublicAuthButton() {
                     <div className="p-2">
                         <a
                             href={`/public/users/${user.id}`}
+
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
                             My Profile
+                        </a>
+
+                        <a
+                            href="/public/me/predictions"
+                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+                        >
+                            My Predictions
                         </a>
 
                         <a
