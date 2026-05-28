@@ -735,6 +735,33 @@ export default function PublicEventPage() {
                                     Open Match Details
                                 </button>
                             </div>
+                            {isLoggedIn && user && (
+                                <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
+                                    <div className="flex flex-wrap items-center gap-4">
+                                        {user.avatar && (
+                                            <img
+                                                src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`}
+                                                alt={user.global_name || user.username}
+                                                className="h-16 w-16 rounded-2xl object-cover"
+                                            />
+                                        )}
+
+                                        <div>
+                                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                                Signed in as
+                                            </p>
+
+                                            <h2 className="mt-1 text-2xl font-black">
+                                                {user.global_name || user.username}
+                                            </h2>
+
+                                            <p className="mt-1 text-white/40">
+                                                Your predictions are linked to Discord
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
