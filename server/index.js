@@ -4,10 +4,13 @@ import { pool } from './db.js'
 import { createRequire } from 'module';
 import dotenv from 'dotenv';
 dotenv.config();
+console.log('[ENV] DISCORD_CLIENT_ID:', process.env.DISCORD_CLIENT_ID);
+console.log('[ENV] DISCORD_REDIRECT_URI:', process.env.DISCORD_REDIRECT_URI);
 import http from 'http';
 import { Server } from 'socket.io';
 import { startCs2LogReceiver } from './live/cs2LogReceiver.js';
 import { parseCs2LogLine } from './live/cs2LogParser.js';
+import session from 'express-session';
 
 const require = createRequire(import.meta.url);
 const calculateScores = require('../handlers/calculateScores');
@@ -33,6 +36,18 @@ io.on('connection', (socket) => {
 
 app.use(express.json());
 
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'pickem-secret',
+    resave: false,
+    saveUninitialized: false,
+
+    cookie: {
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax'
+    }
+}));
+
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true
@@ -40,10 +55,97 @@ app.use(cors({
 
 app.get('/api/auth/me', (req, res) => {
     res.json({
-        user: {
-            id: '123',
-            username: 'lukasz'
+        user: req.session?.user || null
+    });
+});
+
+app.get('/api/auth/discord', (req, res) => {
+    console.log('[AUTH] Discord login start');
+
+    const params = new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        redirect_uri: process.env.DISCORD_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'identify guilds'
+    });
+
+    const url = `https://discord.com/oauth2/authorize?${params.toString()}`;
+
+    console.log('[AUTH] Redirect URL:', url);
+
+    res.redirect(url);
+});
+
+app.get('/api/auth/discord/callback', async (req, res) => {
+    try {
+        const { code } = req.query;
+
+        if (!code) {
+            return res.status(400).send('Missing code');
         }
+
+        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                client_id: process.env.DISCORD_CLIENT_ID,
+                client_secret: process.env.DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: process.env.DISCORD_REDIRECT_URI
+            })
+        });
+
+        const tokenData = await tokenResponse.json();
+
+        if (!tokenResponse.ok) {
+            console.error('Discord token error:', tokenData);
+            return res.status(401).send('Discord OAuth failed');
+        }
+
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+            headers: {
+                Authorization: `Bearer ${tokenData.access_token}`
+            }
+        });
+
+        const discordUser = await userResponse.json();
+
+        if (!userResponse.ok) {
+            console.error('Discord user error:', discordUser);
+            return res.status(401).send('Discord user fetch failed');
+        }
+
+        req.session.user = {
+            id: discordUser.id,
+            username: discordUser.username,
+            global_name: discordUser.global_name,
+            avatar: discordUser.avatar
+        };
+
+        res.redirect('http://localhost:5173/public');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('OAuth callback failed');
+    }
+});
+
+app.get('/api/auth/dev-login', (req, res) => {
+    req.session.user = {
+        id: '461851082570596352',
+        username: 'cieplyhehe'
+    };
+
+    res.redirect('http://localhost:5173/public');
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({
+            ok: true
+        });
     });
 });
 
