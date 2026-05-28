@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPublicGuild } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
+import PublicAuthButton from '../components/public/PublicAuthButton';
 
 export default function PublicGuildPage() {
     const { guildSlug } = useParams();
@@ -69,6 +70,9 @@ export default function PublicGuildPage() {
                             </a>
                         </>
                     )}
+                    <div className="ml-auto">
+                        <PublicAuthButton />
+                    </div>
                 </div>
 
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -128,13 +132,12 @@ export default function PublicGuildPage() {
                                 </span>
 
                                 <span
-                                    className={`rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.15em] ${
-                                        featuredEvent.status === 'OPEN'
+                                    className={`rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.15em] ${featuredEvent.status === 'OPEN'
                                             ? 'bg-green-500/20 text-green-300'
                                             : featuredEvent.status === 'CLOSED'
                                                 ? 'bg-red-500/20 text-red-300'
                                                 : 'bg-zinc-500/20 text-zinc-300'
-                                    }`}
+                                        }`}
                                 >
                                     {featuredEvent.status}
                                 </span>
@@ -219,13 +222,12 @@ export default function PublicGuildPage() {
                                 </h3>
 
                                 <span
-                                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${
-                                        event.status === 'OPEN'
+                                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${event.status === 'OPEN'
                                             ? 'bg-green-500/20 text-green-300'
                                             : event.status === 'CLOSED'
                                                 ? 'bg-red-500/20 text-red-300'
                                                 : 'bg-zinc-500/20 text-zinc-300'
-                                    }`}
+                                        }`}
                                 >
                                     {event.status}
                                 </span>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
-import { getPublicOverview, getMatchStats } from '../lib/api';
+import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
+import PublicAuthButton from '../components/public/PublicAuthButton';
+import { usePublicAuth } from '../context/PublicAuthContext';
 
 export default function PublicEventPage() {
     const { slug } = useParams();
@@ -11,9 +13,12 @@ export default function PublicEventPage() {
     const [nowTick, setNowTick] = useState(Date.now());
     const [matchFilter, setMatchFilter] = useState('ALL');
     const [selectedMatch, setSelectedMatch] = useState(null);
+    const [predictionMatch, setPredictionMatch] = useState(null);
     const [matchModalTab, setMatchModalTab] = useState('overview');
     const [matchStats, setMatchStats] = useState({});
     const [matchStatsLoading, setMatchStatsLoading] = useState(false);
+    const [myPredictions, setMyPredictions] = useState({});
+    const { isLoggedIn, user } = usePublicAuth();
 
     const publicUrl = `${window.location.origin}/public/event/${slug}`;
 
@@ -63,6 +68,28 @@ export default function PublicEventPage() {
     useEffect(() => {
         loadPublicData();
     }, [slug]);
+
+    useEffect(() => {
+        async function loadMyPredictions() {
+            if (!isLoggedIn || !user?.id || !data?.event?.id) return;
+
+            try {
+                const result = await getPublicEventPredictions(data.event.id, user.id);
+
+                const mapped = {};
+
+                for (const prediction of result.predictions || []) {
+                    mapped[prediction.match_id] = prediction;
+                }
+
+                setMyPredictions(mapped);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadMyPredictions();
+    }, [isLoggedIn, user?.id, data?.event?.id]);
 
     useEffect(() => {
         function handleDashboardRefresh(payload) {
@@ -235,6 +262,14 @@ export default function PublicEventPage() {
         loadMatchStats(match.id);
     }
 
+    function openPredictionModal(match) {
+        setPredictionMatch(match);
+    }
+
+    function closePredictionModal() {
+        setPredictionMatch(null);
+    }
+
     function getPickPercent(matchId, teamKey) {
         const stats = matchStats[matchId];
         const total = Number(stats?.predictions || 0);
@@ -276,6 +311,15 @@ export default function PublicEventPage() {
     const liveMatchesCount = (data?.matches || []).filter(
         (match) => match.ui_status === 'LIVE'
     ).length;
+
+    const myPredictionsCount = Object.keys(myPredictions).length;
+
+    const totalMatchesCount = data?.matches?.length || 0;
+
+    const myPredictionsProgress =
+        totalMatchesCount > 0
+            ? Math.round((myPredictionsCount / totalMatchesCount) * 100)
+            : 0;
 
     if (!data) {
         return (
@@ -328,6 +372,9 @@ export default function PublicEventPage() {
                     <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
                         {event?.name || slug}
                     </span>
+                    <div className="ml-auto">
+                        <PublicAuthButton />
+                    </div>
                 </div>
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                     Public Event
@@ -350,7 +397,7 @@ export default function PublicEventPage() {
                                 : 'bg-zinc-500/15 text-zinc-300'
                             }`}
                     >
-                        {event?.status || 'UNKNOWN'}
+                        {formatStatusLabel(event?.status || 'UNKNOWN')}
                     </span>
                 </div>
 
@@ -376,14 +423,40 @@ export default function PublicEventPage() {
                     </div>
                 </div>
 
-                <div className="mt-10 grid gap-6 md:grid-cols-3">
+                <div className="mt-10 grid gap-6 md:grid-cols-4">
                     <PublicStat title="Players" value={data?.stats?.participants ?? 0} />
                     <PublicStat title="Predictions" value={data?.stats?.predictions ?? 0} />
                     <PublicStat title="Matches" value={data?.stats?.matches ?? 0} />
+                    <PublicStat title="My Picks" value={myPredictionsCount} />
+                </div>
+
+                <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                My Pick&apos;Em Progress
+                            </p>
+
+                            <p className="mt-2 text-white/50">
+                                {myPredictionsCount} of {totalMatchesCount} matches predicted
+                            </p>
+                        </div>
+
+                        <p className="text-3xl font-black text-violet-300">
+                            {myPredictionsProgress}%
+                        </p>
+                    </div>
+
+                    <div className="mt-5 h-4 overflow-hidden rounded-full border border-white/10 bg-black/30">
+                        <div
+                            className="h-full rounded-full bg-violet-500 transition-all duration-500"
+                            style={{ width: `${myPredictionsProgress}%` }}
+                        />
+                    </div>
                 </div>
 
                 {heroMatch && (
-                    <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)]">
+                    <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)] transition-all duration-500 hover:scale-[1.01]">
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.25),transparent_45%)]" />
 
                         <div className="relative z-10">
@@ -424,7 +497,7 @@ export default function PublicEventPage() {
                                     </h2>
 
                                     <p className="mt-3 text-white/50">
-                                        {heroMatch.phase}
+                                        {formatPhaseLabel(heroMatch.phase)}
                                     </p>
                                 </div>
 
@@ -458,6 +531,11 @@ export default function PublicEventPage() {
                                     {heroMatch.score_b ?? 0}
                                 </span>
                             </div>
+                            {!heroMatch.live_status && (
+                                <p className="mt-3 text-center text-sm text-white/40">
+                                    Community predictions opening soon
+                                </p>
+                            )}
                             {heroMatch.live_status && (
                                 <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
                                     {heroMatch.live_status} • MAP {heroMatch.current_map || 1}
@@ -481,7 +559,7 @@ export default function PublicEventPage() {
                                             : 'bg-yellow-500/20 text-yellow-300'
                                         }`}
                                 >
-                                    {heroMatch.ui_status}
+                                    {formatStatusLabel(heroMatch.ui_status)}
                                 </span>
                             </div>
 
@@ -496,6 +574,37 @@ export default function PublicEventPage() {
                                             getCountdown(heroMatch.start_time_utc, nowTick)}
                                     </span>
                                 )}
+                            </div>
+                            <div className="mt-6 flex flex-wrap gap-4">
+                                <button
+                                    disabled={heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL'}
+                                    onClick={() => {
+                                        if (heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL') {
+                                            return;
+                                        }
+
+                                        openPredictionModal(heroMatch);
+                                    }}
+                                    className={`rounded-2xl px-6 py-4 font-black transition ${heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL'
+                                        ? 'cursor-not-allowed bg-white/10 text-white/30'
+                                        : 'bg-violet-500 hover:bg-violet-400'
+                                        }`}
+                                >
+                                    {heroMatch.ui_status === 'FINAL'
+                                        ? 'Prediction Closed'
+                                        : heroMatch.ui_status === 'LOCKED'
+                                            ? 'Locked'
+                                            : myPredictions[heroMatch.id]
+                                                ? 'Edit Prediction'
+                                                : 'Predict This Match'}
+                                </button>
+
+                                <button
+                                    onClick={() => openMatchModal(heroMatch)}
+                                    className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                                >
+                                    Open Match Details
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -532,7 +641,7 @@ export default function PublicEventPage() {
                     <div className="mt-6 grid gap-4 md:grid-cols-3">
                         <PublicStat title="Live Matches" value={liveMatchesCount} />
                         <PublicStat title="Total Picks" value={data?.stats?.predictions ?? 0} />
-                        <PublicStat title="Event Phase" value={event?.phase || '-'} />
+                        <PublicStat title="Event Phase" value={formatPhaseLabel(event?.phase)} />
                     </div>
                 </div>
 
@@ -542,7 +651,7 @@ export default function PublicEventPage() {
                     </p>
 
                     <h2 className="mt-3 text-4xl font-black">
-                        {event?.phase || 'UNKNOWN'}
+                        {formatPhaseLabel(event?.phase || 'UNKNOWN')}
                     </h2>
 
                     <p className="mt-2 text-white/50">
@@ -683,13 +792,13 @@ export default function PublicEventPage() {
                                         ? 'border-green-400/40 bg-green-500/10 shadow-[0_0_60px_rgba(34,197,94,0.18)] scale-[1.01]'
                                         : match.ui_status === 'FINAL'
                                             ? 'border-zinc-500/20 bg-zinc-500/5'
-                                            : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                            : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5 hover:scale-[1.01]'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
                                             <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                                {match.phase} • BO{match.best_of || 3}
+                                                {formatPhaseLabel(match.phase)} • BO{match.best_of || 3}
                                             </p>
 
                                             <div className="mt-3 flex items-center gap-3">
@@ -747,6 +856,12 @@ export default function PublicEventPage() {
                                             <p className="mt-2 text-sm text-white/40">
                                                 Match #{match.match_no || '-'}
                                             </p>
+
+                                            {myPredictions[match.id] && (
+                                                <p className="mt-2 inline-flex rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+                                                    Your Pick: {myPredictions[match.id].score_a}:{myPredictions[match.id].score_b}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <div
@@ -763,7 +878,7 @@ export default function PublicEventPage() {
                                                 <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
                                             )}
 
-                                            {match.ui_status}
+                                            {formatStatusLabel(match.ui_status)}
                                         </div>
                                     </div>
 
@@ -778,6 +893,42 @@ export default function PublicEventPage() {
                                                     getCountdown(match.start_time_utc, nowTick)}
                                             </span>
                                         )}
+                                    </div>
+                                    <div className="mt-5 flex flex-wrap gap-3">
+                                        <button
+                                            disabled={match.ui_status === 'LOCKED' || match.ui_status === 'FINAL'}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+
+                                                if (match.ui_status === 'LOCKED' || match.ui_status === 'FINAL') {
+                                                    return;
+                                                }
+
+                                                openPredictionModal(match);
+                                            }}
+                                            className={`rounded-xl px-4 py-2 text-sm font-black transition ${match.ui_status === 'LOCKED' || match.ui_status === 'FINAL'
+                                                ? 'cursor-not-allowed bg-white/10 text-white/30'
+                                                : 'bg-violet-500 hover:bg-violet-400'
+                                                }`}
+                                        >
+                                            {match.ui_status === 'FINAL'
+                                                ? 'Prediction Closed'
+                                                : match.ui_status === 'LOCKED'
+                                                    ? 'Locked'
+                                                    : myPredictions[match.id]
+                                                        ? 'Edit Prediction'
+                                                        : 'Make Prediction'}
+                                        </button>
+
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openMatchModal(match);
+                                            }}
+                                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10"
+                                        >
+                                            Match Details
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -795,6 +946,19 @@ export default function PublicEventPage() {
                         matchStatsLoading={matchStatsLoading}
                         getPickPercent={getPickPercent}
                         closeMatchModal={closeMatchModal}
+                    />
+
+                )}
+                {predictionMatch && (
+                    <PredictionModal
+                        match={predictionMatch}
+                        closePredictionModal={closePredictionModal}
+                        onPredictionSaved={(prediction) => {
+                            setMyPredictions((prev) => ({
+                                ...prev,
+                                [prediction.match_id]: prediction
+                            }));
+                        }}
                     />
                 )}
             </div>
@@ -828,78 +992,12 @@ function MatchModal({
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-950 p-5 shadow-2xl animate-in zoom-in-95 duration-200 md:p-8"
+                className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-950 p-5 shadow-2xl animate-in zoom-in-95 duration-200 md:p-8"
             >
-                <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Match Details
-                        </p>
-
-                        <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                            <div
-                                className={
-                                    selectedMatch.ui_status === 'FINAL'
-                                        ? Number(selectedMatch.score_a) > Number(selectedMatch.score_b)
-                                            ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
-                                            : 'opacity-50'
-                                        : ''
-                                }
-                            >
-                                <TeamLogoBlock team={selectedMatch.team_a} />
-                            
-
-                            <div className="text-center">
-                                <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                    Matchup
-                                </p>
-
-                                <h2 className="mt-2 text-5xl font-black text-violet-300">
-                                    VS
-                                </h2>
-
-                                <p className="mt-3 text-white/50">
-                                    {selectedMatch.phase}
-                                </p>
-                            </div>
-
-                            <div
-                                className={
-                                    selectedMatch.ui_status === 'FINAL'
-                                        ? Number(selectedMatch.score_b) > Number(selectedMatch.score_a)
-                                            ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
-                                            : 'opacity-50'
-                                        : ''
-                                }
-                            >
-                                    <TeamLogoBlock team={selectedMatch.team_b} />
-                                </div>
-                            </div>
-                        </div>
-                        <div
-                            className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${selectedMatch.just_updated
-                                ? 'scale-110 text-green-300'
-                                : 'text-violet-300'
-                                }`}
-                        >
-                            <span className="text-6xl font-black">
-                                {selectedMatch.score_a ?? 0}
-                            </span>
-
-                            <span className="text-2xl font-black text-white/30">
-                                :
-                            </span>
-
-                            <span className="text-6xl font-black">
-                                {selectedMatch.score_b ?? 0}
-                            </span>
-                        </div>
-                        {selectedMatch.live_status && (
-                            <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                                {selectedMatch.live_status} • MAP {selectedMatch.current_map || 1}
-                            </p>
-                        )}
-                    </div>
+                <div className="flex items-start justify-between gap-6">
+                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                        Match Details
+                    </p>
 
                     <button
                         onClick={closeMatchModal}
@@ -909,10 +1007,75 @@ function MatchModal({
                     </button>
                 </div>
 
+                <div className="mt-8 grid grid-cols-1 items-center gap-10 text-center md:grid-cols-[1fr_auto_1fr]">
+                    <div
+                        className={
+                            selectedMatch.ui_status === 'FINAL'
+                                ? Number(selectedMatch.score_a) > Number(selectedMatch.score_b)
+                                    ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                    : 'opacity-50'
+                                : ''
+                        }
+                    >
+                        <TeamLogoBlock team={selectedMatch.team_a} />
+                    </div>
+
+                    <div className="text-center">
+                        <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                            Matchup
+                        </p>
+
+                        <h2 className="mt-2 text-5xl font-black text-violet-300">
+                            VS
+                        </h2>
+
+                        <p className="mt-3 text-white/50">
+                            {formatPhaseLabel(selectedMatch.phase)}
+                        </p>
+                    </div>
+
+                    <div
+                        className={
+                            selectedMatch.ui_status === 'FINAL'
+                                ? Number(selectedMatch.score_b) > Number(selectedMatch.score_a)
+                                    ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
+                                    : 'opacity-50'
+                                : ''
+                        }
+                    >
+                        <TeamLogoBlock team={selectedMatch.team_b} />
+                    </div>
+                </div>
+
+                <div
+                    className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${selectedMatch.just_updated
+                        ? 'scale-110 text-green-300'
+                        : 'text-violet-300'
+                        }`}
+                >
+                    <span className="text-6xl font-black">
+                        {selectedMatch.score_a ?? 0}
+                    </span>
+
+                    <span className="text-2xl font-black text-white/30">
+                        :
+                    </span>
+
+                    <span className="text-6xl font-black">
+                        {selectedMatch.score_b ?? 0}
+                    </span>
+                </div>
+
+                {selectedMatch.live_status && (
+                    <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
+                        {formatStatusLabel(selectedMatch.live_status)} • MAP {selectedMatch.current_map || 1}
+                    </p>
+                )}
+
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
-                    <PublicStat title="Phase" value={selectedMatch.phase || '-'} />
+                    <PublicStat title="Phase" value={formatPhaseLabel(selectedMatch.phase)} />
                     <PublicStat title="BO" value={`BO${selectedMatch.best_of || 3}`} />
-                    <PublicStat title="Status" value={selectedMatch.ui_status || '-'} />
+                    <PublicStat title="Status" value={formatStatusLabel(selectedMatch.ui_status)} />
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
@@ -982,23 +1145,11 @@ function MatchModal({
                                 {(matchStats[selectedMatch.id]?.predictions ?? 0) > 0 && (
                                     <div className="mt-6">
                                         <div className="flex items-center justify-between text-sm font-bold text-white/50">
-                                            <span
-                                                className={
-                                                    communityFavorite === 'team_a'
-                                                        ? 'text-violet-300'
-                                                        : ''
-                                                }
-                                            >
+                                            <span className={communityFavorite === 'team_a' ? 'text-violet-300' : ''}>
                                                 {selectedMatch.team_a} — {teamAPercent}%
                                             </span>
 
-                                            <span
-                                                className={
-                                                    communityFavorite === 'team_b'
-                                                        ? 'text-red-300'
-                                                        : ''
-                                                }
-                                            >
+                                            <span className={communityFavorite === 'team_b' ? 'text-red-300' : ''}>
                                                 {selectedMatch.team_b} — {teamBPercent}%
                                             </span>
                                         </div>
@@ -1062,7 +1213,300 @@ function MatchModal({
             </div>
         </div>
     );
+}
 
+function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
+    const { isLoggedIn, user } = usePublicAuth();
+
+    const predictionClosed =
+        match.ui_status === 'LOCKED' ||
+        match.ui_status === 'FINAL';
+
+    const [winner, setWinner] = useState(null);
+    const [scoreA, setScoreA] = useState('');
+    const [scoreB, setScoreB] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(false);
+
+    function resetFeedback() {
+        setError(null);
+        setSuccess(false);
+    }
+
+    const scoreANumber = Number(scoreA);
+    const scoreBNumber = Number(scoreB);
+
+    const scoreValid =
+        scoreA !== '' &&
+        scoreB !== '' &&
+        Number.isInteger(scoreANumber) &&
+        Number.isInteger(scoreBNumber) &&
+        scoreANumber >= 0 &&
+        scoreBNumber >= 0 &&
+        scoreANumber !== scoreBNumber;
+
+    const winnerMatchesScore =
+        winner === 'team_a'
+            ? scoreANumber > scoreBNumber
+            : winner === 'team_b'
+                ? scoreBNumber > scoreANumber
+                : false;
+
+    useEffect(() => {
+        async function loadPrediction() {
+            if (!isLoggedIn || !user?.id) return;
+
+            try {
+                const result = await getPublicPrediction(match.id, user.id);
+
+                if (!result.prediction) return;
+
+                setWinner(result.prediction.winner);
+                setScoreA(String(result.prediction.score_a ?? ''));
+                setScoreB(String(result.prediction.score_b ?? ''));
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadPrediction();
+    }, [match.id, isLoggedIn, user?.id]);
+
+    const canSubmit =
+        !predictionClosed &&
+        isLoggedIn &&
+        winner &&
+        scoreValid &&
+        winnerMatchesScore;
+
+    async function handleSavePrediction() {
+        if (!canSubmit) return;
+
+        try {
+            setSaving(true);
+            setError(null);
+            setSuccess(false);
+
+            await savePublicPrediction(match.id, {
+                user_id: user.id,
+                winner,
+                score_a: Number(scoreA),
+                score_b: Number(scoreB)
+            });
+
+            const result = await savePublicPrediction(match.id, {
+                winner,
+                score_a: Number(scoreA),
+                score_b: Number(scoreB)
+            });
+
+            onPredictionSaved?.(result.prediction);
+
+            setSuccess(true);
+
+            setTimeout(() => {
+                closePredictionModal();
+            }, 900);
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err?.message ||
+                err?.error ||
+                'Failed to save prediction.'
+            );
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div
+            onClick={closePredictionModal}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm"
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-zinc-950 p-6 shadow-2xl md:p-8"
+            >
+                <div className="flex items-start justify-between gap-6">
+                    <div>
+                        <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                            Make Prediction
+                        </p>
+
+                        <h2 className="mt-3 text-3xl font-black">
+                            {match.team_a} vs {match.team_b}
+                        </h2>
+                        {predictionClosed && (
+                            <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
+                                <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
+                                    Prediction Closed
+                                </p>
+
+                                <p className="mt-2 text-white/60">
+                                    This match is already locked or finished.
+                                </p>
+                            </div>
+                        )}
+                        {!isLoggedIn && (
+                            <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 p-4">
+                                <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
+                                    Login Required
+                                </p>
+
+                                <p className="mt-2 text-white/60">
+                                    Sign in with Discord to save your prediction.
+                                </p>
+
+                                <a
+                                    href="/api/auth/discord"
+                                    className="mt-4 inline-flex rounded-xl bg-violet-500 px-4 py-3 text-sm font-black transition hover:bg-violet-400"
+                                >
+                                    Login Discord
+                                </a>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={closePredictionModal}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black text-white/70 transition hover:bg-white/10"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                <div className="mt-8 grid gap-4 md:grid-cols-2">
+                    <button
+                        onClick={() => {
+                            setWinner('team_a');
+                            resetFeedback();
+                        }}
+                        className={`rounded-2xl border p-6 text-left transition ${winner === 'team_a'
+                            ? 'border-violet-400 bg-violet-500/20'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                            }`}
+                    >
+                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                            Winner
+                        </p>
+
+                        <h3 className="mt-2 text-3xl font-black">
+                            {match.team_a}
+                        </h3>
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            setWinner('team_b');
+                            resetFeedback();
+                        }}
+                        className={`rounded-2xl border p-6 text-left transition ${winner === 'team_b'
+                            ? 'border-violet-400 bg-violet-500/20'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'
+                            }`}
+                    >
+                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                            Winner
+                        </p>
+
+                        <h3 className="mt-2 text-3xl font-black">
+                            {match.team_b}
+                        </h3>
+                    </button>
+                </div>
+
+                <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5">
+                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                        Exact Score
+                    </p>
+
+                    <div className="mt-5 flex items-center justify-center gap-4">
+                        <input
+                            value={scoreA}
+                            onChange={(e) => {
+                                setScoreA(e.target.value);
+                                resetFeedback();
+                            }}
+                            type="number"
+                            min="0"
+                            className="w-24 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-3xl font-black outline-none focus:border-violet-400"
+                        />
+
+                        <span className="text-3xl font-black text-white/30">
+                            :
+                        </span>
+
+                        <input
+                            value={scoreB}
+                            onChange={(e) => setScoreB(e.target.value)}
+                            type="number"
+                            min="0"
+                            className="w-24 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-3xl font-black outline-none focus:border-violet-400"
+                        />
+                    </div>
+                    {scoreA !== '' && scoreB !== '' && !scoreValid && (
+                        <p className="mt-4 text-center text-sm font-black text-red-300">
+                            Score must be valid and cannot be a draw.
+                        </p>
+                    )}
+
+                    {winner && scoreValid && !winnerMatchesScore && (
+                        <p className="mt-4 text-center text-sm font-black text-red-300">
+                            Selected winner must match the exact score.
+                        </p>
+                    )}
+                    {winner && scoreValid && winnerMatchesScore && (
+                        <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
+                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                Your Prediction
+                            </p>
+
+                            <p className="mt-2 text-2xl font-black">
+                                {winner === 'team_a' ? match.team_a : match.team_b} wins
+                            </p>
+
+                            <p className="mt-1 text-white/50">
+                                Exact score: {scoreA}:{scoreB}
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                <button
+                    onClick={handleSavePrediction}
+                    disabled={!canSubmit || saving}
+                    className={`mt-8 w-full rounded-2xl px-6 py-4 font-black transition ${canSubmit && !saving
+                        ? 'bg-violet-500 hover:bg-violet-400'
+                        : 'cursor-not-allowed bg-white/10 text-white/30'
+                        }`}
+                >
+                    {saving
+                        ? 'Saving...'
+                        : predictionClosed
+                            ? 'Prediction Closed'
+                            : success
+                                ? 'Saved!'
+                                : isLoggedIn
+                                    ? 'Save Prediction'
+                                    : 'Login Required'}
+                </button>
+                {success && (
+                    <p className="mt-4 text-center font-black text-green-300">
+                        Prediction saved!
+                    </p>
+                )}
+
+                {error && (
+                    <p className="mt-4 text-center font-black text-red-300">
+                        {error}
+                    </p>
+                )}
+            </div>
+        </div>
+    );
 }
 
 function PublicStat({ title, value }) {
@@ -1112,7 +1556,7 @@ function TeamLogoBlock({ team }) {
     return (
         <div className="min-w-0 text-center">
             <div
-                className={`relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${getTeamColor(team)} text-3xl font-black`}
+                className={`relative mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${getTeamColor(team)} text-3xl font-black`}
             >
                 <span className="relative z-0">
                     {team?.charAt(0)}
@@ -1121,7 +1565,7 @@ function TeamLogoBlock({ team }) {
                 <img
                     src={getTeamLogo(team)}
                     alt={team}
-                    className="absolute z-10 h-16 w-16 object-contain"
+                    className="absolute z-10 h-20 w-20 object-contain"
                     onError={(e) => {
                         e.currentTarget.style.display = 'none';
                     }}
@@ -1191,4 +1635,22 @@ function PublicSkeletonCard() {
             <div className="mt-4 h-10 w-20 animate-pulse rounded-xl bg-white/10" />
         </div>
     );
+}
+
+function formatPhaseLabel(phase) {
+    if (!phase) return '-';
+
+    return phase
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatStatusLabel(status) {
+    if (!status) return '-';
+
+    return status
+        .replaceAll('_', ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

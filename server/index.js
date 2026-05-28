@@ -1188,6 +1188,207 @@ app.get('/api/public/users/:userId', async (req, res) => {
     }
 });
 
+app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { winner, score_a, score_b } = req.body;
+        const user_id = req.session?.user?.id;
+
+        if (!user_id) {
+            return res.status(401).json({
+                error: 'Login required'
+            });
+        }
+
+        if (!['team_a', 'team_b'].includes(winner)) {
+            return res.status(400).json({
+                error: 'Invalid winner'
+            });
+        }
+
+        const scoreA = Number(score_a);
+        const scoreB = Number(score_b);
+
+        if (
+            !Number.isInteger(scoreA) ||
+            !Number.isInteger(scoreB) ||
+            scoreA < 0 ||
+            scoreB < 0 ||
+            scoreA === scoreB
+        ) {
+            return res.status(400).json({
+                error: 'Invalid score'
+            });
+        }
+
+        if (
+            (winner === 'team_a' && scoreA <= scoreB) ||
+            (winner === 'team_b' && scoreB <= scoreA)
+        ) {
+            return res.status(400).json({
+                error: 'Winner does not match score'
+            });
+        }
+
+        const [[match]] = await pool.query(
+            `
+            SELECT id, guild_id, event_id, team_a, team_b, is_locked
+            FROM matches
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [matchId]
+        );
+
+        if (!match) {
+            return res.status(404).json({
+                error: 'Match not found'
+            });
+        }
+
+        if (Number(match.is_locked) === 1) {
+            return res.status(403).json({
+                error: 'Match is locked'
+            });
+        }
+
+        const predA = winner === 'team_a' ? 1 : 0;
+        const predB = winner === 'team_b' ? 1 : 0;
+
+        await pool.query(
+            `
+            INSERT INTO match_predictions (
+                match_id,
+                guild_id,
+                event_id,
+                user_id,
+                pred_a,
+                pred_b,
+                pred_exact_a,
+                pred_exact_b
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                pred_a = VALUES(pred_a),
+                pred_b = VALUES(pred_b),
+                pred_exact_a = VALUES(pred_exact_a),
+                pred_exact_b = VALUES(pred_exact_b),
+                updated_at = CURRENT_TIMESTAMP
+            `,
+            [
+                match.id,
+                match.guild_id,
+                match.event_id,
+                user_id,
+                predA,
+                predB,
+                scoreA,
+                scoreB
+            ]
+        );
+
+        res.json({
+            ok: true,
+            prediction: {
+                match_id: Number(matchId),
+                user_id,
+                winner,
+                score_a: Number(score_a),
+                score_b: Number(score_b)
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Prediction save failed'
+        });
+    }
+});
+
+app.get('/api/public/matches/:matchId/prediction/:userId', async (req, res) => {
+    try {
+        const { matchId, userId } = req.params;
+
+        const [[prediction]] = await pool.query(
+            `
+            SELECT
+                match_id,
+                user_id,
+                pred_a,
+                pred_b,
+                pred_exact_a,
+                pred_exact_b
+            FROM match_predictions
+            WHERE match_id = ?
+              AND user_id = ?
+            LIMIT 1
+            `,
+            [matchId, userId]
+        );
+
+        if (!prediction) {
+            return res.json({
+                prediction: null
+            });
+        }
+
+        res.json({
+            prediction: {
+                match_id: prediction.match_id,
+                user_id: prediction.user_id,
+                winner: Number(prediction.pred_a) === 1 ? 'team_a' : 'team_b',
+                score_a: prediction.pred_exact_a,
+                score_b: prediction.pred_exact_b
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Prediction load failed'
+        });
+    }
+});
+
+app.get('/api/public/events/:eventId/predictions/:userId', async (req, res) => {
+    try {
+        const { eventId, userId } = req.params;
+
+        const [rows] = await pool.query(
+            `
+            SELECT
+                match_id,
+                user_id,
+                pred_a,
+                pred_b,
+                pred_exact_a,
+                pred_exact_b
+            FROM match_predictions
+            WHERE event_id = ?
+              AND user_id = ?
+            `,
+            [eventId, userId]
+        );
+
+        res.json({
+            predictions: rows.map((row) => ({
+                match_id: row.match_id,
+                user_id: row.user_id,
+                winner: Number(row.pred_a) === 1 ? 'team_a' : 'team_b',
+                score_a: row.pred_exact_a,
+                score_b: row.pred_exact_b
+            }))
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Predictions load failed'
+        });
+    }
+});
+
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });

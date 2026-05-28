@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getPublicServers } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
+import PublicAuthButton from '../components/public/PublicAuthButton';
 
 export default function PublicServersPage() {
     const [data, setData] = useState(null);
@@ -41,6 +42,16 @@ export default function PublicServersPage() {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
 
             <div className="relative z-10 mx-auto max-w-7xl">
+                <div className="mb-8 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <a
+                        href="/public"
+                        className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300"
+                    >
+                        Pick&apos;Em Platform
+                    </a>
+
+                    <PublicAuthButton />
+                </div>
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                     Pick&apos;Em Platform
                 </p>
@@ -92,13 +103,12 @@ export default function PublicServersPage() {
                                 </h3>
 
                                 <span
-                                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${
-                                        event.status === 'OPEN'
+                                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${event.status === 'OPEN'
                                             ? 'bg-green-500/20 text-green-300'
                                             : event.status === 'CLOSED'
                                                 ? 'bg-red-500/20 text-red-300'
                                                 : 'bg-zinc-500/20 text-zinc-300'
-                                    }`}
+                                        }`}
                                 >
                                     {event.status}
                                 </span>

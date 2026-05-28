@@ -1,7 +1,29 @@
+import { useEffect, useRef, useState } from 'react';
 import { usePublicAuth } from '../../context/PublicAuthContext';
 
 export default function PublicAuthButton() {
     const { user, loading, isLoggedIn } = usePublicAuth();
+
+    const [open, setOpen] = useState(false);
+
+    const dropdownRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
+                setOpen(false);
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     if (loading) {
         return (
@@ -21,11 +43,59 @@ export default function PublicAuthButton() {
     }
 
     return (
-        <a
-            href={`/public/users/${user.id}`}
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
+        <div
+            ref={dropdownRef}
+            className="relative"
         >
-            {user.username || 'My Profile'}
-        </a>
+            <button
+                onClick={() => setOpen((v) => !v)}
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 transition hover:bg-white/10"
+            >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-500/20 text-sm font-black text-violet-300">
+                    {(user.username || '?').charAt(0)}
+                </div>
+
+                <span className="max-w-[140px] truncate text-sm font-black text-white/80">
+                    {user.username || 'Profile'}
+                </span>
+            </button>
+
+            {open && (
+                <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
+                    <div className="border-b border-white/10 p-4">
+                        <p className="text-sm font-black text-white">
+                            {user.username}
+                        </p>
+
+                        <p className="mt-1 text-xs text-white/40">
+                            Discord Connected
+                        </p>
+                    </div>
+
+                    <div className="p-2">
+                        <a
+                            href={`/public/users/${user.id}`}
+                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+                        >
+                            My Profile
+                        </a>
+
+                        <a
+                            href="/app"
+                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+                        >
+                            Dashboard
+                        </a>
+
+                        <a
+                            href="/api/auth/logout"
+                            className="flex rounded-xl px-4 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/10"
+                        >
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

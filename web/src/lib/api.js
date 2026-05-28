@@ -123,3 +123,18 @@ export async function getPublicGuild(guildSlug) {
 export async function getPublicUser(userId) {
   return apiFetch(`/public/users/${userId}`);
 }
+
+export async function savePublicPrediction(matchId, payload) {
+  return apiFetch(`/public/matches/${matchId}/prediction`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getPublicPrediction(matchId, userId) {
+  return apiFetch(`/public/matches/${matchId}/prediction/${userId}`);
+}
+
+export async function getPublicEventPredictions(eventId, userId) {
+  return apiFetch(`/public/events/${eventId}/predictions/${userId}`);
+}
