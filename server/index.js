@@ -1156,6 +1156,7 @@ app.get('/api/public/users/:userId', async (req, res) => {
                 mp.pred_b,
                 m.team_a,
                 m.team_b,
+                m.updated_at,
                 e.name AS event_name,
                 e.slug AS event_slug
             FROM match_predictions mp
@@ -1170,11 +1171,52 @@ app.get('/api/public/users/:userId', async (req, res) => {
             [userId]
         );
 
+        const [[accuracyStats]] = await pool.query(
+            `
+    SELECT
+        COUNT(*) AS finished_predictions,
+        SUM(
+            CASE
+                WHEN lms.status = 'FINAL'
+                 AND (
+                    (mp.pred_exact_a > mp.pred_exact_b AND lms.score_a > lms.score_b)
+                    OR
+                    (mp.pred_exact_b > mp.pred_exact_a AND lms.score_b > lms.score_a)
+                 )
+                THEN 1 ELSE 0
+            END
+        ) AS correct_winners,
+        SUM(
+            CASE
+                WHEN lms.status = 'FINAL'
+                 AND mp.pred_exact_a = lms.score_a
+                 AND mp.pred_exact_b = lms.score_b
+                THEN 1 ELSE 0
+            END
+        ) AS exact_scores
+    FROM match_predictions mp
+    JOIN live_match_scores lms
+        ON lms.match_id = mp.match_id
+    WHERE mp.user_id = ?
+    `,
+            [userId]
+        );
+
         res.json({
             profile: {
                 user_id: userId,
                 total_points: Number(stats?.total_points || 0),
-                prediction_count: Number(stats?.prediction_count || 0)
+                prediction_count: Number(stats?.prediction_count || 0),
+                finished_predictions: Number(accuracyStats?.finished_predictions || 0),
+                correct_winners: Number(accuracyStats?.correct_winners || 0),
+                exact_scores: Number(accuracyStats?.exact_scores || 0),
+                accuracy:
+                    Number(accuracyStats?.finished_predictions || 0) > 0
+                        ? Math.round(
+                            (Number(accuracyStats?.correct_winners || 0) /
+                                Number(accuracyStats?.finished_predictions || 0)) * 100
+                        )
+                        : 0
             },
 
             recent_predictions: recentPredictions
