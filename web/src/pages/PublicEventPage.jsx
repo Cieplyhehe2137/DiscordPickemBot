@@ -19,6 +19,7 @@ export default function PublicEventPage() {
     const [matchStatsLoading, setMatchStatsLoading] = useState(false);
     const [myPredictions, setMyPredictions] = useState({});
     const { isLoggedIn, user } = usePublicAuth();
+    const [showOnlyMyPicks, setShowOnlyMyPicks] = useState(false);
 
     const publicUrl = `${window.location.origin}/public/event/${slug}`;
 
@@ -288,9 +289,15 @@ export default function PublicEventPage() {
 
     const publicMatches = [...(data?.matches || [])]
         .filter((match) => {
+            if (showOnlyMyPicks && !myPredictions[match.id]) {
+                return false;
+            }
+
             if (matchFilter === 'ALL') return true;
+
             return match.ui_status === matchFilter;
         })
+
         .sort((a, b) => {
             const order = {
                 LIVE: 0,
@@ -320,6 +327,20 @@ export default function PublicEventPage() {
         totalMatchesCount > 0
             ? Math.round((myPredictionsCount / totalMatchesCount) * 100)
             : 0;
+
+    const missingPredictionsCount = Math.max(
+        totalMatchesCount - myPredictionsCount,
+        0
+    );
+
+    const nextUnpredictedMatch = publicMatches.find(
+        (match) =>
+            !myPredictions[match.id] &&
+            match.ui_status !== 'LOCKED' &&
+            match.ui_status !== 'FINAL'
+    );
+
+    const latestPrediction = Object.values(myPredictions)[0] || null;
 
     if (!data) {
         return (
@@ -388,6 +409,11 @@ export default function PublicEventPage() {
                     <div className="inline-flex rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-green-300">
                         Live Updates Enabled
                     </div>
+                    {isLoggedIn && totalMatchesCount > 0 && missingPredictionsCount === 0 && (
+                        <div className="inline-flex rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
+                            Pick&apos;Em Complete
+                        </div>
+                    )}
 
                     <span
                         className={`inline-flex rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] ${event?.status === 'OPEN'
@@ -423,6 +449,54 @@ export default function PublicEventPage() {
                     </div>
                 </div>
 
+                {isLoggedIn && latestPrediction && (
+                    <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-6">
+                            <div>
+                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                    Your Latest Prediction
+                                </p>
+
+                                <h3 className="mt-2 text-2xl font-black">
+                                    {latestPrediction.score_a}:{latestPrediction.score_b}
+                                </h3>
+
+                                <p className="mt-2 text-white/50">
+                                    Match #{latestPrediction.match_id}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="rounded-2xl border border-white/10 bg-black/30 px-5 py-3">
+                                    <p className="text-sm text-white/40">
+                                        Progress
+                                    </p>
+
+                                    <p className="mt-1 text-2xl font-black text-violet-300">
+                                        {myPredictionsProgress}%
+                                    </p>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        const picksSection =
+                                            document.getElementById('matches-section');
+
+                                        if (picksSection) {
+                                            picksSection.scrollIntoView({
+                                                behavior: 'smooth'
+                                            });
+                                        }
+                                    }}
+                                    className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
+                                >
+                                    View Picks
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
                     <PublicStat title="Players" value={data?.stats?.participants ?? 0} />
                     <PublicStat title="Predictions" value={data?.stats?.predictions ?? 0} />
@@ -438,7 +512,7 @@ export default function PublicEventPage() {
                             </p>
 
                             <p className="mt-2 text-white/50">
-                                {myPredictionsCount} of {totalMatchesCount} matches predicted
+                                {myPredictionsCount} of {totalMatchesCount} predicted • {missingPredictionsCount} left
                             </p>
                         </div>
 
@@ -453,6 +527,17 @@ export default function PublicEventPage() {
                             style={{ width: `${myPredictionsProgress}%` }}
                         />
                     </div>
+                    {totalMatchesCount > 0 && missingPredictionsCount === 0 && (
+                        <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 p-5">
+                            <p className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
+                                Pick&apos;Em Complete
+                            </p>
+
+                            <p className="mt-2 text-white/60">
+                                You have predicted every available match for this event.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {heroMatch && (
@@ -751,13 +836,39 @@ export default function PublicEventPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                    <div
+                        id="matches-section"
+                        className="rounded-[2rem] border border-white/10 bg-white/5 p-8"
+                    >
                         <h2 className="text-3xl font-black">
                             Matches
                         </h2>
+                        {nextUnpredictedMatch && (
+                            <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
+                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                    Next Pick
+                                </p>
+
+                                <h3 className="mt-2 text-2xl font-black">
+                                    {nextUnpredictedMatch.team_a} vs {nextUnpredictedMatch.team_b}
+                                </h3>
+
+                                <p className="mt-2 text-white/50">
+                                    {formatPhaseLabel(nextUnpredictedMatch.phase)} • BO{nextUnpredictedMatch.best_of || 3}
+                                </p>
+
+                                <button
+                                    onClick={() => openPredictionModal(nextUnpredictedMatch)}
+                                    className="mt-5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
+                                >
+                                    Predict Now
+                                </button>
+                            </div>
+                        )}
 
                         <div className="mt-6 flex flex-wrap gap-3">
                             {['ALL', 'OPEN', 'LIVE', 'FINAL', 'LOCKED'].map((status) => (
+
                                 <button
                                     key={status}
                                     onClick={() => setMatchFilter(status)}
@@ -768,7 +879,60 @@ export default function PublicEventPage() {
                                 >
                                     {status}
                                 </button>
+
                             ))}
+
+                            <button
+                                onClick={() => setShowOnlyMyPicks((value) => !value)}
+                                className={`rounded-2xl px-5 py-3 text-sm font-black transition ${showOnlyMyPicks
+                                        ? 'bg-violet-500 text-white'
+                                        : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                                    }`}
+                            >
+                                My Picks
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    if (nextUnpredictedMatch) {
+                                        const element = document.getElementById(
+                                            `match-${nextUnpredictedMatch.id}`
+                                        );
+
+                                        if (element) {
+                                            element.scrollIntoView({
+                                                behavior: 'smooth',
+                                                block: 'center'
+                                            });
+
+                                            element.classList.add('ring-2', 'ring-violet-400');
+
+                                            setTimeout(() => {
+                                                element.classList.remove(
+                                                    'ring-2',
+                                                    'ring-violet-400'
+                                                );
+                                            }, 1800);
+                                        }
+
+                                        return;
+                                    }
+
+                                    const picksSection =
+                                        document.getElementById('matches-section');
+
+                                    if (picksSection) {
+                                        picksSection.scrollIntoView({
+                                            behavior: 'smooth'
+                                        });
+                                    }
+                                }}
+                                className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
+                            >
+                                {nextUnpredictedMatch
+                                    ? 'Next Match'
+                                    : 'All Picks Done'}
+                            </button>
                         </div>
 
                         <p className="mt-4 text-sm font-bold text-white/40">
@@ -786,6 +950,7 @@ export default function PublicEventPage() {
 
                             {visiblePublicMatches.map((match) => (
                                 <div
+                                    id={`match-${match.id}`}
                                     key={match.id}
                                     onClick={() => openMatchModal(match)}
                                     className={`cursor-pointer rounded-2xl border p-5 transition-all duration-300 ${match.ui_status === 'LIVE'
@@ -935,6 +1100,49 @@ export default function PublicEventPage() {
                         </div>
                     </div>
                 </div>
+                {isLoggedIn && (
+                    <div className="sticky bottom-4 z-40 mt-10">
+                        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-violet-400/20 bg-zinc-950/90 p-5 shadow-[0_0_50px_rgba(139,92,246,0.2)] backdrop-blur-xl">
+                            <div>
+                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                    My Pick&apos;Em Progress
+                                </p>
+
+                                <p className="mt-1 text-white/50">
+                                    {myPredictionsCount} / {totalMatchesCount} predicted • {missingPredictionsCount} left
+                                </p>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                <div className="w-40 overflow-hidden rounded-full border border-white/10 bg-black/30">
+                                    <div
+                                        className="h-3 rounded-full bg-violet-500 transition-all duration-500"
+                                        style={{ width: `${myPredictionsProgress}%` }}
+                                    />
+                                </div>
+
+                                <p className="text-2xl font-black text-violet-300">
+                                    {myPredictionsProgress}%
+                                </p>
+
+                                <button
+                                    onClick={() => {
+                                        const picksSection = document.getElementById('matches-section');
+
+                                        if (picksSection) {
+                                            picksSection.scrollIntoView({
+                                                behavior: 'smooth'
+                                            });
+                                        }
+                                    }}
+                                    className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
+                                >
+                                    My Picks
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <PublicFooter />
 
                 {selectedMatch && (
@@ -962,7 +1170,7 @@ export default function PublicEventPage() {
                     />
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 
@@ -1288,13 +1496,6 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
             setError(null);
             setSuccess(false);
 
-            await savePublicPrediction(match.id, {
-                user_id: user.id,
-                winner,
-                score_a: Number(scoreA),
-                score_b: Number(scoreB)
-            });
-
             const result = await savePublicPrediction(match.id, {
                 winner,
                 score_a: Number(scoreA),
@@ -1441,7 +1642,10 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
 
                         <input
                             value={scoreB}
-                            onChange={(e) => setScoreB(e.target.value)}
+                            onChange={(e) => {
+                                setScoreB(e.target.value);
+                                resetFeedback();
+                            }}
                             type="number"
                             min="0"
                             className="w-24 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-3xl font-black outline-none focus:border-violet-400"
