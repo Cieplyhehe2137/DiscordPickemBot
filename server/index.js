@@ -34,23 +34,22 @@ io.on('connection', (socket) => {
     });
 });
 
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
+
 app.use(express.json());
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'pickem-secret',
     resave: false,
     saveUninitialized: false,
-
     cookie: {
         secure: false,
         httpOnly: true,
         sameSite: 'lax'
     }
-}));
-
-app.use(cors({
-    origin: 'http://localhost:5173',
-    credentials: true
 }));
 
 app.get('/api/auth/me', (req, res) => {
@@ -125,7 +124,14 @@ app.get('/api/auth/discord/callback', async (req, res) => {
             avatar: discordUser.avatar
         };
 
-        res.redirect('http://localhost:5173/public');
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).send('Session save failed');
+            }
+
+            res.redirect('http://localhost:5173/public');
+        });
     } catch (err) {
         console.error(err);
         res.status(500).send('OAuth callback failed');
@@ -135,10 +141,19 @@ app.get('/api/auth/discord/callback', async (req, res) => {
 app.get('/api/auth/dev-login', (req, res) => {
     req.session.user = {
         id: '461851082570596352',
-        username: 'cieplyhehe'
+        username: 'cieplyhehe',
+        global_name: 'cieplyhehe',
+        avatar: null
     };
 
-    res.redirect('http://localhost:5173/public');
+    req.session.save((err) => {
+        if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).send('Session save failed');
+        }
+
+        res.redirect('http://localhost:5173/public');
+    });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -1688,6 +1703,199 @@ app.get('/api/public/leaderboard', async (req, res) => {
 
         res.status(500).json({
             error: 'Leaderboard load failed'
+        });
+    }
+});
+
+app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id || null;
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, phase, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [teams] = await pool.query(
+            `
+            SELECT id, name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY name ASC
+            `,
+            [event.guild_id]
+        );
+
+        let prediction = null;
+
+        if (userId) {
+            const [[row]] = await pool.query(
+                `
+                SELECT
+                    pick_3_0,
+                    pick_0_3,
+                    advancing
+                FROM swiss_predictions
+                WHERE event_id = ?
+                  AND user_id = ?
+                LIMIT 1
+                `,
+                [event.id, userId]
+            );
+
+            if (row) {
+                prediction = {
+                    three_zero: row.pick_3_0
+                        ? row.pick_3_0.split(',')
+                        : [],
+
+                    zero_three: row.pick_0_3
+                        ? row.pick_0_3.split(',')
+                        : [],
+
+                    advancing: row.advancing
+                        ? row.advancing.split(',')
+                        : []
+                };
+            }
+        }
+
+        res.json({
+            event,
+            teams,
+            prediction
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Swiss pickem load failed' });
+    }
+});
+
+app.post('/api/public/events/:slug/swiss-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                error: 'Login required'
+            });
+        }
+
+        const { slug } = req.params;
+        const { three_zero, zero_three, advancing } = req.body;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, phase, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const threeZero = Array.isArray(three_zero) ? three_zero : [];
+        const zeroThree = Array.isArray(zero_three) ? zero_three : [];
+        const advancingTeams = Array.isArray(advancing) ? advancing : [];
+
+        if (threeZero.length !== 2) {
+            return res.status(400).json({
+                error: 'Pick exactly 2 teams for 3-0'
+            });
+        }
+
+        if (zeroThree.length !== 2) {
+            return res.status(400).json({
+                error: 'Pick exactly 2 teams for 0-3'
+            });
+        }
+
+        if (advancingTeams.length !== 6) {
+            return res.status(400).json({
+                error: 'Pick exactly 6 advancing teams'
+            });
+        }
+
+        const allPicked = [
+            ...threeZero,
+            ...zeroThree,
+            ...advancingTeams
+        ];
+
+        const uniquePicked = new Set(allPicked);
+
+        if (uniquePicked.size !== allPicked.length) {
+            return res.status(400).json({
+                error: 'Team can only be selected once'
+            });
+        }
+
+        await pool.query(
+            `
+    INSERT INTO swiss_predictions (
+        guild_id,
+        event_id,
+        user_id,
+        username,
+        displayname,
+        pick_3_0,
+        pick_0_3,
+        advancing,
+        active,
+        submitted_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+    ON DUPLICATE KEY UPDATE
+        username = VALUES(username),
+        displayname = VALUES(displayname),
+        pick_3_0 = VALUES(pick_3_0),
+        pick_0_3 = VALUES(pick_0_3),
+        advancing = VALUES(advancing),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
+    `,
+            [
+                event.guild_id,
+                event.id,
+                userId,
+                req.session.user?.username || userId,
+                req.session.user?.global_name || req.session.user?.username || userId,
+                threeZero.join(','),
+                zeroThree.join(','),
+                advancingTeams.join(',')
+            ]
+        );
+
+        res.json({
+            ok: true,
+            prediction: {
+                three_zero: threeZero,
+                zero_three: zeroThree,
+                advancing: advancingTeams
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Swiss pickem save failed'
         });
     }
 });
