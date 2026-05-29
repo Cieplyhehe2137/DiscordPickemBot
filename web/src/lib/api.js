@@ -147,12 +147,12 @@ export async function getPublicLeaderboard() {
   return apiFetch('/public/leaderboard');
 }
 
-export async function getSwissPickem(slug) {
-  return apiFetch(`/public/events/${slug}/swiss-pickem`);
+export async function getSwissPickem(slug, stage) {
+  return apiFetch(`/public/events/${slug}/swiss-pickem/${stage}`);
 }
 
-export async function saveSwissPickem(slug, payload) {
-  return apiFetch(`/public/events/${slug}/swiss-pickem`, {
+export async function saveSwissPickem(slug, stage, payload) {
+  return apiFetch(`/public/events/${slug}/swiss-pickem/${stage}`, {
     method: 'POST',
     body: JSON.stringify(payload)
   });

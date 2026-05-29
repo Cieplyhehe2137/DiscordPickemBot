@@ -6,13 +6,8 @@ import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 
 export default function PublicSwissPickemPage() {
-    const { slug } = useParams();
+    const { slug, stage } = useParams();
     const { isLoggedIn, user, loading } = usePublicAuth();
-    console.log({
-        isLoggedIn,
-        user
-    });
-
     const [data, setData] = useState(null);
     const [threeZero, setThreeZero] = useState([]);
     const [zeroThree, setZeroThree] = useState([]);
@@ -24,7 +19,7 @@ export default function PublicSwissPickemPage() {
     useEffect(() => {
         async function loadPickem() {
             try {
-                const result = await getSwissPickem(slug);
+                const result = await getSwissPickem(slug, stage);
                 setData(result);
 
                 if (result.prediction) {
@@ -39,7 +34,7 @@ export default function PublicSwissPickemPage() {
         }
 
         loadPickem();
-    }, [slug]);
+    }, [slug, stage]);
 
     if (!data) {
         return (
@@ -52,6 +47,8 @@ export default function PublicSwissPickemPage() {
     }
 
     const teams = data.teams || [];
+    const lock = data.lock || { allowed: true, message: null };
+    const isLocked = !lock.allowed;
 
     const pickedTeams = new Set([
         ...threeZero,
@@ -61,6 +58,7 @@ export default function PublicSwissPickemPage() {
 
     const canSave =
         !loading &&
+        !isLocked &&
         isLoggedIn &&
         threeZero.length === 2 &&
         zeroThree.length === 2 &&
@@ -116,7 +114,7 @@ export default function PublicSwissPickemPage() {
             setError(null);
             setSuccess(false);
 
-            await saveSwissPickem(slug, {
+            await saveSwissPickem(slug, stage, {
                 three_zero: threeZero,
                 zero_three: zeroThree,
                 advancing
@@ -141,8 +139,56 @@ export default function PublicSwissPickemPage() {
                 {data.event?.name}
             </h1>
 
+            <div className="mt-6 flex flex-wrap gap-3">
+                {[
+                    ['stage1', 'Stage 1'],
+                    ['stage2', 'Stage 2'],
+                    ['stage3', 'Stage 3']
+                ].map(([value, label]) => (
+                    <a
+                        key={value}
+                        href={`/public/event/${slug}/pickem/${value}`}
+                        className={`rounded-2xl px-5 py-3 text-sm font-black transition ${stage === value
+                            ? 'bg-violet-500 text-white'
+                            : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
+                            }`}
+                    >
+                        {label}
+                    </a>
+                ))}
+            </div>
+
+            <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                    Current Swiss Stage
+                </p>
+
+                <h2 className="mt-2 text-3xl font-black">
+                    {stage === 'stage1'
+                        ? 'Swiss Stage 1'
+                        : stage === 'stage2'
+                            ? 'Swiss Stage 2'
+                            : 'Swiss Stage 3'}
+                </h2>
+
+                <p className="mt-2 text-white/50">
+                    Your picks are saved separately for each Swiss stage.
+                </p>
+                {isLocked && (
+                    <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
+                            Pick&apos;Em Locked
+                        </p>
+
+                        <p className="mt-2 text-white/60">
+                            {lock.message || 'This Swiss stage is closed for predictions.'}
+                        </p>
+                    </div>
+                )}
+            </div>
+
             <p className="mt-4 max-w-3xl text-white/50">
-                Pick 2 teams for 3-0, 2 teams for 0-3 and 8 teams to advance.
+                Pick 2 teams for 3-0, 2 teams for 0-3 and 6 teams to advance.
             </p>
 
             {isLoggedIn && user && (
@@ -168,7 +214,9 @@ export default function PublicSwissPickemPage() {
                     </p>
 
                     <a
-                        href="/api/auth/discord"
+                        href={`/api/auth/discord?returnTo=${encodeURIComponent(
+                            window.location.pathname + window.location.search
+                        )}`}
                         className="mt-4 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
                         Login Discord
@@ -185,6 +233,7 @@ export default function PublicSwissPickemPage() {
                     limit={2}
                     pickedTeams={pickedTeams}
                     onToggle={(team) => togglePick('threeZero', team)}
+                    disabled={isLocked}
                 />
 
                 <PickSection
@@ -195,6 +244,7 @@ export default function PublicSwissPickemPage() {
                     limit={2}
                     pickedTeams={pickedTeams}
                     onToggle={(team) => togglePick('zeroThree', team)}
+                    disabled={isLocked}
                 />
 
                 <PickSection
@@ -202,9 +252,10 @@ export default function PublicSwissPickemPage() {
                     description="Pick exactly 6 teams."
                     teams={teams}
                     selected={advancing}
-                    limit={8}
+                    limit={6}
                     pickedTeams={pickedTeams}
                     onToggle={(team) => togglePick('advancing', team)}
+                    disabled={isLocked}
                 />
             </div>
 
@@ -228,7 +279,7 @@ export default function PublicSwissPickemPage() {
                             : 'cursor-not-allowed bg-white/10 text-white/30'
                             }`}
                     >
-                        {saving ? 'Saving...' : 'Save Swiss Pick&apos;Em'}
+                        {saving ? 'Saving...' : "Save Swiss Pick'Em"}
                     </button>
                 </div>
 
@@ -245,6 +296,23 @@ export default function PublicSwissPickemPage() {
                 )}
             </div>
 
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+                <SummaryCard
+                    title="3-0 Picks"
+                    teams={threeZero}
+                />
+
+                <SummaryCard
+                    title="0-3 Picks"
+                    teams={zeroThree}
+                />
+
+                <SummaryCard
+                    title="Advancing Teams"
+                    teams={advancing}
+                />
+            </div>
+
             <PublicFooter />
         </PageShell>
     );
@@ -257,6 +325,7 @@ function PickSection({
     selected,
     limit,
     pickedTeams,
+    disabled,
     onToggle
 }) {
     return (
@@ -287,12 +356,14 @@ function PickSection({
                         <button
                             key={team.id || team.name}
                             onClick={() => onToggle(team.name)}
-                            disabled={isPickedElsewhere}
-                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
-                                ? 'border-violet-400 bg-violet-500/20 text-white'
-                                : isPickedElsewhere
+                            disabled={disabled || isPickedElsewhere}
+                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${disabled
                                     ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
-                                    : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                    : isSelected
+                                        ? 'border-violet-400 bg-violet-500/20 text-white'
+                                        : isPickedElsewhere
+                                            ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
+                                            : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
                                 }`}
                         >
                             {team.name}
@@ -331,6 +402,33 @@ function PageShell({ children }) {
                 </div>
 
                 {children}
+            </div>
+        </div>
+    );
+}
+
+function SummaryCard({ title, teams }) {
+    return (
+        <div className="rounded-[2rem] border border-white/10 bg-black/30 p-5">
+            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                {title}
+            </p>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+                {teams.length ? (
+                    teams.map((team) => (
+                        <span
+                            key={team}
+                            className="rounded-full bg-violet-500/20 px-3 py-1 text-sm font-black text-violet-300"
+                        >
+                            {team}
+                        </span>
+                    ))
+                ) : (
+                    <span className="text-white/40">
+                        No teams selected
+                    </span>
+                )}
             </div>
         </div>
     );

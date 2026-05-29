@@ -14,6 +14,7 @@ import session from 'express-session';
 
 const require = createRequire(import.meta.url);
 const calculateScores = require('../handlers/calculateScores');
+const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 
 const app = express();
 
@@ -33,6 +34,15 @@ io.on('connection', (socket) => {
         console.log('Frontend disconnected:', socket.id);
     });
 });
+
+function parseCsvPick(value) {
+    if (!value) return [];
+
+    return String(value)
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
 
 app.use(cors({
     origin: 'http://localhost:5173',
@@ -61,18 +71,28 @@ app.get('/api/auth/me', (req, res) => {
 app.get('/api/auth/discord', (req, res) => {
     console.log('[AUTH] Discord login start');
 
-    const params = new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID,
-        redirect_uri: process.env.DISCORD_REDIRECT_URI,
-        response_type: 'code',
-        scope: 'identify guilds'
+    req.session.returnTo = req.query.returnTo || '/public';
+
+    req.session.save((err) => {
+        if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).send('Session save failed');
+        }
+
+        const params = new URLSearchParams({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            redirect_uri: process.env.DISCORD_REDIRECT_URI,
+            response_type: 'code',
+            scope: 'identify guilds'
+        });
+
+        const url = `https://discord.com/oauth2/authorize?${params.toString()}`;
+
+        console.log('[AUTH] returnTo query:', req.query.returnTo);
+        console.log('[AUTH] returnTo saved:', req.session.returnTo);
+
+        res.redirect(url);
     });
-
-    const url = `https://discord.com/oauth2/authorize?${params.toString()}`;
-
-    console.log('[AUTH] Redirect URL:', url);
-
-    res.redirect(url);
 });
 
 app.get('/api/auth/discord/callback', async (req, res) => {
@@ -130,7 +150,10 @@ app.get('/api/auth/discord/callback', async (req, res) => {
                 return res.status(500).send('Session save failed');
             }
 
-            res.redirect('http://localhost:5173/public');
+            const returnTo = req.session.returnTo || '/public';
+            delete req.session.returnTo;
+
+            res.redirect(`http://localhost:5173${returnTo}`);
         });
     } catch (err) {
         console.error(err);
@@ -1707,10 +1730,18 @@ app.get('/api/public/leaderboard', async (req, res) => {
     }
 });
 
-app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
+app.get('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
     try {
         const userId = req.session?.user?.id || null;
         const { slug } = req.params;
+
+        const { stage } = req.params;
+
+        if (!['stage1', 'stage2', 'stage3'].includes(stage)) {
+            return res.status(400).json({
+                error: 'Invalid Swiss stage'
+            });
+        }
 
         const [[event]] = await pool.query(
             `
@@ -1725,6 +1756,12 @@ app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
         if (!event) {
             return res.status(404).json({ error: 'Event not found' });
         }
+
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'SWISS',
+            stage
+        });
 
         const [teams] = await pool.query(
             `
@@ -1749,24 +1786,17 @@ app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
                 FROM swiss_predictions
                 WHERE event_id = ?
                   AND user_id = ?
+                  AND stage = ?
                 LIMIT 1
                 `,
-                [event.id, userId]
+                [event.id, userId, stage]
             );
 
             if (row) {
                 prediction = {
-                    three_zero: row.pick_3_0
-                        ? row.pick_3_0.split(',')
-                        : [],
-
-                    zero_three: row.pick_0_3
-                        ? row.pick_0_3.split(',')
-                        : [],
-
-                    advancing: row.advancing
-                        ? row.advancing.split(',')
-                        : []
+                    three_zero: parseCsvPick(row.pick_3_0),
+                    zero_three: parseCsvPick(row.pick_0_3),
+                    advancing: parseCsvPick(row.advancing)
                 };
             }
         }
@@ -1774,7 +1804,11 @@ app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
         res.json({
             event,
             teams,
-            prediction
+            prediction,
+            lock: {
+                allowed: gate.allowed,
+                message: gate.message || null
+            }
         });
     } catch (err) {
         console.error(err);
@@ -1782,7 +1816,7 @@ app.get('/api/public/events/:slug/swiss-pickem', async (req, res) => {
     }
 });
 
-app.post('/api/public/events/:slug/swiss-pickem', async (req, res) => {
+app.post('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
     try {
         const userId = req.session?.user?.id;
 
@@ -1793,6 +1827,15 @@ app.post('/api/public/events/:slug/swiss-pickem', async (req, res) => {
         }
 
         const { slug } = req.params;
+
+        const { stage } = req.params;
+
+        if (!['stage1', 'stage2', 'stage3'].includes(stage)) {
+            return res.status(400).json({
+                error: 'Invalid Swiss stage'
+            });
+        }
+
         const { three_zero, zero_three, advancing } = req.body;
 
         const [[event]] = await pool.query(
@@ -1808,6 +1851,18 @@ app.post('/api/public/events/:slug/swiss-pickem', async (req, res) => {
         if (!event) {
             return res.status(404).json({
                 error: 'Event not found'
+            });
+        }
+
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'SWISS',
+            stage
+        });
+
+        if (!gate.allowed) {
+            return res.status(403).json({
+                error: gate.message || "Pick'Em is closed for this stage."
             });
         }
 
@@ -1846,7 +1901,11 @@ app.post('/api/public/events/:slug/swiss-pickem', async (req, res) => {
                 error: 'Team can only be selected once'
             });
         }
-
+        console.log({
+            eventId: event.id,
+            phase: event.phase,
+            userId
+        });
         await pool.query(
             `
     INSERT INTO swiss_predictions (

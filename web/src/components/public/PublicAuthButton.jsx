@@ -40,7 +40,7 @@ export default function PublicAuthButton() {
     if (!isLoggedIn) {
         return (
             <a
-                href="/api/auth/discord"
+                href={`/api/auth/discord?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                 className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-400"
             >
                 Login Discord

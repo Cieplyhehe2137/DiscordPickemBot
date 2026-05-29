@@ -25,7 +25,7 @@ export default function App() {
       <Route path="/public/users/:userId" element={<PublicUserPage />} />
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
       <Route path="/public/:guildSlug" element={<PublicGuildPage />} />
-      <Route path="/public/event/:slug/pickem" element={<PublicSwissPickemPage />} />
+      <Route path="/public/event/:slug/pickem/:stage" element={<PublicSwissPickemPage />} />
 
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />

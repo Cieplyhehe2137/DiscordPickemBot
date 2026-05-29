@@ -467,7 +467,7 @@ export default function PublicEventPage() {
                     </button>
 
                     <a
-                        href={`/public/event/${slug}/pickem`}
+                        href={`/public/event/${slug}/pickem/stage1`}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
                         Full Pick&apos;Em
