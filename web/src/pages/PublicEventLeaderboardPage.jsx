@@ -3,9 +3,11 @@ import { useParams } from 'react-router-dom';
 import { getPublicEventLeaderboard } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
+import { usePublicAuth } from '../context/PublicAuthContext';
 
 export default function PublicEventLeaderboardPage() {
     const { slug } = useParams();
+    const { user } = usePublicAuth();
 
     const [data, setData] = useState(null);
 
@@ -33,6 +35,7 @@ export default function PublicEventLeaderboardPage() {
     }
 
     const leaderboard = data.leaderboard || [];
+    const isMe = user?.id === player.user_id;
 
     return (
         <PageShell>
@@ -54,7 +57,10 @@ export default function PublicEventLeaderboardPage() {
                         <a
                             key={player.user_id}
                             href={`/public/users/${player.user_id}`}
-                            className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                            className={`rounded-2xl border p-5 transition ${isMe
+                                ? 'border-violet-400 bg-violet-500/10'
+                                : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                }`}
                         >
                             <div className="flex flex-wrap items-center justify-between gap-6">
                                 <div className="flex items-center gap-4">
@@ -69,16 +75,20 @@ export default function PublicEventLeaderboardPage() {
                                     </div>
 
                                     <div>
-                                        <h3 className="break-all text-2xl font-black">
-                                            {player.displayname || player.user_id}
-                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="break-all text-2xl font-black">
+                                                {player.displayname || player.user_id}
+                                            </h3>
+
+                                            {isMe && (
+                                                <span className="rounded-full bg-violet-500 px-2 py-1 text-xs font-black text-white">
+                                                    YOU
+                                                </span>
+                                            )}
+                                        </div>
 
                                         <p className="mt-1 text-sm text-white/40">
                                             Discord ID: {player.user_id}
-                                        </p>
-
-                                        <p className="mt-2 inline-flex rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                            Event Player
                                         </p>
                                     </div>
                                 </div>

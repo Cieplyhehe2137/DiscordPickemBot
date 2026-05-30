@@ -1367,6 +1367,27 @@ app.get('/api/public/users/:userId', async (req, res) => {
             [userId]
         );
 
+        const [swissPicks] = await pool.query(
+            `
+    SELECT
+        sp.stage,
+        sp.pick_3_0,
+        sp.pick_0_3,
+        sp.advancing,
+        sp.submitted_at,
+        e.name AS event_name,
+        e.slug AS event_slug
+    FROM swiss_predictions sp
+    JOIN events e
+        ON e.id = sp.event_id
+    WHERE sp.user_id = ?
+      AND sp.active = 1
+    ORDER BY sp.submitted_at DESC
+    LIMIT 12
+    `,
+            [userId]
+        );
+
         res.json({
             profile: {
                 user_id: userId,
@@ -1412,6 +1433,16 @@ app.get('/api/public/users/:userId', async (req, res) => {
                     prediction.pred_exact_a !== null && prediction.pred_exact_b !== null
                         ? `${prediction.pred_exact_a}:${prediction.pred_exact_b}`
                         : `${prediction.pred_a}:${prediction.pred_b}`
+            })),
+
+            swiss_picks: swissPicks.map((pick) => ({
+                stage: pick.stage,
+                event_name: pick.event_name,
+                event_slug: pick.event_slug,
+                submitted_at: pick.submitted_at,
+                three_zero: parseCsvPick(pick.pick_3_0),
+                zero_three: parseCsvPick(pick.pick_0_3),
+                advancing: parseCsvPick(pick.advancing)
             }))
         });
     } catch (err) {
