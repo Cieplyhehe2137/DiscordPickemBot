@@ -207,6 +207,48 @@ export default function PublicUserPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                        Event Performance
+                    </p>
+
+                    <div className="mt-6 grid gap-4">
+                        {(data.event_performances || []).map((event) => (
+                            <a
+                                key={event.event_id}
+                                href={`/public/event/${event.event_slug}/leaderboard`}
+                                className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-6">
+                                    <div>
+                                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                            {event.event_name}
+                                        </p>
+
+                                        <h3 className="mt-2 text-3xl font-black">
+                                            {event.total_points} points
+                                        </h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                                        <ProfileStat title="Swiss" value={event.swiss_points} />
+                                        <ProfileStat title="Matches" value={event.match_points} />
+                                        <ProfileStat title="Playoffs" value={event.playoffs_points} />
+                                        <ProfileStat title="Play-In" value={event.playin_points} />
+                                        <ProfileStat title="Double" value={event.doubleelim_points} />
+                                    </div>
+                                </div>
+                            </a>
+                        ))}
+
+                        {(data.event_performances || []).length === 0 && (
+                            <p className="text-white/50">
+                                No event performance data yet.
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                         Swiss Pick&apos;Em History
                     </p>
 
@@ -225,14 +267,29 @@ export default function PublicUserPage() {
                                         <h3 className="mt-2 text-2xl font-black">
                                             {formatSwissStage(pick.stage)}
                                         </h3>
+
+                                        <p className="mt-2 text-sm text-white/40">
+                                            Submitted: {pick.submitted_at
+                                                ? new Date(pick.submitted_at).toLocaleString()
+                                                : 'Unknown'}
+                                        </p>
                                     </div>
 
-                                    <a
-                                        href={`/public/event/${pick.event_slug}/pickem/${pick.stage}`}
-                                        className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
-                                    >
-                                        Open Pick&apos;Em
-                                    </a>
+                                    <div className="flex flex-wrap gap-3">
+                                        <a
+                                            href={`/public/event/${pick.event_slug}/pickem/${pick.stage}`}
+                                            className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
+                                        >
+                                            Open Pick&apos;Em
+                                        </a>
+
+                                        <a
+                                            href={`/public/event/${pick.event_slug}/leaderboard`}
+                                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
+                                        >
+                                            Event Leaderboard
+                                        </a>
+                                    </div>
                                 </div>
 
                                 <div className="mt-5 grid gap-4 md:grid-cols-3">

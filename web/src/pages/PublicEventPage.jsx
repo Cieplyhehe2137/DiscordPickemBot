@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
-import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions } from '../lib/api';
+import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 
 
+
 export default function PublicEventPage() {
+    const [eventLeaderboard, setEventLeaderboard] = useState([]);
+    const [swissStats, setSwissStats] = useState(null);
     const { slug } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -45,7 +48,29 @@ export default function PublicEventPage() {
     async function loadPublicData() {
         try {
             const result = await getPublicOverview(slug);
+
             setData(result);
+
+            try {
+                const leaderboardResult =
+                    await getPublicEventLeaderboard(slug);
+
+                setEventLeaderboard(
+                    (leaderboardResult.leaderboard || []).slice(0, 5)
+                );
+            } catch (err) {
+                console.error(err);
+            }
+
+            try {
+                const statsResult =
+                    await getSwissStats(slug, 'stage1');
+
+                setSwissStats(statsResult);
+            } catch (err) {
+                console.error(err);
+            }
+
         } catch (err) {
             console.error(err);
         }
@@ -819,6 +844,33 @@ export default function PublicEventPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                        Swiss Pick&apos;Em Trends
+                    </p>
+
+                    <p className="mt-2 text-white/50">
+                        Based on {swissStats?.total_predictions || 0} submitted Pick&apos;Ems.
+                    </p>
+
+                    <div className="mt-6 grid gap-4 md:grid-cols-3">
+                        <StatsMiniColumn
+                            title="Most Picked 3-0"
+                            rows={(swissStats?.stats?.three_zero || []).slice(0, 5)}
+                        />
+
+                        <StatsMiniColumn
+                            title="Most Picked 0-3"
+                            rows={(swissStats?.stats?.zero_three || []).slice(0, 5)}
+                        />
+
+                        <StatsMiniColumn
+                            title="Most Picked Advancing"
+                            rows={(swissStats?.stats?.advancing || []).slice(0, 5)}
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                         Tournament Progress
                     </p>
 
@@ -1184,6 +1236,107 @@ export default function PublicEventPage() {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-10 grid gap-6 xl:grid-cols-2">
+                    <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                                    Top Players
+                                </p>
+
+                                <h2 className="mt-2 text-3xl font-black">
+                                    Event Leaderboard
+                                </h2>
+                            </div>
+
+                            <a
+                                href={`/public/event/${slug}/leaderboard`}
+                                className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
+                            >
+                                Full Ranking
+                            </a>
+                        </div>
+
+                        <div className="mt-6 grid gap-3">
+                            {eventLeaderboard.map((player) => (
+                                <a
+                                    key={player.user_id}
+                                    href={`/public/users/${player.user_id}`}
+                                    className="rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                                >
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="font-black">
+                                                #{player.rank} {player.displayname || player.user_id}
+                                            </p>
+
+                                            <p className="mt-1 text-sm text-white/40">
+                                                {player.user_id}
+                                            </p>
+                                        </div>
+
+                                        <p className="text-2xl font-black text-violet-300">
+                                            {player.total_points}
+                                        </p>
+                                    </div>
+                                </a>
+                            ))}
+
+                            {eventLeaderboard.length === 0 && (
+                                <p className="text-white/50">
+                                    No leaderboard data yet.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                        <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                            Community Pulse
+                        </p>
+
+                        <h2 className="mt-2 text-3xl font-black">
+                            Swiss Stage 1 Trends
+                        </h2>
+
+                        <p className="mt-2 text-white/50">
+                            Based on {swissStats?.total_predictions || 0} submitted Pick&apos;Ems.
+                        </p>
+
+                        <div className="mt-6 grid gap-4">
+                            {(swissStats?.stats?.three_zero || []).slice(0, 5).map((row) => (
+                                <div
+                                    key={row.team}
+                                    className="rounded-2xl border border-white/10 bg-black/30 p-4"
+                                >
+                                    <div className="flex items-center justify-between gap-4">
+                                        <p className="font-black">
+                                            {row.team}
+                                        </p>
+
+                                        <p className="text-sm font-black text-violet-300">
+                                            {row.count} picks
+                                        </p>
+                                    </div>
+
+                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+                                        <div
+                                            className="h-full rounded-full bg-violet-500"
+                                            style={{ width: `${row.percentage}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            {(!swissStats || (swissStats?.stats?.three_zero || []).length === 0) && (
+                                <p className="text-white/50">
+                                    No Swiss stats yet.
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1950,4 +2103,39 @@ function formatStatusLabel(status) {
         .replaceAll('_', ' ')
         .toLowerCase()
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function StatsMiniColumn({ title, rows }) {
+    return (
+        <div>
+            <p className="mb-3 text-sm font-black uppercase tracking-[0.15em] text-violet-300">
+                {title}
+            </p>
+
+            <div className="space-y-3">
+                {rows.map((row) => (
+                    <div
+                        key={row.team}
+                        className="rounded-2xl border border-white/10 bg-black/30 p-3"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="font-black">
+                                {row.team}
+                            </span>
+
+                            <span className="text-sm text-violet-300">
+                                {row.percentage}%
+                            </span>
+                        </div>
+                    </div>
+                ))}
+
+                {rows.length === 0 && (
+                    <p className="text-sm text-white/40">
+                        No data
+                    </p>
+                )}
+            </div>
+        </div>
+    );
 }

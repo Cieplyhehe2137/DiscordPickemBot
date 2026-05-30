@@ -1388,6 +1388,99 @@ app.get('/api/public/users/:userId', async (req, res) => {
             [userId]
         );
 
+        const [eventPerformances] = await pool.query(
+            `
+    SELECT
+        e.id AS event_id,
+        e.name AS event_name,
+        e.slug AS event_slug,
+
+        SUM(combined.total_points) AS total_points,
+        SUM(combined.swiss_points) AS swiss_points,
+        SUM(combined.match_points) AS match_points,
+        SUM(combined.playoffs_points) AS playoffs_points,
+        SUM(combined.playin_points) AS playin_points,
+        SUM(combined.doubleelim_points) AS doubleelim_points
+
+    FROM (
+        SELECT
+            event_id,
+            user_id,
+            COALESCE(points, 0) AS total_points,
+            COALESCE(points, 0) AS swiss_points,
+            0 AS match_points,
+            0 AS playoffs_points,
+            0 AS playin_points,
+            0 AS doubleelim_points
+        FROM swiss_scores
+
+        UNION ALL
+
+        SELECT
+            event_id,
+            user_id,
+            COALESCE(points, 0) AS total_points,
+            0 AS swiss_points,
+            COALESCE(points, 0) AS match_points,
+            0 AS playoffs_points,
+            0 AS playin_points,
+            0 AS doubleelim_points
+        FROM match_points
+
+        UNION ALL
+
+        SELECT
+            event_id,
+            user_id,
+            COALESCE(points, score, 0) AS total_points,
+            0 AS swiss_points,
+            0 AS match_points,
+            COALESCE(points, score, 0) AS playoffs_points,
+            0 AS playin_points,
+            0 AS doubleelim_points
+        FROM playoffs_scores
+
+        UNION ALL
+
+        SELECT
+            event_id,
+            user_id,
+            COALESCE(points, 0) AS total_points,
+            0 AS swiss_points,
+            0 AS match_points,
+            0 AS playoffs_points,
+            COALESCE(points, 0) AS playin_points,
+            0 AS doubleelim_points
+        FROM playin_scores
+
+        UNION ALL
+
+        SELECT
+            event_id,
+            user_id,
+            COALESCE(points, 0) AS total_points,
+            0 AS swiss_points,
+            0 AS match_points,
+            0 AS playoffs_points,
+            0 AS playin_points,
+            COALESCE(points, 0) AS doubleelim_points
+        FROM doubleelim_scores
+    ) combined
+
+    JOIN events e
+        ON e.id = combined.event_id
+
+    WHERE combined.user_id = ?
+
+    GROUP BY e.id, e.name, e.slug
+
+    ORDER BY total_points DESC, e.id DESC
+
+    LIMIT 10
+    `,
+            [userId]
+        );
+
         res.json({
             profile: {
                 user_id: userId,
@@ -1443,6 +1536,18 @@ app.get('/api/public/users/:userId', async (req, res) => {
                 three_zero: parseCsvPick(pick.pick_3_0),
                 zero_three: parseCsvPick(pick.pick_0_3),
                 advancing: parseCsvPick(pick.advancing)
+            })),
+
+            event_performances: eventPerformances.map((event) => ({
+                event_id: event.event_id,
+                event_name: event.event_name,
+                event_slug: event.event_slug,
+                total_points: Number(event.total_points || 0),
+                swiss_points: Number(event.swiss_points || 0),
+                match_points: Number(event.match_points || 0),
+                playoffs_points: Number(event.playoffs_points || 0),
+                playin_points: Number(event.playin_points || 0),
+                doubleelim_points: Number(event.doubleelim_points || 0)
             }))
         });
     } catch (err) {
