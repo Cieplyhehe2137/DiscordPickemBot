@@ -13,6 +13,7 @@ import PublicUserPage from './pages/PublicUserPage';
 import PublicMyPredictionsPage from './pages/PublicMyPredictionsPage';
 import PublicLeaderboardPage from './pages/PublicLeaderboardPage';
 import PublicSwissPickemPage from './pages/PublicSwissPickemPage';
+import PublicEventLeaderboardPage from './pages/PublicEventLeaderboardPage';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
       <Route path="/public/:guildSlug" element={<PublicGuildPage />} />
       <Route path="/public/event/:slug/pickem/:stage" element={<PublicSwissPickemPage />} />
+      <Route path="/public/event/:slug/leaderboard" element={<PublicEventLeaderboardPage />} />
 
       <Route path="/app" element={<AppLayout />}>
         <Route index element={<Dashboard />} />

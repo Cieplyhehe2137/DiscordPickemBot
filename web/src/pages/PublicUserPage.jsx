@@ -41,6 +41,8 @@ export default function PublicUserPage() {
     }
 
     const profile = data.profile;
+    const rank = profile.rank || 0;
+    const displayName = profile.displayname || profile.user_id;
 
     const accuracy = profile.accuracy ?? 0;
     const correctWinners = profile.correct_winners ?? 0;
@@ -90,8 +92,11 @@ export default function PublicUserPage() {
                 </p>
 
                 <h1 className="mt-3 break-all text-4xl font-black md:text-6xl">
-                    {profile.user_id}
+                    {displayName}
                 </h1>
+                <p className="mt-2 break-all text-sm text-white/40">
+                    {profile.user_id}
+                </p>
 
                 <p className="mt-4 max-w-2xl text-white/50">
                     Public Pick&apos;Em performance, recent predictions and player activity.
@@ -128,10 +133,51 @@ export default function PublicUserPage() {
                 </div>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
+                    <ProfileStat title="Rank" value={rank ? `#${rank}` : '-'} />
                     <ProfileStat title="Total Points" value={profile.total_points} />
-                    <ProfileStat title="Predictions" value={profile.prediction_count} />
-                    <ProfileStat title="Accuracy" value={`${accuracy}%`} />
-                    <ProfileStat title="Exact Hits" value={exactScores} />
+                    <ProfileStat title="Swiss Points" value={profile.swiss_points} />
+                    <ProfileStat title="Match Points" value={profile.match_points} />
+                </div>
+                <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                        Points Breakdown
+                    </p>
+
+
+                    <div className="mt-6 grid gap-4 md:grid-cols-5">
+                        <ProfileStat title="Playoffs" value={profile.playoffs_points} />
+                        <ProfileStat title="Play-In" value={profile.playin_points} />
+                        <ProfileStat title="Double Elim" value={profile.doubleelim_points} />
+                        <ProfileStat title="Correct Maps" value={profile.correct_maps} />
+                        <ProfileStat title="Exact Maps" value={profile.exact_maps} />
+                    </div>
+                </div>
+                <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                        Prediction Accuracy
+                    </p>
+
+                    <div className="mt-6 grid gap-4 md:grid-cols-4">
+                        <ProfileStat
+                            title="Accuracy"
+                            value={`${profile.accuracy}%`}
+                        />
+
+                        <ProfileStat
+                            title="Finished"
+                            value={profile.finished_predictions}
+                        />
+
+                        <ProfileStat
+                            title="Correct Winners"
+                            value={profile.correct_winners}
+                        />
+
+                        <ProfileStat
+                            title="Exact Scores"
+                            value={profile.exact_scores}
+                        />
+                    </div>
                 </div>
 
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
@@ -207,7 +253,10 @@ export default function PublicUserPage() {
 
                                 <div className="mt-4 flex flex-wrap gap-3">
                                     <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                        Pick: {prediction.pred_a}:{prediction.pred_b}
+                                        Winner: {prediction.winner}
+                                    </span>
+                                    <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+                                        Score: {prediction.score}
                                     </span>
 
                                     {prediction.event_slug && (
@@ -283,11 +332,10 @@ function ProfileStat({ title, value }) {
 function PlayerBadge({ title, description, active }) {
     return (
         <div
-            className={`rounded-2xl border p-5 transition ${
-                active
-                    ? 'border-violet-400/30 bg-violet-500/10'
-                    : 'border-white/10 bg-black/30 opacity-50'
-            }`}
+            className={`rounded-2xl border p-5 transition ${active
+                ? 'border-violet-400/30 bg-violet-500/10'
+                : 'border-white/10 bg-black/30 opacity-50'
+                }`}
         >
             <p className="text-lg font-black">
                 {title}

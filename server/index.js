@@ -1274,15 +1274,38 @@ app.get('/api/public/users/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
 
-        const [[stats]] = await pool.query(
+        const [[profileStats]] = await pool.query(
             `
             SELECT
                 user_id,
-                SUM(points) AS total_points,
-                COUNT(*) AS prediction_count
-            FROM match_points
+                displayname,
+                total_points,
+                swiss_points,
+                playoffs_points,
+                playin_points,
+                doubleelim_points,
+                match_points,
+                correct_series,
+                correct_maps,
+                exact_maps,
+                updated_at
+            FROM user_total_scores
             WHERE user_id = ?
-            GROUP BY user_id
+            LIMIT 1
+            `,
+            [userId]
+        );
+
+        const [[rankRow]] = await pool.query(
+            `
+            SELECT ranked.rank_position
+            FROM (
+                SELECT
+                    user_id,
+                    RANK() OVER (ORDER BY total_points DESC) AS rank_position
+                FROM user_total_scores
+            ) ranked
+            WHERE ranked.user_id = ?
             LIMIT 1
             `,
             [userId]
@@ -1291,12 +1314,14 @@ app.get('/api/public/users/:userId', async (req, res) => {
         const [recentPredictions] = await pool.query(
             `
             SELECT
-    mp.match_id,
-    mp.pred_a,
-    mp.pred_b,
-    m.team_a,
-    m.team_b,
-    mp.updated_at,
+                mp.match_id,
+                mp.pred_a,
+                mp.pred_b,
+                mp.pred_exact_a,
+                mp.pred_exact_b,
+                m.team_a,
+                m.team_b,
+                mp.updated_at,
                 e.name AS event_name,
                 e.slug AS event_slug
             FROM match_predictions mp
@@ -1313,53 +1338,81 @@ app.get('/api/public/users/:userId', async (req, res) => {
 
         const [[accuracyStats]] = await pool.query(
             `
-    SELECT
-        COUNT(*) AS finished_predictions,
-        SUM(
-            CASE
-                WHEN lms.status = 'FINAL'
-                 AND (
-                    (mp.pred_exact_a > mp.pred_exact_b AND lms.score_a > lms.score_b)
-                    OR
-                    (mp.pred_exact_b > mp.pred_exact_a AND lms.score_b > lms.score_a)
-                 )
-                THEN 1 ELSE 0
-            END
-        ) AS correct_winners,
-        SUM(
-            CASE
-                WHEN lms.status = 'FINAL'
-                 AND mp.pred_exact_a = lms.score_a
-                 AND mp.pred_exact_b = lms.score_b
-                THEN 1 ELSE 0
-            END
-        ) AS exact_scores
-    FROM match_predictions mp
-    JOIN live_match_scores lms
-        ON lms.match_id = mp.match_id
-    WHERE mp.user_id = ?
-    `,
+            SELECT
+                COUNT(*) AS finished_predictions,
+                SUM(
+                    CASE
+                        WHEN lms.status = 'FINAL'
+                         AND (
+                            (mp.pred_exact_a > mp.pred_exact_b AND lms.score_a > lms.score_b)
+                            OR
+                            (mp.pred_exact_b > mp.pred_exact_a AND lms.score_b > lms.score_a)
+                         )
+                        THEN 1 ELSE 0
+                    END
+                ) AS correct_winners,
+                SUM(
+                    CASE
+                        WHEN lms.status = 'FINAL'
+                         AND mp.pred_exact_a = lms.score_a
+                         AND mp.pred_exact_b = lms.score_b
+                        THEN 1 ELSE 0
+                    END
+                ) AS exact_scores
+            FROM match_predictions mp
+            JOIN live_match_scores lms
+                ON lms.match_id = mp.match_id
+            WHERE mp.user_id = ?
+            `,
             [userId]
         );
 
         res.json({
             profile: {
                 user_id: userId,
-                total_points: Number(stats?.total_points || 0),
-                prediction_count: Number(stats?.prediction_count || 0),
+                displayname: profileStats?.displayname || userId,
+
+                rank: Number(rankRow?.rank_position || 0),
+
+                total_points: Number(profileStats?.total_points || 0),
+                swiss_points: Number(profileStats?.swiss_points || 0),
+                playoffs_points: Number(profileStats?.playoffs_points || 0),
+                playin_points: Number(profileStats?.playin_points || 0),
+                doubleelim_points: Number(profileStats?.doubleelim_points || 0),
+                match_points: Number(profileStats?.match_points || 0),
+
+                correct_series: Number(profileStats?.correct_series || 0),
+                correct_maps: Number(profileStats?.correct_maps || 0),
+                exact_maps: Number(profileStats?.exact_maps || 0),
+
+                prediction_count: recentPredictions.length,
+
                 finished_predictions: Number(accuracyStats?.finished_predictions || 0),
                 correct_winners: Number(accuracyStats?.correct_winners || 0),
                 exact_scores: Number(accuracyStats?.exact_scores || 0),
+
                 accuracy:
                     Number(accuracyStats?.finished_predictions || 0) > 0
                         ? Math.round(
                             (Number(accuracyStats?.correct_winners || 0) /
                                 Number(accuracyStats?.finished_predictions || 0)) * 100
                         )
-                        : 0
+                        : 0,
+
+                updated_at: profileStats?.updated_at || null
             },
 
-            recent_predictions: recentPredictions
+            recent_predictions: recentPredictions.map((prediction) => ({
+                ...prediction,
+                winner:
+                    Number(prediction.pred_a) === 1
+                        ? prediction.team_a
+                        : prediction.team_b,
+                score:
+                    prediction.pred_exact_a !== null && prediction.pred_exact_b !== null
+                        ? `${prediction.pred_exact_a}:${prediction.pred_exact_b}`
+                        : `${prediction.pred_a}:${prediction.pred_b}`
+            }))
         });
     } catch (err) {
         console.error(err);
@@ -1955,6 +2008,225 @@ app.post('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
 
         res.status(500).json({
             error: 'Swiss pickem save failed'
+        });
+    }
+});
+
+app.get('/api/public/events/:slug/leaderboard', async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [rows] = await pool.query(
+            `
+            SELECT
+                combined.user_id,
+                MAX(combined.displayname) AS displayname,
+
+                SUM(combined.total_points) AS total_points,
+                SUM(combined.swiss_points) AS swiss_points,
+                SUM(combined.playoffs_points) AS playoffs_points,
+                SUM(combined.playin_points) AS playin_points,
+                SUM(combined.doubleelim_points) AS doubleelim_points,
+                SUM(combined.match_points) AS match_points
+
+            FROM (
+                SELECT
+                    user_id,
+                    displayname,
+                    COALESCE(points, 0) AS total_points,
+                    COALESCE(points, 0) AS swiss_points,
+                    0 AS playoffs_points,
+                    0 AS playin_points,
+                    0 AS doubleelim_points,
+                    0 AS match_points
+                FROM swiss_scores
+                WHERE event_id = ?
+
+                UNION ALL
+
+                SELECT
+                    user_id,
+                    displayname,
+                    COALESCE(points, score, 0) AS total_points,
+                    0 AS swiss_points,
+                    COALESCE(points, score, 0) AS playoffs_points,
+                    0 AS playin_points,
+                    0 AS doubleelim_points,
+                    0 AS match_points
+                FROM playoffs_scores
+                WHERE event_id = ?
+
+                UNION ALL
+
+                SELECT
+                    user_id,
+                    displayname,
+                    COALESCE(points, 0) AS total_points,
+                    0 AS swiss_points,
+                    0 AS playoffs_points,
+                    COALESCE(points, 0) AS playin_points,
+                    0 AS doubleelim_points,
+                    0 AS match_points
+                FROM playin_scores
+                WHERE event_id = ?
+
+                UNION ALL
+
+                SELECT
+                    user_id,
+                    displayname,
+                    COALESCE(points, 0) AS total_points,
+                    0 AS swiss_points,
+                    0 AS playoffs_points,
+                    0 AS playin_points,
+                    COALESCE(points, 0) AS doubleelim_points,
+                    0 AS match_points
+                FROM doubleelim_scores
+                WHERE event_id = ?
+
+                UNION ALL
+
+                SELECT
+                    user_id,
+                    NULL AS displayname,
+                    COALESCE(points, 0) AS total_points,
+                    0 AS swiss_points,
+                    0 AS playoffs_points,
+                    0 AS playin_points,
+                    0 AS doubleelim_points,
+                    COALESCE(points, 0) AS match_points
+                FROM match_points
+                WHERE event_id = ?
+            ) combined
+
+            WHERE combined.user_id IS NOT NULL
+
+            GROUP BY combined.user_id
+
+            ORDER BY total_points DESC, swiss_points DESC, match_points DESC
+
+            LIMIT 100
+            `,
+            [event.id, event.id, event.id, event.id, event.id]
+        );
+
+        res.json({
+            event,
+            leaderboard: rows.map((row, index) => ({
+                rank: index + 1,
+                user_id: row.user_id,
+                displayname: row.displayname || row.user_id,
+                total_points: Number(row.total_points || 0),
+                swiss_points: Number(row.swiss_points || 0),
+                playoffs_points: Number(row.playoffs_points || 0),
+                playin_points: Number(row.playin_points || 0),
+                doubleelim_points: Number(row.doubleelim_points || 0),
+                match_points: Number(row.match_points || 0)
+            }))
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Event leaderboard load failed'
+        });
+    }
+});
+
+app.get('/api/public/events/:slug/swiss-stats/:stage', async (req, res) => {
+    try {
+        const { slug, stage } = req.params;
+
+        if (!['stage1', 'stage2', 'stage3'].includes(stage)) {
+            return res.status(400).json({
+                error: 'Invalid Swiss stage'
+            });
+        }
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [rows] = await pool.query(
+            `
+            SELECT pick_3_0, pick_0_3, advancing
+            FROM swiss_predictions
+            WHERE event_id = ?
+              AND stage = ?
+              AND active = 1
+            `,
+            [event.id, stage]
+        );
+
+        function countCsvValues(values) {
+            const counts = new Map();
+
+            values.forEach((value) => {
+                if (!value) return;
+
+                String(value)
+                    .split(',')
+                    .map((item) => item.trim())
+                    .filter(Boolean)
+                    .forEach((team) => {
+                        counts.set(team, (counts.get(team) || 0) + 1);
+                    });
+            });
+
+            return [...counts.entries()]
+                .map(([team, count]) => ({
+                    team,
+                    count,
+                    percentage: rows.length > 0
+                        ? Math.round((count / rows.length) * 100)
+                        : 0
+                }))
+                .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team));
+        }
+
+        res.json({
+            event,
+            stage,
+            total_predictions: rows.length,
+            stats: {
+                three_zero: countCsvValues(rows.map((row) => row.pick_3_0)),
+                zero_three: countCsvValues(rows.map((row) => row.pick_0_3)),
+                advancing: countCsvValues(rows.map((row) => row.advancing))
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Swiss stats load failed'
         });
     }
 });

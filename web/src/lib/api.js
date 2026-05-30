@@ -157,3 +157,11 @@ export async function saveSwissPickem(slug, stage, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function getPublicEventLeaderboard(slug) {
+  return apiFetch(`/public/events/${slug}/leaderboard`);
+}
+
+export async function getSwissStats(slug, stage) {
+  return apiFetch(`/public/events/${slug}/swiss-stats/${stage}`);
+}

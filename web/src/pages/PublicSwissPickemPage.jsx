@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getSwissPickem, saveSwissPickem } from '../lib/api';
+import { getSwissPickem, saveSwissPickem, getSwissStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
@@ -9,6 +9,7 @@ export default function PublicSwissPickemPage() {
     const { slug, stage } = useParams();
     const { isLoggedIn, user, loading } = usePublicAuth();
     const [data, setData] = useState(null);
+    const [stats, setStats] = useState(null);
     const [threeZero, setThreeZero] = useState([]);
     const [zeroThree, setZeroThree] = useState([]);
     const [advancing, setAdvancing] = useState([]);
@@ -21,6 +22,8 @@ export default function PublicSwissPickemPage() {
             try {
                 const result = await getSwissPickem(slug, stage);
                 setData(result);
+                const statsResult = await getSwissStats(slug, stage);
+                setStats(statsResult);
 
                 if (result.prediction) {
                     setThreeZero(result.prediction.three_zero || []);
@@ -312,6 +315,23 @@ export default function PublicSwissPickemPage() {
                     teams={advancing}
                 />
             </div>
+            {stats && (
+                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                        Community Swiss Stats
+                    </p>
+
+                    <p className="mt-2 text-white/50">
+                        Based on {stats.total_predictions} submitted Pick&apos;Ems.
+                    </p>
+
+                    <div className="mt-6 grid gap-6 md:grid-cols-3">
+                        <StatsColumn title="Most picked 3-0" rows={stats.stats.three_zero} />
+                        <StatsColumn title="Most picked 0-3" rows={stats.stats.zero_three} />
+                        <StatsColumn title="Most picked advancing" rows={stats.stats.advancing} />
+                    </div>
+                </div>
+            )}
 
             <PublicFooter />
         </PageShell>
@@ -358,12 +378,12 @@ function PickSection({
                             onClick={() => onToggle(team.name)}
                             disabled={disabled || isPickedElsewhere}
                             className={`rounded-2xl border px-4 py-3 text-left font-black transition ${disabled
-                                    ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
-                                    : isSelected
-                                        ? 'border-violet-400 bg-violet-500/20 text-white'
-                                        : isPickedElsewhere
-                                            ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
-                                            : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
+                                : isSelected
+                                    ? 'border-violet-400 bg-violet-500/20 text-white'
+                                    : isPickedElsewhere
+                                        ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
+                                        : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
                                 }`}
                         >
                             {team.name}
@@ -428,6 +448,52 @@ function SummaryCard({ title, teams }) {
                     <span className="text-white/40">
                         No teams selected
                     </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function StatsColumn({ title, rows }) {
+    return (
+        <div className="rounded-[2rem] border border-white/10 bg-black/30 p-5">
+            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                {title}
+            </p>
+
+            <div className="mt-4 space-y-3">
+                {(rows || []).slice(0, 8).map((row) => (
+                    <div
+                        key={row.team}
+                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="font-black">
+                                {row.team}
+                            </p>
+
+                            <p className="text-sm font-black text-violet-300">
+                                {row.count} picks
+                            </p>
+                        </div>
+
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+                            <div
+                                className="h-full rounded-full bg-violet-500"
+                                style={{ width: `${row.percentage}%` }}
+                            />
+                        </div>
+
+                        <p className="mt-2 text-xs text-white/40">
+                            {row.percentage}% of players
+                        </p>
+                    </div>
+                ))}
+
+                {(rows || []).length === 0 && (
+                    <p className="text-white/40">
+                        No data yet.
+                    </p>
                 )}
             </div>
         </div>

@@ -474,6 +474,13 @@ export default function PublicEventPage() {
                     </a>
 
                     <a
+                        href={`/public/event/${slug}/leaderboard`}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Event Leaderboard
+                    </a>
+
+                    <a
                         href="/public/leaderboard"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
