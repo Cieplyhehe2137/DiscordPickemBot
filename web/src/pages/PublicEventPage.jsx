@@ -1592,6 +1592,7 @@ export default function PublicEventPage() {
                             matchStatsLoading={matchStatsLoading}
                             getPickPercent={getPickPercent}
                             closeMatchModal={closeMatchModal}
+                            eventMatchStats={eventMatchStats}
                         />
 
                     )
@@ -1622,7 +1623,8 @@ function MatchModal({
     matchStats,
     matchStatsLoading,
     getPickPercent,
-    closeMatchModal
+    closeMatchModal,
+    eventMatchStats
 }) {
     const teamAPercent = getPickPercent(selectedMatch.id, 'team_a');
     const teamBPercent = getPickPercent(selectedMatch.id, 'team_b');
@@ -1633,6 +1635,17 @@ function MatchModal({
             : teamBPercent > teamAPercent
                 ? 'team_b'
                 : null;
+
+    const publicMatchStats = eventMatchStats.find(
+        (match) => String(match.match_id) === String(selectedMatch.id)
+    );
+
+    const confidence = publicMatchStats
+        ? Math.max(
+            publicMatchStats.team_a_percentage,
+            publicMatchStats.team_b_percentage
+        )
+        : 0;
 
 
     return (
@@ -1831,12 +1844,96 @@ function MatchModal({
                 {matchModalTab === 'stats' && (
                     <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5">
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Stats
+                            Match Analytics
                         </p>
 
-                        <p className="mt-3 text-white/50">
-                            Match analytics will appear here soon.
-                        </p>
+                        {!publicMatchStats && (
+                            <p className="mt-3 text-white/50">
+                                No public match stats yet.
+                            </p>
+                        )}
+
+                        {publicMatchStats && (
+                            <>
+                                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                                    <PublicStat
+                                        title="Total Picks"
+                                        value={publicMatchStats.total_predictions}
+                                    />
+
+                                    <PublicStat
+                                        title="Community Pick"
+                                        value={publicMatchStats.community_pick || '-'}
+                                    />
+
+                                    <PublicStat
+                                        title="Confidence"
+                                        value={`${confidence}%`}
+                                    />
+                                </div>
+
+                                <div className="mt-6">
+                                    <MatchTrendBar
+                                        team={publicMatchStats.team_a}
+                                        percentage={publicMatchStats.team_a_percentage}
+                                        variant="primary"
+                                    />
+
+                                    <MatchTrendBar
+                                        team={publicMatchStats.team_b}
+                                        percentage={publicMatchStats.team_b_percentage}
+                                    />
+                                </div>
+
+                                {publicMatchStats.winner && (
+                                    <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
+                                            Community vs Reality
+                                        </p>
+
+                                        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                                            <span className="rounded-full bg-violet-500/20 px-3 py-1 font-black text-violet-300">
+                                                Community: {publicMatchStats.community_pick}
+                                            </span>
+
+                                            <span className="rounded-full bg-white/10 px-3 py-1 font-black text-white/70">
+                                                Winner: {publicMatchStats.winner}
+                                            </span>
+
+                                            <span
+                                                className={`rounded-full px-3 py-1 font-black ${publicMatchStats.community_was_right
+                                                        ? 'bg-green-500/20 text-green-300'
+                                                        : 'bg-red-500/20 text-red-300'
+                                                    }`}
+                                            >
+                                                {publicMatchStats.community_was_right
+                                                    ? 'Community was right'
+                                                    : 'Community was wrong'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {publicMatchStats.top_scores?.length > 0 && (
+                                    <div className="mt-6">
+                                        <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
+                                            Most picked scores
+                                        </p>
+
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {publicMatchStats.top_scores.map((scorePick) => (
+                                                <span
+                                                    key={`${publicMatchStats.match_id}-${scorePick.score}`}
+                                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
+                                                >
+                                                    {scorePick.score} • {scorePick.picks} picks
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 )}
 
