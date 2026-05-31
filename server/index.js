@@ -2389,38 +2389,48 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
 
         const [rows] = await pool.query(
             `
-            SELECT
-                m.id AS match_id,
-                m.match_no,
-                m.phase,
-                m.team_a,
-                m.team_b,
-                m.best_of,
-                m.start_time_utc,
+    SELECT
+        m.id AS match_id,
+        m.match_no,
+        m.phase,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        m.start_time_utc,
 
-                COUNT(mp.user_id) AS total_predictions,
+        mr.res_a,
+        mr.res_b,
+        mr.finished_at,
 
-                SUM(mp.pred_a = 1) AS team_a_picks,
-                SUM(mp.pred_b = 1) AS team_b_picks
+        COUNT(mp.user_id) AS total_predictions,
 
-            FROM matches m
+        COALESCE(SUM(mp.pred_a = 1), 0) AS team_a_picks,
+        COALESCE(SUM(mp.pred_b = 1), 0) AS team_b_picks
 
-            LEFT JOIN match_predictions mp
-                ON mp.match_id = m.id
+    FROM matches m
 
-            WHERE m.event_id = ?
+    LEFT JOIN match_results mr
+        ON mr.match_id = m.id
 
-            GROUP BY
-                m.id,
-                m.match_no,
-                m.phase,
-                m.team_a,
-                m.team_b,
-                m.best_of,
-                m.start_time_utc
+    LEFT JOIN match_predictions mp
+        ON mp.match_id = m.id
 
-            ORDER BY m.match_no ASC, m.id ASC
-            `,
+    WHERE m.event_id = ?
+
+    GROUP BY
+        m.id,
+        m.match_no,
+        m.phase,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        m.start_time_utc,
+        mr.res_a,
+        mr.res_b,
+        mr.finished_at
+
+    ORDER BY m.match_no ASC, m.id ASC
+    `,
             [event.id]
         );
 
@@ -2468,6 +2478,18 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
                 const teamAPicks = Number(row.team_a_picks || 0);
                 const teamBPicks = Number(row.team_b_picks || 0);
 
+                const winner =
+                    row.finished_at
+                        ? Number(row.res_a) > Number(row.res_b)
+                            ? row.team_a
+                            : row.team_b
+                        : null;
+
+                const communityPick =
+                    teamAPicks >= teamBPicks
+                        ? row.team_a
+                        : row.team_b;
+
                 return {
                     match_id: row.match_id,
                     match_no: row.match_no,
@@ -2476,6 +2498,10 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
                     team_b: row.team_b,
                     best_of: row.best_of,
                     start_time_utc: row.start_time_utc,
+
+                    result_a: row.res_a !== null ? Number(row.res_a) : null,
+                    result_b: row.res_b !== null ? Number(row.res_b) : null,
+                    finished_at: row.finished_at,
 
                     total_predictions: total,
 
@@ -2487,6 +2513,13 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
 
                     team_b_percentage:
                         total > 0 ? Math.round((teamBPicks / total) * 100) : 0,
+
+                    community_pick: communityPick,
+                    winner,
+
+                    community_was_right: winner
+                        ? communityPick === winner
+                        : null,
 
                     top_scores: (scoreMap.get(Number(row.match_id)) || []).slice(0, 3)
                 };

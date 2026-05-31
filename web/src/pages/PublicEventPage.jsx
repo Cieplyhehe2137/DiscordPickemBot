@@ -398,6 +398,53 @@ export default function PublicEventPage() {
 
     const latestPrediction = Object.values(myPredictions)[0] || null;
 
+    const finishedMatches = eventMatchStats.filter(
+        (match) => match.community_was_right !== null
+    );
+
+    const communityCorrect = finishedMatches.filter(
+        (match) => match.community_was_right
+    ).length;
+
+    const communityAccuracy =
+        finishedMatches.length > 0
+            ? Math.round(
+                (communityCorrect / finishedMatches.length) * 100
+            )
+            : 0;
+
+    const biggestUpset = finishedMatches
+        .filter((match) => match.community_was_right === false)
+        .sort((a, b) => {
+            const aConfidence = Math.max(
+                a.team_a_percentage,
+                a.team_b_percentage
+            );
+
+            const bConfidence = Math.max(
+                b.team_a_percentage,
+                b.team_b_percentage
+            );
+
+            return bConfidence - aConfidence;
+        })[0];
+
+    const mostTrustedPick = finishedMatches
+        .filter((match) => match.community_was_right === true)
+        .sort((a, b) => {
+            const aConfidence = Math.max(
+                a.team_a_percentage,
+                a.team_b_percentage
+            );
+
+            const bConfidence = Math.max(
+                b.team_a_percentage,
+                b.team_b_percentage
+            );
+
+            return bConfidence - aConfidence;
+        })[0];
+
     if (!data) {
         return (
             <div className="relative min-h-screen overflow-hidden bg-zinc-950 px-6 py-10 text-white">
@@ -596,6 +643,7 @@ export default function PublicEventPage() {
                     <PublicStat title="Predictions" value={data?.stats?.predictions ?? 0} />
                     <PublicStat title="Matches" value={data?.stats?.matches ?? 0} />
                     <PublicStat title="My Picks" value={myPredictionsCount} />
+
                 </div>
 
                 <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
@@ -844,11 +892,29 @@ export default function PublicEventPage() {
                         Community Pulse
                     </p>
 
-                    <div className="mt-6 grid gap-4 md:grid-cols-3">
+                    <div className="mt-6 grid gap-4 md:grid-cols-4">
                         <PublicStat title="Live Matches" value={liveMatchesCount} />
                         <PublicStat title="Total Picks" value={data?.stats?.predictions ?? 0} />
                         <PublicStat title="Event Phase" value={formatPhaseLabel(event?.phase)} />
+                        <PublicStat
+                            title="Community Accuracy"
+                            value={`${communityAccuracy}%`}
+                        />
                     </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    <InsightCard
+                        title="Most Trusted Pick"
+                        match={mostTrustedPick}
+                        empty="No correct community picks yet."
+                    />
+
+                    <InsightCard
+                        title="Biggest Upset"
+                        match={biggestUpset}
+                        empty="No upsets yet."
+                    />
                 </div>
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
@@ -908,92 +974,79 @@ export default function PublicEventPage() {
                                         </p>
                                     </div>
 
-                                    <div className="text-right">
-                                        <p className="font-black text-violet-300">
-                                            BO{match.best_of}
-                                        </p>
-                                    </div>
+                                    <p className="font-black text-violet-300">
+                                        BO{match.best_of}
+                                    </p>
                                 </div>
 
-                                <div className="mt-5">
-                                    <div className="mb-2 flex justify-between text-sm">
-                                        <span>{match.team_a}</span>
-                                        <span>{match.team_a_percentage}%</span>
-                                    </div>
+                                <MatchTrendBar
+                                    team={match.team_a}
+                                    percentage={match.team_a_percentage}
+                                    variant="primary"
+                                />
 
-                                    <div className="h-3 overflow-hidden rounded-full bg-black/40">
-                                        <div
-                                            className="h-full rounded-full bg-violet-500"
-                                            style={{
-                                                width: `${match.team_a_percentage}%`
-                                            }}
-                                        />
-                                    </div>
-                                </div>
+                                <MatchTrendBar
+                                    team={match.team_b}
+                                    percentage={match.team_b_percentage}
+                                />
 
                                 <div className="mt-4">
-                                    <div className="mb-2 flex justify-between text-sm">
-                                        <span>{match.team_b}</span>
-                                        <span>{match.team_b_percentage}%</span>
-                                    </div>
+                                    <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
+                                        {Math.max(match.team_a_percentage, match.team_b_percentage) >= 75
+                                            ? '🔥 Heavy Favorite'
+                                            : Math.max(match.team_a_percentage, match.team_b_percentage) >= 60
+                                                ? '📈 Slight Favorite'
+                                                : '⚖️ Toss-Up'}
+                                    </span>
+                                </div>
 
-                                    <div className="h-3 overflow-hidden rounded-full bg-black/40">
-                                        <div
-                                            className="h-full rounded-full bg-white/60"
-                                            style={{
-                                                width: `${match.team_b_percentage}%`
-                                            }}
-                                        />
-                                        <div className="mt-4">
+                                {match.winner && (
+                                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
+                                            Community vs Reality
+                                        </p>
+
+                                        <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                                            <span className="rounded-full bg-violet-500/20 px-3 py-1 font-black text-violet-300">
+                                                Community: {match.community_pick}
+                                            </span>
+
+                                            <span className="rounded-full bg-white/10 px-3 py-1 font-black text-white/70">
+                                                Winner: {match.winner}
+                                            </span>
+
                                             <span
-                                                className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${Math.max(
-                                                    match.team_a_percentage,
-                                                    match.team_b_percentage
-                                                ) >= 75
-                                                        ? 'bg-red-500/20 text-red-300'
-                                                        : Math.max(
-                                                            match.team_a_percentage,
-                                                            match.team_b_percentage
-                                                        ) >= 60
-                                                            ? 'bg-yellow-500/20 text-yellow-300'
-                                                            : 'bg-green-500/20 text-green-300'
+                                                className={`rounded-full px-3 py-1 font-black ${match.community_was_right
+                                                    ? 'bg-green-500/20 text-green-300'
+                                                    : 'bg-red-500/20 text-red-300'
                                                     }`}
                                             >
-                                                {
-                                                    Math.max(
-                                                        match.team_a_percentage,
-                                                        match.team_b_percentage
-                                                    ) >= 75
-                                                        ? '🔥 Heavy Favorite'
-                                                        : Math.max(
-                                                            match.team_a_percentage,
-                                                            match.team_b_percentage
-                                                        ) >= 60
-                                                            ? '📈 Slight Favorite'
-                                                            : '⚖️ Toss-Up'
-                                                }
+                                                {match.community_was_right
+                                                    ? 'Community was right'
+                                                    : 'Community was wrong'}
                                             </span>
                                         </div>
-                                        {match.top_scores?.length > 0 && (
-                                            <div className="mt-5">
-                                                <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
-                                                    Most picked scores
-                                                </p>
-
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    {match.top_scores.map((scorePick) => (
-                                                        <span
-                                                            key={scorePick.score}
-                                                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
-                                                        >
-                                                            {scorePick.score} • {scorePick.picks} picks
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
-                                </div>
+                                )}
+
+                                {match.top_scores?.length > 0 && (
+                                    <div className="mt-5">
+                                        <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
+                                            Most picked scores
+                                        </p>
+
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {match.top_scores.map((scorePick) => (
+                                                <span
+                                                    key={`${match.match_id}-${scorePick.score}`}
+                                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
+                                                >
+                                                    {scorePick.score} • {scorePick.picks} picks
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ))}
 
@@ -1476,82 +1529,88 @@ export default function PublicEventPage() {
                         </div>
                     </div>
                 </div>
-                {isLoggedIn && (
-                    <div className="sticky bottom-4 z-40 mt-10">
-                        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-violet-400/20 bg-zinc-950/90 p-5 shadow-[0_0_50px_rgba(139,92,246,0.2)] backdrop-blur-xl">
-                            <div>
-                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                    My Pick&apos;Em Progress
-                                </p>
+                {
+                    isLoggedIn && (
+                        <div className="sticky bottom-4 z-40 mt-10">
+                            <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-violet-400/20 bg-zinc-950/90 p-5 shadow-[0_0_50px_rgba(139,92,246,0.2)] backdrop-blur-xl">
+                                <div>
+                                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                        My Pick&apos;Em Progress
+                                    </p>
 
-                                <p className="mt-1 text-white/50">
-                                    {myPredictionsCount} / {totalMatchesCount} predicted • {missingPredictionsCount} left
-                                </p>
-                            </div>
-
-                            <div className="flex items-center gap-6">
-                                <div className="w-40 overflow-hidden rounded-full border border-white/10 bg-black/30">
-                                    <div
-                                        className="h-3 rounded-full bg-violet-500 transition-all duration-500"
-                                        style={{ width: `${myPredictionsProgress}%` }}
-                                    />
+                                    <p className="mt-1 text-white/50">
+                                        {myPredictionsCount} / {totalMatchesCount} predicted • {missingPredictionsCount} left
+                                    </p>
                                 </div>
 
-                                <p className="text-2xl font-black text-violet-300">
-                                    {myPredictionsProgress}%
-                                </p>
+                                <div className="flex items-center gap-6">
+                                    <div className="w-40 overflow-hidden rounded-full border border-white/10 bg-black/30">
+                                        <div
+                                            className="h-3 rounded-full bg-violet-500 transition-all duration-500"
+                                            style={{ width: `${myPredictionsProgress}%` }}
+                                        />
+                                    </div>
 
-                                <button
-                                    onClick={() => {
-                                        const picksSection = document.getElementById('matches-section');
+                                    <p className="text-2xl font-black text-violet-300">
+                                        {myPredictionsProgress}%
+                                    </p>
 
-                                        if (picksSection) {
-                                            picksSection.scrollIntoView({
-                                                behavior: 'smooth'
-                                            });
-                                        }
-                                    }}
-                                    className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
-                                >
-                                    My Picks
-                                </button>
-                                <a
-                                    href="/public/me/predictions"
-                                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
-                                >
-                                    All Predictions
-                                </a>
+                                    <button
+                                        onClick={() => {
+                                            const picksSection = document.getElementById('matches-section');
+
+                                            if (picksSection) {
+                                                picksSection.scrollIntoView({
+                                                    behavior: 'smooth'
+                                                });
+                                            }
+                                        }}
+                                        className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
+                                    >
+                                        My Picks
+                                    </button>
+                                    <a
+                                        href="/public/me/predictions"
+                                        className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                                    >
+                                        All Predictions
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
                 <PublicFooter />
 
-                {selectedMatch && (
-                    <MatchModal
-                        selectedMatch={selectedMatch}
-                        matchModalTab={matchModalTab}
-                        setMatchModalTab={setMatchModalTab}
-                        matchStats={matchStats}
-                        matchStatsLoading={matchStatsLoading}
-                        getPickPercent={getPickPercent}
-                        closeMatchModal={closeMatchModal}
-                    />
+                {
+                    selectedMatch && (
+                        <MatchModal
+                            selectedMatch={selectedMatch}
+                            matchModalTab={matchModalTab}
+                            setMatchModalTab={setMatchModalTab}
+                            matchStats={matchStats}
+                            matchStatsLoading={matchStatsLoading}
+                            getPickPercent={getPickPercent}
+                            closeMatchModal={closeMatchModal}
+                        />
 
-                )}
-                {predictionMatch && (
-                    <PredictionModal
-                        match={predictionMatch}
-                        closePredictionModal={closePredictionModal}
-                        onPredictionSaved={(prediction) => {
-                            setMyPredictions((prev) => ({
-                                ...prev,
-                                [prediction.match_id]: prediction
-                            }));
-                        }}
-                    />
-                )}
-            </div>
+                    )
+                }
+                {
+                    predictionMatch && (
+                        <PredictionModal
+                            match={predictionMatch}
+                            closePredictionModal={closePredictionModal}
+                            onPredictionSaved={(prediction) => {
+                                setMyPredictions((prev) => ({
+                                    ...prev,
+                                    [prediction.match_id]: prediction
+                                }));
+                            }}
+                        />
+                    )
+                }
+            </div >
         </div >
     );
 }
@@ -1574,6 +1633,7 @@ function MatchModal({
             : teamBPercent > teamAPercent
                 ? 'team_b'
                 : null;
+
 
     return (
         <div
@@ -2271,6 +2331,66 @@ function StatsMiniColumn({ title, rows }) {
                         No data
                     </p>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function InsightCard({ title, match, empty }) {
+    if (!match) {
+        return (
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                    {title}
+                </p>
+
+                <p className="mt-3 text-white/40">
+                    {empty}
+                </p>
+            </div>
+        );
+    }
+
+    const confidence = Math.max(
+        match.team_a_percentage,
+        match.team_b_percentage
+    );
+
+    return (
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                {title}
+            </p>
+
+            <h3 className="mt-3 text-2xl font-black">
+                {match.team_a} vs {match.team_b}
+            </h3>
+
+            <p className="mt-2 text-white/50">
+                Community picked {match.community_pick} with {confidence}% confidence.
+            </p>
+
+            <p className="mt-2 text-white/50">
+                Winner: {match.winner}
+            </p>
+        </div>
+    );
+}
+
+function MatchTrendBar({ team, percentage, variant }) {
+    return (
+        <div className="mt-4">
+            <div className="mb-2 flex justify-between text-sm">
+                <span>{team}</span>
+                <span>{percentage}%</span>
+            </div>
+
+            <div className="h-3 overflow-hidden rounded-full bg-black/40">
+                <div
+                    className={`h-full rounded-full ${variant === 'primary' ? 'bg-violet-500' : 'bg-white/60'
+                        }`}
+                    style={{ width: `${percentage}%` }}
+                />
             </div>
         </div>
     );
