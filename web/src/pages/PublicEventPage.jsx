@@ -6,6 +6,7 @@ import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import CommunityMatchPredictions from '../components/public/CommunityMatchPredictions';
+import CommunityPulse from '../components/public/CommunityPulse';
 
 
 
@@ -888,35 +889,14 @@ export default function PublicEventPage() {
                     </div>
                 </div>
 
-                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
-                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Community Pulse
-                    </p>
-
-                    <div className="mt-6 grid gap-4 md:grid-cols-4">
-                        <PublicStat title="Live Matches" value={liveMatchesCount} />
-                        <PublicStat title="Total Picks" value={data?.stats?.predictions ?? 0} />
-                        <PublicStat title="Event Phase" value={formatPhaseLabel(event?.phase)} />
-                        <PublicStat
-                            title="Community Accuracy"
-                            value={`${communityAccuracy}%`}
-                        />
-                    </div>
-                </div>
-
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                    <InsightCard
-                        title="Most Trusted Pick"
-                        match={mostTrustedPick}
-                        empty="No correct community picks yet."
-                    />
-
-                    <InsightCard
-                        title="Biggest Upset"
-                        match={biggestUpset}
-                        empty="No upsets yet."
-                    />
-                </div>
+                <CommunityPulse
+                    liveMatchesCount={liveMatchesCount}
+                    totalPredictions={data?.stats?.predictions ?? 0}
+                    phase={formatPhaseLabel(event?.phase)}
+                    communityAccuracy={communityAccuracy}
+                    mostTrustedPick={mostTrustedPick}
+                    biggestUpset={biggestUpset}
+                />
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -1791,8 +1771,8 @@ function MatchModal({
 
                                             <span
                                                 className={`rounded-full px-3 py-1 font-black ${publicMatchStats.community_was_right
-                                                        ? 'bg-green-500/20 text-green-300'
-                                                        : 'bg-red-500/20 text-red-300'
+                                                    ? 'bg-green-500/20 text-green-300'
+                                                    : 'bg-red-500/20 text-red-300'
                                                     }`}
                                             >
                                                 {publicMatchStats.community_was_right
