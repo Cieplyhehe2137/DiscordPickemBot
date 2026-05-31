@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
-import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats } from '../lib/api';
+import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats, getPublicEventMatchStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
@@ -9,6 +9,7 @@ import { usePublicAuth } from '../context/PublicAuthContext';
 
 
 export default function PublicEventPage() {
+    const [eventMatchStats, setEventMatchStats] = useState([]);
     const [eventLeaderboard, setEventLeaderboard] = useState([]);
     const [swissStats, setSwissStats] = useState(null);
     const { slug } = useParams();
@@ -67,6 +68,14 @@ export default function PublicEventPage() {
                     await getSwissStats(slug, 'stage1');
 
                 setSwissStats(statsResult);
+            } catch (err) {
+                console.error(err);
+            }
+
+            try {
+                const matchStatsResult = await getPublicEventMatchStats(slug);
+
+                setEventMatchStats(matchStatsResult.matches || []);
             } catch (err) {
                 console.error(err);
             }
@@ -866,6 +875,85 @@ export default function PublicEventPage() {
                             title="Most Picked Advancing"
                             rows={(swissStats?.stats?.advancing || []).slice(0, 5)}
                         />
+                    </div>
+                </div>
+
+                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                                Community Match Predictions
+                            </p>
+
+                            <h2 className="mt-2 text-3xl font-black">
+                                Match Trends
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 grid gap-4">
+                        {eventMatchStats.slice(0, 10).map((match) => (
+                            <div
+                                key={match.match_id}
+                                className="rounded-2xl border border-white/10 bg-black/30 p-5"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-xl font-black">
+                                            {match.team_a} vs {match.team_b}
+                                        </h3>
+
+                                        <p className="mt-1 text-sm text-white/40">
+                                            {match.total_predictions} predictions
+                                        </p>
+                                    </div>
+
+                                    <div className="text-right">
+                                        <p className="font-black text-violet-300">
+                                            BO{match.best_of}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5">
+                                    <div className="mb-2 flex justify-between text-sm">
+                                        <span>{match.team_a}</span>
+                                        <span>{match.team_a_percentage}%</span>
+                                    </div>
+
+                                    <div className="h-3 overflow-hidden rounded-full bg-black/40">
+                                        <div
+                                            className="h-full rounded-full bg-violet-500"
+                                            style={{
+                                                width: `${match.team_a_percentage}%`
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <div className="mb-2 flex justify-between text-sm">
+                                        <span>{match.team_b}</span>
+                                        <span>{match.team_b_percentage}%</span>
+                                    </div>
+
+                                    <div className="h-3 overflow-hidden rounded-full bg-black/40">
+                                        <div
+                                            className="h-full rounded-full bg-white/60"
+                                            style={{
+                                                width: `${match.team_b_percentage}%`
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {eventMatchStats.length === 0 && (
+                            <p className="text-white/50">
+                                No match prediction data yet.
+                            </p>
+                        )}
                     </div>
                 </div>
 

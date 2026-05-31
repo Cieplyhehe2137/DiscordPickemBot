@@ -165,3 +165,7 @@ export async function getPublicEventLeaderboard(slug) {
 export async function getSwissStats(slug, stage) {
   return apiFetch(`/public/events/${slug}/swiss-stats/${stage}`);
 }
+
+export async function getPublicEventMatchStats(slug) {
+  return apiFetch(`/public/events/${slug}/match-stats`);
+}

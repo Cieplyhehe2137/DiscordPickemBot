@@ -2367,6 +2367,101 @@ app.get('/api/public/events/:slug/swiss-stats/:stage', async (req, res) => {
     }
 });
 
+app.get('/api/public/events/:slug/match-stats', async (req, res) => {
+    try {
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [rows] = await pool.query(
+            `
+            SELECT
+                m.id AS match_id,
+                m.match_no,
+                m.phase,
+                m.team_a,
+                m.team_b,
+                m.best_of,
+                m.start_time_utc,
+
+                COUNT(mp.user_id) AS total_predictions,
+
+                SUM(mp.pred_a = 1) AS team_a_picks,
+                SUM(mp.pred_b = 1) AS team_b_picks
+
+            FROM matches m
+
+            LEFT JOIN match_predictions mp
+                ON mp.match_id = m.id
+
+            WHERE m.event_id = ?
+
+            GROUP BY
+                m.id,
+                m.match_no,
+                m.phase,
+                m.team_a,
+                m.team_b,
+                m.best_of,
+                m.start_time_utc
+
+            ORDER BY m.match_no ASC, m.id ASC
+            `,
+            [event.id]
+        );
+
+        res.json({
+            event,
+            matches: rows.map((row) => {
+                const total = Number(row.total_predictions || 0);
+                const teamAPicks = Number(row.team_a_picks || 0);
+                const teamBPicks = Number(row.team_b_picks || 0);
+
+                return {
+                    match_id: row.match_id,
+                    match_no: row.match_no,
+                    phase: row.phase,
+                    team_a: row.team_a,
+                    team_b: row.team_b,
+                    best_of: row.best_of,
+                    start_time_utc: row.start_time_utc,
+
+                    total_predictions: total,
+
+                    team_a_picks: teamAPicks,
+                    team_b_picks: teamBPicks,
+
+                    team_a_percentage:
+                        total > 0 ? Math.round((teamAPicks / total) * 100) : 0,
+
+                    team_b_percentage:
+                        total > 0 ? Math.round((teamBPicks / total) * 100) : 0
+                };
+            })
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Match stats load failed'
+        });
+    }
+});
+
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });
