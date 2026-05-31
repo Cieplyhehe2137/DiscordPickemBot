@@ -944,6 +944,54 @@ export default function PublicEventPage() {
                                                 width: `${match.team_b_percentage}%`
                                             }}
                                         />
+                                        <div className="mt-4">
+                                            <span
+                                                className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${Math.max(
+                                                    match.team_a_percentage,
+                                                    match.team_b_percentage
+                                                ) >= 75
+                                                        ? 'bg-red-500/20 text-red-300'
+                                                        : Math.max(
+                                                            match.team_a_percentage,
+                                                            match.team_b_percentage
+                                                        ) >= 60
+                                                            ? 'bg-yellow-500/20 text-yellow-300'
+                                                            : 'bg-green-500/20 text-green-300'
+                                                    }`}
+                                            >
+                                                {
+                                                    Math.max(
+                                                        match.team_a_percentage,
+                                                        match.team_b_percentage
+                                                    ) >= 75
+                                                        ? '🔥 Heavy Favorite'
+                                                        : Math.max(
+                                                            match.team_a_percentage,
+                                                            match.team_b_percentage
+                                                        ) >= 60
+                                                            ? '📈 Slight Favorite'
+                                                            : '⚖️ Toss-Up'
+                                                }
+                                            </span>
+                                        </div>
+                                        {match.top_scores?.length > 0 && (
+                                            <div className="mt-5">
+                                                <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
+                                                    Most picked scores
+                                                </p>
+
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {match.top_scores.map((scorePick) => (
+                                                        <span
+                                                            key={scorePick.score}
+                                                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
+                                                        >
+                                                            {scorePick.score} • {scorePick.picks} picks
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

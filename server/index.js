@@ -2424,6 +2424,43 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
             [event.id]
         );
 
+        const [scoreRows] = await pool.query(
+            `
+    SELECT
+        mp.match_id,
+        mp.pred_exact_a,
+        mp.pred_exact_b,
+        COUNT(*) AS picks
+    FROM match_predictions mp
+    JOIN matches m
+        ON m.id = mp.match_id
+    WHERE m.event_id = ?
+      AND mp.pred_exact_a IS NOT NULL
+      AND mp.pred_exact_b IS NOT NULL
+    GROUP BY
+        mp.match_id,
+        mp.pred_exact_a,
+        mp.pred_exact_b
+    ORDER BY picks DESC
+    `,
+            [event.id]
+        );
+
+        const scoreMap = new Map();
+
+        scoreRows.forEach((row) => {
+            const matchId = Number(row.match_id);
+
+            if (!scoreMap.has(matchId)) {
+                scoreMap.set(matchId, []);
+            }
+
+            scoreMap.get(matchId).push({
+                score: `${row.pred_exact_a}:${row.pred_exact_b}`,
+                picks: Number(row.picks || 0)
+            });
+        });
+
         res.json({
             event,
             matches: rows.map((row) => {
@@ -2449,7 +2486,9 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
                         total > 0 ? Math.round((teamAPicks / total) * 100) : 0,
 
                     team_b_percentage:
-                        total > 0 ? Math.round((teamBPicks / total) * 100) : 0
+                        total > 0 ? Math.round((teamBPicks / total) * 100) : 0,
+
+                    top_scores: (scoreMap.get(Number(row.match_id)) || []).slice(0, 3)
                 };
             })
         });
