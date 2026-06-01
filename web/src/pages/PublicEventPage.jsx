@@ -10,6 +10,7 @@ import CommunityPulse from '../components/public/CommunityPulse';
 import SwissPickemTrends from '../components/public/SwissPickemTrends';
 import EventLeaderboardPreview from '../components/public/EventLeaderboardPreview';
 import TournamentProgress from '../components/public/TournamentProgress';
+import MyPickemProgress from '../components/public/MyPickemProgress';
 
 export default function PublicEventPage() {
     const [eventMatchStats, setEventMatchStats] = useState([]);
@@ -649,41 +650,12 @@ export default function PublicEventPage() {
 
                 </div>
 
-                <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                My Pick&apos;Em Progress
-                            </p>
-
-                            <p className="mt-2 text-white/50">
-                                {myPredictionsCount} of {totalMatchesCount} predicted • {missingPredictionsCount} left
-                            </p>
-                        </div>
-
-                        <p className="text-3xl font-black text-violet-300">
-                            {myPredictionsProgress}%
-                        </p>
-                    </div>
-
-                    <div className="mt-5 h-4 overflow-hidden rounded-full border border-white/10 bg-black/30">
-                        <div
-                            className="h-full rounded-full bg-violet-500 transition-all duration-500"
-                            style={{ width: `${myPredictionsProgress}%` }}
-                        />
-                    </div>
-                    {totalMatchesCount > 0 && missingPredictionsCount === 0 && (
-                        <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 p-5">
-                            <p className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                                Pick&apos;Em Complete
-                            </p>
-
-                            <p className="mt-2 text-white/60">
-                                You have predicted every available match for this event.
-                            </p>
-                        </div>
-                    )}
-                </div>
+                <MyPickemProgress
+                    myPredictionsCount={myPredictionsCount}
+                    totalMatchesCount={totalMatchesCount}
+                    missingPredictionsCount={missingPredictionsCount}
+                    myPredictionsProgress={myPredictionsProgress}
+                />
 
                 {heroMatch && (
                     <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)] transition-all duration-500 hover:scale-[1.01]">
