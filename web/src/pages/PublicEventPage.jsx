@@ -7,7 +7,7 @@ import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import CommunityMatchPredictions from '../components/public/CommunityMatchPredictions';
 import CommunityPulse from '../components/public/CommunityPulse';
-
+import SwissPickemTrends from '../components/public/SwissPickemTrends';
 
 
 export default function PublicEventPage() {
@@ -898,32 +898,7 @@ export default function PublicEventPage() {
                     biggestUpset={biggestUpset}
                 />
 
-                <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
-                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Swiss Pick&apos;Em Trends
-                    </p>
-
-                    <p className="mt-2 text-white/50">
-                        Based on {swissStats?.total_predictions || 0} submitted Pick&apos;Ems.
-                    </p>
-
-                    <div className="mt-6 grid gap-4 md:grid-cols-3">
-                        <StatsMiniColumn
-                            title="Most Picked 3-0"
-                            rows={(swissStats?.stats?.three_zero || []).slice(0, 5)}
-                        />
-
-                        <StatsMiniColumn
-                            title="Most Picked 0-3"
-                            rows={(swissStats?.stats?.zero_three || []).slice(0, 5)}
-                        />
-
-                        <StatsMiniColumn
-                            title="Most Picked Advancing"
-                            rows={(swissStats?.stats?.advancing || []).slice(0, 5)}
-                        />
-                    </div>
-                </div>
+                <SwissPickemTrends swissStats={swissStats} />
 
                 <CommunityMatchPredictions eventMatchStats={eventMatchStats} />
 
