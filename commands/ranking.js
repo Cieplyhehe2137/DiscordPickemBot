@@ -63,37 +63,55 @@ function totalsSqlForPhase(phase) {
     return `
       SELECT user_id, MAX(displayname) AS displayname, SUM(points) AS total_points
       FROM (
-        SELECT user_id, displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM swiss_scores
         WHERE guild_id = ? AND event_id = ?
 
         UNION ALL
 
-        SELECT user_id, displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM playoffs_scores
         WHERE guild_id = ? AND event_id = ?
 
         UNION ALL
 
-        SELECT user_id, displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM doubleelim_scores
         WHERE guild_id = ? AND event_id = ?
 
         UNION ALL
 
-        SELECT user_id, displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM playin_scores
         WHERE guild_id = ? AND event_id = ?
 
         UNION ALL
 
-        SELECT user_id, user_id AS displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM match_points
         WHERE guild_id = ? AND event_id = ?
 
         UNION ALL
 
-        SELECT user_id, user_id AS displayname, points
+        SELECT
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+          CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+          points
         FROM mvp_scores
         WHERE guild_id = ? AND event_id = ?
       ) t
@@ -103,7 +121,10 @@ function totalsSqlForPhase(phase) {
 
   if (phase === 'swiss_all') {
     return `
-      SELECT user_id, MAX(displayname) AS displayname, SUM(points) AS total_points
+      SELECT
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+        MAX(CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci) AS displayname,
+        SUM(points) AS total_points
       FROM swiss_scores
       WHERE guild_id = ? AND event_id = ?
       GROUP BY user_id
@@ -112,7 +133,10 @@ function totalsSqlForPhase(phase) {
 
   if (phase.startsWith('swiss_stage_')) {
     return `
-      SELECT user_id, MAX(displayname) AS displayname, SUM(points) AS total_points
+      SELECT
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+        MAX(CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci) AS displayname,
+        SUM(points) AS total_points
       FROM swiss_scores
       WHERE guild_id = ? AND event_id = ? AND stage = ?
       GROUP BY user_id
@@ -121,7 +145,10 @@ function totalsSqlForPhase(phase) {
 
   if (phase === 'matches') {
     return `
-      SELECT user_id, user_id AS displayname, SUM(points) AS total_points
+      SELECT
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+        SUM(points) AS total_points
       FROM match_points
       WHERE guild_id = ? AND event_id = ?
       GROUP BY user_id
@@ -130,7 +157,10 @@ function totalsSqlForPhase(phase) {
 
   if (phase === 'mvp') {
     return `
-      SELECT user_id, user_id AS displayname, SUM(points) AS total_points
+      SELECT
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS displayname,
+        SUM(points) AS total_points
       FROM mvp_scores
       WHERE guild_id = ? AND event_id = ?
       GROUP BY user_id
@@ -138,7 +168,10 @@ function totalsSqlForPhase(phase) {
   }
 
   return `
-    SELECT user_id, MAX(displayname) AS displayname, SUM(points) AS total_points
+    SELECT
+      CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+      MAX(CAST(displayname AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci) AS displayname,
+      SUM(points) AS total_points
     FROM ${phase}_scores
     WHERE guild_id = ? AND event_id = ?
     GROUP BY user_id
