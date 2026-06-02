@@ -1,4 +1,11 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require('discord.js');
+
 const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
 const { withGuild } = require('../utils/guildContext');
 
@@ -66,6 +73,90 @@ function normalizePhase(phase, stage = null) {
 function humanPhaseSafe(phase) {
   if (phase === 'matches') return 'Mecze';
   return humanPhase(phase);
+}
+
+function getPickedWinner(row) {
+  const teamA = row.team_a || 'Team A';
+  const teamB = row.team_b || 'Team B';
+
+  if (Number(row.pred_a) === 1) return teamA;
+  if (Number(row.pred_b) === 1) return teamB;
+
+  return '—';
+}
+
+function getOfficialWinner(row) {
+  const teamA = row.team_a || 'Team A';
+  const teamB = row.team_b || 'Team B';
+
+  if (Number(row.result_a) === 1) return teamA;
+  if (Number(row.result_b) === 1) return teamB;
+
+  return 'nierozliczone';
+}
+
+function formatPredictedScore(row) {
+  if (row.pred_exact_a != null && row.pred_exact_b != null) {
+    return `${row.pred_exact_a}:${row.pred_exact_b}`;
+  }
+
+  return '—';
+}
+
+function formatOfficialResult(row) {
+  if (row.result_exact_a != null && row.result_exact_b != null) {
+    return `${row.result_exact_a}:${row.result_exact_b}`;
+  }
+
+  return 'nierozliczone';
+}
+
+function createMatchesEmbed(rows, page, pageSize) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(Math.max(page, 0), totalPages - 1);
+  const start = safePage * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+
+  const embed = new EmbedBuilder()
+    .setTitle('Twoje typy — Mecze')
+    .setColor(0x3b82f6)
+    .setDescription(
+      `Pokazuję **${start + 1}-${start + pageRows.length}** z **${rows.length}** zapisanych typów meczowych.\n` +
+      `Strona **${safePage + 1}/${totalPages}**.`
+    )
+    .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
+
+  for (const r of pageRows) {
+    const teamA = r.team_a || 'Team A';
+    const teamB = r.team_b || 'Team B';
+
+    embed.addFields({
+      name: `#${r.match_id} • ${teamA} vs ${teamB}`,
+      value:
+        `**Twój zwycięzca:** ${getPickedWinner(r)}\n` +
+        `**Twój wynik:** ${formatPredictedScore(r)}\n` +
+        `**Zwycięzca meczu:** ${getOfficialWinner(r)}\n` +
+        `**Oficjalny wynik:** ${formatOfficialResult(r)}`,
+    });
+  }
+
+  return embed;
+}
+
+function createMatchesButtons(userId, page, totalPages) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`moje_typy_matches_prev_${userId}`)
+      .setLabel('⬅️ Poprzednia')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page <= 0),
+
+    new ButtonBuilder()
+      .setCustomId(`moje_typy_matches_next_${userId}`)
+      .setLabel('Następna ➡️')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page >= totalPages - 1),
+  );
 }
 
 /* =========================
@@ -368,7 +459,6 @@ module.exports = {
             WHERE mp.guild_id = ?
               AND mp.user_id = ?
             ORDER BY mp.updated_at DESC, mp.match_id DESC
-            LIMIT 10
             `,
             [guildId, userId]
           );
@@ -379,41 +469,53 @@ module.exports = {
             });
           }
 
-          for (const r of rows.slice(0, 10)) {
-            const teamA = r.team_a || 'Team A';
-            const teamB = r.team_b || 'Team B';
+          const pageSize = 10;
+          let page = 0;
+          const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
 
-            const pickedWinner =
-              Number(r.pred_a) === 1 ? teamA :
-                Number(r.pred_b) === 1 ? teamB :
-                  '—';
+          const message = await interaction.editReply({
+            embeds: [createMatchesEmbed(rows, page, pageSize)],
+            components: totalPages > 1
+              ? [createMatchesButtons(userId, page, totalPages)]
+              : [],
+          });
 
-            const predictedScore =
-              r.pred_exact_a != null && r.pred_exact_b != null
-                ? `${r.pred_exact_a}:${r.pred_exact_b}`
-                : '—';
+          if (totalPages <= 1) return;
 
-            const officialWinner =
-              Number(r.result_a) === 1 ? teamA :
-                Number(r.result_b) === 1 ? teamB :
-                  'nierozliczone';
+          const collector = message.createMessageComponentCollector({
+            time: 5 * 60 * 1000,
+            filter: i =>
+              i.user.id === userId &&
+              (
+                i.customId === `moje_typy_matches_prev_${userId}` ||
+                i.customId === `moje_typy_matches_next_${userId}`
+              ),
+          });
 
-            const officialResult =
-              r.result_exact_a != null && r.result_exact_b != null
-                ? `${r.result_exact_a}:${r.result_exact_b}`
-                : 'nierozliczone';
+          collector.on('collect', async i => {
+            if (i.customId === `moje_typy_matches_prev_${userId}`) {
+              page = Math.max(0, page - 1);
+            }
 
-            embed.addFields({
-              name: `${teamA} vs ${teamB}`,
-              value:
-                `**Twój zwycięzca:** ${pickedWinner}\n` +
-                `**Twój wynik:** ${predictedScore}\n` +
-                `**Zwycięzca meczu:** ${officialWinner}\n` +
-                `**Oficjalny wynik:** ${officialResult}`,
+            if (i.customId === `moje_typy_matches_next_${userId}`) {
+              page = Math.min(totalPages - 1, page + 1);
+            }
+
+            await i.update({
+              embeds: [createMatchesEmbed(rows, page, pageSize)],
+              components: [createMatchesButtons(userId, page, totalPages)],
             });
-          }
+          });
 
-          return interaction.editReply({ embeds: [embed] });
+          collector.on('end', async () => {
+            try {
+              await interaction.editReply({
+                components: [],
+              });
+            } catch (_) {}
+          });
+
+          return;
         }
 
         return interaction.editReply({

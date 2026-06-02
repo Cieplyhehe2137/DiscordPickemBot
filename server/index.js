@@ -2631,6 +2631,17 @@ app.post('/api/public/events/:slug/playin-pickem', async (req, res) => {
             });
         }
 
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'PLAYIN'
+        });
+
+        if (!gate.allowed) {
+            return res.json(403).json({
+                error: gate.message || "Play-In Pick'Em is closed."
+            })
+        }
+
         const selectedTeams = Array.isArray(teams) ? teams : [];
 
         if (selectedTeams.length !== 8) {
@@ -2806,6 +2817,17 @@ app.post('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
 
         if (!event) {
             return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'PLAYOFFS'
+        });
+
+        if (!gate.allowed) {
+            return res.status(403).json({
+                error: gate.message || "Playoffs Pick'Em is closed."
+            });
         }
 
         const semifinalistsPick = Array.isArray(semifinalists) ? semifinalists : [];
@@ -3043,6 +3065,17 @@ app.post('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
         if (!event) {
             return res.status(404).json({
                 error: 'Event not found'
+            });
+        }
+
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'DOUBLEELIM'
+        });
+
+        if (!gate.allowed) {
+            return res.status(403).json({
+                error: gate.message || "Double Elim Pick'Em is closed."
             });
         }
 
