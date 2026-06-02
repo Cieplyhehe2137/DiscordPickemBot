@@ -31,7 +31,7 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-  } catch (_) { }
+  } catch (_) {}
 
   return String(input)
     .replace(/[[\]"]/g, '')
@@ -66,32 +66,6 @@ function normalizePhase(phase, stage = null) {
 function humanPhaseSafe(phase) {
   if (phase === 'matches') return 'Mecze';
   return humanPhase(phase);
-}
-
-function getPredictionWinner(row) {
-  return (
-    row.predicted_winner ||
-    row.winner ||
-    row.pick ||
-    row.team ||
-    row.selected_team ||
-    '—'
-  );
-}
-
-function getPredictionScore(row) {
-  if (row.predicted_score) return row.predicted_score;
-  if (row.series_score) return row.series_score;
-
-  if (row.predicted_score_a != null && row.predicted_score_b != null) {
-    return `${row.predicted_score_a}:${row.predicted_score_b}`;
-  }
-
-  if (row.score_a != null && row.score_b != null) {
-    return `${row.score_a}:${row.score_b}`;
-  }
-
-  return '—';
 }
 
 /* =========================
@@ -178,7 +152,7 @@ module.exports = {
 
               UNION ALL
 
-              SELECT 'matches' AS phase, NULL AS stage, submitted_at
+              SELECT 'matches' AS phase, NULL AS stage, updated_at AS submitted_at
               FROM match_predictions
               WHERE guild_id = ? AND user_id = ?
             ) t
@@ -365,40 +339,43 @@ module.exports = {
         if (phaseToShow === 'matches') {
           const [rows] = await pool.query(
             `
-  SELECT
-    mp.match_id,
-    mp.guild_id,
-    mp.event_id,
-    mp.user_id,
-    mp.pred_a,
-    mp.pred_b,
-    mp.pred_exact_a,
-    mp.pred_exact_b,
-    mp.updated_at,
-    m.team_a,
-    m.team_b,
-    m.best_of,
-    mr.res_a AS result_a,
-    mr.res_b AS result_b,
-    mr.exact_a AS result_exact_a,
-    mr.exact_b AS result_exact_b,
-    pts.points AS earned_points
-  FROM match_predictions mp
-  INNER JOIN matches m
-    ON m.id = mp.match_id
-   AND m.guild_id = mp.guild_id
-  LEFT JOIN match_results mr
-    ON mr.match_id = m.id
-   AND mr.guild_id = mp.guild_id
-  LEFT JOIN match_points pts
-    ON pts.match_id = m.id
-   AND pts.guild_id = mp.guild_id
-   AND pts.user_id = mp.user_id
-  WHERE mp.guild_id = ?
-    AND mp.user_id = ?
-  ORDER BY mp.updated_at DESC, m.id DESC
-  LIMIT 10
-  `,
+            SELECT
+              mp.match_id,
+              mp.guild_id,
+              mp.event_id,
+              mp.user_id,
+              mp.pred_a,
+              mp.pred_b,
+              mp.pred_exact_a,
+              mp.pred_exact_b,
+              mp.updated_at,
+              m.team_a,
+              m.team_b,
+              m.best_of,
+              mr.res_a AS result_a,
+              mr.res_b AS result_b,
+              mr.exact_a AS result_exact_a,
+              mr.exact_b AS result_exact_b,
+              pts.points AS earned_points
+            FROM match_predictions mp
+            INNER JOIN matches m
+              ON m.id = mp.match_id
+             AND m.guild_id = mp.guild_id
+             AND m.event_id = mp.event_id
+            LEFT JOIN match_results mr
+              ON mr.match_id = mp.match_id
+             AND mr.guild_id = mp.guild_id
+             AND mr.event_id = mp.event_id
+            LEFT JOIN match_points pts
+              ON pts.match_id = mp.match_id
+             AND pts.guild_id = mp.guild_id
+             AND pts.event_id = mp.event_id
+             AND pts.user_id = mp.user_id
+            WHERE mp.guild_id = ?
+              AND mp.user_id = ?
+            ORDER BY mp.updated_at DESC, mp.match_id DESC
+            LIMIT 10
+            `,
             [guildId, userId]
           );
 
