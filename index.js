@@ -165,17 +165,37 @@ if (!TOKEN) {
   }
 
   // watchdog: jeśli READY nie przyjdzie w 25s, zgłoś
-  const readyTimeout = setTimeout(() => {
-  }, 25000);
+  // 🔑 Start z twardą diagnostyką
+  const rawToken = process.env.DISCORD_TOKEN;
+  const TOKEN = (rawToken || '').trim();
 
-  client.login(TOKEN)
-    .then(() => {
-    })
-    .catch((e) => {
-      clearTimeout(readyTimeout);
-      logError("CLIENT_LOGIN_ERROR", e);
-      console.error('❌ client.login error:', e);
-    });
+  console.log('[BOOT] ENV_FILE:', resolvedEnvPath);
+  console.log('[BOOT] token exists:', Boolean(TOKEN));
+  console.log('[BOOT] token length:', TOKEN.length);
+
+  if (!TOKEN) {
+    console.error('❌ Brak DISCORD_TOKEN w ENV!');
+  } else {
+    if (/\s/.test(rawToken)) {
+      console.warn('⚠️ DISCORD_TOKEN ma spację/enter w ENV.');
+    }
+
+    const readyTimeout = setTimeout(() => {
+      console.error('❌ READY nie przyszedł po 25s. Bot nie zalogował się do Discorda.');
+    }, 25000);
+
+    console.log('[BOOT] logging into Discord...');
+
+    client.login(TOKEN)
+      .then(() => {
+        console.log('[BOOT] client.login resolved');
+      })
+      .catch((e) => {
+        clearTimeout(readyTimeout);
+        logError("CLIENT_LOGIN_ERROR", e);
+        console.error('❌ client.login error:', e);
+      });
+  }
 
 }
 
