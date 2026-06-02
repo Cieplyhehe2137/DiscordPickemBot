@@ -2712,6 +2712,440 @@ app.post('/api/public/events/:slug/playin-pickem', async (req, res) => {
     }
 });
 
+app.get('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id || null;
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [teams] = await pool.query(
+            `
+            SELECT id, name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY name ASC
+            `,
+            [event.guild_id]
+        );
+
+        let prediction = null;
+
+        if (userId) {
+            const [[row]] = await pool.query(
+                `
+                SELECT semifinalists, finalists, winner, third_place_winner
+                FROM playoffs_predictions
+                WHERE event_id = ?
+                  AND user_id = ?
+                  AND active = 1
+                LIMIT 1
+                `,
+                [event.id, userId]
+            );
+
+            if (row) {
+                prediction = {
+                    semifinalists: parseCsvPick(row.semifinalists),
+                    finalists: parseCsvPick(row.finalists),
+                    winner: row.winner || null,
+                    third_place_winner: row.third_place_winner || null
+                };
+            }
+        }
+
+        res.json({
+            event,
+            teams,
+            prediction
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Playoffs PickEm load failed' });
+    }
+});
+
+app.post('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({ error: 'Login required' });
+        }
+
+        const { slug } = req.params;
+        const {
+            semifinalists,
+            finalists,
+            winner,
+            third_place_winner
+        } = req.body;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const semifinalistsPick = Array.isArray(semifinalists) ? semifinalists : [];
+        const finalistsPick = Array.isArray(finalists) ? finalists : [];
+
+        if (semifinalistsPick.length !== 4) {
+            return res.status(400).json({ error: 'Pick exactly 4 semifinalists' });
+        }
+
+        if (finalistsPick.length !== 2) {
+            return res.status(400).json({ error: 'Pick exactly 2 finalists' });
+        }
+
+        if (!winner) {
+            return res.status(400).json({ error: 'Pick tournament winner' });
+        }
+
+        if (!third_place_winner) {
+            return res.status(400).json({ error: 'Pick third place winner' });
+        }
+
+        const [validTeamsRows] = await pool.query(
+            `
+            SELECT name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            `,
+            [event.guild_id]
+        );
+
+        const validTeams = new Set(validTeamsRows.map((team) => team.name));
+
+        const allPicked = [
+            ...semifinalistsPick,
+            ...finalistsPick,
+            winner,
+            third_place_winner
+        ];
+
+        const invalidTeams = allPicked.filter((team) => !validTeams.has(team));
+
+        if (invalidTeams.length > 0) {
+            return res.status(400).json({
+                error: `Invalid teams: ${invalidTeams.join(', ')}`
+            });
+        }
+
+        const finalistsMustBeSemifinalists = finalistsPick.every((team) =>
+            semifinalistsPick.includes(team)
+        );
+
+        if (!finalistsMustBeSemifinalists) {
+            return res.status(400).json({
+                error: 'Finalists must be selected from semifinalists'
+            });
+        }
+
+        if (!finalistsPick.includes(winner)) {
+            return res.status(400).json({
+                error: 'Winner must be selected from finalists'
+            });
+        }
+
+        if (!semifinalistsPick.includes(third_place_winner)) {
+            return res.status(400).json({
+                error: 'Third place winner must be selected from semifinalists'
+            });
+        }
+
+        if (winner === third_place_winner) {
+            return res.status(400).json({
+                error: 'Winner and third place winner cannot be the same team'
+            });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO playoffs_predictions (
+                guild_id,
+                event_id,
+                user_id,
+                username,
+                displayname,
+                semifinalists,
+                finalists,
+                winner,
+                third_place_winner,
+                active,
+                submitted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE
+                username = VALUES(username),
+                displayname = VALUES(displayname),
+                semifinalists = VALUES(semifinalists),
+                finalists = VALUES(finalists),
+                winner = VALUES(winner),
+                third_place_winner = VALUES(third_place_winner),
+                active = 1,
+                submitted_at = CURRENT_TIMESTAMP
+            `,
+            [
+                event.guild_id,
+                event.id,
+                userId,
+                req.session.user?.username || userId,
+                req.session.user?.global_name || req.session.user?.username || userId,
+                semifinalistsPick.join(', '),
+                finalistsPick.join(', '),
+                winner,
+                third_place_winner
+            ]
+        );
+
+        res.json({
+            ok: true,
+            prediction: {
+                semifinalists: semifinalistsPick,
+                finalists: finalistsPick,
+                winner,
+                third_place_winner
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Playoffs PickEm save failed' });
+    }
+});
+
+app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id || null;
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [teams] = await pool.query(
+            `
+            SELECT id, name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY name ASC
+            `,
+            [event.guild_id]
+        );
+
+        let prediction = null;
+
+        if (userId) {
+            const [[row]] = await pool.query(
+                `
+                SELECT
+                    upper_final_a,
+                    lower_final_a,
+                    upper_final_b,
+                    lower_final_b
+                FROM doubleelim_predictions
+                WHERE event_id = ?
+                  AND user_id = ?
+                  AND active = 1
+                LIMIT 1
+                `,
+                [event.id, userId]
+            );
+
+            if (row) {
+                prediction = {
+                    upper_final_a: parseCsvPick(row.upper_final_a),
+                    lower_final_a: parseCsvPick(row.lower_final_a),
+                    upper_final_b: parseCsvPick(row.upper_final_b),
+                    lower_final_b: parseCsvPick(row.lower_final_b)
+                };
+            }
+        }
+
+        res.json({
+            event,
+            teams,
+            prediction
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Double Elim PickEm load failed'
+        });
+    }
+});
+
+app.post('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                error: 'Login required'
+            });
+        }
+
+        const { slug } = req.params;
+
+        const {
+            upper_final_a,
+            lower_final_a,
+            upper_final_b,
+            lower_final_b
+        } = req.body;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const ufa = Array.isArray(upper_final_a) ? upper_final_a : [];
+        const lfa = Array.isArray(lower_final_a) ? lower_final_a : [];
+        const ufb = Array.isArray(upper_final_b) ? upper_final_b : [];
+        const lfb = Array.isArray(lower_final_b) ? lower_final_b : [];
+
+        if (
+            ufa.length !== 2 ||
+            lfa.length !== 2 ||
+            ufb.length !== 2 ||
+            lfb.length !== 2
+        ) {
+            return res.status(400).json({
+                error: 'Each bracket must contain exactly 2 teams'
+            });
+        }
+
+        const [validTeamsRows] = await pool.query(
+            `
+            SELECT name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            `,
+            [event.guild_id]
+        );
+
+        const validTeams = new Set(
+            validTeamsRows.map((team) => team.name)
+        );
+
+        const allTeams = [
+            ...ufa,
+            ...lfa,
+            ...ufb,
+            ...lfb
+        ];
+
+        const invalidTeams = allTeams.filter(
+            (team) => !validTeams.has(team)
+        );
+
+        if (invalidTeams.length > 0) {
+            return res.status(400).json({
+                error: `Invalid teams: ${invalidTeams.join(', ')}`
+            });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO doubleelim_predictions (
+                guild_id,
+                event_id,
+                user_id,
+                username,
+                displayname,
+                upper_final_a,
+                lower_final_a,
+                upper_final_b,
+                lower_final_b,
+                active,
+                submitted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE
+                username = VALUES(username),
+                displayname = VALUES(displayname),
+                upper_final_a = VALUES(upper_final_a),
+                lower_final_a = VALUES(lower_final_a),
+                upper_final_b = VALUES(upper_final_b),
+                lower_final_b = VALUES(lower_final_b),
+                active = 1,
+                submitted_at = CURRENT_TIMESTAMP
+            `,
+            [
+                event.guild_id,
+                event.id,
+                userId,
+                req.session.user?.username || userId,
+                req.session.user?.global_name ||
+                req.session.user?.username ||
+                userId,
+                ufa.join(', '),
+                lfa.join(', '),
+                ufb.join(', '),
+                lfb.join(', ')
+            ]
+        );
+
+        res.json({
+            ok: true
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Double Elim PickEm save failed'
+        });
+    }
+});
+
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });

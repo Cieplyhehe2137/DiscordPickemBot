@@ -582,6 +582,13 @@ export default function PublicEventPage() {
                     </a>
 
                     <a
+                        href={`/public/event/${slug}/playoffs`}
+                        className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
+                    >
+                        Playoffs Pick&apos;Em
+                    </a>
+
+                    <a
                         href="https://discord.gg/TWOJ-LINK"
                         target="_blank"
                         rel="noreferrer"

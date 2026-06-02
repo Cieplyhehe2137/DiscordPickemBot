@@ -14,6 +14,8 @@ import PublicLeaderboardPage from './pages/PublicLeaderboardPage';
 import PublicSwissPickemPage from './pages/PublicSwissPickemPage';
 import PublicEventLeaderboardPage from './pages/PublicEventLeaderboardPage';
 import PublicPlayinPickemPage from './pages/PublicPlayinPickemPage';
+import PublicPlayoffsPickemPage from './pages/PublicPlayoffsPickemPage';
+import PublicDoubleElimPickemPage from './pages/PublicDoubleElimPickemPage';
 
 export default function App() {
   return (
@@ -24,6 +26,11 @@ export default function App() {
       <Route path="/public/leaderboard" element={<PublicLeaderboardPage />} />
       <Route path="/public/me/predictions" element={<PublicMyPredictionsPage />} />
       <Route path="/public/users/:userId" element={<PublicUserPage />} />
+      <Route
+        path="/public/event/:slug/doubleelim"
+        element={<PublicDoubleElimPickemPage />}
+      />
+      <Route path="/public/event/:slug/playoffs" element={<PublicPlayoffsPickemPage />} />
       <Route path="/public/event/:slug/playin" element={<PublicPlayinPickemPage />} />
       <Route path="/public/event/:slug/pickem/:stage" element={<PublicSwissPickemPage />} />
       <Route path="/public/event/:slug/leaderboard" element={<PublicEventLeaderboardPage />} />

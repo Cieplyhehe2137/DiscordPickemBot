@@ -180,3 +180,25 @@ export async function savePlayinPickem(slug, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function getPlayoffsPickem(slug) {
+  return apiFetch(`/public/events/${slug}/playoffs-pickem`);
+}
+
+export async function savePlayoffsPickem(slug, payload) {
+  return apiFetch(`/public/events/${slug}/playoffs-pickem`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function getDoubleElimPickem(slug) {
+  return apiFetch(`/public/events/${slug}/doubleelim-pickem`);
+}
+
+export async function saveDoubleElimPickem(slug, payload) {
+  return apiFetch(`/public/events/${slug}/doubleelim-pickem`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
