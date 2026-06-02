@@ -1,26 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
-const { logInfo, logError, logCommandStart, logCommandSuccess, logCommandError } = require("./utils/logger");
+
+const {
+  logInfo,
+  logError,
+  logCommandStart,
+  logCommandSuccess,
+  logCommandError
+} = require('./utils/logger');
+
 const envPath = process.env.ENV_FILE || '.env';
 const resolvedEnvPath = path.isAbsolute(envPath)
   ? envPath
   : path.join(process.cwd(), envPath);
 
 dotenv.config({ path: resolvedEnvPath });
-const { getAllGuildIds } = require('./utils/guildRegistry');
-const { startDeadlineReminder } = require('./handlers/deadlineReminder');
 
-process.on("unhandledRejection", (reason) => {
+process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
-  logError("UNHANDLED_REJECTION", err);
+  logError('UNHANDLED_REJECTION', err);
 });
 
-process.on("uncaughtException", (err) => {
-  logError("UNCAUGHT_EXCEPTION", err);
+process.on('uncaughtException', (err) => {
+  logError('UNCAUGHT_EXCEPTION', err);
 });
 
-// console.log('ENV_FILE:', resolvedEnvPath);
 if (!fs.existsSync(resolvedEnvPath)) {
   console.warn(`⚠️ ENV_FILE path nie istnieje: ${resolvedEnvPath}`);
 }
@@ -31,24 +36,8 @@ const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
 const { closeExpiredPanels } = require('./utils/closeExpiredPanels');
 
-function getGitCommit() {
-  try {
-    const headPath = path.join(process.cwd(), ".git", "HEAD");
-    const head = fs.readFileSync(headPath, "utf8").trim();
+let readyTimeout = null;
 
-    if (head.startsWith("ref:")) {
-      const ref = head.split(" ")[1].trim();
-      const refPath = path.join(process.cwd(), ".git", ref);
-      return fs.readFileSync(refPath, "utf8").trim();
-    }
-    return head;
-  } catch (e) {
-    return "no-git";
-  }
-}
-
-
-// 🔧 Konfiguracja klienta Discord
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -58,27 +47,19 @@ const client = new Client({
   ],
 });
 
-
-
-
 client.on('shardDisconnect', (event, id) => {
-  const code = event?.code ?? event?.closeCode ?? 'unknown';
-  const reason = event?.reason ?? event?.closeReason ?? 'unknown';
-  const clean = event?.wasClean ?? 'unknown';
-
-  logInfo("SHARD_DISCONNECT", {
+  logInfo('SHARD_DISCONNECT', {
     extra: {
       shardId: id,
-      code,
-      reason,
-      clean,
+      code: event?.code ?? event?.closeCode ?? 'unknown',
+      reason: event?.reason ?? event?.closeReason ?? 'unknown',
+      clean: event?.wasClean ?? 'unknown',
     },
   });
 });
 
-
-// 📦 Ładowanie komend
 client.commands = new Collection();
+
 fs.readdirSync(path.join(__dirname, 'commands'))
   .filter(file => file.endsWith('.js'))
   .forEach(file => {
@@ -86,33 +67,27 @@ fs.readdirSync(path.join(__dirname, 'commands'))
     client.commands.set(command.data.name, command);
   });
 
-// 📥 Mapy interakcji
 const maps = {
   buttonMap: require('./maps/buttonMap'),
   selectMap: require('./maps/selectMap'),
   dropdownMap: require('./maps/dropdownMap'),
-  modalMap: require('./maps/modalMap')
+  modalMap: require('./maps/modalMap'),
 };
 
-// 🚀 Eventy (diag)
-client.on("error", (e) => {
-  logError("DISCORD_CLIENT_ERROR", e);
-  console.error("💥 client error:", e);
+client.on('error', (e) => {
+  logError('DISCORD_CLIENT_ERROR', e);
+  console.error('💥 client error:', e);
 });
 
-client.on("warn", (w) => {
-  logInfo("DISCORD_CLIENT_WARN", {
-    extra: w,
-  });
-
-  console.warn("⚠️ client warn:", w);
+client.on('warn', (w) => {
+  logInfo('DISCORD_CLIENT_WARN', { extra: w });
+  console.warn('⚠️ client warn:', w);
 });
 
-// Zabezpieczenie: wyraźny log READY + presence, a dopiero potem bezpiecznie onReady()
-const startPresence = require('./utils/startPresence');
+client.once('ready', async () => {
+  if (readyTimeout) clearTimeout(readyTimeout);
 
-client.once("ready", async () => {
-  logInfo("BOT_READY", {
+  logInfo('BOT_READY', {
     extra: {
       botTag: client.user.tag,
       botId: client.user.id,
@@ -130,15 +105,14 @@ client.once("ready", async () => {
   try {
     await onReady(client);
   } catch (err) {
-    logError("ON_READY_FAILED", err);
-    console.error("❌ onReady failed:", err);
+    logError('ON_READY_FAILED', err);
+    console.error('❌ onReady failed:', err);
   }
 });
 
-
 const handlers = loadHandlers('handlers');
 
-client.on("interactionCreate", async (interaction) => {
+client.on('interactionCreate', async (interaction) => {
   try {
     logCommandStart(interaction);
 
@@ -147,56 +121,38 @@ client.on("interactionCreate", async (interaction) => {
     logCommandSuccess(interaction);
   } catch (e) {
     logCommandError(interaction, e);
-
-    console.error("❌ interactionCreate error:", e);
+    console.error('❌ interactionCreate error:', e);
   }
 });
 
-// 🔑 Start z twardą diagnostyką
+// 🔑 Start z diagnostyką
 const rawToken = process.env.DISCORD_TOKEN;
 const TOKEN = (rawToken || '').trim();
+
+console.log('[BOOT] ENV_FILE:', resolvedEnvPath);
+console.log('[BOOT] token exists:', Boolean(TOKEN));
+console.log('[BOOT] token length:', TOKEN.length);
 
 if (!TOKEN) {
   console.error('❌ Brak DISCORD_TOKEN w ENV!');
 } else {
-  // console.log('🔎 DISCORD_TOKEN length =', TOKEN.length);
-  if (/\s/.test(rawToken)) {
-    console.warn('⚠️ Uwaga: w oryginalnym DISCORD_TOKEN wykryto znak białej spacji — .trim() to usuwa, ale usuń ją też z ENV.');
+  if (/\s/.test(rawToken || '')) {
+    console.warn('⚠️ DISCORD_TOKEN ma spację/enter w ENV.');
   }
 
-  // watchdog: jeśli READY nie przyjdzie w 25s, zgłoś
-  // 🔑 Start z twardą diagnostyką
-  const rawToken = process.env.DISCORD_TOKEN;
-  const TOKEN = (rawToken || '').trim();
+  readyTimeout = setTimeout(() => {
+    console.error('❌ READY nie przyszedł po 25s. Bot nie zalogował się do Discorda.');
+  }, 25000);
 
-  console.log('[BOOT] ENV_FILE:', resolvedEnvPath);
-  console.log('[BOOT] token exists:', Boolean(TOKEN));
-  console.log('[BOOT] token length:', TOKEN.length);
+  console.log('[BOOT] logging into Discord...');
 
-  if (!TOKEN) {
-    console.error('❌ Brak DISCORD_TOKEN w ENV!');
-  } else {
-    if (/\s/.test(rawToken)) {
-      console.warn('⚠️ DISCORD_TOKEN ma spację/enter w ENV.');
-    }
-
-    const readyTimeout = setTimeout(() => {
-      console.error('❌ READY nie przyszedł po 25s. Bot nie zalogował się do Discorda.');
-    }, 25000);
-
-    console.log('[BOOT] logging into Discord...');
-
-    client.login(TOKEN)
-      .then(() => {
-        console.log('[BOOT] client.login resolved');
-      })
-      .catch((e) => {
-        clearTimeout(readyTimeout);
-        logError("CLIENT_LOGIN_ERROR", e);
-        console.error('❌ client.login error:', e);
-      });
-  }
-
+  client.login(TOKEN)
+    .then(() => {
+      console.log('[BOOT] client.login resolved');
+    })
+    .catch((e) => {
+      if (readyTimeout) clearTimeout(readyTimeout);
+      logError('CLIENT_LOGIN_ERROR', e);
+      console.error('❌ client.login error:', e);
+    });
 }
-
-
