@@ -2534,6 +2534,184 @@ app.get('/api/public/events/:slug/match-stats', async (req, res) => {
     }
 });
 
+app.get('/api/public/events/:slug/playin-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id || null;
+        const { slug } = req.params;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const [teams] = await pool.query(
+            `
+            SELECT id, name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            ORDER BY name ASC
+            `,
+            [event.guild_id]
+        );
+
+        let prediction = null;
+
+        if (userId) {
+            const [[row]] = await pool.query(
+                `
+                SELECT teams
+                FROM playin_predictions
+                WHERE event_id = ?
+                  AND user_id = ?
+                  AND active = 1
+                LIMIT 1
+                `,
+                [event.id, userId]
+            );
+
+            if (row) {
+                prediction = {
+                    teams: parseCsvPick(row.teams)
+                };
+            }
+        }
+
+        res.json({
+            event,
+            teams,
+            prediction
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Play-In PickEm load failed'
+        });
+    }
+});
+
+app.post('/api/public/events/:slug/playin-pickem', async (req, res) => {
+    try {
+        const userId = req.session?.user?.id;
+
+        if (!userId) {
+            return res.status(401).json({
+                error: 'Login required'
+            });
+        }
+
+        const { slug } = req.params;
+        const { teams } = req.body;
+
+        const [[event]] = await pool.query(
+            `
+            SELECT id, guild_id, name, slug, status
+            FROM events
+            WHERE slug = ?
+            LIMIT 1
+            `,
+            [slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({
+                error: 'Event not found'
+            });
+        }
+
+        const selectedTeams = Array.isArray(teams) ? teams : [];
+
+        if (selectedTeams.length !== 8) {
+            return res.status(400).json({
+                error: 'Pick exactly 8 Play-In teams'
+            });
+        }
+
+        if (new Set(selectedTeams).size !== selectedTeams.length) {
+            return res.status(400).json({
+                error: 'Team can only be selected once'
+            });
+        }
+
+        const [validTeamsRows] = await pool.query(
+            `
+            SELECT name
+            FROM teams
+            WHERE guild_id = ?
+              AND active = 1
+            `,
+            [event.guild_id]
+        );
+
+        const validTeams = new Set(validTeamsRows.map((team) => team.name));
+
+        const invalidTeams = selectedTeams.filter(
+            (team) => !validTeams.has(team)
+        );
+
+        if (invalidTeams.length > 0) {
+            return res.status(400).json({
+                error: `Invalid teams: ${invalidTeams.join(', ')}`
+            });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO playin_predictions (
+                guild_id,
+                event_id,
+                user_id,
+                username,
+                displayname,
+                teams,
+                active,
+                submitted_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+            ON DUPLICATE KEY UPDATE
+                username = VALUES(username),
+                displayname = VALUES(displayname),
+                teams = VALUES(teams),
+                active = 1,
+                submitted_at = CURRENT_TIMESTAMP
+            `,
+            [
+                event.guild_id,
+                event.id,
+                userId,
+                req.session.user?.username || userId,
+                req.session.user?.global_name || req.session.user?.username || userId,
+                selectedTeams.join(', ')
+            ]
+        );
+
+        res.json({
+            ok: true,
+            prediction: {
+                teams: selectedTeams
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Play-In PickEm save failed'
+        });
+    }
+});
+
 httpServer.listen(3301, () => {
     console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
 });

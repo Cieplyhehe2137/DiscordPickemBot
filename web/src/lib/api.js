@@ -169,3 +169,14 @@ export async function getSwissStats(slug, stage) {
 export async function getPublicEventMatchStats(slug) {
   return apiFetch(`/public/events/${slug}/match-stats`);
 }
+
+export async function getPlayinPickem(slug) {
+  return apiFetch(`/public/events/${slug}/playin-pickem`);
+}
+
+export async function savePlayinPickem(slug, payload) {
+  return apiFetch(`/public/events/${slug}/playin-pickem`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}

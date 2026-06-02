@@ -1,13 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import EventDashboard from './pages/EventDashboard';
 import GuildSelect from './pages/GuildSelect';
 import GuildDashboard from './pages/GuildDashboard';
-
 import AppLayout from './components/layout/AppLayout';
-
 import PublicServersPage from './pages/PublicServersPage';
 import PublicGuildPage from './pages/PublicGuildPage';
 import PublicUserPage from './pages/PublicUserPage';
@@ -16,6 +13,7 @@ import PublicMyPredictionsPage from './pages/PublicMyPredictionsPage';
 import PublicLeaderboardPage from './pages/PublicLeaderboardPage';
 import PublicSwissPickemPage from './pages/PublicSwissPickemPage';
 import PublicEventLeaderboardPage from './pages/PublicEventLeaderboardPage';
+import PublicPlayinPickemPage from './pages/PublicPlayinPickemPage';
 
 export default function App() {
   return (
@@ -26,7 +24,7 @@ export default function App() {
       <Route path="/public/leaderboard" element={<PublicLeaderboardPage />} />
       <Route path="/public/me/predictions" element={<PublicMyPredictionsPage />} />
       <Route path="/public/users/:userId" element={<PublicUserPage />} />
-
+      <Route path="/public/event/:slug/playin" element={<PublicPlayinPickemPage />} />
       <Route path="/public/event/:slug/pickem/:stage" element={<PublicSwissPickemPage />} />
       <Route path="/public/event/:slug/leaderboard" element={<PublicEventLeaderboardPage />} />
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
