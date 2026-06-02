@@ -355,8 +355,7 @@ module.exports = {
               mr.res_a AS result_a,
               mr.res_b AS result_b,
               mr.exact_a AS result_exact_a,
-              mr.exact_b AS result_exact_b,
-              pts.points AS earned_points
+              mr.exact_b AS result_exact_b
             FROM match_predictions mp
             INNER JOIN matches m
               ON m.id = mp.match_id
@@ -366,11 +365,6 @@ module.exports = {
               ON mr.match_id = mp.match_id
              AND mr.guild_id = mp.guild_id
              AND mr.event_id = mp.event_id
-            LEFT JOIN match_points pts
-              ON pts.match_id = mp.match_id
-             AND pts.guild_id = mp.guild_id
-             AND pts.event_id = mp.event_id
-             AND pts.user_id = mp.user_id
             WHERE mp.guild_id = ?
               AND mp.user_id = ?
             ORDER BY mp.updated_at DESC, mp.match_id DESC
@@ -409,19 +403,13 @@ module.exports = {
                 ? `${r.result_exact_a}:${r.result_exact_b}`
                 : 'nierozliczone';
 
-            const points =
-              r.earned_points != null
-                ? `${r.earned_points} pkt`
-                : '0 pkt';
-
             embed.addFields({
               name: `${teamA} vs ${teamB}`,
               value:
                 `**Twój zwycięzca:** ${pickedWinner}\n` +
                 `**Twój wynik:** ${predictedScore}\n` +
                 `**Zwycięzca meczu:** ${officialWinner}\n` +
-                `**Oficjalny wynik:** ${officialResult}\n` +
-                `**Punkty:** ${points}`,
+                `**Oficjalny wynik:** ${officialResult}`,
             });
           }
 
