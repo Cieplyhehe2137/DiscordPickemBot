@@ -277,10 +277,6 @@ module.exports = {
           .setColor(0x3b82f6)
           .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
 
-        /* =========================
-           SWISS
-        ========================= */
-
         if (phaseToShow.startsWith('swiss')) {
           const aliases = getSwissStageAliases(phaseToShow);
 
@@ -322,10 +318,6 @@ module.exports = {
           return interaction.editReply({ embeds: [embed] });
         }
 
-        /* =========================
-           PLAYOFFS
-        ========================= */
-
         if (phaseToShow === 'playoffs') {
           const [rows] = await pool.query(
             `
@@ -356,10 +348,6 @@ module.exports = {
 
           return interaction.editReply({ embeds: [embed] });
         }
-
-        /* =========================
-           DOUBLE ELIM
-        ========================= */
 
         if (phaseToShow === 'double_elim') {
           const [rows] = await pool.query(
@@ -392,10 +380,6 @@ module.exports = {
           return interaction.editReply({ embeds: [embed] });
         }
 
-        /* =========================
-           PLAY-IN
-        ========================= */
-
         if (phaseToShow === 'playin') {
           const [rows] = await pool.query(
             `
@@ -422,10 +406,6 @@ module.exports = {
 
           return interaction.editReply({ embeds: [embed] });
         }
-
-        /* =========================
-           MATCHES / SERIES
-        ========================= */
 
         if (phaseToShow === 'matches') {
           const [rows] = await pool.query(
@@ -493,18 +473,24 @@ module.exports = {
           });
 
           collector.on('collect', async i => {
-            if (i.customId === `moje_typy_matches_prev_${userId}`) {
-              page = Math.max(0, page - 1);
-            }
+            try {
+              if (i.customId === `moje_typy_matches_prev_${userId}`) {
+                page = Math.max(0, page - 1);
+              }
 
-            if (i.customId === `moje_typy_matches_next_${userId}`) {
-              page = Math.min(totalPages - 1, page + 1);
-            }
+              if (i.customId === `moje_typy_matches_next_${userId}`) {
+                page = Math.min(totalPages - 1, page + 1);
+              }
 
-            await i.update({
-              embeds: [createMatchesEmbed(rows, page, pageSize)],
-              components: [createMatchesButtons(userId, page, totalPages)],
-            });
+              await i.deferUpdate();
+
+              await interaction.editReply({
+                embeds: [createMatchesEmbed(rows, page, pageSize)],
+                components: [createMatchesButtons(userId, page, totalPages)],
+              });
+            } catch (err) {
+              console.error('[moje_typy] pagination button error', err);
+            }
           });
 
           collector.on('end', async () => {
