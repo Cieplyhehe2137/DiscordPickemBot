@@ -171,9 +171,10 @@ if (!TOKEN) {
   }
 
   readyTimeout = setTimeout(() => {
-    console.error('❌ READY nie przyszedł po 25s. Bot nie zalogował się do Discorda.');
+    console.error('❌ READY nie przyszedł po 25s. Restartuję proces...');
     console.error('[BOOT] client ws status:', client.ws.status);
     console.error('[BOOT] ping:', client.ws.ping);
+    process.exit(1);
   }, 25000);
 
   console.log('[BOOT] logging into Discord...');
