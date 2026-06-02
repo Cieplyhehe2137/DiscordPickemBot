@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
+console.log('NODE VERSION:', process.version);
+
 const {
   logInfo,
   logError,
@@ -20,10 +22,12 @@ dotenv.config({ path: resolvedEnvPath });
 process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
   logError('UNHANDLED_REJECTION', err);
+  console.error('[UNHANDLED_REJECTION]', err);
 });
 
 process.on('uncaughtException', (err) => {
   logError('UNCAUGHT_EXCEPTION', err);
+  console.error('[UNCAUGHT_EXCEPTION]', err);
 });
 
 if (!fs.existsSync(resolvedEnvPath)) {
@@ -31,6 +35,9 @@ if (!fs.existsSync(resolvedEnvPath)) {
 }
 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+
+console.log('DISCORD.JS VERSION:', require('discord.js').version);
+
 const { loadHandlers } = require('./loader');
 const handleInteraction = require('./interactionRouter');
 const onReady = require('./onReady');
@@ -47,7 +54,30 @@ const client = new Client({
   ],
 });
 
+client.on('debug', (msg) => {
+  console.log('[DEBUG]', msg);
+});
+
+client.on('shardError', (err, shardId) => {
+  console.error('[SHARD ERROR]', shardId, err);
+});
+
+client.on('shardReady', (id) => {
+  console.log('[SHARD READY]', id);
+});
+
+client.on('shardResume', (id) => {
+  console.log('[SHARD RESUME]', id);
+});
+
 client.on('shardDisconnect', (event, id) => {
+  console.log('[SHARD DISCONNECT]', {
+    shardId: id,
+    code: event?.code ?? event?.closeCode ?? 'unknown',
+    reason: event?.reason ?? event?.closeReason ?? 'unknown',
+    clean: event?.wasClean ?? 'unknown',
+  });
+
   logInfo('SHARD_DISCONNECT', {
     extra: {
       shardId: id,
@@ -142,6 +172,8 @@ if (!TOKEN) {
 
   readyTimeout = setTimeout(() => {
     console.error('❌ READY nie przyszedł po 25s. Bot nie zalogował się do Discorda.');
+    console.error('[BOOT] client ws status:', client.ws.status);
+    console.error('[BOOT] ping:', client.ws.ping);
   }, 25000);
 
   console.log('[BOOT] logging into Discord...');
