@@ -68,7 +68,7 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
     const stage = extractStage(interaction.customId);
 
     if (!stage) {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
       return;
     }
 
@@ -76,19 +76,19 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
     const local = getCache(key) || { add3: [], add0: [], addA: [] };
 
     if (interaction.customId.startsWith('official_admin_swiss_3_0')) {
-      local.add3 = interaction.values || [];
+      local.add3 = normalize([...local.add3, ...(interaction.values || [])]);
     } else if (interaction.customId.startsWith('official_admin_swiss_0_3')) {
-      local.add0 = interaction.values || [];
+      local.add0 = normalize([...local.add0, ...(interaction.values || [])]);
     } else if (interaction.customId.startsWith('official_admin_swiss_advancing')) {
-      local.addA = interaction.values || [];
+      local.addA = normalize([...local.addA, ...(interaction.values || [])]);
     } else {
-      await interaction.deferUpdate().catch(() => {});
+      await interaction.deferUpdate().catch(() => { });
       return;
     }
 
     setCache(key, local);
 
-    await interaction.deferUpdate().catch(() => {});
+    await interaction.deferUpdate().catch(() => { });
     return;
   }
 
