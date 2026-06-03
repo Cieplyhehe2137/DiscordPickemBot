@@ -1099,44 +1099,93 @@ module.exports = async function exportClassification(arg) {
       try {
         const [rows] = await pool.query(
           `
-    SELECT
-      m.phase,
-      m.match_no,
-      m.id AS match_id,
-      m.team_a,
-      m.team_b,
-      m.best_of,
-      p.user_id,
-      1 AS map_no,
-      CASE
-        WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-          THEN CONCAT(r.exact_a, ':', r.exact_b)
-        ELSE '—'
-      END AS off_score,
-      CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
-    FROM match_predictions p
-    JOIN matches m
-      ON m.id = p.match_id
-     AND m.guild_id = p.guild_id
-    LEFT JOIN match_results r
-      ON r.match_id = p.match_id
-     AND r.guild_id = p.guild_id
-    WHERE p.guild_id = ?
-      AND p.pred_exact_a IS NOT NULL
-      AND p.pred_exact_b IS NOT NULL
+    SELECT *
+    FROM (
+      /* BO1 - typ wyniku mapy siedzi w match_predictions */
+      SELECT
+        m.phase,
+        m.match_no,
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        p.user_id,
+        1 AS map_no,
+        CASE
+          WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
+            THEN CONCAT(r.exact_a, ':', r.exact_b)
+          ELSE '—'
+        END AS off_score,
+        CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
+      FROM match_predictions p
+      JOIN matches m
+        ON m.id = p.match_id
+       AND m.guild_id = p.guild_id
+       AND m.event_id = p.event_id
+      LEFT JOIN match_results r
+        ON r.match_id = p.match_id
+       AND r.guild_id = p.guild_id
+       AND r.event_id = p.event_id
+      WHERE p.guild_id = ?
+        AND p.event_id = ?
+        AND m.best_of = 1
+        AND p.pred_exact_a IS NOT NULL
+        AND p.pred_exact_b IS NOT NULL
+
+      UNION ALL
+
+      /* BO3 / BO5 - typy map siedzą w match_map_predictions */
+      SELECT
+        m.phase,
+        m.match_no,
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        p.user_id,
+        p.map_no,
+        CASE
+          WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
+            THEN CONCAT(r.exact_a, ':', r.exact_b)
+          ELSE '—'
+        END AS off_score,
+        CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
+      FROM match_map_predictions p
+      JOIN matches m
+        ON m.id = p.match_id
+       AND m.guild_id = p.guild_id
+       AND m.event_id = p.event_id
+      LEFT JOIN match_map_results r
+        ON r.match_id = p.match_id
+       AND r.guild_id = p.guild_id
+       AND r.event_id = p.event_id
+       AND r.map_no = p.map_no
+      WHERE p.guild_id = ?
+        AND p.event_id = ?
+        AND m.best_of IN (3, 5)
+        AND p.pred_exact_a IS NOT NULL
+        AND p.pred_exact_b IS NOT NULL
+    ) x
     ORDER BY
-      m.phase,
-      COALESCE(m.match_no, 999999),
-      m.id,
-      p.user_id
+      x.phase,
+      COALESCE(x.match_no, 999999),
+      x.match_id,
+      x.user_id,
+      x.map_no
     `,
-          [guildId]
+          [
+            guildId,
+            eventId,
+            guildId,
+            eventId
+          ]
         );
 
         mapRows = rows;
       } catch (e) {
         logWarn('EXPORT_MAPS_SKIPPED', {
           guildId,
+          eventId,
           message: e.message
         });
       }
