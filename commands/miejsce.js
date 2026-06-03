@@ -63,8 +63,6 @@ module.exports = {
     SELECT user_id FROM playin_scores WHERE guild_id = ?
     UNION
     SELECT user_id FROM match_points WHERE guild_id = ?
-    UNION
-    SELECT user_id FROM match_map_points WHERE guild_id = ?
   ) u
 
   LEFT JOIN (
@@ -112,19 +110,19 @@ module.exports = {
   LEFT JOIN (
     SELECT user_id, SUM(points) AS points
     FROM match_points
-    WHERE guild_id = ?
+    WHERE guild_id = ? AND source = 'series'
     GROUP BY user_id
   ) mp ON mp.user_id = u.user_id
 
   LEFT JOIN (
     SELECT user_id, SUM(points) AS points
-    FROM match_map_points
-    WHERE guild_id = ?
+    FROM match_points
+    WHERE guild_id = ? AND source = 'map'
     GROUP BY user_id
   ) maps ON maps.user_id = u.user_id
   `,
           [
-            guildId, guildId, guildId, guildId, guildId, guildId,
+            guildId, guildId, guildId, guildId, guildId,
             guildId, guildId, guildId,
             guildId, guildId, guildId,
             guildId, guildId
@@ -154,7 +152,9 @@ module.exports = {
             `• Swiss 3: **${me.swiss3}**\n` +
             `• Playoffs: **${me.playoffs}**\n` +
             `• Double Elim: **${me.doubleelim}**\n` +
-            `• Play-In: **${me.playin}**`
+            `• Play-In: **${me.playin}**\n` +
+            `• Mecze: **${me.matches}**\n` +
+            `• Mapy: **${me.maps}**`
           );
         }
 
