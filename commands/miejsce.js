@@ -30,81 +30,104 @@ module.exports = {
 
         const [rows] = await pool.query(
           `
-          SELECT
-            u.user_id,
+  SELECT
+    u.user_id,
 
-            COALESCE(s1.points, 0) AS swiss1,
-            COALESCE(s2.points, 0) AS swiss2,
-            COALESCE(s3.points, 0) AS swiss3,
-            COALESCE(p.points, 0)  AS playoffs,
-            COALESCE(d.points, 0)  AS doubleelim,
-            COALESCE(pl.points, 0) AS playin,
+    COALESCE(s1.points, 0) AS swiss1,
+    COALESCE(s2.points, 0) AS swiss2,
+    COALESCE(s3.points, 0) AS swiss3,
+    COALESCE(p.points, 0)  AS playoffs,
+    COALESCE(d.points, 0)  AS doubleelim,
+    COALESCE(pl.points, 0) AS playin,
+    COALESCE(mp.points, 0) AS matches,
+    COALESCE(maps.points, 0) AS maps,
 
-            (
-              COALESCE(s1.points, 0) +
-              COALESCE(s2.points, 0) +
-              COALESCE(s3.points, 0) +
-              COALESCE(p.points, 0)  +
-              COALESCE(d.points, 0)  +
-              COALESCE(pl.points, 0)
-            ) AS total
+    (
+      COALESCE(s1.points, 0) +
+      COALESCE(s2.points, 0) +
+      COALESCE(s3.points, 0) +
+      COALESCE(p.points, 0)  +
+      COALESCE(d.points, 0)  +
+      COALESCE(pl.points, 0) +
+      COALESCE(mp.points, 0) +
+      COALESCE(maps.points, 0)
+    ) AS total
 
-          FROM (
-            SELECT user_id FROM swiss_scores WHERE guild_id = ?
-            UNION
-            SELECT user_id FROM playoffs_scores WHERE guild_id = ?
-            UNION
-            SELECT user_id FROM doubleelim_scores WHERE guild_id = ?
-            UNION
-            SELECT user_id FROM playin_scores WHERE guild_id = ?
-          ) u
+  FROM (
+    SELECT user_id FROM swiss_scores WHERE guild_id = ?
+    UNION
+    SELECT user_id FROM playoffs_scores WHERE guild_id = ?
+    UNION
+    SELECT user_id FROM doubleelim_scores WHERE guild_id = ?
+    UNION
+    SELECT user_id FROM playin_scores WHERE guild_id = ?
+    UNION
+    SELECT user_id FROM match_points WHERE guild_id = ?
+    UNION
+    SELECT user_id FROM match_map_points WHERE guild_id = ?
+  ) u
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM swiss_scores
-            WHERE guild_id = ? AND stage = 'stage1'
-            GROUP BY user_id
-          ) s1 ON s1.user_id = u.user_id
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM swiss_scores
+    WHERE guild_id = ? AND stage = 'stage1'
+    GROUP BY user_id
+  ) s1 ON s1.user_id = u.user_id
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM swiss_scores
-            WHERE guild_id = ? AND stage = 'stage2'
-            GROUP BY user_id
-          ) s2 ON s2.user_id = u.user_id
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM swiss_scores
+    WHERE guild_id = ? AND stage = 'stage2'
+    GROUP BY user_id
+  ) s2 ON s2.user_id = u.user_id
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM swiss_scores
-            WHERE guild_id = ? AND stage = 'stage3'
-            GROUP BY user_id
-          ) s3 ON s3.user_id = u.user_id
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM swiss_scores
+    WHERE guild_id = ? AND stage = 'stage3'
+    GROUP BY user_id
+  ) s3 ON s3.user_id = u.user_id
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM playoffs_scores
-            WHERE guild_id = ?
-            GROUP BY user_id
-          ) p ON p.user_id = u.user_id
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM playoffs_scores
+    WHERE guild_id = ?
+    GROUP BY user_id
+  ) p ON p.user_id = u.user_id
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM doubleelim_scores
-            WHERE guild_id = ?
-            GROUP BY user_id
-          ) d ON d.user_id = u.user_id
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM doubleelim_scores
+    WHERE guild_id = ?
+    GROUP BY user_id
+  ) d ON d.user_id = u.user_id
 
-          LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM playin_scores
-            WHERE guild_id = ?
-            GROUP BY user_id
-          ) pl ON pl.user_id = u.user_id
-          `,
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM playin_scores
+    WHERE guild_id = ?
+    GROUP BY user_id
+  ) pl ON pl.user_id = u.user_id
+
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM match_points
+    WHERE guild_id = ?
+    GROUP BY user_id
+  ) mp ON mp.user_id = u.user_id
+
+  LEFT JOIN (
+    SELECT user_id, SUM(points) AS points
+    FROM match_map_points
+    WHERE guild_id = ?
+    GROUP BY user_id
+  ) maps ON maps.user_id = u.user_id
+  `,
           [
-            guildId, guildId, guildId, guildId,
+            guildId, guildId, guildId, guildId, guildId, guildId,
             guildId, guildId, guildId,
-            guildId, guildId, guildId
+            guildId, guildId, guildId,
+            guildId, guildId
           ]
         );
 
