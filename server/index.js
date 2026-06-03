@@ -2555,6 +2555,11 @@ app.get('/api/public/events/:slug/playin-pickem', async (req, res) => {
             });
         }
 
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'PLAYIN'
+        });
+
         const [teams] = await pool.query(
             `
             SELECT id, name
@@ -2591,7 +2596,11 @@ app.get('/api/public/events/:slug/playin-pickem', async (req, res) => {
         res.json({
             event,
             teams,
-            prediction
+            prediction,
+            lock: {
+                allowed: gate.allowed,
+                message: gate.message || null
+            }
         });
     } catch (err) {
         console.error(err);
@@ -2742,6 +2751,11 @@ app.get('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'PLAYOFFS'
+        });
+
         const [teams] = await pool.query(
             `
             SELECT id, name
@@ -2781,7 +2795,11 @@ app.get('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
         res.json({
             event,
             teams,
-            prediction
+            prediction,
+            lock: {
+                allowed: gate.allowed,
+                message: gate.message || null
+            }
         });
     } catch (err) {
         console.error(err);
@@ -2979,6 +2997,11 @@ app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
             });
         }
 
+        const gate = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: 'PLAYIN'
+        });
+
         const [teams] = await pool.query(
             `
             SELECT id, name
@@ -3022,7 +3045,11 @@ app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
         res.json({
             event,
             teams,
-            prediction
+            prediction,
+            lock : {
+                allowed: gate.allowed,
+                message: gate.message || null
+            }
         });
     } catch (err) {
         console.error(err);
