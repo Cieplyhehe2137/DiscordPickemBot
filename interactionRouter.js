@@ -6,7 +6,7 @@ async function safeDeferUpdate(interaction) {
   if (interaction.replied || interaction.deferred) return;
   try {
     await interaction.deferUpdate();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 function resolveHandler(handlers, handlerName) {
@@ -91,6 +91,15 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         const handler = require('./handlers/rankingPagination');
         return handler(interaction, client);
       }
+
+      if (customId.startsWith('match_admin_page:')) {
+        const handler = require('./handlers/matchAdminPhaseSelect');
+        return handler(interaction, client);
+      }
+
+      if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
+      if (customId === 'full_reset') customId = 'clear_db_with_results';
+      if (customId === 'clear_official_results') customId = 'clear_only_results_confirm';
 
       if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
       if (customId === 'full_reset') customId = 'clear_db_with_results';
@@ -297,7 +306,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
           content: '❌ Wystąpił błąd podczas obsługi interakcji.',
           ephemeral: true,
         });
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 }
