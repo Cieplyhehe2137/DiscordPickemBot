@@ -1,6 +1,6 @@
 const { logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
-const { buildSwissComponents, getCurrentSwiss } = require('./openSwissResultsDropdown');
+const { buildSwissComponents } = require('./openSwissResultsDropdown');
 
 const CACHE_TTL = 15 * 60 * 1000;
 const cache = new Map();
@@ -47,6 +47,38 @@ function normalize(arr = []) {
   );
 }
 
+function parseList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return normalize(value);
+
+  return normalize(
+    String(value)
+      .split(',')
+      .map(v => v.trim())
+  );
+}
+
+async function loadCurrentSwissDirect(pool, guildId, stage) {
+  const [[row]] = await pool.query(
+    `
+    SELECT correct_3_0, correct_0_3, correct_advancing
+    FROM swiss_results
+    WHERE guild_id = ?
+      AND stage = ?
+      AND active = 1
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [guildId, stage]
+  );
+
+  return {
+    x3_0: parseList(row?.correct_3_0),
+    x0_3: parseList(row?.correct_0_3),
+    adv: parseList(row?.correct_advancing)
+  };
+}
+
 function mergeWithCap(base = [], add = [], cap) {
   const merged = normalize([...base, ...add]);
 
@@ -68,7 +100,7 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
     const stage = extractStage(interaction.customId);
 
     if (!stage) {
-      await interaction.deferUpdate().catch(() => { });
+      await interaction.deferUpdate().catch(() => {});
       return;
     }
 
@@ -76,19 +108,16 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
     const local = getCache(key) || { add3: [], add0: [], addA: [] };
 
     if (interaction.customId.startsWith('official_admin_swiss_3_0')) {
-      local.add3 = normalize([...local.add3, ...(interaction.values || [])]);
+      local.add3 = normalize(interaction.values || []);
     } else if (interaction.customId.startsWith('official_admin_swiss_0_3')) {
-      local.add0 = normalize([...local.add0, ...(interaction.values || [])]);
+      local.add0 = normalize(interaction.values || []);
     } else if (interaction.customId.startsWith('official_admin_swiss_advancing')) {
-      local.addA = normalize([...local.addA, ...(interaction.values || [])]);
-    } else {
-      await interaction.deferUpdate().catch(() => { });
-      return;
+      local.addA = normalize(interaction.values || []);
     }
 
     setCache(key, local);
 
-    await interaction.deferUpdate().catch(() => { });
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
@@ -120,7 +149,8 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
 
   await withGuild(interaction, async ({ pool }) => {
     const teams = await loadTeamsFromDB(pool, guildId);
-    const current = await getCurrentSwiss(pool, guildId, stage);
+
+    const current = await loadCurrentSwissDirect(pool, guildId, stage);
 
     const m3 = mergeWithCap(current.x3_0, sel.add3, 2);
     if (!m3.ok) {
