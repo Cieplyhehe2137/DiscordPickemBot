@@ -111,7 +111,7 @@ function formatOfficialResult(row) {
   return 'nierozliczone';
 }
 
-function createMatchesEmbed(rows, page, pageSize) {
+function createMatchesEmbed(rows, page, pageSize, eventId) {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(Math.max(page, 0), totalPages - 1);
   const start = safePage * pageSize;
@@ -121,6 +121,7 @@ function createMatchesEmbed(rows, page, pageSize) {
     .setTitle('Twoje typy — Mecze')
     .setColor(0x3b82f6)
     .setDescription(
+      `Event ID: **${eventId}**\n` +
       `Pokazuję **${start + 1}-${start + pageRows.length}** z **${rows.length}** zapisanych typów meczowych.\n` +
       `Strona **${safePage + 1}/${totalPages}**.`
     )
@@ -134,9 +135,9 @@ function createMatchesEmbed(rows, page, pageSize) {
       name: `#${r.match_id} • ${teamA} vs ${teamB}`,
       value:
         `**Twój zwycięzca:** ${getPickedWinner(r)}\n` +
-        `**Twój wynik:** ${formatPredictedScore(r)}\n` +
+        `**Twój wynik serii:** ${formatPredictedScore(r)}\n` +
         `**Zwycięzca meczu:** ${getOfficialWinner(r)}\n` +
-        `**Oficjalny wynik:** ${formatOfficialResult(r)}`,
+        `**Oficjalny wynik serii:** ${formatOfficialResult(r)}`,
     });
   }
 
@@ -159,6 +160,135 @@ function createMatchesButtons(userId, page, totalPages) {
   );
 }
 
+async function safeEditReply(interaction, payload) {
+  try {
+    return await interaction.editReply(payload);
+  } catch (_) {
+    return null;
+  }
+}
+
+async function resolveLatestUserPhase(pool, guildId, userId) {
+  const [last] = await pool.query(
+    `
+    SELECT phase, stage, event_id
+    FROM (
+      SELECT 'swiss' AS phase, stage, event_id, submitted_at
+      FROM swiss_predictions
+      WHERE guild_id = ? AND user_id = ?
+
+      UNION ALL
+
+      SELECT 'playoffs' AS phase, NULL AS stage, event_id, submitted_at
+      FROM playoffs_predictions
+      WHERE guild_id = ? AND user_id = ?
+
+      UNION ALL
+
+      SELECT 'double_elim' AS phase, NULL AS stage, event_id, submitted_at
+      FROM doubleelim_predictions
+      WHERE guild_id = ? AND user_id = ?
+
+      UNION ALL
+
+      SELECT 'playin' AS phase, NULL AS stage, event_id, submitted_at
+      FROM playin_predictions
+      WHERE guild_id = ? AND user_id = ?
+
+      UNION ALL
+
+      SELECT 'matches' AS phase, NULL AS stage, event_id, updated_at AS submitted_at
+      FROM match_predictions
+      WHERE guild_id = ? AND user_id = ?
+    ) t
+    ORDER BY submitted_at DESC
+    LIMIT 1
+    `,
+    [
+      guildId, userId,
+      guildId, userId,
+      guildId, userId,
+      guildId, userId,
+      guildId, userId,
+    ]
+  );
+
+  if (!last.length) return null;
+
+  return {
+    phase: normalizePhase(last[0].phase, last[0].stage),
+    eventId: last[0].event_id,
+  };
+}
+
+async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
+  if (phase?.startsWith('swiss')) {
+    const aliases = getSwissStageAliases(phase);
+
+    let sql = `
+      SELECT event_id
+      FROM swiss_predictions
+      WHERE guild_id = ?
+        AND user_id = ?
+    `;
+
+    const params = [guildId, userId];
+
+    if (aliases.length) {
+      sql += ` AND stage IN (${aliases.map(() => '?').join(', ')})`;
+      params.push(...aliases);
+    }
+
+    sql += `
+      ORDER BY submitted_at DESC, id DESC
+      LIMIT 1
+    `;
+
+    const [rows] = await pool.query(sql, params);
+    return rows[0]?.event_id ?? null;
+  }
+
+  const tableByPhase = {
+    playoffs: 'playoffs_predictions',
+    double_elim: 'doubleelim_predictions',
+    playin: 'playin_predictions',
+  };
+
+  if (tableByPhase[phase]) {
+    const [rows] = await pool.query(
+      `
+      SELECT event_id
+      FROM ${tableByPhase[phase]}
+      WHERE guild_id = ?
+        AND user_id = ?
+      ORDER BY submitted_at DESC, id DESC
+      LIMIT 1
+      `,
+      [guildId, userId]
+    );
+
+    return rows[0]?.event_id ?? null;
+  }
+
+  if (phase === 'matches') {
+    const [rows] = await pool.query(
+      `
+      SELECT event_id
+      FROM match_predictions
+      WHERE guild_id = ?
+        AND user_id = ?
+      ORDER BY updated_at DESC, match_id DESC
+      LIMIT 1
+      `,
+      [guildId, userId]
+    );
+
+    return rows[0]?.event_id ?? null;
+  }
+
+  return null;
+}
+
 /* =========================
    COMMAND
 ========================= */
@@ -170,7 +300,7 @@ module.exports = {
     .addStringOption(opt =>
       opt
         .setName('faza')
-        .setDescription('Wybierz fazę. Bez wyboru pokaże aktywną lub ostatnią z Twoimi typami.')
+        .setDescription('Wybierz fazę. Bez wyboru pokaże ostatnią z Twoimi typami.')
         .addChoices(
           ...PHASE_CHOICES.filter(c => c.value !== 'total'),
           { name: 'Mecze', value: 'matches' }
@@ -194,87 +324,37 @@ module.exports = {
 
     try {
       await withGuild(interaction, async ({ pool }) => {
-        let autoPhase = null;
+        let phaseToShow = manualPhase;
+        let eventIdToShow = null;
 
         if (!manualPhase) {
-          const [panels] = await pool.query(
-            `
-            SELECT phase, stage
-            FROM active_panels
-            WHERE guild_id = ?
-              AND active = 1
-            ORDER BY id DESC
-            LIMIT 1
-            `,
-            [guildId]
-          );
+          const latest = await resolveLatestUserPhase(pool, guildId, userId);
 
-          if (panels.length) {
-            autoPhase = normalizePhase(panels[0].phase, panels[0].stage);
+          if (latest) {
+            phaseToShow = latest.phase;
+            eventIdToShow = latest.eventId;
           }
+        } else {
+          eventIdToShow = await resolveLatestEventForManualPhase(
+            pool,
+            guildId,
+            userId,
+            manualPhase
+          );
         }
 
-        if (!manualPhase && !autoPhase) {
-          const [last] = await pool.query(
-            `
-            SELECT phase, stage
-            FROM (
-              SELECT 'swiss' AS phase, stage, submitted_at
-              FROM swiss_predictions
-              WHERE guild_id = ? AND user_id = ?
-
-              UNION ALL
-
-              SELECT 'playoffs' AS phase, NULL AS stage, submitted_at
-              FROM playoffs_predictions
-              WHERE guild_id = ? AND user_id = ?
-
-              UNION ALL
-
-              SELECT 'double_elim' AS phase, NULL AS stage, submitted_at
-              FROM doubleelim_predictions
-              WHERE guild_id = ? AND user_id = ?
-
-              UNION ALL
-
-              SELECT 'playin' AS phase, NULL AS stage, submitted_at
-              FROM playin_predictions
-              WHERE guild_id = ? AND user_id = ?
-
-              UNION ALL
-
-              SELECT 'matches' AS phase, NULL AS stage, updated_at AS submitted_at
-              FROM match_predictions
-              WHERE guild_id = ? AND user_id = ?
-            ) t
-            ORDER BY submitted_at DESC
-            LIMIT 1
-            `,
-            [
-              guildId, userId,
-              guildId, userId,
-              guildId, userId,
-              guildId, userId,
-              guildId, userId,
-            ]
-          );
-
-          if (last.length) {
-            autoPhase = normalizePhase(last[0].phase, last[0].stage);
-          }
-        }
-
-        const phaseToShow = manualPhase || autoPhase;
-
-        if (!phaseToShow) {
+        if (!phaseToShow || !eventIdToShow) {
           return interaction.editReply({
-            content: 'Nie masz jeszcze żadnych zapisanych typów.',
+            content: manualPhase
+              ? 'Nie masz jeszcze zapisanych typów dla tej fazy.'
+              : 'Nie masz jeszcze żadnych zapisanych typów.',
           });
         }
 
         const embed = new EmbedBuilder()
           .setTitle(`Twoje typy — ${humanPhaseSafe(phaseToShow)}`)
           .setColor(0x3b82f6)
+          .setDescription(`Event ID: **${eventIdToShow}**`)
           .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
 
         if (phaseToShow.startsWith('swiss')) {
@@ -285,9 +365,10 @@ module.exports = {
             FROM swiss_predictions
             WHERE guild_id = ?
               AND user_id = ?
+              AND event_id = ?
           `;
 
-          const params = [guildId, userId];
+          const params = [guildId, userId, eventIdToShow];
 
           if (aliases.length) {
             sql += ` AND stage IN (${aliases.map(() => '?').join(', ')})`;
@@ -325,10 +406,11 @@ module.exports = {
             FROM playoffs_predictions
             WHERE guild_id = ?
               AND user_id = ?
+              AND event_id = ?
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId]
+            [guildId, userId, eventIdToShow]
           );
 
           if (!rows.length) {
@@ -356,10 +438,11 @@ module.exports = {
             FROM doubleelim_predictions
             WHERE guild_id = ?
               AND user_id = ?
+              AND event_id = ?
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId]
+            [guildId, userId, eventIdToShow]
           );
 
           if (!rows.length) {
@@ -387,10 +470,11 @@ module.exports = {
             FROM playin_predictions
             WHERE guild_id = ?
               AND user_id = ?
+              AND event_id = ?
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId]
+            [guildId, userId, eventIdToShow]
           );
 
           if (!rows.length) {
@@ -438,9 +522,10 @@ module.exports = {
              AND mr.event_id = mp.event_id
             WHERE mp.guild_id = ?
               AND mp.user_id = ?
+              AND mp.event_id = ?
             ORDER BY mp.updated_at DESC, mp.match_id DESC
             `,
-            [guildId, userId]
+            [guildId, userId, eventIdToShow]
           );
 
           if (!rows.length) {
@@ -454,7 +539,7 @@ module.exports = {
           const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
 
           const message = await interaction.editReply({
-            embeds: [createMatchesEmbed(rows, page, pageSize)],
+            embeds: [createMatchesEmbed(rows, page, pageSize, eventIdToShow)],
             components: totalPages > 1
               ? [createMatchesButtons(userId, page, totalPages)]
               : [],
@@ -482,10 +567,8 @@ module.exports = {
                 page = Math.min(totalPages - 1, page + 1);
               }
 
-              await i.deferUpdate();
-
-              await interaction.editReply({
-                embeds: [createMatchesEmbed(rows, page, pageSize)],
+              await i.update({
+                embeds: [createMatchesEmbed(rows, page, pageSize, eventIdToShow)],
                 components: [createMatchesButtons(userId, page, totalPages)],
               });
             } catch (err) {
@@ -494,11 +577,7 @@ module.exports = {
           });
 
           collector.on('end', async () => {
-            try {
-              await interaction.editReply({
-                components: [],
-              });
-            } catch (_) {}
+            await safeEditReply(interaction, { components: [] });
           });
 
           return;
