@@ -38,7 +38,7 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-  } catch (_) { }
+  } catch (_) {}
 
   return String(input)
     .replace(/[[\]"]/g, '')
@@ -75,49 +75,61 @@ function humanPhaseSafe(phase) {
   return humanPhase(phase);
 }
 
-function getPickedWinner(row) {
+function pickWinnerFromValues(row, leftKey, rightKey, fallbackText = '—') {
   const teamA = row.team_a || 'Team A';
   const teamB = row.team_b || 'Team B';
 
-  if (Number(row.pred_a) === 1) return teamA;
-  if (Number(row.pred_b) === 1) return teamB;
+  const aRaw = row[leftKey];
+  const bRaw = row[rightKey];
 
-  return '—';
-}
+  if (aRaw == null || bRaw == null) return fallbackText;
 
-function getPickedWinner(row) {
-  const teamA = row.team_a || 'Team A';
-  const teamB = row.team_b || 'Team B';
+  const a = Number(aRaw);
+  const b = Number(bRaw);
 
-  const a = Number(row.pred_a);
-  const b = Number(row.pred_b);
-
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return '—';
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return fallbackText;
 
   if (a > b) return teamA;
   if (b > a) return teamB;
 
-  return '—';
+  return fallbackText;
+}
+
+function getPickedWinner(row) {
+  if (row.pred_exact_a != null && row.pred_exact_b != null) {
+    return pickWinnerFromValues(row, 'pred_exact_a', 'pred_exact_b', '—');
+  }
+
+  return pickWinnerFromValues(row, 'pred_a', 'pred_b', '—');
 }
 
 function getOfficialWinner(row) {
-  const teamA = row.team_a || 'Team A';
-  const teamB = row.team_b || 'Team B';
+  if (row.result_exact_a != null && row.result_exact_b != null) {
+    return pickWinnerFromValues(row, 'result_exact_a', 'result_exact_b', 'nierozliczone');
+  }
 
-  const a = Number(row.result_a);
-  const b = Number(row.result_b);
+  return pickWinnerFromValues(row, 'result_a', 'result_b', 'nierozliczone');
+}
 
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'nierozliczone';
+function formatPredictedScore(row) {
+  if (row.pred_exact_a != null && row.pred_exact_b != null) {
+    return `${row.pred_exact_a}:${row.pred_exact_b}`;
+  }
 
-  if (a > b) return teamA;
-  if (b > a) return teamB;
+  if (row.pred_a != null && row.pred_b != null) {
+    return `${row.pred_a}:${row.pred_b}`;
+  }
 
-  return 'nierozliczone';
+  return '—';
 }
 
 function formatOfficialResult(row) {
   if (row.result_exact_a != null && row.result_exact_b != null) {
     return `${row.result_exact_a}:${row.result_exact_b}`;
+  }
+
+  if (row.result_a != null && row.result_b != null) {
+    return `${row.result_a}:${row.result_b}`;
   }
 
   return 'nierozliczone';
@@ -378,6 +390,7 @@ module.exports = {
             content: manualPhase
               ? 'Nie masz jeszcze zapisanych typów dla tej fazy.'
               : 'Nie masz jeszcze żadnych zapisanych typów.',
+            components: [],
           });
         }
 
@@ -415,6 +428,7 @@ module.exports = {
           if (!rows.length) {
             return interaction.editReply({
               embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              components: [],
             });
           }
 
@@ -446,6 +460,7 @@ module.exports = {
           if (!rows.length) {
             return interaction.editReply({
               embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              components: [],
             });
           }
 
@@ -478,6 +493,7 @@ module.exports = {
           if (!rows.length) {
             return interaction.editReply({
               embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              components: [],
             });
           }
 
@@ -510,6 +526,7 @@ module.exports = {
           if (!rows.length) {
             return interaction.editReply({
               embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              components: [],
             });
           }
 
