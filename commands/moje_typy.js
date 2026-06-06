@@ -168,6 +168,24 @@ async function safeEditReply(interaction, payload) {
   }
 }
 
+async function safeButtonUpdate(buttonInteraction, originalInteraction, payload) {
+  try {
+    if (!buttonInteraction.deferred && !buttonInteraction.replied) {
+      await buttonInteraction.deferUpdate();
+    }
+
+    return await originalInteraction.editReply(payload);
+  } catch (err) {
+    if (err?.code === 10062 || err?.code === 40060 || err?.code === 10008) {
+      console.warn('[moje_typy] pagination interaction expired/invalid:', err?.code);
+      return null;
+    }
+
+    console.error('[moje_typy] pagination button error', err);
+    return null;
+  }
+}
+
 async function resolveLatestUserPhase(pool, guildId, userId) {
   const [last] = await pool.query(
     `
@@ -396,7 +414,7 @@ module.exports = {
             { name: 'Awansujące (6)', value: joinOrDash(parseList(r.advancing)) },
           );
 
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply({ embeds: [embed], components: [] });
         }
 
         if (phaseToShow === 'playoffs') {
@@ -428,7 +446,7 @@ module.exports = {
             { name: '3. miejsce', value: joinOrDash(parseList(r.third_place_winner)), inline: true },
           );
 
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply({ embeds: [embed], components: [] });
         }
 
         if (phaseToShow === 'double_elim') {
@@ -460,7 +478,7 @@ module.exports = {
             { name: 'Lower Final B (2)', value: joinOrDash(parseList(r.lower_final_b)) },
           );
 
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply({ embeds: [embed], components: [] });
         }
 
         if (phaseToShow === 'playin') {
@@ -488,7 +506,7 @@ module.exports = {
             value: joinOrDash(parseList(rows[0].teams)),
           });
 
-          return interaction.editReply({ embeds: [embed] });
+          return interaction.editReply({ embeds: [embed], components: [] });
         }
 
         if (phaseToShow === 'matches') {
@@ -531,6 +549,7 @@ module.exports = {
           if (!rows.length) {
             return interaction.editReply({
               embeds: [embed.setDescription('Nie masz jeszcze zapisanych typów meczowych.')],
+              components: [],
             });
           }
 
@@ -558,22 +577,18 @@ module.exports = {
           });
 
           collector.on('collect', async i => {
-            try {
-              if (i.customId === `moje_typy_matches_prev_${userId}`) {
-                page = Math.max(0, page - 1);
-              }
-
-              if (i.customId === `moje_typy_matches_next_${userId}`) {
-                page = Math.min(totalPages - 1, page + 1);
-              }
-
-              await i.update({
-                embeds: [createMatchesEmbed(rows, page, pageSize, eventIdToShow)],
-                components: [createMatchesButtons(userId, page, totalPages)],
-              });
-            } catch (err) {
-              console.error('[moje_typy] pagination button error', err);
+            if (i.customId === `moje_typy_matches_prev_${userId}`) {
+              page = Math.max(0, page - 1);
             }
+
+            if (i.customId === `moje_typy_matches_next_${userId}`) {
+              page = Math.min(totalPages - 1, page + 1);
+            }
+
+            await safeButtonUpdate(i, interaction, {
+              embeds: [createMatchesEmbed(rows, page, pageSize, eventIdToShow)],
+              components: [createMatchesButtons(userId, page, totalPages)],
+            });
           });
 
           collector.on('end', async () => {
@@ -585,6 +600,7 @@ module.exports = {
 
         return interaction.editReply({
           embeds: [embed.setDescription('Nieobsługiwana faza.')],
+          components: [],
         });
       });
     } catch (err) {
@@ -592,6 +608,7 @@ module.exports = {
 
       return interaction.editReply({
         content: '⚠️ Wystąpił błąd podczas pobierania typów.',
+        components: [],
       });
     }
   },
