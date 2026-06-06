@@ -23,7 +23,6 @@ const PHASES = [
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 25;
-const COLLECTOR_TIME = 10 * 60 * 1000;
 
 const SWISS_STAGE_MAP = {
   swiss_stage_1: 'stage1',
@@ -62,7 +61,7 @@ function buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize) {
       ).join('\n') || 'Brak danych.'
     )
     .setFooter({
-      text: `Event ID: ${eventId} • Strona ${page}/${totalPages} • Uczestników: ${total}`
+      text: `Event ID: ${eventId} • Strona ${page}/${totalPages} • Uczestników: ${total}`,
     })
     .setColor(0x5865F2);
 }
@@ -347,95 +346,77 @@ module.exports = {
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
       const rows = await getPage(pool, guildId, eventId, phase, page, pageSize);
 
-      const embed = buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize);
-
-      const components = totalPages > 1
-        ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
-        : [];
-
-      const message = await interaction.editReply({
-        embeds: [embed],
-        components,
+      return interaction.editReply({
+        embeds: [
+          buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize),
+        ],
+        components: totalPages > 1
+          ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
+          : [],
       });
+    });
+  },
 
-      if (totalPages <= 1) return message;
+  async handleComponent(interaction) {
+    const guildId = interaction.guildId;
 
-      const collector = message.createMessageComponentCollector({
-        time: COLLECTOR_TIME,
+    if (!guildId) {
+      return interaction.reply({
+        content: 'Ta akcja działa tylko na serwerze.',
+        ephemeral: true,
       });
+    }
 
-      collector.on('collect', async (btn) => {
-        try {
-          if (btn.user.id !== interaction.user.id) {
-            return btn.reply({
-              content: 'Ten ranking może przewijać tylko osoba, która odpaliła komendę.',
-              ephemeral: true,
-            });
-          }
+    const [prefix, phase, rawPage, rawPageSize, rawEventId] = String(interaction.customId).split(':');
 
-          const [prefix, btnPhase, rawPage, rawPageSize, rawEventId] = String(btn.customId).split(':');
+    if (prefix !== 'ranking') {
+      return interaction.deferUpdate().catch(() => {});
+    }
 
-          if (prefix !== 'ranking') {
-            return btn.deferUpdate().catch(() => {});
-          }
-
-          if (!PHASES.some(p => p.value === btnPhase)) {
-            return btn.reply({
-              content: 'Nieznana faza rankingu.',
-              ephemeral: true,
-            });
-          }
-
-          const nextPageSize = clampInt(rawPageSize, 1, MAX_PAGE_SIZE);
-          const nextEventId = Number(rawEventId);
-          const nextTotal = await countParticipants(pool, guildId, nextEventId, btnPhase);
-          const nextTotalPages = Math.max(1, Math.ceil(nextTotal / nextPageSize));
-          const nextPage = clampInt(rawPage, 1, nextTotalPages);
-
-          const nextRows = await getPage(
-            pool,
-            guildId,
-            nextEventId,
-            btnPhase,
-            nextPage,
-            nextPageSize
-          );
-
-          return btn.update({
-            embeds: [
-              buildEmbed(
-                nextRows,
-                btnPhase,
-                nextPage,
-                nextTotalPages,
-                nextTotal,
-                nextEventId,
-                nextPageSize
-              ),
-            ],
-            components: nextTotalPages > 1
-              ? [buildButtons(btnPhase, nextPage, nextTotalPages, nextPageSize, nextEventId)]
-              : [],
-          });
-        } catch (err) {
-          console.error('[ranking] pagination error:', err);
-
-          if (!btn.replied && !btn.deferred) {
-            return btn.reply({
-              content: 'Wystąpił błąd przy przewijaniu rankingu.',
-              ephemeral: true,
-            }).catch(() => {});
-          }
-        }
+    if (!PHASES.some(p => p.value === phase)) {
+      return interaction.reply({
+        content: 'Nieznana faza rankingu.',
+        ephemeral: true,
       });
+    }
 
-      collector.on('end', async () => {
-        try {
-          await interaction.editReply({ components: [] });
-        } catch (_) {}
+    return withGuild(guildId, async ({ pool }) => {
+      const eventId = Number(rawEventId);
+      const pageSize = clampInt(rawPageSize, 1, MAX_PAGE_SIZE);
+
+      if (!eventId || Number.isNaN(eventId)) {
+        return interaction.reply({
+          content: 'Nieprawidłowy event rankingu.',
+          ephemeral: true,
+        });
+      }
+
+      const total = await countParticipants(pool, guildId, eventId, phase);
+
+      if (!total) {
+        return interaction.update({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle(`Ranking Pick’Em — ${phaseLabel(phase)}`)
+              .setDescription(`Brak danych dla tej fazy w evencie ID: \`${eventId}\`.`)
+              .setColor(0x5865F2),
+          ],
+          components: [],
+        });
+      }
+
+      const totalPages = Math.max(1, Math.ceil(total / pageSize));
+      const page = clampInt(rawPage, 1, totalPages);
+      const rows = await getPage(pool, guildId, eventId, phase, page, pageSize);
+
+      return interaction.update({
+        embeds: [
+          buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize),
+        ],
+        components: totalPages > 1
+          ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
+          : [],
       });
-
-      return message;
     });
   },
 };
