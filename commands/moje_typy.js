@@ -38,7 +38,7 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return String(input)
     .replace(/[[\]"]/g, '')
@@ -85,22 +85,34 @@ function getPickedWinner(row) {
   return '—';
 }
 
+function getPickedWinner(row) {
+  const teamA = row.team_a || 'Team A';
+  const teamB = row.team_b || 'Team B';
+
+  const a = Number(row.pred_a);
+  const b = Number(row.pred_b);
+
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return '—';
+
+  if (a > b) return teamA;
+  if (b > a) return teamB;
+
+  return '—';
+}
+
 function getOfficialWinner(row) {
   const teamA = row.team_a || 'Team A';
   const teamB = row.team_b || 'Team B';
 
-  if (Number(row.result_a) === 1) return teamA;
-  if (Number(row.result_b) === 1) return teamB;
+  const a = Number(row.result_a);
+  const b = Number(row.result_b);
+
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 'nierozliczone';
+
+  if (a > b) return teamA;
+  if (b > a) return teamB;
 
   return 'nierozliczone';
-}
-
-function formatPredictedScore(row) {
-  if (row.pred_exact_a != null && row.pred_exact_b != null) {
-    return `${row.pred_exact_a}:${row.pred_exact_b}`;
-  }
-
-  return '—';
 }
 
 function formatOfficialResult(row) {
