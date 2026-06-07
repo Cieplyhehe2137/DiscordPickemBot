@@ -183,14 +183,20 @@ module.exports = async function calculateScores(guildId, eventId) {
     try {
       const [rows] = await pool.query(
         `
-        SELECT *
-        FROM swiss_results
-        WHERE guild_id = ?
-          AND event_id = ?
-          AND active = 1
-        ORDER BY id DESC
-        LIMIT 1
-        `,
+  SELECT *
+  FROM swiss_results
+  WHERE guild_id = ?
+    AND event_id = ?
+    AND active = 1
+  ORDER BY
+    CASE stage
+      WHEN 'stage1' THEN 1
+      WHEN 'stage2' THEN 2
+      WHEN 'stage3' THEN 3
+      ELSE 99
+    END ASC,
+    id DESC
+  `,
         [guildId, eventId]
       );
 
