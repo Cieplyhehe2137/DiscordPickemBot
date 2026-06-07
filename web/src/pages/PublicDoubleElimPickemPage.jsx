@@ -63,8 +63,13 @@ export default function PublicDoubleElimPickemPage() {
 
     const teams = data.teams || [];
 
+
+    const lock = data.lock || { allowed: true, message: null };
+    const isLocked = !lock.allowed;
+
     const canSave =
         !loading &&
+        !isLocked &&
         isLoggedIn &&
         SECTIONS.every(([key]) => picks[key].length === 2);
 
@@ -126,6 +131,18 @@ export default function PublicDoubleElimPickemPage() {
                 Pick exactly 2 teams for each Double Elimination bracket.
             </p>
 
+            {isLocked && (
+                <div className="mt-6 rounded-[2rem] border border-red-400/20 bg-red-500/10 p-6">
+                    <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
+                        Pick&apos;Em Locked
+                    </p>
+
+                    <p className="mt-2 text-white/60">
+                        {lock.message || 'This Pick&apos;Em is closed.'}
+                    </p>
+                </div>
+            )}
+
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -186,11 +203,10 @@ export default function PublicDoubleElimPickemPage() {
                     <button
                         onClick={handleSave}
                         disabled={!canSave || saving}
-                        className={`rounded-2xl px-6 py-4 font-black transition ${
-                            canSave && !saving
-                                ? 'bg-violet-500 hover:bg-violet-400'
-                                : 'cursor-not-allowed bg-white/10 text-white/30'
-                        }`}
+                        className={`rounded-2xl px-6 py-4 font-black transition ${canSave && !saving
+                            ? 'bg-violet-500 hover:bg-violet-400'
+                            : 'cursor-not-allowed bg-white/10 text-white/30'
+                            }`}
                     >
                         {saving ? 'Saving...' : "Save Double Elim Pick'Em"}
                     </button>
@@ -251,11 +267,10 @@ function PickColumn({ title, teams, selected, onToggle }) {
                         <button
                             key={team.id || team.name}
                             onClick={() => onToggle(team.name)}
-                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${
-                                isSelected
-                                    ? 'border-violet-400 bg-violet-500/20 text-white'
-                                    : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
-                            }`}
+                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
+                                ? 'border-violet-400 bg-violet-500/20 text-white'
+                                : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                }`}
                         >
                             {team.name}
                         </button>

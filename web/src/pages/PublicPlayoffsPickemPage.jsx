@@ -51,8 +51,13 @@ export default function PublicPlayoffsPickemPage() {
 
     const teams = data.teams || [];
 
+
+    const lock = data.lock || { allowed: true, message: null };
+    const isLocked = !lock.allowed;
+
     const canSave =
         !loading &&
+        !isLocked &&
         isLoggedIn &&
         semifinalists.length === 4 &&
         finalists.length === 2 &&
@@ -179,6 +184,18 @@ export default function PublicPlayoffsPickemPage() {
                 Pick 4 semifinalists, 2 finalists, the champion and the third place winner.
             </p>
 
+            {isLocked && (
+                <div className="mt-6 rounded-[2rem] border border-red-400/20 bg-red-500/10 p-6">
+                    <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
+                        Pick&apos;Em Locked
+                    </p>
+
+                    <p className="mt-2 text-white/60">
+                        {lock.message || 'This Pick&apos;Em is closed.'}
+                    </p>
+                </div>
+            )}
+
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -263,11 +280,10 @@ export default function PublicPlayoffsPickemPage() {
                     <button
                         onClick={handleSave}
                         disabled={!canSave || saving}
-                        className={`rounded-2xl px-6 py-4 font-black transition ${
-                            canSave && !saving
-                                ? 'bg-violet-500 hover:bg-violet-400'
-                                : 'cursor-not-allowed bg-white/10 text-white/30'
-                        }`}
+                        className={`rounded-2xl px-6 py-4 font-black transition ${canSave && !saving
+                            ? 'bg-violet-500 hover:bg-violet-400'
+                            : 'cursor-not-allowed bg-white/10 text-white/30'
+                            }`}
                     >
                         {saving ? 'Saving...' : "Save Playoffs Pick'Em"}
                     </button>
@@ -325,11 +341,10 @@ function PickColumn({ title, description, teams, selected, limit, onToggle }) {
                         <button
                             key={team}
                             onClick={() => onToggle(team)}
-                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${
-                                isSelected
-                                    ? 'border-violet-400 bg-violet-500/20 text-white'
-                                    : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
-                            }`}
+                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
+                                ? 'border-violet-400 bg-violet-500/20 text-white'
+                                : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                }`}
                         >
                             {team}
                         </button>
@@ -365,11 +380,10 @@ function SinglePickColumn({ title, description, teams, selected, onSelect }) {
                         <button
                             key={team}
                             onClick={() => onSelect(team)}
-                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${
-                                isSelected
-                                    ? 'border-violet-400 bg-violet-500/20 text-white'
-                                    : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
-                            }`}
+                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
+                                ? 'border-violet-400 bg-violet-500/20 text-white'
+                                : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                                }`}
                         >
                             {team}
                         </button>
