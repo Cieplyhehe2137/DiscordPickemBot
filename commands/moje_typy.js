@@ -38,6 +38,19 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
+
+    if (parsed && typeof parsed === 'object') {
+      return Object.values(parsed)
+        .map(x => {
+          if (x && typeof x === 'object') {
+            return x.score || x.result || x.value || x.label || JSON.stringify(x);
+          }
+
+          return x;
+        })
+        .map(x => (x ?? '').toString().trim())
+        .filter(Boolean);
+    }
   } catch (_) {}
 
   return String(input)
@@ -135,6 +148,108 @@ function formatOfficialResult(row) {
   return 'nierozliczone';
 }
 
+function formatMapScores(input) {
+  const maps = parseList(input);
+
+  if (!maps.length) return '—';
+
+  return maps
+    .map((score, index) => `Mapa ${index + 1}: ${score}`)
+    .join('\n');
+}
+
+async function getExistingColumns(pool, tableName) {
+  const [rows] = await pool.query(
+    `
+    SELECT COLUMN_NAME AS column_name
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    `,
+    [tableName]
+  );
+
+  return new Set(rows.map(r => r.column_name));
+}
+
+function firstExistingColumn(columns, candidates) {
+  return candidates.find(col => columns.has(col)) || null;
+}
+
+async function loadMatchRows(pool, guildId, userId, eventId) {
+  const mpColumns = await getExistingColumns(pool, 'match_predictions');
+  const mrColumns = await getExistingColumns(pool, 'match_results');
+
+  const predictedMapsCol = firstExistingColumn(mpColumns, [
+    'map_scores',
+    'predicted_map_scores',
+    'predicted_maps',
+    'map_predictions',
+    'pred_map_scores',
+    'pred_maps',
+    'maps',
+  ]);
+
+  const officialMapsCol = firstExistingColumn(mrColumns, [
+    'map_scores',
+    'official_map_scores',
+    'official_maps',
+    'result_map_scores',
+    'result_maps',
+    'map_results',
+    'res_maps',
+    'maps',
+  ]);
+
+  const predictedMapsSelect = predictedMapsCol
+    ? `mp.${predictedMapsCol} AS predicted_map_scores`
+    : `NULL AS predicted_map_scores`;
+
+  const officialMapsSelect = officialMapsCol
+    ? `mr.${officialMapsCol} AS official_map_scores`
+    : `NULL AS official_map_scores`;
+
+  const [rows] = await pool.query(
+    `
+    SELECT
+      mp.match_id,
+      mp.guild_id,
+      mp.event_id,
+      mp.user_id,
+      mp.pred_a,
+      mp.pred_b,
+      mp.pred_exact_a,
+      mp.pred_exact_b,
+      ${predictedMapsSelect},
+      mp.updated_at,
+      m.team_a,
+      m.team_b,
+      m.best_of,
+      mr.res_a AS result_a,
+      mr.res_b AS result_b,
+      mr.exact_a AS result_exact_a,
+      mr.exact_b AS result_exact_b,
+      ${officialMapsSelect}
+    FROM match_predictions mp
+    INNER JOIN matches m
+      ON m.id = mp.match_id
+     AND m.guild_id = mp.guild_id
+     AND m.event_id = mp.event_id
+    LEFT JOIN match_results mr
+      ON mr.match_id = mp.match_id
+     AND mr.guild_id = mp.guild_id
+     AND mr.event_id = mp.event_id
+    WHERE mp.guild_id = ?
+      AND mp.user_id = ?
+      AND mp.event_id = ?
+    ORDER BY mp.updated_at DESC, mp.match_id DESC
+    `,
+    [guildId, userId, eventId]
+  );
+
+  return rows;
+}
+
 function createMatchesEmbed(rows, page, pageSize, eventId) {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const safePage = Math.min(Math.max(page, 0), totalPages - 1);
@@ -160,8 +275,10 @@ function createMatchesEmbed(rows, page, pageSize, eventId) {
       value:
         `**Twój zwycięzca:** ${getPickedWinner(r)}\n` +
         `**Twój wynik serii:** ${formatPredictedScore(r)}\n` +
+        `**Twoje wyniki map:**\n${formatMapScores(r.predicted_map_scores)}\n\n` +
         `**Zwycięzca meczu:** ${getOfficialWinner(r)}\n` +
-        `**Oficjalny wynik serii:** ${formatOfficialResult(r)}`,
+        `**Oficjalny wynik serii:** ${formatOfficialResult(r)}\n` +
+        `**Oficjalne wyniki map:**\n${formatMapScores(r.official_map_scores)}`,
     });
   }
 
@@ -539,41 +656,7 @@ module.exports = {
         }
 
         if (phaseToShow === 'matches') {
-          const [rows] = await pool.query(
-            `
-            SELECT
-              mp.match_id,
-              mp.guild_id,
-              mp.event_id,
-              mp.user_id,
-              mp.pred_a,
-              mp.pred_b,
-              mp.pred_exact_a,
-              mp.pred_exact_b,
-              mp.updated_at,
-              m.team_a,
-              m.team_b,
-              m.best_of,
-              mr.res_a AS result_a,
-              mr.res_b AS result_b,
-              mr.exact_a AS result_exact_a,
-              mr.exact_b AS result_exact_b
-            FROM match_predictions mp
-            INNER JOIN matches m
-              ON m.id = mp.match_id
-             AND m.guild_id = mp.guild_id
-             AND m.event_id = mp.event_id
-            LEFT JOIN match_results mr
-              ON mr.match_id = mp.match_id
-             AND mr.guild_id = mp.guild_id
-             AND mr.event_id = mp.event_id
-            WHERE mp.guild_id = ?
-              AND mp.user_id = ?
-              AND mp.event_id = ?
-            ORDER BY mp.updated_at DESC, mp.match_id DESC
-            `,
-            [guildId, userId, eventIdToShow]
-          );
+          const rows = await loadMatchRows(pool, guildId, userId, eventIdToShow);
 
           if (!rows.length) {
             return interaction.editReply({
