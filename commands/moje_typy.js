@@ -38,7 +38,7 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return String(input)
     .replace(/[[\]"]/g, '')
@@ -170,7 +170,7 @@ async function loadMatchRows(pool, guildId, userId, eventId) {
 
       COALESCE(
         GROUP_CONCAT(
-          DISTINCT CONCAT('Mapa ', mmp.map_no, ': ', mmp.pred_a, ':', mmp.pred_b)
+          DISTINCT CONCAT('Mapa ', mmp.map_no, ': ', mmp.pred_exact_a, ':', mmp.pred_exact_b)
           ORDER BY mmp.map_no ASC
           SEPARATOR '\n'
         ),
@@ -179,7 +179,7 @@ async function loadMatchRows(pool, guildId, userId, eventId) {
 
       COALESCE(
         GROUP_CONCAT(
-          DISTINCT CONCAT('Mapa ', mmr.map_no, ': ', mmr.res_a, ':', mmr.res_b)
+          DISTINCT CONCAT('Mapa ', mmr.map_no, ': ', mmr.exact_a, ':', mmr.exact_b)
           ORDER BY mmr.map_no ASC
           SEPARATOR '\n'
         ),
