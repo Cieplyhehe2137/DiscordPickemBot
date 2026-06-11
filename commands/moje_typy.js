@@ -38,19 +38,6 @@ function parseList(input) {
 
       return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
     }
-
-    if (parsed && typeof parsed === 'object') {
-      return Object.values(parsed)
-        .map(x => {
-          if (x && typeof x === 'object') {
-            return x.score || x.result || x.value || x.label || JSON.stringify(x);
-          }
-
-          return x;
-        })
-        .map(x => (x ?? '').toString().trim())
-        .filter(Boolean);
-    }
   } catch (_) {}
 
   return String(input)
@@ -149,66 +136,16 @@ function formatOfficialResult(row) {
 }
 
 function formatMapScores(input) {
-  const maps = parseList(input);
+  if (input == null) return '—';
 
-  if (!maps.length) return '—';
+  const text = String(input).trim();
 
-  return maps
-    .map((score, index) => `Mapa ${index + 1}: ${score}`)
-    .join('\n');
-}
+  if (!text || text === '—') return '—';
 
-async function getExistingColumns(pool, tableName) {
-  const [rows] = await pool.query(
-    `
-    SELECT COLUMN_NAME AS column_name
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = ?
-    `,
-    [tableName]
-  );
-
-  return new Set(rows.map(r => r.column_name));
-}
-
-function firstExistingColumn(columns, candidates) {
-  return candidates.find(col => columns.has(col)) || null;
+  return text;
 }
 
 async function loadMatchRows(pool, guildId, userId, eventId) {
-  const mpColumns = await getExistingColumns(pool, 'match_predictions');
-  const mrColumns = await getExistingColumns(pool, 'match_results');
-
-  const predictedMapsCol = firstExistingColumn(mpColumns, [
-    'map_scores',
-    'predicted_map_scores',
-    'predicted_maps',
-    'map_predictions',
-    'pred_map_scores',
-    'pred_maps',
-    'maps',
-  ]);
-
-  const officialMapsCol = firstExistingColumn(mrColumns, [
-    'map_scores',
-    'official_map_scores',
-    'official_maps',
-    'result_map_scores',
-    'result_maps',
-    'map_results',
-    'res_maps',
-    'maps',
-  ]);
-
-  const predictedMapsSelect = predictedMapsCol
-    ? `mp.${predictedMapsCol} AS predicted_map_scores`
-    : `NULL AS predicted_map_scores`;
-
-  const officialMapsSelect = officialMapsCol
-    ? `mr.${officialMapsCol} AS official_map_scores`
-    : `NULL AS official_map_scores`;
-
   const [rows] = await pool.query(
     `
     SELECT
@@ -220,28 +157,80 @@ async function loadMatchRows(pool, guildId, userId, eventId) {
       mp.pred_b,
       mp.pred_exact_a,
       mp.pred_exact_b,
-      ${predictedMapsSelect},
       mp.updated_at,
+
       m.team_a,
       m.team_b,
       m.best_of,
+
       mr.res_a AS result_a,
       mr.res_b AS result_b,
       mr.exact_a AS result_exact_a,
       mr.exact_b AS result_exact_b,
-      ${officialMapsSelect}
+
+      COALESCE(
+        GROUP_CONCAT(
+          DISTINCT CONCAT('Mapa ', mmp.map_no, ': ', mmp.pred_a, ':', mmp.pred_b)
+          ORDER BY mmp.map_no ASC
+          SEPARATOR '\n'
+        ),
+        '—'
+      ) AS predicted_map_scores,
+
+      COALESCE(
+        GROUP_CONCAT(
+          DISTINCT CONCAT('Mapa ', mmr.map_no, ': ', mmr.res_a, ':', mmr.res_b)
+          ORDER BY mmr.map_no ASC
+          SEPARATOR '\n'
+        ),
+        '—'
+      ) AS official_map_scores
+
     FROM match_predictions mp
+
     INNER JOIN matches m
       ON m.id = mp.match_id
      AND m.guild_id = mp.guild_id
      AND m.event_id = mp.event_id
+
     LEFT JOIN match_results mr
       ON mr.match_id = mp.match_id
      AND mr.guild_id = mp.guild_id
      AND mr.event_id = mp.event_id
+
+    LEFT JOIN match_map_predictions mmp
+      ON mmp.match_id = mp.match_id
+     AND mmp.guild_id = mp.guild_id
+     AND mmp.event_id = mp.event_id
+     AND mmp.user_id = mp.user_id
+
+    LEFT JOIN match_map_results mmr
+      ON mmr.match_id = mp.match_id
+     AND mmr.guild_id = mp.guild_id
+     AND mmr.event_id = mp.event_id
+
     WHERE mp.guild_id = ?
       AND mp.user_id = ?
       AND mp.event_id = ?
+
+    GROUP BY
+      mp.match_id,
+      mp.guild_id,
+      mp.event_id,
+      mp.user_id,
+      mp.pred_a,
+      mp.pred_b,
+      mp.pred_exact_a,
+      mp.pred_exact_b,
+      mp.updated_at,
+      m.team_a,
+      m.team_b,
+      m.best_of,
+      mr.res_a,
+      mr.res_b,
+      mr.exact_a,
+      mr.exact_b
+
     ORDER BY mp.updated_at DESC, mp.match_id DESC
     `,
     [guildId, userId, eventId]
