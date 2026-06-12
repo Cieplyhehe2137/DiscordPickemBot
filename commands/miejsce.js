@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { withGuild } = require('../utils/guildContext');
-const calculateScores = require('./calculateScores');
+const calculateScores = require('../handlers/calculateScores');
 
 module.exports = {
   data: new SlashCommandBuilder()
