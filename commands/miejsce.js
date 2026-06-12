@@ -88,6 +88,8 @@ module.exports = {
             SELECT user_id FROM match_points WHERE guild_id = ? AND event_id = ?
             UNION
             SELECT user_id FROM match_map_predictions WHERE guild_id = ? AND event_id = ?
+            UNION
+            SELECT user_id FROM match_predictions WHERE guild_id = ? AND event_id = ?
           ) u
 
           LEFT JOIN (
@@ -151,27 +153,62 @@ module.exports = {
           ) mp ON mp.user_id = u.user_id
 
           LEFT JOIN (
-            SELECT
-              mmp.user_id,
-              COUNT(*) * 3 AS points
-            FROM match_map_predictions mmp
-            INNER JOIN match_map_results mmr
-              ON mmr.match_id = mmp.match_id
-             AND mmr.map_no = mmp.map_no
-            WHERE mmp.guild_id = ?
-              AND mmp.event_id = ?
-              AND mmr.guild_id = ?
-              AND mmr.event_id = ?
-              AND mmp.pred_exact_a IS NOT NULL
-              AND mmp.pred_exact_b IS NOT NULL
-              AND mmr.exact_a IS NOT NULL
-              AND mmr.exact_b IS NOT NULL
-              AND mmp.pred_exact_a = mmr.exact_a
-              AND mmp.pred_exact_b = mmr.exact_b
-            GROUP BY mmp.user_id
+            SELECT user_id, SUM(points) AS points
+            FROM (
+              SELECT
+                pred.user_id,
+                CASE
+                  WHEN pred.pred_exact_a = res.exact_a
+                   AND pred.pred_exact_b = res.exact_b
+                  THEN 3
+                  ELSE 0
+                END AS points
+              FROM match_predictions pred
+              JOIN matches m
+                ON m.id = pred.match_id
+               AND m.guild_id = pred.guild_id
+               AND m.event_id = pred.event_id
+              LEFT JOIN match_results res
+                ON res.match_id = pred.match_id
+               AND res.guild_id = pred.guild_id
+               AND res.event_id = pred.event_id
+              WHERE pred.guild_id = ?
+                AND pred.event_id = ?
+                AND m.best_of = 1
+                AND pred.pred_exact_a IS NOT NULL
+                AND pred.pred_exact_b IS NOT NULL
+
+              UNION ALL
+
+              SELECT
+                pred.user_id,
+                CASE
+                  WHEN pred.pred_exact_a = res.exact_a
+                   AND pred.pred_exact_b = res.exact_b
+                  THEN 3
+                  ELSE 0
+                END AS points
+              FROM match_map_predictions pred
+              JOIN matches m
+                ON m.id = pred.match_id
+               AND m.guild_id = pred.guild_id
+               AND m.event_id = pred.event_id
+              LEFT JOIN match_map_results res
+                ON res.match_id = pred.match_id
+               AND res.guild_id = pred.guild_id
+               AND (res.event_id = pred.event_id OR res.event_id IS NULL)
+               AND res.map_no = pred.map_no
+              WHERE pred.guild_id = ?
+                AND pred.event_id = ?
+                AND m.best_of IN (3, 5)
+                AND pred.pred_exact_a IS NOT NULL
+                AND pred.pred_exact_b IS NOT NULL
+            ) x
+            GROUP BY user_id
           ) maps ON maps.user_id = u.user_id
           `,
           [
+            guildId, eventId,
             guildId, eventId,
             guildId, eventId,
             guildId, eventId,
@@ -219,7 +256,7 @@ module.exports = {
             `• Double Elim: **${me.doubleelim}**\n` +
             `• Play-In: **${me.playin}**\n` +
             `• Mecze: **${me.matches}**\n` +
-            `• Mapy: **${me.maps}`
+            `• Mapy: **${me.maps}**`
           );
         }
 
@@ -227,16 +264,10 @@ module.exports = {
       } catch (err) {
         console.error('[miejsce] error', err);
 
-        const payload = {
+        await interaction.reply({
           content: '❌ Wystąpił błąd przy obliczaniu miejsca.',
           ephemeral: true,
-        };
-
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp(payload).catch(() => null);
-        } else {
-          await interaction.reply(payload).catch(() => null);
-        }
+        }).catch(() => null);
       }
     });
   },
