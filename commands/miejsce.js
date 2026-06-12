@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { withGuild } = require('../utils/guildContext');
+const calculateScores = require('./calculateScores');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -51,6 +52,8 @@ module.exports = {
           });
         }
 
+        await calculateScores(guildId, eventId);
+
         const [rows] = await pool.query(
           `
           SELECT
@@ -86,60 +89,47 @@ module.exports = {
             SELECT user_id FROM playin_scores WHERE guild_id = ? AND event_id = ?
             UNION
             SELECT user_id FROM match_points WHERE guild_id = ? AND event_id = ?
-            UNION
-            SELECT user_id FROM match_map_predictions WHERE guild_id = ? AND event_id = ?
-            UNION
-            SELECT user_id FROM match_predictions WHERE guild_id = ? AND event_id = ?
           ) u
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM swiss_scores
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND stage = 'stage1'
+            WHERE guild_id = ? AND event_id = ? AND stage = 'stage1'
             GROUP BY user_id
           ) s1 ON s1.user_id = u.user_id
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM swiss_scores
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND stage = 'stage2'
+            WHERE guild_id = ? AND event_id = ? AND stage = 'stage2'
             GROUP BY user_id
           ) s2 ON s2.user_id = u.user_id
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM swiss_scores
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND stage = 'stage3'
+            WHERE guild_id = ? AND event_id = ? AND stage = 'stage3'
             GROUP BY user_id
           ) s3 ON s3.user_id = u.user_id
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM playoffs_scores
-            WHERE guild_id = ?
-              AND event_id = ?
+            WHERE guild_id = ? AND event_id = ?
             GROUP BY user_id
           ) p ON p.user_id = u.user_id
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM doubleelim_scores
-            WHERE guild_id = ?
-              AND event_id = ?
+            WHERE guild_id = ? AND event_id = ?
             GROUP BY user_id
           ) d ON d.user_id = u.user_id
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
             FROM playin_scores
-            WHERE guild_id = ?
-              AND event_id = ?
+            WHERE guild_id = ? AND event_id = ?
             GROUP BY user_id
           ) pl ON pl.user_id = u.user_id
 
@@ -154,56 +144,10 @@ module.exports = {
 
           LEFT JOIN (
             SELECT user_id, SUM(points) AS points
-            FROM (
-              SELECT
-                pred.user_id,
-                CASE
-                  WHEN pred.pred_exact_a = res.exact_a
-                   AND pred.pred_exact_b = res.exact_b
-                  THEN 3
-                  ELSE 0
-                END AS points
-              FROM match_predictions pred
-              JOIN matches m
-                ON m.id = pred.match_id
-               AND m.guild_id = pred.guild_id
-               AND m.event_id = pred.event_id
-              LEFT JOIN match_results res
-                ON res.match_id = pred.match_id
-               AND res.guild_id = pred.guild_id
-               AND res.event_id = pred.event_id
-              WHERE pred.guild_id = ?
-                AND pred.event_id = ?
-                AND m.best_of = 1
-                AND pred.pred_exact_a IS NOT NULL
-                AND pred.pred_exact_b IS NOT NULL
-
-              UNION ALL
-
-              SELECT
-                pred.user_id,
-                CASE
-                  WHEN pred.pred_exact_a = res.exact_a
-                   AND pred.pred_exact_b = res.exact_b
-                  THEN 3
-                  ELSE 0
-                END AS points
-              FROM match_map_predictions pred
-              JOIN matches m
-                ON m.id = pred.match_id
-               AND m.guild_id = pred.guild_id
-               AND m.event_id = pred.event_id
-              LEFT JOIN match_map_results res
-                ON res.match_id = pred.match_id
-               AND res.guild_id = pred.guild_id
-               AND (res.event_id = pred.event_id OR res.event_id IS NULL)
-               AND res.map_no = pred.map_no
-              WHERE pred.guild_id = ?
-                AND pred.event_id = ?
-                AND m.best_of IN (3, 5)
-                AND pred.pred_exact_a IS NOT NULL
-                AND pred.pred_exact_b IS NOT NULL
-            ) x
+            FROM match_points
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND source = 'map'
             GROUP BY user_id
           ) maps ON maps.user_id = u.user_id
           `,
@@ -213,8 +157,6 @@ module.exports = {
             guildId, eventId,
             guildId, eventId,
             guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
 
             guildId, eventId,
             guildId, eventId,
@@ -222,8 +164,6 @@ module.exports = {
 
             guildId, eventId,
             guildId, eventId,
-            guildId, eventId,
-
             guildId, eventId,
 
             guildId, eventId,
@@ -247,16 +187,16 @@ module.exports = {
         } else {
           embed.setDescription(
             `🏅 **Miejsce:** **${place}**\n` +
-            `⭐ **Suma punktów:** **${me.total}**\n\n` +
+            `⭐ **Suma punktów:** **${Number(me.total)}**\n\n` +
             `📦 **Rozbicie:**\n` +
-            `• Swiss 1: **${me.swiss1}**\n` +
-            `• Swiss 2: **${me.swiss2}**\n` +
-            `• Swiss 3: **${me.swiss3}**\n` +
-            `• Playoffs: **${me.playoffs}**\n` +
-            `• Double Elim: **${me.doubleelim}**\n` +
-            `• Play-In: **${me.playin}**\n` +
-            `• Mecze: **${me.matches}**\n` +
-            `• Mapy: **${me.maps}**`
+            `• Swiss 1: **${Number(me.swiss1)}**\n` +
+            `• Swiss 2: **${Number(me.swiss2)}**\n` +
+            `• Swiss 3: **${Number(me.swiss3)}**\n` +
+            `• Playoffs: **${Number(me.playoffs)}**\n` +
+            `• Double Elim: **${Number(me.doubleelim)}**\n` +
+            `• Play-In: **${Number(me.playin)}**\n` +
+            `• Mecze: **${Number(me.matches)}**\n` +
+            `• Mapy: **${Number(me.maps)}**`
           );
         }
 
