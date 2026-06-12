@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { withGuild } = require('../utils/guildContext');
-const calculateScores = require('../handlers/calculateScores')
+const calculateScores = require('./calculateScores');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -22,6 +22,8 @@ module.exports = {
         ephemeral: true,
       });
     }
+
+    await interaction.deferReply();
 
     return withGuild(guildId, async ({ pool }) => {
       try {
@@ -46,9 +48,8 @@ module.exports = {
         const eventId = activeEvent?.id;
 
         if (!eventId) {
-          return interaction.reply({
+          return interaction.editReply({
             content: '❌ Nie znaleziono otwartego eventu.',
-            ephemeral: true,
           });
         }
 
@@ -182,7 +183,7 @@ module.exports = {
           .setColor(0x3498db)
           .setTitle(`📊 Ranking Pick'Em — ${displayName}`);
 
-        if (!me || Number(me.total) === 0) {
+        if (!me || Number(me.total) === 0 || place <= 0) {
           embed.setDescription('Ten gracz nie zdobył jeszcze żadnych punktów.');
         } else {
           embed.setDescription(
@@ -200,12 +201,20 @@ module.exports = {
           );
         }
 
-        await interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
       } catch (err) {
         console.error('[miejsce] error', err);
 
-        await interaction.reply({
+        const payload = {
           content: '❌ Wystąpił błąd przy obliczaniu miejsca.',
+        };
+
+        if (interaction.deferred || interaction.replied) {
+          return interaction.editReply(payload).catch(() => null);
+        }
+
+        return interaction.reply({
+          ...payload,
           ephemeral: true,
         }).catch(() => null);
       }
