@@ -151,6 +151,7 @@ module.exports = {
           ) mp ON mp.user_id = u.user_id
 
           LEFT JOIN (
+  LEFT JOIN (
   SELECT
     mmp.user_id,
     COUNT(*) * 3 AS points
