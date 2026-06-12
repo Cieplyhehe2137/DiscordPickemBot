@@ -151,25 +151,25 @@ module.exports = {
           ) mp ON mp.user_id = u.user_id
 
           LEFT JOIN (
-            SELECT
-              mmp.user_id,
-              COUNT(*) * 3 AS points
-            FROM match_map_predictions mmp
-            INNER JOIN match_map_results mmr
-              ON mmr.guild_id = mmp.guild_id
-             AND mmr.event_id = mmp.event_id
-             AND mmr.match_id = mmp.match_id
-             AND mmr.map_no = mmp.map_no
-            WHERE mmp.guild_id = ?
-              AND mmp.event_id = ?
-              AND mmp.pred_exact_a IS NOT NULL
-              AND mmp.pred_exact_b IS NOT NULL
-              AND mmr.res_a IS NOT NULL
-              AND mmr.res_b IS NOT NULL
-              AND mmp.pred_exact_a = mmr.res_a
-              AND mmp.pred_exact_b = mmr.res_b
-            GROUP BY mmp.user_id
-          ) maps ON maps.user_id = u.user_id
+  SELECT
+    mmp.user_id,
+    COUNT(*) * 3 AS points
+  FROM match_map_predictions mmp
+  INNER JOIN match_map_results mmr
+    ON mmr.guild_id = mmp.guild_id
+   AND mmr.event_id = mmp.event_id
+   AND mmr.match_id = mmp.match_id
+   AND mmr.map_no = mmp.map_no
+  WHERE mmp.guild_id = ?
+    AND mmp.event_id = ?
+    AND mmp.pred_exact_a IS NOT NULL
+    AND mmp.pred_exact_b IS NOT NULL
+    AND mmr.exact_a IS NOT NULL
+    AND mmr.exact_b IS NOT NULL
+    AND mmp.pred_exact_a = mmr.exact_a
+    AND mmp.pred_exact_b = mmr.exact_b
+  GROUP BY mmp.user_id
+) maps ON maps.user_id = u.user_id
           `,
           [
             guildId, eventId,
