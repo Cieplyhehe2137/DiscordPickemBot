@@ -46,7 +46,7 @@ module.exports = {
 
         if (!eventId) {
           return interaction.reply({
-            content: '❌ Nie znaleziono aktywnego eventu.',
+            content: '❌ Nie znaleziono otwartego eventu.',
             ephemeral: true,
           });
         }
@@ -59,8 +59,8 @@ module.exports = {
             COALESCE(s1.points, 0) AS swiss1,
             COALESCE(s2.points, 0) AS swiss2,
             COALESCE(s3.points, 0) AS swiss3,
-            COALESCE(p.points, 0)  AS playoffs,
-            COALESCE(d.points, 0)  AS doubleelim,
+            COALESCE(p.points, 0) AS playoffs,
+            COALESCE(d.points, 0) AS doubleelim,
             COALESCE(pl.points, 0) AS playin,
             COALESCE(mp.points, 0) AS matches,
             COALESCE(maps.points, 0) AS maps,
@@ -86,6 +86,8 @@ module.exports = {
             SELECT user_id FROM playin_scores WHERE guild_id = ? AND event_id = ?
             UNION
             SELECT user_id FROM match_points WHERE guild_id = ? AND event_id = ?
+            UNION
+            SELECT user_id FROM match_map_predictions WHERE guild_id = ? AND event_id = ?
           ) u
 
           LEFT JOIN (
@@ -149,15 +151,28 @@ module.exports = {
           ) mp ON mp.user_id = u.user_id
 
           LEFT JOIN (
-            SELECT user_id, SUM(points) AS points
-            FROM match_points
-            WHERE guild_id = ?
-              AND event_id = ?
-              AND source = 'map'
-            GROUP BY user_id
+            SELECT
+              mmp.user_id,
+              COUNT(*) * 3 AS points
+            FROM match_map_predictions mmp
+            INNER JOIN match_map_results mmr
+              ON mmr.guild_id = mmp.guild_id
+             AND mmr.event_id = mmp.event_id
+             AND mmr.match_id = mmp.match_id
+             AND mmr.map_no = mmp.map_no
+            WHERE mmp.guild_id = ?
+              AND mmp.event_id = ?
+              AND mmp.pred_exact_a IS NOT NULL
+              AND mmp.pred_exact_b IS NOT NULL
+              AND mmr.res_a IS NOT NULL
+              AND mmr.res_b IS NOT NULL
+              AND mmp.pred_exact_a = mmr.res_a
+              AND mmp.pred_exact_b = mmr.res_b
+            GROUP BY mmp.user_id
           ) maps ON maps.user_id = u.user_id
           `,
           [
+            guildId, eventId,
             guildId, eventId,
             guildId, eventId,
             guildId, eventId,
@@ -181,8 +196,8 @@ module.exports = {
           .filter(r => Number(r.total) > 0)
           .sort((a, b) => Number(b.total) - Number(a.total));
 
-        const place = ranking.findIndex(r => r.user_id === userId) + 1;
-        const me = rows.find(r => r.user_id === userId);
+        const place = ranking.findIndex(r => String(r.user_id) === String(userId)) + 1;
+        const me = rows.find(r => String(r.user_id) === String(userId));
 
         const embed = new EmbedBuilder()
           .setColor(0x3498db)
