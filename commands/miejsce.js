@@ -156,9 +156,7 @@ module.exports = {
     COUNT(*) * 3 AS points
   FROM match_map_predictions mmp
   INNER JOIN match_map_results mmr
-    ON mmr.guild_id = mmp.guild_id
-   AND mmr.event_id = mmp.event_id
-   AND mmr.match_id = mmp.match_id
+    ON mmr.match_id = mmp.match_id
    AND mmr.map_no = mmp.map_no
   WHERE mmp.guild_id = ?
     AND mmp.event_id = ?
