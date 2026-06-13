@@ -14,6 +14,14 @@ module.exports = {
     ),
 
   async execute(interaction) {
+
+    if (true) {
+      return interaction.reply({
+        content: '⚠️ Komenda `/miejsce` jest tymczasowo wyłączona.',
+        ephemeral: true,
+      });
+    }
+
     const guildId = interaction.guildId;
 
     if (!guildId) {
