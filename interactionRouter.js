@@ -92,6 +92,14 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return handler(interaction, client);
       }
 
+      if (
+        customId.startsWith('playoffs_mvp_prev_') ||
+        customId.startsWith('playoffs_mvp_next_')
+      ) {
+        const handler = require('./handlers/playoffsMvpPagination');
+        return handler(interaction, client);
+      }
+
       if (customId.startsWith('match_admin_page:')) {
         const handler = require('./handlers/matchAdminPhaseSelect');
         return handler(interaction, client);

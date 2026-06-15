@@ -4,7 +4,7 @@ const { logError } = require('../utils/logger');
 module.exports = async function playoffsMvpSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) return;
-    if (!interaction.customId.startsWith('playoffs_mvp')) return;
+    if (!interaction.customId.startsWith('playoffs_mvp_page_')) return;
 
     const guildId = interaction.guildId;
     const userId = interaction.user.id;

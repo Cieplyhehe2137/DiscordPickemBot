@@ -117,22 +117,22 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       const components = [row1, row2, row3, row4];
 
       if (mvpCandidates.length) {
-        if (mvpCandidates.length > 25) {
-          return interaction.editReply({
-            content:
-              `⚠️ Kandydatów MVP jest ${mvpCandidates.length}, a Discord pozwala max 25 opcji.\n` +
-              `Trzeba dodać paginację MVP.`
-          });
-        }
+        const mvpPage = 0;
+        const totalMvpPages = Math.ceil(mvpCandidates.length / MVP_PAGE_SIZE);
+
+        const mvpCandidatesPage = mvpCandidates.slice(
+          mvpPage * MVP_PAGE_SIZE,
+          (mvpPage + 1) * MVP_PAGE_SIZE
+        );
 
         const row5 = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId(`playoffs_mvp`)
-            .setPlaceholder('⭐ Wybierz MVP turnieju')
+            .setCustomId(`playoffs_mvp_page_${mvpPage}`)
+            .setPlaceholder(`⭐ Wybierz MVP turnieju (${mvpPage + 1}/${totalMvpPages})`)
             .setMinValues(1)
             .setMaxValues(1)
             .addOptions(
-              mvpCandidates.map(c => ({
+              mvpCandidatesPage.map(c => ({
                 label: c.team_name
                   ? `${c.nickname} (${c.team_name})`
                   : c.nickname,
@@ -142,6 +142,24 @@ module.exports = async function openPlayoffsDropdown(interaction) {
         );
 
         components.push(row5);
+
+        if (totalMvpPages > 1) {
+          const mvpPaginationRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`playoffs_mvp_prev_${mvpPage}`)
+              .setLabel('◀ MVP')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(true),
+
+            new ButtonBuilder()
+              .setCustomId(`playoffs_mvp_next_${mvpPage}`)
+              .setLabel('MVP ▶')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(false)
+          );
+
+          components.push(mvpPaginationRow);
+        }
       }
 
       await interaction.editReply({
@@ -171,6 +189,6 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
     return interaction.editReply({
       content: '❌ Błąd otwierania Pick\'Em Playoffs.'
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };
