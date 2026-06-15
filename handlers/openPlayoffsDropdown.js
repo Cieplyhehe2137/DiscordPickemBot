@@ -9,6 +9,8 @@ const {
 const { withGuild } = require('../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../utils/logger');
 
+const MVP_PAGE_SIZE = 25;
+
 async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(`
     SELECT name
