@@ -7,7 +7,7 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 
 const MVP_PAGE_SIZE = 25;
 
@@ -16,7 +16,7 @@ async function loadTeamsFromDB(pool, guildId) {
     SELECT name
     FROM teams
     WHERE guild_id = ?
-    AND active = 1
+      AND active = 1
     ORDER BY sort_order ASC, name ASC
   `, [guildId]);
 
@@ -28,16 +28,59 @@ async function loadMvpCandidates(pool, guildId) {
     SELECT id, nickname, team_name
     FROM mvp_candidates
     WHERE guild_id = ?
-    AND is_active = 1
+      AND is_active = 1
     ORDER BY nickname ASC
   `, [guildId]);
 
   return rows;
 }
 
-module.exports = async function openPlayoffsDropdown(interaction) {
-  // console.log('🔥 OPEN PLAYOFFS DROPDOWN WITH MVP + CONFIRM MESSAGE');
+function buildMvpRows(mvpCandidates, page = 0) {
+  const totalPages = Math.ceil(mvpCandidates.length / MVP_PAGE_SIZE);
 
+  const pageCandidates = mvpCandidates.slice(
+    page * MVP_PAGE_SIZE,
+    (page + 1) * MVP_PAGE_SIZE
+  );
+
+  const mvpSelectRow = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`playoffs_mvp_page_${page}`)
+      .setPlaceholder(`⭐ Wybierz MVP turnieju (${page + 1}/${totalPages})`)
+      .setMinValues(1)
+      .setMaxValues(1)
+      .addOptions(
+        pageCandidates.map(c => ({
+          label: c.team_name
+            ? `${c.nickname} (${c.team_name})`
+            : c.nickname,
+          value: String(c.id)
+        }))
+      )
+  );
+
+  if (totalPages <= 1) {
+    return [mvpSelectRow];
+  }
+
+  const mvpPaginationRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`playoffs_mvp_prev_${page}`)
+      .setLabel('◀ MVP')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page === 0),
+
+    new ButtonBuilder()
+      .setCustomId(`playoffs_mvp_next_${page}`)
+      .setLabel('MVP ▶')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(page >= totalPages - 1)
+  );
+
+  return [mvpSelectRow, mvpPaginationRow];
+}
+
+module.exports = async function openPlayoffsDropdown(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
@@ -51,7 +94,6 @@ module.exports = async function openPlayoffsDropdown(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-
       const teams = await loadTeamsFromDB(pool, guildId);
 
       if (!teams.length) {
@@ -116,58 +158,18 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .addOptions(makeOptions())
       );
 
-      const components = [row1, row2, row3, row4];
-
-      if (mvpCandidates.length) {
-        const mvpPage = 0;
-        const totalMvpPages = Math.ceil(mvpCandidates.length / MVP_PAGE_SIZE);
-
-        const mvpCandidatesPage = mvpCandidates.slice(
-          mvpPage * MVP_PAGE_SIZE,
-          (mvpPage + 1) * MVP_PAGE_SIZE
-        );
-
-        const row5 = new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId(`playoffs_mvp_page_${mvpPage}`)
-            .setPlaceholder(`⭐ Wybierz MVP turnieju (${mvpPage + 1}/${totalMvpPages})`)
-            .setMinValues(1)
-            .setMaxValues(1)
-            .addOptions(
-              mvpCandidatesPage.map(c => ({
-                label: c.team_name
-                  ? `${c.nickname} (${c.team_name})`
-                  : c.nickname,
-                value: String(c.id)
-              }))
-            )
-        );
-
-        components.push(row5);
-
-        if (totalMvpPages > 1) {
-          const mvpPaginationRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`playoffs_mvp_prev_${mvpPage}`)
-              .setLabel('◀ MVP')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(true),
-
-            new ButtonBuilder()
-              .setCustomId(`playoffs_mvp_next_${mvpPage}`)
-              .setLabel('MVP ▶')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(false)
-          );
-
-          components.push(mvpPaginationRow);
-        }
-      }
-
       await interaction.editReply({
         embeds: [embed],
-        components
+        components: [row1, row2, row3, row4]
       });
+
+      if (mvpCandidates.length) {
+        await interaction.followUp({
+          content: '⭐ Wybierz MVP turnieju:',
+          components: buildMvpRows(mvpCandidates, 0),
+          ephemeral: true
+        });
+      }
 
       const confirmRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -191,6 +193,6 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
     return interaction.editReply({
       content: '❌ Błąd otwierania Pick\'Em Playoffs.'
-    }).catch(() => { });
+    }).catch(() => {});
   }
 };
