@@ -6,14 +6,25 @@ function parseMvpCandidates(raw) {
     .map(line => line.trim())
     .filter(Boolean)
     .map(line => {
-      const [nickname, team_name] = line.split('|').map(v => v?.trim() || null);
+      const parts = line
+        .split('|')
+        .map(v => v.trim())
+        .filter(Boolean);
 
       return {
-        nickname,
-        team_name: team_name || null
+        nickname: parts[0] || null,
+        team_name: parts[1] || null
       };
     })
     .filter(x => x.nickname);
+}
+
+function getTextInputValueSafe(interaction, customId) {
+  try {
+    return interaction.fields.getTextInputValue(customId);
+  } catch (_) {
+    return '';
+  }
 }
 
 async function resolveActiveEventId(pool, guildId) {
@@ -45,8 +56,8 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
     if (!match && !isLegacyModal) return;
 
     const raw =
-      interaction.fields.getTextInputValue('mvp_candidates_input') ||
-      interaction.fields.getTextInputValue('mvp_candidates');
+      getTextInputValueSafe(interaction, 'mvp_candidates_input') ||
+      getTextInputValueSafe(interaction, 'mvp_candidates');
 
     const candidates = parseMvpCandidates(raw);
 
@@ -109,12 +120,20 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
       }
     });
 
+    const preview = candidates
+      .slice(0, 20)
+      .map(c => `• ${c.nickname}${c.team_name ? ` (${c.team_name})` : ''}`)
+      .join('\n');
+
+    const more =
+      candidates.length > 20
+        ? `\n...i jeszcze ${candidates.length - 20}`
+        : '';
+
     return interaction.reply({
       content:
-        `✅ Zapisano kandydatów MVP.\n` +
-        candidates
-          .map(c => `• ${c.nickname}${c.team_name ? ` (${c.team_name})` : ''}`)
-          .join('\n'),
+        `✅ Zapisano kandydatów MVP: ${candidates.length}\n\n` +
+        `${preview}${more}`,
       ephemeral: true
     });
   } catch (err) {
