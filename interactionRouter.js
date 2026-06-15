@@ -202,12 +202,10 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (interaction.isModalSubmit()) {
       const customId = interaction.customId;
 
-      let handlerName = modalMap?.[customId];
-
-      if (!handlerName && customId.includes(':')) {
-        const prefix = customId.split(':')[0];
-        handlerName = modalMap?.[prefix];
-      }
+      let handlerName =
+        modalMap?.[customId] ||
+        modalMap?.[customId.split(':')[0]] ||
+        modalMap?.[customId.split(':').slice(0, 3).join(':')];
 
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
