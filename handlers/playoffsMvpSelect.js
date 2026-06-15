@@ -27,7 +27,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
         SELECT id
         FROM events
         WHERE guild_id = ?
-          AND status = 'active'
+          AND status = 'OPEN'
         ORDER BY id DESC
         LIMIT 1
         `,
@@ -35,7 +35,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
       );
 
       if (!event?.id) {
-        throw new Error('No active event found for MVP prediction');
+        throw new Error('No OPEN event found for MVP prediction');
       }
 
       await pool.query(
