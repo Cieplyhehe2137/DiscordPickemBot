@@ -177,7 +177,13 @@ module.exports = {
             archiveChannelId,
             at: new Date().toISOString(),
           },
-        });
+        }).catch(err =>
+          logWarn('[end_tournament] audit log failed', {
+            guildId,
+            message: err?.message,
+            stack: err?.stack,
+          })
+        );
 
         // ===== ODSWIEŻ ARCHIWUM PANEL =====
         await sendArchivePanel(interaction.client, guildId).catch(err =>

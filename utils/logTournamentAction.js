@@ -1,9 +1,10 @@
 const db = require('../db');
-const logger = require('./logger');
+const { logError } = require('./logger');
 const { ensureTournamentAuditLog } = require('./ensureTournamentTables');
 
 function normalize(val) {
   if (val === undefined || val === null) return null;
+
   if (typeof val === 'object') {
     try {
       return JSON.stringify(val);
@@ -11,6 +12,7 @@ function normalize(val) {
       return String(val);
     }
   }
+
   return String(val);
 }
 
@@ -44,13 +46,13 @@ async function logTournamentAction({
       ]
     );
   } catch (err) {
-    // ❗ audit log NIGDY nie może wywalić głównej operacji
+    // audit log nigdy nie może wywalić głównej operacji
     logError('audit', 'logTournamentAction failed', {
       guildId,
       actorId,
       action,
-      message: err.message,
-      stack: err.stack,
+      message: err?.message,
+      stack: err?.stack,
     });
   }
 }
