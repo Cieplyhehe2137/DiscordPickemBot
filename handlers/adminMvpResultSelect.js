@@ -19,19 +19,23 @@ module.exports = async function adminMvpResultSelect(interaction) {
       return interaction.reply({
         content: '❌ Nieprawidłowy kandydat MVP.',
         ephemeral: true
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const [[event]] = await pool.query(
         `
-        SELECT id
-        FROM events
-        WHERE guild_id = ?
-          AND status = 'active'
-        ORDER BY id DESC
-        LIMIT 1
-        `,
+  SELECT id
+  FROM events
+  WHERE guild_id = ?
+    AND (
+      status = 'active'
+      OR status = 'OPEN'
+      OR phase = 'OPEN'
+    )
+  ORDER BY id DESC
+  LIMIT 1
+  `,
         [guildId]
       );
 
@@ -73,12 +77,12 @@ module.exports = async function adminMvpResultSelect(interaction) {
       return interaction.followUp({
         content: '❌ Nie udało się zapisać oficjalnego MVP.',
         ephemeral: true
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     return interaction.reply({
       content: '❌ Nie udało się zapisać oficjalnego MVP.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };
