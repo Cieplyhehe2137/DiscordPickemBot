@@ -13,27 +13,47 @@ module.exports = async function adminMvpResultSelect(interaction) {
     }
 
     const guildId = interaction.guildId;
-    const candidateId = interaction.values?.[0];
+    const candidateId = Number(interaction.values?.[0]);
 
-    if (!guildId || !candidateId) {
-      return interaction.deferUpdate();
+    if (!guildId || !Number.isInteger(candidateId) || candidateId <= 0) {
+      return interaction.reply({
+        content: '❌ Nieprawidłowy kandydat MVP.',
+        ephemeral: true
+      }).catch(() => {});
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
+      const [[event]] = await pool.query(
+        `
+        SELECT id
+        FROM events
+        WHERE guild_id = ?
+          AND status = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId]
+      );
+
+      if (!event?.id) {
+        throw new Error('No active event found for MVP result');
+      }
+
       await pool.query(
         `
         INSERT INTO mvp_results (
           guild_id,
+          event_id,
           candidate_id,
           active
         )
-        VALUES (?, ?, 1)
+        VALUES (?, ?, ?, 1)
         ON DUPLICATE KEY UPDATE
           candidate_id = VALUES(candidate_id),
           active = 1,
           updated_at = CURRENT_TIMESTAMP
         `,
-        [guildId, candidateId]
+        [guildId, event.id, candidateId]
       );
     });
 
@@ -48,6 +68,13 @@ module.exports = async function adminMvpResultSelect(interaction) {
       message: err.message,
       stack: err.stack
     });
+
+    if (interaction.replied || interaction.deferred) {
+      return interaction.followUp({
+        content: '❌ Nie udało się zapisać oficjalnego MVP.',
+        ephemeral: true
+      }).catch(() => {});
+    }
 
     return interaction.reply({
       content: '❌ Nie udało się zapisać oficjalnego MVP.',
