@@ -613,7 +613,9 @@ export default function PublicEventPage() {
                                 </p>
 
                                 <h3 className="mt-2 text-2xl font-black">
-                                    {latestPrediction.score_a}:{latestPrediction.score_b}
+                                    {latestPrediction.series
+                                        ? `${latestPrediction.series.pred_a}:${latestPrediction.series.pred_b}`
+                                        : `${latestPrediction.score_a}:${latestPrediction.score_b}`}
                                 </h3>
 
                                 <p className="mt-2 text-white/50">
@@ -1170,7 +1172,9 @@ export default function PublicEventPage() {
 
                                             {myPredictions[match.id] && (
                                                 <p className="mt-2 inline-flex rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                                    Your Pick: {myPredictions[match.id].score_a}:{myPredictions[match.id].score_b}
+                                                    Your Pick: {myPredictions[match.id].series
+                                                        ? `${myPredictions[match.id].series.pred_a}:${myPredictions[match.id].series.pred_b}`
+                                                        : `${myPredictions[match.id].score_a}:${myPredictions[match.id].score_b}`}
                                                 </p>
                                             )}
                                         </div>
@@ -1558,6 +1562,79 @@ function MatchModal({
                                     </div>
                                 )}
 
+                                {(matchStats[selectedMatch.id]?.series_breakdown || []).length > 0 && (
+                                    <div className="mt-8">
+                                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                            Series Picks
+                                        </p>
+
+                                        <div className="mt-4 grid gap-3">
+                                            {matchStats[selectedMatch.id].series_breakdown.map((row) => {
+                                                const total = Number(matchStats[selectedMatch.id]?.predictions || 0);
+                                                const percent = total > 0
+                                                    ? Math.round((Number(row.picks || 0) / total) * 100)
+                                                    : 0;
+
+                                                return (
+                                                    <div
+                                                        key={`${row.pred_a}:${row.pred_b}`}
+                                                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <p className="font-black">
+                                                                {row.label}
+                                                            </p>
+
+                                                            <p className="text-sm font-black text-violet-300">
+                                                                {row.picks} picks • {percent}%
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/40">
+                                                            <div
+                                                                className="h-full rounded-full bg-violet-500"
+                                                                style={{ width: `${percent}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(matchStats[selectedMatch.id]?.map_breakdown || []).length > 0 && (
+                                    <div className="mt-8">
+                                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                                            Most Picked Map Scores
+                                        </p>
+
+                                        <div className="mt-4 grid gap-4">
+                                            {matchStats[selectedMatch.id].map_breakdown.map((map) => (
+                                                <div
+                                                    key={map.map_no}
+                                                    className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                                >
+                                                    <p className="font-black">
+                                                        {getMapLabel(map.map_no, selectedMatch.best_of)}
+                                                    </p>
+
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {(map.scores || []).map((score) => (
+                                                            <span
+                                                                key={`${map.map_no}-${score.score}`}
+                                                                className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-sm font-black text-white/70"
+                                                            >
+                                                                {score.score} • {score.picks}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {(matchStats[selectedMatch.id]?.predictions ?? 0) === 0 && (
                                     <p className="mt-4 text-white/50">
                                         No community predictions yet.
@@ -1689,6 +1766,93 @@ function MatchModal({
     );
 }
 
+function getRequiredWins(bestOf) {
+    const bo = Number(bestOf || 1);
+
+    if (bo === 1) return 1;
+    if (bo === 3) return 2;
+    if (bo === 5) return 3;
+
+    return 1;
+}
+
+function getSeriesOptions(match) {
+    const requiredWins = getRequiredWins(match.best_of);
+
+    if (requiredWins === 1) {
+        return [
+            {
+                label: `${match.team_a} 1:0`,
+                pred_a: 1,
+                pred_b: 0,
+                winner: 'team_a'
+            },
+            {
+                label: `${match.team_b} 1:0`,
+                pred_a: 0,
+                pred_b: 1,
+                winner: 'team_b'
+            }
+        ];
+    }
+
+    const options = [];
+
+    for (let loserScore = 0; loserScore < requiredWins; loserScore++) {
+        options.push({
+            label: `${match.team_a} ${requiredWins}:${loserScore}`,
+            pred_a: requiredWins,
+            pred_b: loserScore,
+            winner: 'team_a'
+        });
+    }
+
+    for (let loserScore = requiredWins - 1; loserScore >= 0; loserScore--) {
+        options.push({
+            label: `${match.team_b} ${requiredWins}:${loserScore}`,
+            pred_a: loserScore,
+            pred_b: requiredWins,
+            winner: 'team_b'
+        });
+    }
+
+    return options;
+}
+
+function getMapLabel(mapNo, bestOf) {
+    if (Number(bestOf) === 1) return 'BO1';
+
+    if (Number(mapNo) === 1) return 'Pick Team A';
+    if (Number(mapNo) === 2) return 'Pick Team B';
+    if (Number(mapNo) === 3) return 'Decider';
+
+    return `Map ${mapNo}`;
+}
+
+function formatPredictionSummary(prediction) {
+    if (!prediction) return null;
+
+    if (prediction.series) {
+        return `${prediction.series.pred_a}:${prediction.series.pred_b}`;
+    }
+
+    if (prediction.score_a != null && prediction.score_b != null) {
+        return `${prediction.score_a}:${prediction.score_b}`;
+    }
+
+    return 'Saved';
+}
+
+function getMapsToPredict(match, series) {
+    const bestOf = Number(match.best_of || 1);
+
+    if (bestOf === 1) return [1];
+
+    if (!series) return [];
+
+    return Math.max(Number(series.pred_a), Number(series.pred_b));
+}
+
 function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
     const { isLoggedIn, user } = usePublicAuth();
 
@@ -1696,36 +1860,31 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
         match.ui_status === 'LOCKED' ||
         match.ui_status === 'FINAL';
 
-    const [winner, setWinner] = useState(null);
-    const [scoreA, setScoreA] = useState('');
-    const [scoreB, setScoreB] = useState('');
+    const [selectedSeries, setSelectedSeries] = useState(null);
+    const [mapScores, setMapScores] = useState({});
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
+
+    const seriesOptions = getSeriesOptions(match);
+    const mapsToPredict = getMapsToPredict(match, selectedSeries);
 
     function resetFeedback() {
         setError(null);
         setSuccess(false);
     }
 
-    const scoreANumber = Number(scoreA);
-    const scoreBNumber = Number(scoreB);
+    function updateMapScore(mapNo, side, value) {
+        resetFeedback();
 
-    const scoreValid =
-        scoreA !== '' &&
-        scoreB !== '' &&
-        Number.isInteger(scoreANumber) &&
-        Number.isInteger(scoreBNumber) &&
-        scoreANumber >= 0 &&
-        scoreBNumber >= 0 &&
-        scoreANumber !== scoreBNumber;
-
-    const winnerMatchesScore =
-        winner === 'team_a'
-            ? scoreANumber > scoreBNumber
-            : winner === 'team_b'
-                ? scoreBNumber > scoreANumber
-                : false;
+        setMapScores((prev) => ({
+            ...prev,
+            [mapNo]: {
+                ...(prev[mapNo] || {}),
+                [side]: value
+            }
+        }));
+    }
 
     useEffect(() => {
         async function loadPrediction() {
@@ -1736,9 +1895,18 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
 
                 if (!result.prediction) return;
 
-                setWinner(result.prediction.winner);
-                setScoreA(String(result.prediction.score_a ?? ''));
-                setScoreB(String(result.prediction.score_b ?? ''));
+                setSelectedSeries(result.prediction.series || null);
+
+                const mapped = {};
+
+                for (const map of result.prediction.maps || []) {
+                    mapped[map.map_no] = {
+                        pred_exact_a: String(map.pred_exact_a ?? ''),
+                        pred_exact_b: String(map.pred_exact_b ?? '')
+                    };
+                }
+
+                setMapScores(mapped);
             } catch (err) {
                 console.error(err);
             }
@@ -1747,12 +1915,31 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
         loadPrediction();
     }, [match.id, isLoggedIn, user?.id]);
 
+    const mapsValid =
+        selectedSeries &&
+        mapsToPredict.length > 0 &&
+        mapsToPredict.every((mapNo) => {
+            const score = mapScores[mapNo];
+
+            const a = Number(score?.pred_exact_a);
+            const b = Number(score?.pred_exact_b);
+
+            return (
+                score?.pred_exact_a !== '' &&
+                score?.pred_exact_b !== '' &&
+                Number.isInteger(a) &&
+                Number.isInteger(b) &&
+                a >= 0 &&
+                b >= 0 &&
+                a !== b
+            );
+        });
+
     const canSubmit =
         !predictionClosed &&
         isLoggedIn &&
-        winner &&
-        scoreValid &&
-        winnerMatchesScore;
+        selectedSeries &&
+        mapsValid;
 
     async function handleSavePrediction() {
         if (!canSubmit) return;
@@ -1762,10 +1949,18 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
             setError(null);
             setSuccess(false);
 
+            const maps = mapsToPredict.map((mapNo) => ({
+                map_no: mapNo,
+                pred_exact_a: Number(mapScores[mapNo].pred_exact_a),
+                pred_exact_b: Number(mapScores[mapNo].pred_exact_b)
+            }));
+
             const result = await savePublicPrediction(match.id, {
-                winner,
-                score_a: Number(scoreA),
-                score_b: Number(scoreB)
+                series: {
+                    pred_a: selectedSeries.pred_a,
+                    pred_b: selectedSeries.pred_b
+                },
+                maps
             });
 
             onPredictionSaved?.(result.prediction);
@@ -1795,7 +1990,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-zinc-950 p-6 shadow-2xl md:p-8"
+                className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-zinc-950 p-6 shadow-2xl md:p-8"
             >
                 <div className="flex items-start justify-between gap-6">
                     <div>
@@ -1806,35 +2001,10 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                         <h2 className="mt-3 text-3xl font-black">
                             {match.team_a} vs {match.team_b}
                         </h2>
-                        {predictionClosed && (
-                            <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
-                                <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                                    Prediction Closed
-                                </p>
 
-                                <p className="mt-2 text-white/60">
-                                    This match is already locked or finished.
-                                </p>
-                            </div>
-                        )}
-                        {!isLoggedIn && (
-                            <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 p-4">
-                                <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                                    Login Required
-                                </p>
-
-                                <p className="mt-2 text-white/60">
-                                    Sign in with Discord to save your prediction.
-                                </p>
-
-                                <a
-                                    href="/api/auth/discord"
-                                    className="mt-4 inline-flex rounded-xl bg-violet-500 px-4 py-3 text-sm font-black transition hover:bg-violet-400"
-                                >
-                                    Login Discord
-                                </a>
-                            </div>
-                        )}
+                        <p className="mt-2 text-white/40">
+                            {formatPhaseLabel(match.phase)} • BO{match.best_of || 1}
+                        </p>
                     </div>
 
                     <button
@@ -1845,105 +2015,189 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                     </button>
                 </div>
 
-                <div className="mt-8 grid gap-4 md:grid-cols-2">
-                    <button
-                        onClick={() => {
-                            setWinner('team_a');
-                            resetFeedback();
-                        }}
-                        className={`rounded-2xl border p-6 text-left transition ${winner === 'team_a'
-                            ? 'border-violet-400 bg-violet-500/20'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                            }`}
-                    >
-                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Winner
+                {predictionClosed && (
+                    <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
+                            Prediction Closed
                         </p>
 
-                        <h3 className="mt-2 text-3xl font-black">
-                            {match.team_a}
-                        </h3>
-                    </button>
+                        <p className="mt-2 text-white/60">
+                            This match is already locked or finished.
+                        </p>
+                    </div>
+                )}
 
-                    <button
-                        onClick={() => {
-                            setWinner('team_b');
-                            resetFeedback();
-                        }}
-                        className={`rounded-2xl border p-6 text-left transition ${winner === 'team_b'
-                            ? 'border-violet-400 bg-violet-500/20'
-                            : 'border-white/10 bg-white/5 hover:bg-white/10'
-                            }`}
-                    >
-                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Winner
+                {!isLoggedIn && (
+                    <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 p-4">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
+                            Login Required
                         </p>
 
-                        <h3 className="mt-2 text-3xl font-black">
-                            {match.team_b}
-                        </h3>
-                    </button>
-                </div>
+                        <p className="mt-2 text-white/60">
+                            Sign in with Discord to save your prediction.
+                        </p>
 
-                <div className="mt-8 rounded-2xl border border-white/10 bg-black/30 p-5">
+                        <a
+                            href="/api/auth/discord"
+                            className="mt-4 inline-flex rounded-xl bg-violet-500 px-4 py-3 text-sm font-black transition hover:bg-violet-400"
+                        >
+                            Login Discord
+                        </a>
+                    </div>
+                )}
+
+                <div className="mt-8 rounded-[2rem] border border-white/10 bg-black/30 p-5">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Exact Score
+                        1. Series Result
                     </p>
 
-                    <div className="mt-5 flex items-center justify-center gap-4">
-                        <input
-                            value={scoreA}
-                            onChange={(e) => {
-                                setScoreA(e.target.value);
-                                resetFeedback();
-                            }}
-                            type="number"
-                            min="0"
-                            className="w-24 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-3xl font-black outline-none focus:border-violet-400"
-                        />
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                        {seriesOptions.map((option) => {
+                            const active =
+                                selectedSeries?.pred_a === option.pred_a &&
+                                selectedSeries?.pred_b === option.pred_b;
 
-                        <span className="text-3xl font-black text-white/30">
-                            :
-                        </span>
+                            return (
+                                <button
+                                    key={`${option.pred_a}:${option.pred_b}`}
+                                    onClick={() => {
+                                        setSelectedSeries(option);
+                                        setMapScores({});
+                                        resetFeedback();
+                                    }}
+                                    className={`rounded-2xl border p-5 text-left transition ${active
+                                        ? 'border-violet-400 bg-violet-500/20 shadow-[0_0_30px_rgba(139,92,246,0.18)]'
+                                        : 'border-white/10 bg-white/5 hover:bg-white/10'
+                                        }`}
+                                >
+                                    <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                                        Pick
+                                    </p>
 
-                        <input
-                            value={scoreB}
-                            onChange={(e) => {
-                                setScoreB(e.target.value);
-                                resetFeedback();
-                            }}
-                            type="number"
-                            min="0"
-                            className="w-24 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-3xl font-black outline-none focus:border-violet-400"
-                        />
+                                    <h3 className="mt-2 text-2xl font-black">
+                                        {option.label}
+                                    </h3>
+                                </button>
+                            );
+                        })}
                     </div>
-                    {scoreA !== '' && scoreB !== '' && !scoreValid && (
-                        <p className="mt-4 text-center text-sm font-black text-red-300">
-                            Score must be valid and cannot be a draw.
+                </div>
+
+                <div className="mt-6 rounded-[2rem] border border-white/10 bg-black/30 p-5">
+                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                        2. Map Scores
+                    </p>
+
+                    {!selectedSeries && (
+                        <p className="mt-4 text-white/50">
+                            Select series result first.
                         </p>
                     )}
 
-                    {winner && scoreValid && !winnerMatchesScore && (
-                        <p className="mt-4 text-center text-sm font-black text-red-300">
-                            Selected winner must match the exact score.
-                        </p>
-                    )}
-                    {winner && scoreValid && winnerMatchesScore && (
-                        <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
-                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                Your Prediction
-                            </p>
+                    {selectedSeries && (
+                        <div className="mt-5 grid gap-4">
+                            {mapsToPredict.map((mapNo) => {
+                                const score = mapScores[mapNo] || {};
 
-                            <p className="mt-2 text-2xl font-black">
-                                {winner === 'team_a' ? match.team_a : match.team_b} wins
-                            </p>
+                                return (
+                                    <div
+                                        key={mapNo}
+                                        className="rounded-2xl border border-white/10 bg-white/5 p-5"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-4">
+                                            <div>
+                                                <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                                                    Map {mapNo}
+                                                </p>
 
-                            <p className="mt-1 text-white/50">
-                                Exact score: {scoreA}:{scoreB}
-                            </p>
+                                                <h3 className="mt-1 text-xl font-black">
+                                                    {getMapLabel(mapNo, match.best_of)}
+                                                </h3>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    value={score.pred_exact_a || ''}
+                                                    onChange={(e) =>
+                                                        updateMapScore(
+                                                            mapNo,
+                                                            'pred_exact_a',
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    type="number"
+                                                    min="0"
+                                                    max="99"
+                                                    placeholder="13"
+                                                    className="w-24 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center text-2xl font-black outline-none focus:border-violet-400"
+                                                />
+
+                                                <span className="text-2xl font-black text-white/30">
+                                                    :
+                                                </span>
+
+                                                <input
+                                                    value={score.pred_exact_b || ''}
+                                                    onChange={(e) =>
+                                                        updateMapScore(
+                                                            mapNo,
+                                                            'pred_exact_b',
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    type="number"
+                                                    min="0"
+                                                    max="99"
+                                                    placeholder="10"
+                                                    className="w-24 rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-center text-2xl font-black outline-none focus:border-violet-400"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <p className="mt-3 text-sm text-white/40">
+                                            {match.team_a} : {match.team_b}
+                                        </p>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
+
+                {selectedSeries && mapsValid && (
+                    <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
+                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                            Your Prediction
+                        </p>
+
+                        <p className="mt-2 text-2xl font-black">
+                            Series: {selectedSeries.pred_a}:{selectedSeries.pred_b}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {mapsToPredict.map((mapNo) => (
+                                <span
+                                    key={mapNo}
+                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
+                                >
+                                    {getMapLabel(mapNo, match.best_of)}: {mapScores[mapNo]?.pred_exact_a}:{mapScores[mapNo]?.pred_exact_b}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {error && (
+                    <p className="mt-4 text-center font-black text-red-300">
+                        {error}
+                    </p>
+                )}
+
+                {success && (
+                    <p className="mt-4 text-center font-black text-green-300">
+                        Prediction saved!
+                    </p>
+                )}
 
                 <button
                     onClick={handleSavePrediction}
@@ -1963,17 +2217,6 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                                     ? 'Save Prediction'
                                     : 'Login Required'}
                 </button>
-                {success && (
-                    <p className="mt-4 text-center font-black text-green-300">
-                        Prediction saved!
-                    </p>
-                )}
-
-                {error && (
-                    <p className="mt-4 text-center font-black text-red-300">
-                        {error}
-                    </p>
-                )}
             </div>
         </div>
     );

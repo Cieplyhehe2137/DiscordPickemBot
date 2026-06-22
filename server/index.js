@@ -1023,11 +1023,11 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
 
         const [[match]] = await pool.query(
             `
-      SELECT id, team_a, team_b
-      FROM matches
-      WHERE id = ?
-      LIMIT 1
-      `,
+            SELECT id, team_a, team_b, best_of
+            FROM matches
+            WHERE id = ?
+            LIMIT 1
+            `,
             [matchId]
         );
 
@@ -1039,22 +1039,112 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
 
         const [[stats]] = await pool.query(
             `
-  SELECT
-    COUNT(*) AS predictions,
-    SUM(pred_a = 1) AS team_a_picks,
-    SUM(pred_b = 1) AS team_b_picks
-  FROM match_predictions
-  WHERE match_id = ?
-  `,
+            SELECT
+                COUNT(*) AS predictions,
+                SUM(pred_a > pred_b) AS team_a_picks,
+                SUM(pred_b > pred_a) AS team_b_picks
+            FROM match_predictions
+            WHERE match_id = ?
+            `,
             [matchId]
+        );
+
+        const [seriesRows] = await pool.query(
+            `
+            SELECT
+                pred_a,
+                pred_b,
+                COUNT(*) AS picks
+            FROM match_predictions
+            WHERE match_id = ?
+            GROUP BY pred_a, pred_b
+            ORDER BY picks DESC
+            `,
+            [matchId]
+        );
+
+        const [bo1MapRows] = await pool.query(
+            `
+            SELECT
+                1 AS map_no,
+                pred_exact_a,
+                pred_exact_b,
+                COUNT(*) AS picks
+            FROM match_predictions
+            WHERE match_id = ?
+              AND pred_exact_a IS NOT NULL
+              AND pred_exact_b IS NOT NULL
+            GROUP BY pred_exact_a, pred_exact_b
+            `,
+            [matchId]
+        );
+
+        const [multiMapRows] = await pool.query(
+            `
+            SELECT
+                map_no,
+                pred_exact_a,
+                pred_exact_b,
+                COUNT(*) AS picks
+            FROM match_map_predictions
+            WHERE match_id = ?
+              AND pred_exact_a IS NOT NULL
+              AND pred_exact_b IS NOT NULL
+            GROUP BY map_no, pred_exact_a, pred_exact_b
+            ORDER BY map_no ASC, picks DESC
+            `,
+            [matchId]
+        );
+
+        const bestOf = Number(match.best_of || 1);
+        const mapRows = bestOf === 1 ? bo1MapRows : multiMapRows;
+
+        const mapBreakdownMap = new Map();
+
+        for (const row of mapRows) {
+            const mapNo = Number(row.map_no);
+
+            if (!mapBreakdownMap.has(mapNo)) {
+                mapBreakdownMap.set(mapNo, []);
+            }
+
+            mapBreakdownMap.get(mapNo).push({
+                map_no: mapNo,
+                pred_exact_a: Number(row.pred_exact_a),
+                pred_exact_b: Number(row.pred_exact_b),
+                score: `${row.pred_exact_a}:${row.pred_exact_b}`,
+                picks: Number(row.picks || 0)
+            });
+        }
+
+        const map_breakdown = [...mapBreakdownMap.entries()].map(
+            ([map_no, scores]) => ({
+                map_no,
+                scores: scores
+                    .sort((a, b) => b.picks - a.picks)
+                    .slice(0, 5)
+            })
         );
 
         res.json({
             match,
             stats: {
-                predictions: stats?.predictions || 0,
-                team_a_picks: stats?.team_a_picks || 0,
-                team_b_picks: stats?.team_b_picks || 0
+                predictions: Number(stats?.predictions || 0),
+                team_a_picks: Number(stats?.team_a_picks || 0),
+                team_b_picks: Number(stats?.team_b_picks || 0),
+
+                series_breakdown: seriesRows.map((row) => ({
+                    pred_a: Number(row.pred_a),
+                    pred_b: Number(row.pred_b),
+                    label:
+                        Number(row.pred_a) > Number(row.pred_b)
+                            ? `${match.team_a} ${row.pred_a}:${row.pred_b}`
+                            : `${match.team_b} ${row.pred_b}:${row.pred_a}`,
+                    score: `${row.pred_a}:${row.pred_b}`,
+                    picks: Number(row.picks || 0)
+                })),
+
+                map_breakdown
             }
         });
     } catch (err) {
@@ -1560,7 +1650,6 @@ app.get('/api/public/users/:userId', async (req, res) => {
 app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
     try {
         const { matchId } = req.params;
-        const { winner, score_a, score_b } = req.body;
         const user_id = req.session?.user?.id;
 
         if (!user_id) {
@@ -1569,39 +1658,9 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
             });
         }
 
-        if (!['team_a', 'team_b'].includes(winner)) {
-            return res.status(400).json({
-                error: 'Invalid winner'
-            });
-        }
-
-        const scoreA = Number(score_a);
-        const scoreB = Number(score_b);
-
-        if (
-            !Number.isInteger(scoreA) ||
-            !Number.isInteger(scoreB) ||
-            scoreA < 0 ||
-            scoreB < 0 ||
-            scoreA === scoreB
-        ) {
-            return res.status(400).json({
-                error: 'Invalid score'
-            });
-        }
-
-        if (
-            (winner === 'team_a' && scoreA <= scoreB) ||
-            (winner === 'team_b' && scoreB <= scoreA)
-        ) {
-            return res.status(400).json({
-                error: 'Winner does not match score'
-            });
-        }
-
         const [[match]] = await pool.query(
             `
-            SELECT id, guild_id, event_id, team_a, team_b, is_locked
+            SELECT id, guild_id, event_id, team_a, team_b, best_of, is_locked
             FROM matches
             WHERE id = ?
             LIMIT 1
@@ -1621,49 +1680,240 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
             });
         }
 
-        const predA = winner === 'team_a' ? 1 : 0;
-        const predB = winner === 'team_b' ? 1 : 0;
+        const bestOf = Number(match.best_of || 1);
 
-        await pool.query(
-            `
-            INSERT INTO match_predictions (
-                match_id,
-                guild_id,
-                event_id,
-                user_id,
-                pred_a,
-                pred_b,
-                pred_exact_a,
-                pred_exact_b
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                pred_a = VALUES(pred_a),
-                pred_b = VALUES(pred_b),
-                pred_exact_a = VALUES(pred_exact_a),
-                pred_exact_b = VALUES(pred_exact_b),
-                updated_at = CURRENT_TIMESTAMP
-            `,
-            [
-                match.id,
-                match.guild_id,
-                match.event_id,
-                user_id,
-                predA,
-                predB,
-                scoreA,
-                scoreB
-            ]
-        );
+        let predA = null;
+        let predB = null;
+        let bo1ExactA = null;
+        let bo1ExactB = null;
+        let mapPicks = [];
+
+        if (req.body?.series) {
+            predA = Number(req.body.series.pred_a);
+            predB = Number(req.body.series.pred_b);
+
+            if (
+                !Number.isInteger(predA) ||
+                !Number.isInteger(predB) ||
+                predA < 0 ||
+                predB < 0 ||
+                predA === predB
+            ) {
+                return res.status(400).json({
+                    error: 'Invalid series prediction'
+                });
+            }
+
+            if (bestOf === 1) {
+                const validBo1 =
+                    (predA === 1 && predB === 0) ||
+                    (predA === 0 && predB === 1);
+
+                if (!validBo1) {
+                    return res.status(400).json({
+                        error: 'BO1 series must be 1:0 or 0:1'
+                    });
+                }
+            }
+
+            if (bestOf === 3) {
+                const validBo3 =
+                    (predA === 2 && (predB === 0 || predB === 1)) ||
+                    (predB === 2 && (predA === 0 || predA === 1));
+
+                if (!validBo3) {
+                    return res.status(400).json({
+                        error: 'BO3 series must be 2:0 / 2:1 / 1:2 / 0:2'
+                    });
+                }
+            }
+
+            if (bestOf === 5) {
+                const validBo5 =
+                    (predA === 3 && [0, 1, 2].includes(predB)) ||
+                    (predB === 3 && [0, 1, 2].includes(predA));
+
+                if (!validBo5) {
+                    return res.status(400).json({
+                        error: 'BO5 series must be 3:x or x:3'
+                    });
+                }
+            }
+
+            mapPicks = Array.isArray(req.body.maps) ? req.body.maps : [];
+
+            for (const map of mapPicks) {
+                const mapNo = Number(map.map_no);
+                const exactA = Number(map.pred_exact_a);
+                const exactB = Number(map.pred_exact_b);
+
+                if (
+                    !Number.isInteger(mapNo) ||
+                    mapNo < 1 ||
+                    mapNo > bestOf ||
+                    !Number.isInteger(exactA) ||
+                    !Number.isInteger(exactB) ||
+                    exactA < 0 ||
+                    exactB < 0 ||
+                    exactA > 99 ||
+                    exactB > 99 ||
+                    exactA === exactB
+                ) {
+                    return res.status(400).json({
+                        error: `Invalid map prediction for map ${mapNo || '?'}`
+                    });
+                }
+
+                if (bestOf === 1 && mapNo === 1) {
+                    bo1ExactA = exactA;
+                    bo1ExactB = exactB;
+                }
+            }
+        } else {
+            const { winner, score_a, score_b } = req.body;
+
+            if (!['team_a', 'team_b'].includes(winner)) {
+                return res.status(400).json({
+                    error: 'Invalid winner'
+                });
+            }
+
+            const scoreA = Number(score_a);
+            const scoreB = Number(score_b);
+
+            if (
+                !Number.isInteger(scoreA) ||
+                !Number.isInteger(scoreB) ||
+                scoreA < 0 ||
+                scoreB < 0 ||
+                scoreA === scoreB
+            ) {
+                return res.status(400).json({
+                    error: 'Invalid score'
+                });
+            }
+
+            if (
+                (winner === 'team_a' && scoreA <= scoreB) ||
+                (winner === 'team_b' && scoreB <= scoreA)
+            ) {
+                return res.status(400).json({
+                    error: 'Winner does not match score'
+                });
+            }
+
+            predA = winner === 'team_a' ? 1 : 0;
+            predB = winner === 'team_b' ? 1 : 0;
+            bo1ExactA = scoreA;
+            bo1ExactB = scoreB;
+        }
+
+        await pool.query('START TRANSACTION');
+
+        try {
+            await pool.query(
+                `
+                INSERT INTO match_predictions (
+                    match_id,
+                    guild_id,
+                    event_id,
+                    user_id,
+                    pred_a,
+                    pred_b,
+                    pred_exact_a,
+                    pred_exact_b
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    pred_a = VALUES(pred_a),
+                    pred_b = VALUES(pred_b),
+                    pred_exact_a = VALUES(pred_exact_a),
+                    pred_exact_b = VALUES(pred_exact_b),
+                    updated_at = CURRENT_TIMESTAMP
+                `,
+                [
+                    match.id,
+                    match.guild_id,
+                    match.event_id,
+                    user_id,
+                    predA,
+                    predB,
+                    bestOf === 1 ? bo1ExactA : null,
+                    bestOf === 1 ? bo1ExactB : null
+                ]
+            );
+
+            if (bestOf > 1) {
+                await pool.query(
+                    `
+                    DELETE FROM match_map_predictions
+                    WHERE guild_id = ?
+                      AND event_id = ?
+                      AND match_id = ?
+                      AND user_id = ?
+                    `,
+                    [match.guild_id, match.event_id, match.id, user_id]
+                );
+
+                const values = mapPicks.map((map) => [
+                    match.id,
+                    match.guild_id,
+                    match.event_id,
+                    user_id,
+                    Number(map.map_no),
+                    null,
+                    Number(map.pred_exact_a),
+                    Number(map.pred_exact_b)
+                ]);
+
+                if (values.length) {
+                    await pool.query(
+                        `
+                        INSERT INTO match_map_predictions (
+                            match_id,
+                            guild_id,
+                            event_id,
+                            user_id,
+                            map_no,
+                            pred,
+                            pred_exact_a,
+                            pred_exact_b
+                        )
+                        VALUES ?
+                        `,
+                        [values]
+                    );
+                }
+            }
+
+            await pool.query('COMMIT');
+        } catch (err) {
+            await pool.query('ROLLBACK');
+            throw err;
+        }
 
         res.json({
             ok: true,
             prediction: {
                 match_id: Number(matchId),
                 user_id,
-                winner,
-                score_a: Number(score_a),
-                score_b: Number(score_b)
+                series: {
+                    pred_a: predA,
+                    pred_b: predB
+                },
+                maps: bestOf === 1
+                    ? [
+                        {
+                            map_no: 1,
+                            pred_exact_a: bo1ExactA,
+                            pred_exact_b: bo1ExactB
+                        }
+                    ]
+                    : mapPicks.map((map) => ({
+                        map_no: Number(map.map_no),
+                        pred_exact_a: Number(map.pred_exact_a),
+                        pred_exact_b: Number(map.pred_exact_b)
+                    }))
             }
         });
     } catch (err) {
@@ -1678,6 +1928,22 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
 app.get('/api/public/matches/:matchId/prediction/:userId', async (req, res) => {
     try {
         const { matchId, userId } = req.params;
+
+        const [[match]] = await pool.query(
+            `
+            SELECT id, best_of
+            FROM matches
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [matchId]
+        );
+
+        if (!match) {
+            return res.status(404).json({
+                error: 'Match not found'
+            });
+        }
 
         const [[prediction]] = await pool.query(
             `
@@ -1702,13 +1968,57 @@ app.get('/api/public/matches/:matchId/prediction/:userId', async (req, res) => {
             });
         }
 
+        let maps = [];
+
+        if (Number(match.best_of) === 1) {
+            maps = [
+                {
+                    map_no: 1,
+                    pred_exact_a: prediction.pred_exact_a,
+                    pred_exact_b: prediction.pred_exact_b
+                }
+            ];
+        } else {
+            const [mapRows] = await pool.query(
+                `
+                SELECT
+                    map_no,
+                    pred_exact_a,
+                    pred_exact_b
+                FROM match_map_predictions
+                WHERE match_id = ?
+                  AND user_id = ?
+                ORDER BY map_no ASC
+                `,
+                [matchId, userId]
+            );
+
+            maps = mapRows.map((row) => ({
+                map_no: Number(row.map_no),
+                pred_exact_a: row.pred_exact_a,
+                pred_exact_b: row.pred_exact_b
+            }));
+        }
+
         res.json({
             prediction: {
                 match_id: prediction.match_id,
                 user_id: prediction.user_id,
-                winner: Number(prediction.pred_a) === 1 ? 'team_a' : 'team_b',
+
+                winner:
+                    Number(prediction.pred_a) > Number(prediction.pred_b)
+                        ? 'team_a'
+                        : 'team_b',
+
                 score_a: prediction.pred_exact_a,
-                score_b: prediction.pred_exact_b
+                score_b: prediction.pred_exact_b,
+
+                series: {
+                    pred_a: Number(prediction.pred_a),
+                    pred_b: Number(prediction.pred_b)
+                },
+
+                maps
             }
         });
     } catch (err) {
@@ -1727,27 +2037,88 @@ app.get('/api/public/events/:eventId/predictions/:userId', async (req, res) => {
         const [rows] = await pool.query(
             `
             SELECT
-                match_id,
-                user_id,
-                pred_a,
-                pred_b,
-                pred_exact_a,
-                pred_exact_b
-            FROM match_predictions
-            WHERE event_id = ?
-              AND user_id = ?
+                mp.match_id,
+                mp.user_id,
+                mp.pred_a,
+                mp.pred_b,
+                mp.pred_exact_a,
+                mp.pred_exact_b,
+                m.best_of
+            FROM match_predictions mp
+            JOIN matches m
+              ON m.id = mp.match_id
+            WHERE mp.event_id = ?
+              AND mp.user_id = ?
             `,
             [eventId, userId]
         );
 
+        const [mapRows] = await pool.query(
+            `
+            SELECT
+                match_id,
+                map_no,
+                pred_exact_a,
+                pred_exact_b
+            FROM match_map_predictions
+            WHERE event_id = ?
+              AND user_id = ?
+            ORDER BY match_id ASC, map_no ASC
+            `,
+            [eventId, userId]
+        );
+
+        const mapsByMatch = new Map();
+
+        for (const row of mapRows) {
+            const matchId = Number(row.match_id);
+
+            if (!mapsByMatch.has(matchId)) {
+                mapsByMatch.set(matchId, []);
+            }
+
+            mapsByMatch.get(matchId).push({
+                map_no: Number(row.map_no),
+                pred_exact_a: row.pred_exact_a,
+                pred_exact_b: row.pred_exact_b
+            });
+        }
+
         res.json({
-            predictions: rows.map((row) => ({
-                match_id: row.match_id,
-                user_id: row.user_id,
-                winner: Number(row.pred_a) === 1 ? 'team_a' : 'team_b',
-                score_a: row.pred_exact_a,
-                score_b: row.pred_exact_b
-            }))
+            predictions: rows.map((row) => {
+                const bestOf = Number(row.best_of || 1);
+
+                const maps =
+                    bestOf === 1
+                        ? [
+                            {
+                                map_no: 1,
+                                pred_exact_a: row.pred_exact_a,
+                                pred_exact_b: row.pred_exact_b
+                            }
+                        ]
+                        : mapsByMatch.get(Number(row.match_id)) || [];
+
+                return {
+                    match_id: row.match_id,
+                    user_id: row.user_id,
+
+                    winner:
+                        Number(row.pred_a) > Number(row.pred_b)
+                            ? 'team_a'
+                            : 'team_b',
+
+                    score_a: row.pred_exact_a,
+                    score_b: row.pred_exact_b,
+
+                    series: {
+                        pred_a: Number(row.pred_a),
+                        pred_b: Number(row.pred_b)
+                    },
+
+                    maps
+                };
+            })
         });
     } catch (err) {
         console.error(err);
