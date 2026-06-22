@@ -8,9 +8,11 @@ const {
   PermissionFlagsBits
 } = require('discord.js');
 
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { logError } = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 const { withGuild } = require('../utils/guildContext');
+const recalculateMatchPoints = require('../services/recalculateMatchPoints');
+const { getMapLabel } = require('../utils/mapLabels');
 
 /* ======================
    GUARDS
@@ -21,7 +23,7 @@ function requireGuild(interaction) {
     interaction.reply({
       content: '❌ Ta akcja działa tylko na serwerze.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
     return false;
   }
   return true;
@@ -30,7 +32,7 @@ function requireGuild(interaction) {
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
   return perms?.has(PermissionFlagsBits.Administrator) ||
-         perms?.has(PermissionFlagsBits.ManageGuild);
+    perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
 /* ======================
@@ -44,18 +46,21 @@ function maxMapsFromBo(bestOf) {
   return 5;
 }
 
-async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
+async function getDefaults(pool, guildId, eventId, matchId, maxMaps, mapNo) {
   try {
     if (maxMaps === 1) {
       const [[r]] = await pool.query(
         `
         SELECT exact_a, exact_b
         FROM match_results
-        WHERE guild_id = ? AND match_id = ?
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND match_id = ?
         LIMIT 1
         `,
-        [guildId, matchId]
+        [guildId, eventId, matchId]
       );
+
       return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
     }
 
@@ -64,11 +69,12 @@ async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
       SELECT exact_a, exact_b
       FROM match_map_results
       WHERE guild_id = ?
+        AND event_id = ?
         AND match_id = ?
         AND map_no = ?
       LIMIT 1
       `,
-      [guildId, matchId, mapNo]
+      [guildId, eventId, matchId, mapNo]
     );
 
     return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
@@ -83,7 +89,7 @@ function buildModal(match, maxMaps, mapNo, defaults) {
     .setTitle(
       maxMaps === 1
         ? 'Oficjalny dokładny wynik'
-        : `Oficjalny dokładny wynik — mapa #${mapNo}`
+        : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
     );
 
   const inA = new TextInputBuilder()
@@ -120,6 +126,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const ctx = adminState.get(guildId, interaction.user.id);
+
       if (!ctx?.matchId) {
         return interaction.reply({
           content: '❌ Brak kontekstu meczu.',
@@ -146,9 +153,10 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
       const [[match]] = await pool.query(
         `
-        SELECT id, team_a, team_b, best_of
+        SELECT id, event_id, team_a, team_b, best_of
         FROM matches
-        WHERE id = ? AND guild_id = ?
+        WHERE id = ?
+          AND guild_id = ?
         LIMIT 1
         `,
         [ctx.matchId, guildId]
@@ -156,49 +164,72 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
       if (!match) {
         adminState.clear(guildId, interaction.user.id);
+
         return interaction.reply({
           content: '❌ Mecz nie istnieje lub nie należy do tego serwera.',
           ephemeral: true
         });
       }
 
+      if (!match.event_id) {
+        adminState.clear(guildId, interaction.user.id);
+
+        return interaction.reply({
+          content: '❌ Ten mecz nie ma przypisanego event_id.',
+          ephemeral: true
+        });
+      }
+
       const maxMaps = maxMapsFromBo(match.best_of);
+
       let mapNo = maxMaps === 1 ? 1 : Number(ctx.mapNo || 1);
+
       if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
         mapNo = 1;
       }
 
-      /* ===== ZAPIS ===== */
-
       if (maxMaps === 1) {
         await pool.query(
           `
-          INSERT INTO match_results (guild_id, match_id, res_a, res_b, exact_a, exact_b)
-          VALUES (?, ?, NULL, NULL, ?, ?)
+          INSERT INTO match_results
+            (guild_id, event_id, match_id, exact_a, exact_b)
+          VALUES
+            (?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
+            event_id = VALUES(event_id),
             exact_a = VALUES(exact_a),
             exact_b = VALUES(exact_b)
           `,
-          [guildId, match.id, exactA, exactB]
+          [guildId, match.event_id, match.id, exactA, exactB]
         );
       } else {
         await pool.query(
           `
-          INSERT INTO match_map_results (guild_id, match_id, map_no, exact_a, exact_b)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO match_map_results
+            (guild_id, event_id, match_id, map_no, exact_a, exact_b)
+          VALUES
+            (?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
+            event_id = VALUES(event_id),
             exact_a = VALUES(exact_a),
             exact_b = VALUES(exact_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, match.id, mapNo, exactA, exactB]
+          [guildId, match.event_id, match.id, mapNo, exactA, exactB]
         );
       }
 
-      /* ===== KOLEJNA MAPA ===== */
+      await recalculateMatchPoints(
+        pool,
+        guildId,
+        match.event_id,
+        match.id,
+        match.best_of
+      );
 
       if (maxMaps > 1 && mapNo < maxMaps) {
         const nextMapNo = mapNo + 1;
+
         adminState.set(guildId, interaction.user.id, {
           ...ctx,
           mapNo: nextMapNo
@@ -207,6 +238,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         const defaults = await getDefaults(
           pool,
           guildId,
+          match.event_id,
           match.id,
           maxMaps,
           nextMapNo
@@ -224,15 +256,13 @@ module.exports = async function matchAdminExactSubmit(interaction) {
               new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId('match_admin_exact_open')
-                  .setLabel(`➡️ Mapa #${nextMapNo}`)
+                  .setLabel(`➡️ ${getMapLabel(nextMapNo, match.best_of)}`)
                   .setStyle(ButtonStyle.Primary)
               )
             ]
           });
         }
       }
-
-      /* ===== KONIEC ===== */
 
       adminState.clear(guildId, interaction.user.id);
 
@@ -244,7 +274,6 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         ephemeral: true
       });
     });
-
   } catch (err) {
     logError('matches', 'matchAdminExactSubmit failed', {
       message: err.message,
@@ -254,6 +283,6 @@ module.exports = async function matchAdminExactSubmit(interaction) {
     return interaction.reply({
       content: '❌ Nie udało się zapisać wyników.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };

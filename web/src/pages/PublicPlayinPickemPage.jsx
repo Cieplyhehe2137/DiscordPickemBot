@@ -199,9 +199,11 @@ export default function PublicPlayinPickemPage() {
                             key={team.id || team.name}
                             disabled={isLocked}
                             onClick={() => toggleTeam(team.name)}
-                            className={`rounded-2xl border px-4 py-4 text-left font-black transition ${isSelected
-                                ? 'border-violet-400 bg-violet-500/20 text-white'
-                                : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                            className={`rounded-2xl border px-4 py-4 text-left font-black transition ${isLocked
+                                    ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
+                                    : isSelected
+                                        ? 'border-violet-400 bg-violet-500/20 text-white'
+                                        : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
                                 }`}
                         >
                             {team.name}

@@ -197,7 +197,8 @@ app.get('/api/events/active', async (req, res) => {
         phase,
         status
       FROM events
-      WHERE status = 'active'
+      WHERE is_active = 1
+        AND is_archived = 0
       ORDER BY id DESC
     `);
 
@@ -206,10 +207,7 @@ app.get('/api/events/active', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-
-        res.status(500).json({
-            error: 'Database error'
-        });
+        res.status(500).json({ error: 'DB error' });
     }
 });
 
@@ -3046,7 +3044,7 @@ app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
             event,
             teams,
             prediction,
-            lock : {
+            lock: {
                 allowed: gate.allowed,
                 message: gate.message || null
             }

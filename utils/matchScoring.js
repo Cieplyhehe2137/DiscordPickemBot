@@ -1,90 +1,76 @@
 // utils/matchScoring.js
 
+const SCORING = require('../rules/scoring');
+
 function getWinner(a, b) {
   if (a === b) return null;
   return a > b ? 'A' : 'B';
 }
 
+function toFiniteNumber(value) {
+  if (value === null || value === undefined || value === '') return null;
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 /**
  * Punkty za SERIĘ (BO)
- * BO3:
- * - 3 PKT → dokładny wynik (2:0 / 2:1)
- * - 1 PKT → trafiony zwycięzca
+ * - 2 PKT → trafiony zwycięzca serii
  * - 0 PKT → pudło
+ *
+ * Dokładny wynik serii 2:0 / 2:1 nie daje już osobnych punktów.
  */
 function computeSeriesPoints({ predA, predB, resA, resB }) {
-  if (
-    predA === null || predB === null ||
-    resA === null || resB === null
-  ) return 0;
+  const pa = toFiniteNumber(predA);
+  const pb = toFiniteNumber(predB);
+  const ra = toFiniteNumber(resA);
+  const rb = toFiniteNumber(resB);
 
-  const pa = Number(predA);
-  const pb = Number(predB);
-  const ra = Number(resA);
-  const rb = Number(resB);
-
-  if (
-    !Number.isFinite(pa) ||
-    !Number.isFinite(pb) ||
-    !Number.isFinite(ra) ||
-    !Number.isFinite(rb)
-  ) return 0;
-
-  let pts = 0;
-
-  // winner
-  const pw = getWinner(pa, pb);
-  const rw = getWinner(ra, rb);
-
-  if (pw && rw && pw === rw) {
-    pts += 1;
+  if ([pa, pb, ra, rb].some(v => v === null)) {
+    return 0;
   }
 
-  // exact
-  if (pa === ra && pb === rb) {
-    pts += 3;
-  }
+  const predictedWinner = getWinner(pa, pb);
+  const realWinner = getWinner(ra, rb);
 
-  return pts;
+  return predictedWinner && realWinner && predictedWinner === realWinner
+    ? SCORING.MATCH.WINNER
+    : 0;
 }
 
-
 /**
- * Punkty za MAPĘ (exact)
- * - 3 PKT → trafiony dokładny wynik
- * - 0 PKT → inaczej
+ * Punkty za dokładny wynik MAPY — wariant B
+ * Liczymy łączną różnicę rund:
+ *
+ * totalDiff = |predA - exactA| + |predB - exactB|
+ *
+ * - 3 PKT → totalDiff 0
+ * - 2 PKT → totalDiff 1
+ * - 1 PKT → totalDiff 2
+ * - 0 PKT → totalDiff 3+
  */
 function computeMapPoints({ predExactA, predExactB, exactA, exactB }) {
+  const pa = toFiniteNumber(predExactA);
+  const pb = toFiniteNumber(predExactB);
+  const ea = toFiniteNumber(exactA);
+  const eb = toFiniteNumber(exactB);
 
-  if (
-    predExactA == null ||
-    predExactB == null ||
-    exactA == null ||
-    exactB == null
-  ) {
-    return 0;
+  if ([pa, pb, ea, eb].some(v => v === null)) {
+    return SCORING.MAP.MISS;
   }
 
-  const pa = Number(predExactA);
-  const pb = Number(predExactB);
-  const ea = Number(exactA);
-  const eb = Number(exactB);
+  const totalDiff = Math.abs(pa - ea) + Math.abs(pb - eb);
 
-  if (
-    !Number.isFinite(pa) ||
-    !Number.isFinite(pb) ||
-    !Number.isFinite(ea) ||
-    !Number.isFinite(eb)
-  ) {
-    return 0;
-  }
+  if (totalDiff === 0) return SCORING.MAP.EXACT;
+  if (totalDiff === 1) return SCORING.MAP.DIFF_1;
+  if (totalDiff === 2) return SCORING.MAP.DIFF_2;
 
-  return (pa === ea && pb === eb) ? 3 : 0;
+  return SCORING.MAP.MISS;
 }
 
-
 /**
- * Łączne punkty (compat / legacy)
+ * Łączne punkty:
  * Seria + Mapy
  */
 function computeTotalPoints(data) {
@@ -95,7 +81,7 @@ function computeTotalPoints(data) {
 }
 
 /**
- * Walidacja wyników
+ * Walidacja wyników serii BO
  */
 function validateScore({ a, b, bestOf }) {
   const na = Number(a);
@@ -143,13 +129,13 @@ function validateScore({ a, b, bestOf }) {
 
   return {
     ok: false,
-    reason: `Nieobsługiwany best_of=${bo}`
+    reason: `Nieobsługiwany best_of=${bo}`,
   };
 }
 
 module.exports = {
   computeSeriesPoints,
   computeMapPoints,
-  computeTotalPoints, // zostawiamy dla starych miejsc
-  validateScore
+  computeTotalPoints,
+  validateScore,
 };

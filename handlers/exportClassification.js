@@ -5,6 +5,8 @@ const fs = require('fs');
 const { withGuild } = require('../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../utils/logger');
 const { env } = require('process');
+const { computeMapPoints } = require('../utils/matchScoring');
+const { getMapLabel } = require('../utils/mapLabels');
 
 function parseList(input) {
   if (!input) return [];
@@ -165,25 +167,14 @@ module.exports = async function exportClassification(arg) {
     const sheetMvp = workbook.addWorksheet('MVP');
     const sheetDouble = workbook.addWorksheet('Double Elim');
     const sheetPlayIn = workbook.addWorksheet('Play-In');
-    const sheetMatches = workbook.addWorksheet('Mecze');
+    const sheetMatchesSwiss1 = workbook.addWorksheet('Mecze - Swiss 1');
+    const sheetMatchesSwiss2 = workbook.addWorksheet('Mecze - Swiss 2');
+    const sheetMatchesSwiss3 = workbook.addWorksheet('Mecze - Swiss 3');
+    const sheetMatchesPlayoffs = workbook.addWorksheet('Mecze - Playoffs');
     const sheetMaps = workbook.addWorksheet('Mapy');
     const sheetMapsSummary = workbook.addWorksheet('Mapy (podgląd)');
 
     const users = {};
-
-    sheetMaps.columns = [
-      { header: 'Faza', key: 'phase', width: 12 },
-      { header: 'Mecz', key: 'match_no', width: 8 },
-      { header: 'Match ID', key: 'match_id', width: 9 },
-      { header: 'Drużyna A', key: 'team_a', width: 22 },
-      { header: 'Drużyna B', key: 'team_b', width: 22 },
-      { header: 'BO', key: 'best_of', width: 5 },
-      { header: 'Nick', key: 'displayname', width: 18 },
-      { header: 'User ID', key: 'user_id', width: 20 },
-      { header: 'Mapa', key: 'map_no', width: 6 },
-      { header: 'TYP', key: 'pred', width: 10 },
-      { header: 'OFF', key: 'off', width: 10 }
-    ];
 
     sheetMapsSummary.columns = [
       { header: 'Faza', key: 'phase', width: 12 },
@@ -867,7 +858,7 @@ module.exports = async function exportClassification(arg) {
 
     // === Mecze / Mapy
     try {
-      sheetMatches.columns = [
+      const matchColumns = [
         { header: 'Faza', key: 'phase', width: 12 },
         { header: 'Match No', key: 'match_no', width: 9 },
         { header: 'Match ID', key: 'match_id', width: 9 },
@@ -876,194 +867,87 @@ module.exports = async function exportClassification(arg) {
         { header: 'BO', key: 'best_of', width: 5 },
         { header: 'OFF (seria)', key: 'official_series', width: 12 },
         { header: 'Typ (seria)', key: 'pred_series', width: 10 },
-        { header: 'Seria', key: 'series_points', width: 7 },
-        { header: 'Mapy (pkt)', key: 'map_points', width: 9 },
-        { header: 'Trafione mapy', key: 'map_hits', width: 12 },
         { header: 'Suma', key: 'points', width: 7 },
         { header: 'Nick', key: 'displayname', width: 18 },
         { header: 'User ID', key: 'user_id', width: 20 }
       ];
 
-      const [matchRows] = await pool.query(
-        `
-        SELECT
-          m.id AS match_id,
-          m.phase,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          m.best_of,
-          r.res_a,
-          r.res_b,
-          p.user_id,
-          p.pred_a,
-          p.pred_b,
-          pts.series_points,
-          pts.map_points,
-          pts.map_hits,
-          pts.points
-        FROM matches m
-        JOIN match_predictions p
-          ON p.match_id = m.id
-         AND p.guild_id = m.guild_id
-         AND p.event_id = m.event_id
-        LEFT JOIN match_results r
-          ON r.match_id = m.id
-         AND r.guild_id = m.guild_id
-         AND r.event_id = m.event_id
-        LEFT JOIN (
-          SELECT
-            mp.match_id,
-            mp.user_id,
-            SUM(CASE WHEN mp.source = 'series' THEN mp.points ELSE 0 END) AS series_points,
-            SUM(CASE WHEN mp.source = 'map' THEN mp.points ELSE 0 END) AS map_points,
-            COUNT(CASE WHEN mp.source = 'map' THEN 1 END) AS map_hits,
-            SUM(mp.points) AS points
-          FROM match_points mp
-          WHERE mp.guild_id = ?
-            AND mp.event_id = ?
-          GROUP BY mp.match_id, mp.user_id
-        ) pts
-          ON pts.match_id = m.id
-         AND pts.user_id = p.user_id
-        WHERE m.guild_id = ?
-          AND m.event_id = ?
-        ORDER BY
-          m.phase,
-          COALESCE(m.match_no, 999999),
-          m.id,
-          p.user_id
-        `,
-        [guildId, eventId, guildId, eventId]
-      );
+      const matchSheets = {
+        swiss1: sheetMatchesSwiss1,
+        swiss2: sheetMatchesSwiss2,
+        swiss3: sheetMatchesSwiss3,
+        playoffs: sheetMatchesPlayoffs
+      };
 
-      const [mapSummaryRows] = await pool.query(
-        `
-        SELECT
-          x.phase,
-          x.match_no,
-          x.team_a,
-          x.team_b,
-          x.user_id,
-          GROUP_CONCAT(
-            CONCAT(
-              'Mapa ', x.map_no, ': ',
-              x.pred_score,
-              ' → ',
-              x.off_score,
-              ' (+',
-              x.points,
-              ' pkt)'
-            )
-            ORDER BY x.map_no
-            SEPARATOR ' | '
-          ) AS maps_summary
-        FROM (
-          SELECT
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            p.user_id,
-            1 AS map_no,
-            CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score,
-            CASE
-              WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-                THEN CONCAT(r.exact_a, ':', r.exact_b)
-              ELSE '—'
-            END AS off_score,
-            CASE
-              WHEN p.pred_exact_a = r.exact_a
-               AND p.pred_exact_b = r.exact_b
-              THEN 3
-              ELSE 0
-            END AS points
-          FROM match_predictions p
-          JOIN matches m
-            ON m.id = p.match_id
-           AND m.guild_id = p.guild_id
-           AND m.event_id = p.event_id
-          LEFT JOIN match_results r
-            ON r.match_id = p.match_id
-           AND r.guild_id = p.guild_id
-           AND r.event_id = p.event_id
-          WHERE p.guild_id = ?
-            AND p.event_id = ?
-            AND m.best_of = 1
-            AND p.pred_exact_a IS NOT NULL
-            AND p.pred_exact_b IS NOT NULL
-
-          UNION ALL
-
-          SELECT
-            m.phase,
-            m.match_no,
-            m.team_a,
-            m.team_b,
-            p.user_id,
-            p.map_no,
-            CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score,
-            CASE
-              WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-                THEN CONCAT(r.exact_a, ':', r.exact_b)
-              ELSE '—'
-            END AS off_score,
-            CASE
-              WHEN p.pred_exact_a = r.exact_a
-               AND p.pred_exact_b = r.exact_b
-              THEN 3
-              ELSE 0
-            END AS points
-          FROM match_map_predictions p
-          JOIN matches m
-            ON m.id = p.match_id
-           AND m.guild_id = p.guild_id
-           AND m.event_id = p.event_id
-          LEFT JOIN match_map_results r
-            ON r.match_id = p.match_id
-           AND r.guild_id = p.guild_id
-           AND (r.event_id = p.event_id OR r.event_id IS NULL)
-           AND r.map_no = p.map_no
-          WHERE p.guild_id = ?
-            AND p.event_id = ?
-            AND m.best_of IN (3, 5)
-            AND p.pred_exact_a IS NOT NULL
-            AND p.pred_exact_b IS NOT NULL
-        ) x
-        GROUP BY
-          x.phase,
-          x.match_no,
-          x.team_a,
-          x.team_b,
-          x.user_id
-        ORDER BY
-          x.phase,
-          COALESCE(x.match_no, 999999),
-          x.user_id
-        `,
-        [guildId, eventId, guildId, eventId]
-      );
-
-      const mapSummaryUserIds = mapSummaryRows.map((r) => r.user_id);
-      const discordNamesSummary = await fetchDisplayNamesFromDiscord(interaction, mapSummaryUserIds);
-
-      for (const r of mapSummaryRows) {
-        const fromUsers = users?.[r.user_id]?.displayname;
-        const fromDiscord = discordNamesSummary.get(r.user_id);
-        const nick = fromUsers && fromUsers !== r.user_id ? fromUsers : fromDiscord || r.user_id;
-
-        sheetMapsSummary.addRow({
-          phase: r.phase,
-          match_no: r.match_no,
-          team_a: r.team_a,
-          team_b: r.team_b,
-          displayname: nick,
-          user_id: r.user_id,
-          maps: r.maps_summary || '—'
-        });
+      for (const sheet of Object.values(matchSheets)) {
+        sheet.columns = matchColumns;
       }
 
-      prettifySheet(sheetMapsSummary);
+      sheetMaps.columns = [
+        { header: 'Faza', key: 'phase', width: 12 },
+        { header: 'Mecz', key: 'match_no', width: 8 },
+        { header: 'Match ID', key: 'match_id', width: 9 },
+        { header: 'Drużyna A', key: 'team_a', width: 22 },
+        { header: 'Drużyna B', key: 'team_b', width: 22 },
+        { header: 'BO', key: 'best_of', width: 5 },
+        { header: 'Nick', key: 'displayname', width: 18 },
+        { header: 'User ID', key: 'user_id', width: 20 },
+        { header: 'Mapa', key: 'map_label', width: 14 },
+        { header: 'TYP', key: 'pred', width: 10 },
+        { header: 'OFF', key: 'off', width: 10 },
+        { header: 'Pkt', key: 'points', width: 6 },
+        { header: 'Ocena', key: 'rating', width: 12 }
+      ];
+
+      sheetMapsSummary.columns = [
+        { header: 'Faza', key: 'phase', width: 12 },
+        { header: 'Mecz', key: 'match_no', width: 8 },
+        { header: 'Team A', key: 'team_a', width: 20 },
+        { header: 'Team B', key: 'team_b', width: 20 },
+        { header: 'Nick', key: 'displayname', width: 18 },
+        { header: 'User ID', key: 'user_id', width: 20 },
+        { header: 'Mapy (TYP → OFF)', key: 'maps', width: 70 }
+      ];
+
+      const [matchRows] = await pool.query(
+        `
+    SELECT
+      m.id AS match_id,
+      m.phase,
+      m.match_no,
+      m.team_a,
+      m.team_b,
+      m.best_of,
+      r.res_a,
+      r.res_b,
+      p.user_id,
+      p.pred_a,
+      p.pred_b,
+      mp.points
+    FROM matches m
+    JOIN match_predictions p
+      ON p.match_id = m.id
+     AND p.guild_id = m.guild_id
+     AND p.event_id = m.event_id
+    LEFT JOIN match_results r
+      ON r.match_id = m.id
+     AND r.guild_id = m.guild_id
+     AND r.event_id = m.event_id
+    LEFT JOIN match_points mp
+      ON mp.match_id = m.id
+     AND mp.guild_id = m.guild_id
+     AND mp.event_id = m.event_id
+     AND mp.user_id = p.user_id
+    WHERE m.guild_id = ?
+      AND m.event_id = ?
+    ORDER BY
+      m.phase,
+      COALESCE(m.match_no, 999999),
+      m.id,
+      p.user_id
+    `,
+        [guildId, eventId]
+      );
 
       const matchUserIds = matchRows.map((r) => r.user_id).filter(Boolean);
       const discordNames = await fetchDisplayNamesFromDiscord(interaction, matchUserIds);
@@ -1073,7 +957,9 @@ module.exports = async function exportClassification(arg) {
           r.res_a === null || r.res_b === null ? '—' : `${r.res_a}:${r.res_b}`;
 
         const predSeries =
-          r.user_id && r.pred_a !== null && r.pred_b !== null ? `${r.pred_a}:${r.pred_b}` : '—';
+          r.user_id && r.pred_a !== null && r.pred_b !== null
+            ? `${r.pred_a}:${r.pred_b}`
+            : '—';
 
         const fromUsers = users?.[r.user_id]?.displayname;
         const fromDiscord = r.user_id ? discordNames.get(r.user_id) : null;
@@ -1084,110 +970,134 @@ module.exports = async function exportClassification(arg) {
             ? fromUsers
             : fromDiscord || r.user_id;
 
-        sheetMatches.addRow({
-          phase: r.phase,
-          match_no: r.match_no ?? '',
-          match_id: r.match_id,
-          team_a: r.team_a,
-          team_b: r.team_b,
-          best_of: r.best_of,
-          official_series: officialSeries,
-          pred_series: predSeries,
-          series_points: r.series_points ?? 0,
-          map_points: r.map_points ?? 0,
-          map_hits: r.map_hits ?? 0,
-          points: r.points ?? 0,
-          displayname: nick,
-          user_id: r.user_id ?? '—'
-        });
+        const targetSheet = getMatchSheetByPhase(r.phase, matchSheets);
+
+        if (targetSheet) {
+          targetSheet.addRow({
+            phase: r.phase,
+            match_no: r.match_no ?? '',
+            match_id: r.match_id,
+            team_a: r.team_a,
+            team_b: r.team_b,
+            best_of: r.best_of,
+            official_series: officialSeries,
+            pred_series: predSeries,
+            points: r.points ?? 0,
+            displayname: nick,
+            user_id: r.user_id ?? '—'
+          });
+        }
       }
 
       const [mapRows] = await pool.query(
         `
-        SELECT *
-        FROM (
-          SELECT
-            m.phase,
-            m.match_no,
-            m.id AS match_id,
-            m.team_a,
-            m.team_b,
-            m.best_of,
-            p.user_id,
-            1 AS map_no,
-            CASE
-              WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-                THEN CONCAT(r.exact_a, ':', r.exact_b)
-              ELSE '—'
-            END AS off_score,
-            CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
-          FROM match_predictions p
-          JOIN matches m
-            ON m.id = p.match_id
-           AND m.guild_id = p.guild_id
-           AND m.event_id = p.event_id
-          LEFT JOIN match_results r
-            ON r.match_id = p.match_id
-           AND r.guild_id = p.guild_id
-           AND r.event_id = p.event_id
-          WHERE p.guild_id = ?
-            AND p.event_id = ?
-            AND m.best_of = 1
-            AND p.pred_exact_a IS NOT NULL
-            AND p.pred_exact_b IS NOT NULL
+    SELECT *
+    FROM (
+      SELECT
+        m.phase,
+        m.match_no,
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        p.user_id,
+        1 AS map_no,
+        p.pred_exact_a,
+        p.pred_exact_b,
+        r.exact_a,
+        r.exact_b
+      FROM match_predictions p
+      JOIN matches m
+        ON m.id = p.match_id
+       AND m.guild_id = p.guild_id
+       AND m.event_id = p.event_id
+      LEFT JOIN match_results r
+        ON r.match_id = p.match_id
+       AND r.guild_id = p.guild_id
+       AND r.event_id = p.event_id
+      WHERE p.guild_id = ?
+        AND p.event_id = ?
+        AND m.best_of = 1
+        AND p.pred_exact_a IS NOT NULL
+        AND p.pred_exact_b IS NOT NULL
 
-          UNION ALL
+      UNION ALL
 
-          SELECT
-            m.phase,
-            m.match_no,
-            m.id AS match_id,
-            m.team_a,
-            m.team_b,
-            m.best_of,
-            p.user_id,
-            p.map_no,
-            CASE
-              WHEN r.exact_a IS NOT NULL AND r.exact_b IS NOT NULL
-                THEN CONCAT(r.exact_a, ':', r.exact_b)
-              ELSE '—'
-            END AS off_score,
-            CONCAT(p.pred_exact_a, ':', p.pred_exact_b) AS pred_score
-          FROM match_map_predictions p
-          JOIN matches m
-            ON m.id = p.match_id
-           AND m.guild_id = p.guild_id
-           AND m.event_id = p.event_id
-          LEFT JOIN match_map_results r
-            ON r.match_id = p.match_id
-           AND r.guild_id = p.guild_id
-           AND (r.event_id = p.event_id OR r.event_id IS NULL)
-           AND r.map_no = p.map_no
-          WHERE p.guild_id = ?
-            AND p.event_id = ?
-            AND m.best_of IN (3, 5)
-            AND p.pred_exact_a IS NOT NULL
-            AND p.pred_exact_b IS NOT NULL
-        ) x
-        ORDER BY
-          x.phase,
-          COALESCE(x.match_no, 999999),
-          x.match_id,
-          x.user_id,
-          x.map_no
-        `,
+      SELECT
+        m.phase,
+        m.match_no,
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        p.user_id,
+        p.map_no,
+        p.pred_exact_a,
+        p.pred_exact_b,
+        r.exact_a,
+        r.exact_b
+      FROM match_map_predictions p
+      JOIN matches m
+        ON m.id = p.match_id
+       AND m.guild_id = p.guild_id
+       AND m.event_id = p.event_id
+      LEFT JOIN match_map_results r
+        ON r.match_id = p.match_id
+       AND r.guild_id = p.guild_id
+       AND r.event_id = p.event_id
+       AND r.map_no = p.map_no
+      WHERE p.guild_id = ?
+        AND p.event_id = ?
+        AND m.best_of IN (3, 5)
+        AND p.pred_exact_a IS NOT NULL
+        AND p.pred_exact_b IS NOT NULL
+    ) x
+    ORDER BY
+      x.phase,
+      COALESCE(x.match_no, 999999),
+      x.match_id,
+      x.user_id,
+      x.map_no
+    `,
         [guildId, eventId, guildId, eventId]
       );
 
-      const mapUserIds2 = mapRows.map((r) => r.user_id).filter(Boolean);
-      const discordNames2 = await fetchDisplayNamesFromDiscord(interaction, mapUserIds2);
+      const mapUserIds = mapRows.map((r) => r.user_id).filter(Boolean);
+      const discordNamesMaps = await fetchDisplayNamesFromDiscord(interaction, mapUserIds);
+
+      const mapSummaryMap = new Map();
 
       for (const r of mapRows) {
         const fromUsers = users?.[r.user_id]?.displayname;
-        const fromDiscord = r.user_id ? discordNames2.get(r.user_id) : null;
+        const fromDiscord = r.user_id ? discordNamesMaps.get(r.user_id) : null;
         const nick = fromUsers && fromUsers !== r.user_id ? fromUsers : fromDiscord || r.user_id;
 
-        sheetMaps.addRow({
+        const predScore = `${r.pred_exact_a}:${r.pred_exact_b}`;
+        const offScore =
+          r.exact_a == null || r.exact_b == null
+            ? '—'
+            : `${r.exact_a}:${r.exact_b}`;
+
+        const points = computeMapPoints({
+          predExactA: r.pred_exact_a,
+          predExactB: r.pred_exact_b,
+          exactA: r.exact_a,
+          exactB: r.exact_b
+        });
+
+        const mapLabel = getMapLabel(r.map_no, r.best_of);
+
+        let rating = '❌ Miss';
+
+        if (points === 3) {
+          rating = '🎯 Exact';
+        } else if (points === 2) {
+          rating = '🔥 Blisko';
+        } else if (points === 1) {
+          rating = '👍 Prawie';
+        }
+
+        const row = sheetMaps.addRow({
           phase: r.phase,
           match_no: r.match_no ?? '',
           match_id: r.match_id,
@@ -1196,14 +1106,88 @@ module.exports = async function exportClassification(arg) {
           best_of: r.best_of ?? '—',
           displayname: nick,
           user_id: r.user_id,
-          map_no: r.map_no,
-          off: r.off_score ?? '—',
-          pred: r.pred_score ?? '—'
+          map_label: mapLabel,
+          pred: predScore,
+          off: offScore,
+          points,
+          rating
+        });
+
+        if (points === 3) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'D9EAD3' } // zielony
+          };
+        }
+
+        if (points === 2) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF2CC' } // żółty
+          };
+        }
+
+        if (points === 1) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FCE5CD' } // pomarańcz
+          };
+        }
+
+        if (points === 0) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'F4CCCC' } // czerwony
+          };
+        }
+
+        const summaryKey = [
+          r.phase,
+          r.match_no ?? '',
+          r.team_a,
+          r.team_b,
+          r.user_id
+        ].join('|');
+
+        if (!mapSummaryMap.has(summaryKey)) {
+          mapSummaryMap.set(summaryKey, {
+            phase: r.phase,
+            match_no: r.match_no,
+            team_a: r.team_a,
+            team_b: r.team_b,
+            displayname: nick,
+            user_id: r.user_id,
+            maps: []
+          });
+        }
+
+        mapSummaryMap.get(summaryKey).maps.push(
+          `${mapLabel}: ${predScore} → ${offScore} (+${points} pkt)`
+        );
+      }
+
+      for (const r of mapSummaryMap.values()) {
+        sheetMapsSummary.addRow({
+          phase: r.phase,
+          match_no: r.match_no,
+          team_a: r.team_a,
+          team_b: r.team_b,
+          displayname: r.displayname,
+          user_id: r.user_id,
+          maps: r.maps.join(' | ') || '—'
         });
       }
 
-      prettifySheet(sheetMatches);
+      for (const sheet of Object.values(matchSheets)) {
+        prettifySheet(sheet);
+      }
+
       prettifySheet(sheetMaps);
+      prettifySheet(sheetMapsSummary);
     } catch (e) {
       logError('EXPORT_MATCHES_MAPS_FAILED', {
         guildId,

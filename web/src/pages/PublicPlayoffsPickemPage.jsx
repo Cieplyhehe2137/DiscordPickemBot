@@ -237,6 +237,7 @@ export default function PublicPlayoffsPickemPage() {
                     selected={semifinalists}
                     limit={4}
                     onToggle={toggleSemifinalist}
+                    isLocked={isLocked}
                 />
 
                 <PickColumn
@@ -246,6 +247,7 @@ export default function PublicPlayoffsPickemPage() {
                     selected={finalists}
                     limit={2}
                     onToggle={toggleFinalist}
+                    isLocked={isLocked}
                 />
 
                 <SinglePickColumn
@@ -254,6 +256,7 @@ export default function PublicPlayoffsPickemPage() {
                     teams={finalists}
                     selected={winner}
                     onSelect={selectWinner}
+                    isLocked={isLocked}
                 />
 
                 <SinglePickColumn
@@ -262,6 +265,7 @@ export default function PublicPlayoffsPickemPage() {
                     teams={semifinalists}
                     selected={thirdPlaceWinner}
                     onSelect={selectThirdPlace}
+                    isLocked={isLocked}
                 />
             </div>
 
@@ -314,7 +318,15 @@ export default function PublicPlayoffsPickemPage() {
     );
 }
 
-function PickColumn({ title, description, teams, selected, limit, onToggle }) {
+function PickColumn({
+    title,
+    description,
+    teams,
+    selected,
+    limit,
+    onToggle,
+    isLocked
+}) {
     return (
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
             <div className="flex items-start justify-between gap-4">
@@ -340,6 +352,7 @@ function PickColumn({ title, description, teams, selected, limit, onToggle }) {
                     return (
                         <button
                             key={team}
+                            disabled={isLocked}
                             onClick={() => onToggle(team)}
                             className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
                                 ? 'border-violet-400 bg-violet-500/20 text-white'
@@ -361,7 +374,14 @@ function PickColumn({ title, description, teams, selected, limit, onToggle }) {
     );
 }
 
-function SinglePickColumn({ title, description, teams, selected, onSelect }) {
+function SinglePickColumn({
+    title,
+    description,
+    teams,
+    selected,
+    onSelect,
+    isLocked
+}) {
     return (
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
             <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -379,6 +399,7 @@ function SinglePickColumn({ title, description, teams, selected, onSelect }) {
                     return (
                         <button
                             key={team}
+                            disabled={isLocked}
                             onClick={() => onSelect(team)}
                             className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
                                 ? 'border-violet-400 bg-violet-500/20 text-white'

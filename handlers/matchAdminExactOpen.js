@@ -9,6 +9,7 @@ const {
 const { logInfo, logWarn, logError } = require('../utils/logger');
 const adminState = require('../utils/matchAdminState');
 const { withGuild } = require('../utils/guildContext');
+const { getMapLabel } = require('../utils/mapLabels');
 
 /* ======================
    GUARDS
@@ -19,7 +20,7 @@ function requireGuild(interaction) {
     interaction.reply({
       content: '❌ Ta akcja działa tylko na serwerze.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
     return false;
   }
   return true;
@@ -28,7 +29,7 @@ function requireGuild(interaction) {
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
   return perms?.has(PermissionFlagsBits.Administrator) ||
-         perms?.has(PermissionFlagsBits.ManageGuild);
+    perms?.has(PermissionFlagsBits.ManageGuild);
 }
 
 function maxMapsFromBo(bestOf) {
@@ -139,7 +140,7 @@ module.exports = async function matchAdminExactOpen(interaction) {
         .setTitle(
           maxMaps === 1
             ? 'Oficjalny dokładny wynik'
-            : `Oficjalny dokładny wynik — mapa #${mapNo}`
+            : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
         );
 
       const aInput = new TextInputBuilder()
@@ -173,6 +174,6 @@ module.exports = async function matchAdminExactOpen(interaction) {
     return interaction.reply({
       content: '❌ Nie udało się otworzyć modala.',
       ephemeral: true
-    }).catch(() => {});
+    }).catch(() => { });
   }
 };

@@ -184,6 +184,7 @@ export default function PublicDoubleElimPickemPage() {
                         teams={teams}
                         selected={picks[key]}
                         onToggle={(team) => togglePick(key, team)}
+                        isLocked={isLocked}
                     />
                 ))}
             </div>
@@ -240,7 +241,7 @@ export default function PublicDoubleElimPickemPage() {
     );
 }
 
-function PickColumn({ title, teams, selected, onToggle }) {
+function PickColumn({ title, teams, selected, onToggle, isLocked }) {
     return (
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
             <div className="flex items-start justify-between gap-4">
@@ -266,10 +267,13 @@ function PickColumn({ title, teams, selected, onToggle }) {
                     return (
                         <button
                             key={team.id || team.name}
+                            disabled={isLocked}
                             onClick={() => onToggle(team.name)}
-                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isSelected
-                                ? 'border-violet-400 bg-violet-500/20 text-white'
-                                : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
+                            className={`rounded-2xl border px-4 py-3 text-left font-black transition ${isLocked
+                                    ? 'cursor-not-allowed border-white/5 bg-white/5 text-white/20'
+                                    : isSelected
+                                        ? 'border-violet-400 bg-violet-500/20 text-white'
+                                        : 'border-white/10 bg-black/30 text-white/70 hover:border-violet-400/30 hover:bg-violet-500/5'
                                 }`}
                         >
                             {team.name}

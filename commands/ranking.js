@@ -72,7 +72,8 @@ async function getCurrentEventId(pool, guildId) {
     SELECT id
     FROM events
     WHERE guild_id = ?
-      AND status = 'active'
+      AND is_active = 1
+      AND is_archived = 0
     ORDER BY id DESC
     LIMIT 1
     `,
@@ -370,7 +371,7 @@ module.exports = {
     const [prefix, phase, rawPage, rawPageSize, rawEventId] = String(interaction.customId).split(':');
 
     if (prefix !== 'ranking') {
-      return interaction.deferUpdate().catch(() => {});
+      return interaction.deferUpdate().catch(() => { });
     }
 
     if (!PHASES.some(p => p.value === phase)) {

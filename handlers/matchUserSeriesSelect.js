@@ -9,6 +9,7 @@ const { logInfo, logWarn, logError } = require('../utils/logger');
 const userState = require('../utils/matchUserState');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 const { withGuild } = require('../utils/guildContext');
+const { getMapLabel } = require('../utils/mapLabels');
 
 function maxMapsFromBo(bestOf) {
   const bo = Number(bestOf);
@@ -49,7 +50,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
     .setTitle(
       maxMaps === 1
         ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-        : `Dokładny wynik — mapa #${mapNo}`
+        : `Dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
     );
 
   const inA = new TextInputBuilder()

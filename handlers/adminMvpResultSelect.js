@@ -28,11 +28,8 @@ module.exports = async function adminMvpResultSelect(interaction) {
   SELECT id
   FROM events
   WHERE guild_id = ?
-    AND (
-      status = 'active'
-      OR status = 'OPEN'
-      OR phase = 'OPEN'
-    )
+    AND is_active = 1
+    AND is_archived = 0
   ORDER BY id DESC
   LIMIT 1
   `,

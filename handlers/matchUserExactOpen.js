@@ -9,6 +9,7 @@ const {
 const { logInfo, logWarn, logError } = require('../utils/logger');
 const { withGuild } = require('../utils/guildContext');
 const userState = require('../utils/matchUserState');
+const { getMapLabel } = require('../utils/mapLabels');
 
 /* ===============================
    HELPERS
@@ -62,7 +63,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
     .setTitle(
       maxMaps === 1
         ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-        : `Dokładny wynik — mapa #${mapNo}`
+        : `Dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
     );
 
   const inA = new TextInputBuilder()
@@ -104,7 +105,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      
+
       pool.__guildId = guildId;
 
       const [[match]] = await pool.query(
