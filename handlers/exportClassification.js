@@ -128,6 +128,17 @@ async function resolveEventId(pool, guildId) {
   return eventRow?.id || null;
 }
 
+function getMatchSheetByPhase(phase, sheets) {
+  const normalized = String(phase || '').trim().toLowerCase();
+
+  if (normalized === 'swiss_stage1') return sheets.swiss1;
+  if (normalized === 'swiss_stage2') return sheets.swiss2;
+  if (normalized === 'swiss_stage3') return sheets.swiss3;
+  if (normalized === 'playoffs') return sheets.playoffs;
+
+  return null;
+}
+
 module.exports = async function exportClassification(arg) {
   const isInteraction =
     arg &&
