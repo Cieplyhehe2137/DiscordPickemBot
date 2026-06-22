@@ -28,6 +28,7 @@ function prettifySheet(sheet) {
     to: { row: 1, column: sheet.columnCount }
   };
 
+
   const header = sheet.getRow(1);
   header.font = { bold: true };
   header.alignment = {
@@ -40,6 +41,17 @@ function prettifySheet(sheet) {
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
     row.alignment = { vertical: 'middle', wrapText: true };
+  });
+
+  sheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
   });
 }
 
@@ -1124,37 +1136,38 @@ module.exports = async function exportClassification(arg) {
           rating
         });
 
+        const ratingCell = row.getCell('rating');
+
         if (points === 3) {
-          row.fill = {
+          ratingCell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'D9EAD3' } // zielony
+            fgColor: { argb: 'D9EAD3' }
+          };
+        } else if (points === 2) {
+          ratingCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF2CC' }
+          };
+        } else if (points === 1) {
+          ratingCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FCE5CD' }
+          };
+        } else {
+          ratingCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'F4CCCC' }
           };
         }
 
-        if (points === 2) {
-          row.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF2CC' } // żółty
-          };
-        }
-
-        if (points === 1) {
-          row.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FCE5CD' } // pomarańcz
-          };
-        }
-
-        if (points === 0) {
-          row.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'F4CCCC' } // czerwony
-          };
-        }
+        ratingCell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center'
+        };
 
         const summaryKey = [
           r.phase,
