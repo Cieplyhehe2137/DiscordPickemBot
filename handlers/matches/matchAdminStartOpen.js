@@ -10,6 +10,7 @@ const { logInfo, logWarn, logError } = require('../../utils/logger');
 const adminState = require('../../utils/matchAdminState');
 const { withGuild } = require('../../utils/guildContext');
 const { DEFAULT_ZONE, formatStartLocal } = require('../../utils/matchLock');
+const { getMatchById } = require('../../utils/matchesStore');
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -46,16 +47,7 @@ module.exports = async function matchAdminStartOpen(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      // 🔒 GUILD-SAFE SELECT
-      const [[match]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of, start_time_utc, is_locked
-        FROM matches
-        WHERE id = ? AND guild_id = ?
-        LIMIT 1
-        `,
-        [matchId, guildId]
-      );
+      const match = await getMatchById(pool, guildId, matchId);
 
       if (!match) {
         return interaction.reply({

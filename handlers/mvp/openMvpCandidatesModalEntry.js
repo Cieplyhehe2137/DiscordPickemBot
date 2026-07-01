@@ -6,26 +6,11 @@ const {
 } = require('discord.js');
 
 const { withGuild } = require('../../utils/guildContext');
-
-async function resolveActiveEventId(pool, guildId) {
-  const [[eventRow]] = await pool.query(
-    `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-      AND status = 'OPEN'
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId]
-  );
-
-  return eventRow?.id || null;
-}
+const { getOpenEventId } = require('../../utils/getOpenEventId');
 
 module.exports = async function openMvpCandidatesModalEntry(interaction) {
   await withGuild(interaction, async ({ pool, guildId }) => {
-    const eventId = await resolveActiveEventId(pool, guildId);
+    const eventId = await getOpenEventId(pool, guildId);
 
     if (!eventId) {
       return interaction.reply({

@@ -13,6 +13,7 @@ const adminState = require('../../utils/matchAdminState');
 const { withGuild } = require('../../utils/guildContext');
 const recalculateMatchPoints = require('../../services/recalculateMatchPoints');
 const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
+const { getMatchById } = require('../../utils/matchesStore');
 
 /* ======================
    GUARDS
@@ -144,16 +145,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         });
       }
 
-      const [[match]] = await pool.query(
-        `
-        SELECT id, event_id, team_a, team_b, best_of
-        FROM matches
-        WHERE id = ?
-          AND guild_id = ?
-        LIMIT 1
-        `,
-        [ctx.matchId, guildId]
-      );
+      const match = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!match) {
         adminState.clear(guildId, interaction.user.id);

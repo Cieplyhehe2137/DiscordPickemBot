@@ -8,6 +8,7 @@ const {
 
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { withGuild } = require('../../utils/guildContext');
+const { getActiveEventId } = require('../../utils/getOpenEventId');
 
 const PAGE_SIZE = 24;
 const state = new Map(); // `${guildId}:${userId}`
@@ -233,25 +234,14 @@ async function onTeamBSelect(interaction) {
   await withGuild(interaction, async ({ pool, guildId }) => {
 
     // 🔹 1. Pobieramy aktywny event
-    const [[event]] = await pool.query(
-      `
-      SELECT id
-      FROM events
-      WHERE guild_id = ?
-        AND is_active = 1
-      LIMIT 1
-      `,
-      [guildId]
-    );
+    const eventId = await getActiveEventId(pool, guildId);
 
-    if (!event) {
+    if (!eventId) {
       return interaction.update({
         content: '❌ Brak aktywnego eventu.',
         components: []
       });
     }
-
-    const eventId = event.id;
 
     // 🔹 2. Liczymy kolejny numer meczu w ramach eventu + fazy
     const [[next]] = await pool.query(

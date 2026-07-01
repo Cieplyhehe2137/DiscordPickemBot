@@ -9,6 +9,7 @@ const {
   computeSeriesPoints,
   computeMapPoints
 } = require('../../utils/matchScoring');
+const { getActiveEventId } = require('../../utils/getOpenEventId');
 
 function logInfo(scope, message, meta = {}) {
   baseLogInfo(message, {
@@ -64,19 +65,8 @@ const cleanList = (val) => {
 async function resolveEventId(pool, guildId, preferredEventId) {
   if (preferredEventId) return preferredEventId;
 
-  const [rows] = await pool.query(
-    `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-      AND is_active = 1
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId]
-  );
-
-  if (rows?.[0]?.id) return rows[0].id;
+  const activeId = await getActiveEventId(pool, guildId);
+  if (activeId) return activeId;
 
   const [matchRows] = await pool.query(
     `

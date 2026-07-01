@@ -7,6 +7,7 @@ const {
   parseStartInputToUtc,
   isMatchStarted
 } = require('../../utils/matchLock');
+const { getMatchById } = require('../../utils/matchesStore');
 
 module.exports = async function matchAdminStartSubmit(interaction) {
   try {
@@ -36,16 +37,7 @@ module.exports = async function matchAdminStartSubmit(interaction) {
         });
       }
 
-      // 🔒 GUILD-SAFE SELECT
-      const [[match]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, start_time_utc, is_locked
-        FROM matches
-        WHERE id = ? AND guild_id = ?
-        LIMIT 1
-        `,
-        [ctx.matchId, guildId]
-      );
+      const match = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!match) {
         adminState.clear(guildId, interaction.user.id);

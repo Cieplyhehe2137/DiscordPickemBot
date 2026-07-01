@@ -5,6 +5,7 @@ const { isMatchLocked } = require('../../utils/matchLock');
 const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
 const { withGuild } = require('../../utils/guildContext');
 const { maxMapsFromBo } = require('../../utils/mapLabels');
+const { getMatchById } = require('../../utils/matchesStore');
 
 function getRequiredMapsFromSeries(targetWinsA, targetWinsB, maxMaps) {
   if (
@@ -108,15 +109,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const exactA = Number(exactARaw);
       const exactB = Number(exactBRaw);
 
-      const [[match]] = await pool.query(
-        `
-        SELECT id, event_id, team_a, team_b, best_of, is_locked, start_time_utc
-        FROM matches
-        WHERE guild_id = ? AND id = ?
-        LIMIT 1
-        `,
-        [guildId, ctx.matchId]
-      );
+      const match = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!match) {
         userState.clear(guildId, interaction.user.id);

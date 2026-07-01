@@ -1,7 +1,8 @@
 // handlers/matchAdminLockToggle.js
 
 const { PermissionFlagsBits } = require('discord.js');
-const pool = require('../../db');
+const { withGuild } = require('../../utils/guildContext');
+const { getMatchById, setMatchLock } = require('../../utils/matchesStore');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { isMatchStarted } = require('../../utils/matchLock');
 const { DateTime } = require('luxon');
@@ -28,55 +29,46 @@ module.exports = async function matchAdminLockToggle(interaction) {
       return interaction.reply({ content: '❌ Niepoprawny matchId', ephemeral: true });
     }
 
-    const [[match]] = await pool.query(
-      `SELECT id, team_a, team_b, is_locked, start_time_utc
-       FROM matches
-       WHERE id = ? AND guild_id = ?
-       LIMIT 1`,
-      [matchId, guildId]
-    );
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      const match = await getMatchById(pool, guildId, matchId);
 
-    if (!match) {
+      if (!match) {
+        return interaction.reply({
+          content: '❌ Nie znaleziono meczu dla tego serwera',
+          ephemeral: true,
+        });
+      }
+
+      const nowUtc = DateTime.utc();
+      const started = isMatchStarted(match, nowUtc, 0);
+
+      if (match.is_locked && started) {
+        return interaction.reply({
+          content: `🔒 Nie można odblokować – mecz **${match.team_a} vs ${match.team_b}** już wystartował`,
+          ephemeral: true,
+        });
+      }
+
+      const newVal = match.is_locked ? 0 : 1;
+
+      await setMatchLock(pool, guildId, match.id, newVal);
+
+      logInfo('matches', 'Admin toggled match lock', {
+        guild_id: guildId,
+        matchId: match.id,
+        from: !!match.is_locked,
+        to: !!newVal,
+        by: interaction.user?.id,
+      });
+
       return interaction.reply({
-        content: '❌ Nie znaleziono meczu dla tego serwera',
+        content: `${newVal ? '🔒 Zablokowano' : '🔓 Odblokowano'} mecz **${match.team_a} vs ${match.team_b}**.`,
         ephemeral: true,
       });
-    }
-
-    const nowUtc = DateTime.utc();
-    const started = isMatchStarted(match, nowUtc, 0);
-
-    if (match.is_locked && started) {
-      return interaction.reply({
-        content: `🔒 Nie można odblokować – mecz **${match.team_a} vs ${match.team_b}** już wystartował`,
-        ephemeral: true,
-      });
-    }
-
-    const newVal = match.is_locked ? 0 : 1;
-
-    await pool.query(
-      `UPDATE matches
-       SET is_locked = ?
-       WHERE id = ? AND guild_id = ?`,
-      [newVal, match.id, guildId]
-    );
-
-    logInfo('matches', 'Admin toggled match lock', {
-      guild_id: guildId,
-      matchId: match.id,
-      from: !!match.is_locked,
-      to: !!newVal,
-      by: interaction.user?.id,
-    });
-
-    return interaction.reply({
-      content: `${newVal ? '🔒 Zablokowano' : '🔓 Odblokowano'} mecz **${match.team_a} vs ${match.team_b}**.`,
-      ephemeral: true,
     });
 
   } catch (err) {
-    logger?.error?.('matches', 'matchAdminLockToggle failed', {
+    logError('matches', 'matchAdminLockToggle failed', {
       message: err.message,
       stack: err.stack,
     });

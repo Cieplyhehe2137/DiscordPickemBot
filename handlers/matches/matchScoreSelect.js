@@ -4,6 +4,7 @@ const userState = require('../../utils/matchUserState');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
 const { withGuild } = require('../../utils/guildContext');
+const { getMatchById } = require('../../utils/matchesStore');
 
 module.exports = async function matchScoreSelect(interaction) {
   try {
@@ -40,16 +41,7 @@ module.exports = async function matchScoreSelect(interaction) {
       const a = Number(aStr);
       const b = Number(bStr);
 
-      // 🔒 GUILD-SAFE SELECT
-      const [[match]] = await pool.query(
-        `
-        SELECT id, phase, team_a, team_b, best_of, is_locked
-        FROM matches
-        WHERE guild_id = ? AND id = ?
-        LIMIT 1
-        `,
-        [guildId, matchId]
-      );
+      const match = await getMatchById(pool, guildId, matchId);
 
       if (!match) {
         return interaction.update({

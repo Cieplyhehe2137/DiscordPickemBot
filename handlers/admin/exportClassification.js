@@ -7,6 +7,7 @@ const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { env } = require('process');
 const { computeMapPoints } = require('../../utils/matchScoring');
 const { getMapLabel } = require('../../utils/mapLabels');
+const { getOpenEventId } = require('../../utils/getOpenEventId');
 
 function parseList(input) {
   if (!input) return [];
@@ -125,19 +126,7 @@ function createEmptyUser(id, displayname = null) {
 }
 
 async function resolveEventId(pool, guildId) {
-  const [[eventRow]] = await pool.query(
-    `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-      AND status = 'OPEN'
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId]
-  );
-
-  return eventRow?.id || null;
+  return getOpenEventId(pool, guildId);
 }
 
 function getMatchSheetByPhase(phase, sheets) {

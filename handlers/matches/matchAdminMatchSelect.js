@@ -9,6 +9,7 @@ const {
 const { withGuild } = require('../../utils/guildContext');
 const adminState = require('../../utils/matchAdminState');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
+const { getMatchById } = require('../../utils/matchesStore');
 
 function safeLabel(str) {
   const s = String(str || 'opcja');
@@ -61,15 +62,7 @@ module.exports = async function matchAdminMatchSelect(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const [[m]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of
-        FROM matches
-        WHERE id = ? AND guild_id = ?
-        LIMIT 1
-        `,
-        [matchId, guildId]
-      );
+      const m = await getMatchById(pool, guildId, matchId);
 
       if (!m) {
         return interaction.update({

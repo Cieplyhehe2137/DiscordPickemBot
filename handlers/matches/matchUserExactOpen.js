@@ -10,6 +10,7 @@ const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { withGuild } = require('../../utils/guildContext');
 const userState = require('../../utils/matchUserState');
 const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
+const { getMatchById } = require('../../utils/matchesStore');
 
 /* ===============================
    HELPERS
@@ -98,19 +99,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-
-      pool.__guildId = guildId;
-
-      const [[match]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of, is_locked
-        FROM matches
-        WHERE guild_id = ?
-          AND id = ?
-        LIMIT 1
-        `,
-        [guildId, ctx.matchId]
-      );
+      const match = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!match) {
         userState.clear(guildId, interaction.user.id);

@@ -1,6 +1,8 @@
 const { logInfo, logError } = require('../../utils/logger');
 const { withGuild } = require('../../utils/guildContext');
 const recalculateMatchPoints = require('../../services/recalculateMatchPoints');
+const { getMatchById } = require('../../utils/matchesStore');
+const { runInTransaction } = require('../../utils/runInTransaction');
 
 module.exports = async function matchAdminResultSelect(interaction) {
   const picked = interaction.values?.[0];
@@ -25,39 +27,30 @@ module.exports = async function matchAdminResultSelect(interaction) {
 
   try {
     await withGuild(interaction, async ({ pool, guildId }) => {
-      await pool.query('START TRANSACTION');
+      let outcome = null;
 
-      try {
-        const [[match]] = await pool.query(
-          `
-          SELECT id, event_id, best_of
-          FROM matches
-          WHERE id = ?
-            AND guild_id = ?
-          LIMIT 1
-          `,
-          [matchId, guildId]
-        );
+      await runInTransaction(pool, async (conn) => {
+        const match = await getMatchById(conn, guildId, matchId);
 
         if (!match) {
-          await pool.query('ROLLBACK');
-          return interaction.update({
+          outcome = {
             content: '❌ Ten mecz nie istnieje lub nie należy do tego serwera.',
             components: []
-          });
+          };
+          return;
         }
 
         const eventId = match.event_id;
 
         if (!eventId) {
-          await pool.query('ROLLBACK');
-          return interaction.update({
+          outcome = {
             content: '❌ Ten mecz nie ma przypisanego event_id.',
             components: []
-          });
+          };
+          return;
         }
 
-        await pool.query(
+        await conn.query(
           `
           INSERT INTO match_results
             (guild_id, event_id, match_id, res_a, res_b)
@@ -72,14 +65,12 @@ module.exports = async function matchAdminResultSelect(interaction) {
         );
 
         await recalculateMatchPoints(
-          pool,
+          conn,
           guildId,
           eventId,
           matchId,
           match.best_of
         );
-
-        await pool.query('COMMIT');
 
         logInfo('matches', 'Match result set', {
           guildId,
@@ -90,16 +81,15 @@ module.exports = async function matchAdminResultSelect(interaction) {
           by: interaction.user.id
         });
 
-        return interaction.update({
+        outcome = {
           content:
             `✅ Ustawiono wynik meczu **#${matchId}**: **${resA}:${resB}**\n` +
             `📊 Punkty zostały przeliczone.`,
           components: []
-        });
-      } catch (err) {
-        await pool.query('ROLLBACK');
-        throw err;
-      }
+        };
+      });
+
+      return interaction.update(outcome);
     });
   } catch (err) {
     logError('matches', 'matchAdminResultSelect failed', {

@@ -4,6 +4,7 @@ const { isMatchLocked } = require('../../utils/matchLock');
 const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
 const { withGuild } = require('../../utils/guildContext');
 const { maxMapsFromBo } = require('../../utils/mapLabels');
+const { getMatchById } = require('../../utils/matchesStore');
 
 module.exports = async function matchScoreSelectPred(interaction) {
   try {
@@ -53,16 +54,7 @@ module.exports = async function matchScoreSelectPred(interaction) {
         });
       }
 
-      const [[match]] = await pool.query(
-        `
-        SELECT id, event_id, team_a, team_b, best_of, is_locked, start_time_utc, phase
-        FROM matches
-        WHERE guild_id = ?
-          AND id = ?
-        LIMIT 1
-        `,
-        [guildId, matchId]
-      );
+      const match = await getMatchById(pool, guildId, matchId);
 
       if (!match) {
         return interaction.update({

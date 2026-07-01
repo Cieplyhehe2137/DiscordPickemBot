@@ -8,6 +8,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
+const { getOpenEventId } = require('../../utils/getOpenEventId');
 
 /* =======================
    HELPERS
@@ -184,25 +185,13 @@ module.exports = async function openSwissResultsDropdown(
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const teams = await loadTeamsFromDB(pool, guildId);
-      const [[eventRow]] = await pool.query(
-        `
-  SELECT id
-  FROM events
-  WHERE guild_id = ?
-    AND status = 'OPEN'
-  ORDER BY id DESC
-  LIMIT 1
-  `,
-        [guildId]
-      );
+      const eventId = await getOpenEventId(pool, guildId);
 
-      if (!eventRow?.id) {
+      if (!eventId) {
         return interaction.editReply({
           content: '❌ Nie znaleziono aktywnego eventu.'
         });
       }
-
-      const eventId = eventRow.id;
       const cur = await getCurrentSwiss(pool, guildId, stageDb, eventId);
 
       const { embed, components } =

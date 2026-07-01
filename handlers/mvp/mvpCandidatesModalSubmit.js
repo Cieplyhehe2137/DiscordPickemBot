@@ -1,4 +1,5 @@
 const { withGuild } = require('../../utils/guildContext');
+const { getOpenEventId } = require('../../utils/getOpenEventId');
 
 function parseMvpCandidates(raw) {
   return String(raw)
@@ -28,19 +29,7 @@ function getTextInputValueSafe(interaction, customId) {
 }
 
 async function resolveActiveEventId(pool, guildId) {
-  const [[eventRow]] = await pool.query(
-    `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-      AND status = 'OPEN'
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId]
-  );
-
-  return eventRow?.id || null;
+  return getOpenEventId(pool, guildId);
 }
 
 module.exports = async function mvpCandidatesModalSubmit(interaction) {

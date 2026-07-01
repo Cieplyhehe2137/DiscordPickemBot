@@ -1,5 +1,6 @@
 const { withGuild } = require('../../utils/guildContext');
 const { logError } = require('../../utils/logger');
+const { getOpenEventId } = require('../../utils/getOpenEventId');
 
 module.exports = async function playoffsMvpSelect(interaction) {
   try {
@@ -22,19 +23,9 @@ module.exports = async function playoffsMvpSelect(interaction) {
     }
 
     await withGuild(interaction, async ({ pool }) => {
-      const [[event]] = await pool.query(
-        `
-        SELECT id
-        FROM events
-        WHERE guild_id = ?
-          AND status = 'OPEN'
-        ORDER BY id DESC
-        LIMIT 1
-        `,
-        [guildId]
-      );
+      const eventId = await getOpenEventId(pool, guildId);
 
-      if (!event?.id) {
+      if (!eventId) {
         throw new Error('No OPEN event found for MVP prediction');
       }
 
@@ -55,7 +46,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
         `,
         [
           guildId,
-          event.id,
+          eventId,
           userId,
           username,
           selectedCandidateId

@@ -10,6 +10,7 @@ const userState = require('../../utils/matchUserState');
 const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
 const { withGuild } = require('../../utils/guildContext');
 const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
+const { getMatchById } = require('../../utils/matchesStore');
 
 async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
   if (maxMaps === 1) {
@@ -100,15 +101,7 @@ module.exports = async function matchUserSeriesSelect(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const [[match]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of, is_locked
-        FROM matches
-        WHERE id = ? AND guild_id = ?
-        LIMIT 1
-        `,
-        [ctx.matchId, guildId]
-      );
+      const match = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!match || match.is_locked) {
         userState.clear(guildId, interaction.user.id);

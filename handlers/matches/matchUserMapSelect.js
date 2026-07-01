@@ -1,6 +1,8 @@
 const userState = require('../../utils/matchUserState');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { withGuild } = require('../../utils/guildContext');
+const { getMatchById } = require('../../utils/matchesStore');
+const { maxMapsFromBo } = require('../../utils/mapLabels');
 
 module.exports = async function matchUserMapSelect(interaction) {
   try {
@@ -23,16 +25,7 @@ module.exports = async function matchUserMapSelect(interaction) {
         });
       }
 
-      // 🔒 guild-safe SELECT
-      const [[m]] = await pool.query(
-        `
-        SELECT id, team_a, team_b, best_of, is_locked
-        FROM matches
-        WHERE id = ? AND guild_id = ?
-        LIMIT 1
-        `,
-        [ctx.matchId, guildId]
-      );
+      const m = await getMatchById(pool, guildId, ctx.matchId);
 
       if (!m) {
         userState.clear(guildId, interaction.user.id);
@@ -50,9 +43,7 @@ module.exports = async function matchUserMapSelect(interaction) {
         });
       }
 
-      const maxMaps =
-        Number(m.best_of) === 1 ? 1 :
-        Number(m.best_of) === 3 ? 3 : 5;
+      const maxMaps = maxMapsFromBo(m.best_of);
 
       if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
         return interaction.update({
