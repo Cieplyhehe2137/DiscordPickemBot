@@ -6,8 +6,8 @@ const { withGuild } = require('./utils/guildContext');
 const sendArchivePanel = require('./utils/sendArchivePanel');
 const startExportPanel = require('./utils/startExportPanel');
 
-const { startMatchLockWatcher } = require('./handlers/matchLockWatcher');
-const { startDeadlineReminder } = require('./handlers/deadlineReminder');
+const { startMatchLockWatcher } = require('./handlers/matches/matchLockWatcher');
+const { startDeadlineReminder } = require('./handlers/matches/deadlineReminder');
 
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();

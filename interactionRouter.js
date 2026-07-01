@@ -88,7 +88,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       }
 
       if (customId.startsWith('ranking_')) {
-        const handler = require('./handlers/rankingPagination');
+        const handler = require('./handlers/admin/rankingPagination');
         return handler(interaction, client);
       }
 
@@ -96,18 +96,14 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         customId.startsWith('playoffs_mvp_prev_') ||
         customId.startsWith('playoffs_mvp_next_')
       ) {
-        const handler = require('./handlers/playoffsMvpPagination');
+        const handler = require('./handlers/mvp/playoffsMvpPagination');
         return handler(interaction, client);
       }
 
       if (customId.startsWith('match_admin_page:')) {
-        const handler = require('./handlers/matchAdminPhaseSelect');
+        const handler = require('./handlers/matches/matchAdminPhaseSelect');
         return handler(interaction, client);
       }
-
-      if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
-      if (customId === 'full_reset') customId = 'clear_db_with_results';
-      if (customId === 'clear_official_results') customId = 'clear_only_results_confirm';
 
       if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
       if (customId === 'full_reset') customId = 'clear_db_with_results';

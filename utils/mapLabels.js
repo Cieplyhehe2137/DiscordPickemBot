@@ -11,6 +11,14 @@ function getMapLabel(mapNo, bestOf) {
   return `Mapa #${no}`;
 }
 
+function maxMapsFromBo(bestOf) {
+  const bo = Number(bestOf);
+  if (bo === 1) return 1;
+  if (bo === 3) return 3;
+  return 5;
+}
+
 module.exports = {
-  getMapLabel
+  getMapLabel,
+  maxMapsFromBo
 };

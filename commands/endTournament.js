@@ -8,7 +8,7 @@ const path = require('path');
 
 const { logInfo, logWarn, logError } = require('../utils/logger');
 
-const exportClassification = require('../handlers/exportClassification');
+const exportClassification = require('../handlers/admin/exportClassification');
 const sendArchivePanel = require('../utils/sendArchivePanel');
 const { withGuild } = require('../utils/guildContext');
 const { getGuildConfig } = require('../utils/guildRegistry');

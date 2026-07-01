@@ -11,10 +11,17 @@ import { Server } from 'socket.io';
 import { startCs2LogReceiver } from './live/cs2LogReceiver.js';
 import { parseCs2LogLine } from './live/cs2LogParser.js';
 import session from 'express-session';
+import path from 'path'
 
 const require = createRequire(import.meta.url);
-const calculateScores = require('../handlers/calculateScores');
+const calculateScores = require('../handlers/matches/calculateScores');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
+const guildRegistry = require('../utils/guildRegistry');
+const fs = require('fs')
+
+const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ADMINISTRATOR_PERMISSION = 0x8n;
 
 const app = express();
 
@@ -22,7 +29,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:5173',
+        origin: WEB_ORIGIN,
         credentials: true
     }
 });
@@ -45,7 +52,7 @@ function parseCsvPick(value) {
 }
 
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: WEB_ORIGIN,
     credentials: true
 }));
 
@@ -61,6 +68,69 @@ app.use(session({
         sameSite: 'lax'
     }
 }));
+
+// Discord's permission bitfield can exceed 32 bits, so it must be compared as a BigInt.
+function hasAdminPermission(user, guildId) {
+    if (!user || !guildId) return false;
+    const guild = (user.guilds || []).find(g => g.id === String(guildId));
+    if (!guild) return false;
+
+    try {
+        return (BigInt(guild.permissions) & ADMINISTRATOR_PERMISSION) === ADMINISTRATOR_PERMISSION;
+    } catch {
+        return false;
+    }
+}
+
+function isGuildMember(user, guildId) {
+    if (!user || !guildId) return false;
+    return (user.guilds || []).some(g => g.id === String(guildId));
+}
+
+// resolveGuildId(req) -> guildId | Promise<guildId>; runs after the login check so it can safely query the DB.
+function requireGuildAdmin(resolveGuildId) {
+    return async (req, res, next) => {
+        const user = req.session?.user;
+
+        if (!user) {
+            return res.status(401).json({ error: 'Login required' });
+        }
+
+        try {
+            const guildId = await resolveGuildId(req);
+
+            if (!guildId) {
+                return res.status(404).json({ error: 'Not found' });
+            }
+
+            if (!hasAdminPermission(user, guildId)) {
+                return res.status(403).json({ error: 'Admin permission required for this server' });
+            }
+
+            req.guildId = String(guildId);
+            next();
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'Authorization check failed' });
+        }
+    };
+}
+
+async function guildIdFromEventSlug(req) {
+    const [[event]] = await pool.query(
+        'SELECT guild_id FROM events WHERE slug = ? LIMIT 1',
+        [req.params.slug]
+    );
+    return event?.guild_id || null;
+}
+
+async function guildIdFromMatchId(req) {
+    const [[match]] = await pool.query(
+        'SELECT guild_id FROM matches WHERE id = ? LIMIT 1',
+        [req.params.matchId]
+    );
+    return match?.guild_id || null;
+}
 
 app.get('/api/auth/me', (req, res) => {
     res.json({
@@ -137,11 +207,27 @@ app.get('/api/auth/discord/callback', async (req, res) => {
             return res.status(401).send('Discord user fetch failed');
         }
 
+        // Needed to know which guilds the user can administer (used by hasAdminPermission/isGuildMember).
+        const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+            headers: {
+                Authorization: `Bearer ${tokenData.access_token}`
+            }
+        });
+
+        const discordGuilds = guildsResponse.ok ? await guildsResponse.json() : [];
+
+        if (!guildsResponse.ok) {
+            console.error('Discord guilds fetch failed:', await guildsResponse.text().catch(() => ''));
+        }
+
         req.session.user = {
             id: discordUser.id,
             username: discordUser.username,
             global_name: discordUser.global_name,
-            avatar: discordUser.avatar
+            avatar: discordUser.avatar,
+            guilds: Array.isArray(discordGuilds)
+                ? discordGuilds.map(g => ({ id: g.id, name: g.name, permissions: g.permissions }))
+                : []
         };
 
         req.session.save((err) => {
@@ -153,7 +239,7 @@ app.get('/api/auth/discord/callback', async (req, res) => {
             const returnTo = req.session.returnTo || '/public';
             delete req.session.returnTo;
 
-            res.redirect(`http://localhost:5173${returnTo}`);
+            res.redirect(`${WEB_ORIGIN}${returnTo}`);
         });
     } catch (err) {
         console.error(err);
@@ -161,23 +247,31 @@ app.get('/api/auth/discord/callback', async (req, res) => {
     }
 });
 
-app.get('/api/auth/dev-login', (req, res) => {
-    req.session.user = {
-        id: '461851082570596352',
-        username: 'cieplyhehe',
-        global_name: 'cieplyhehe',
-        avatar: null
-    };
+if (!IS_PRODUCTION) {
+    // Dev-only login shortcut. Never enable in production - it logs anyone in as a real Discord account with no credentials.
+    app.get('/api/auth/dev-login', (req, res) => {
+        req.session.user = {
+            id: '461851082570596352',
+            username: 'cieplyhehe',
+            global_name: 'cieplyhehe',
+            avatar: null,
+            guilds: guildRegistry.getAllGuildIds().map(id => ({
+                id,
+                name: id,
+                permissions: String(ADMINISTRATOR_PERMISSION)
+            }))
+        };
 
-    req.session.save((err) => {
-        if (err) {
-            console.error('Session save error:', err);
-            return res.status(500).send('Session save failed');
-        }
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).send('Session save failed');
+            }
 
-        res.redirect('http://localhost:5173/public');
+            res.redirect(`${WEB_ORIGIN}/public`);
+        });
     });
-});
+}
 
 app.post('/api/auth/logout', (req, res) => {
     req.session.destroy(() => {
@@ -431,7 +525,7 @@ app.get('/api/debug/matches-columns', async (req, res) => {
     }
 });
 
-app.post('/api/events/:slug/status', async (req, res) => {
+app.post('/api/events/:slug/status', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
     try {
         const { slug } = req.params;
         const { status } = req.body;
@@ -481,19 +575,23 @@ app.post('/api/events/:slug/status', async (req, res) => {
     }
 });
 
-app.get('/api/guilds', async (req, res) => {
-    res.json({
-        guilds: [
-            {
-                id: '1161660208951607397',
-                name: 'Hyperland',
-                role: 'admin'
-            }
-        ]
-    });
+app.get('/api/guilds', (req, res) => {
+    const user = req.session?.user;
+
+    if (!user) {
+        return res.status(401).json({ error: 'Login required' });
+    }
+
+    const knownGuildIds = new Set(guildRegistry.getAllGuildIds());
+
+    const guilds = (user.guilds || [])
+        .filter(g => knownGuildIds.has(g.id) && hasAdminPermission(user, g.id))
+        .map(g => ({ id: g.id, name: g.name, role: 'admin' }));
+
+    res.json({ guilds });
 });
 
-app.get('/api/guilds/:guildId/events', async (req, res) => {
+app.get('/api/guilds/:guildId/events', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
     try {
         const { guildId } = req.params;
 
@@ -532,10 +630,6 @@ ORDER BY e.id DESC
       `,
             [guildId]
         );
-
-        io.emit('dashboard:refresh', {
-            slug
-        });
 
         res.json({
             guildId,
@@ -630,6 +724,30 @@ function buildPublicMatch(match) {
         ui_status: uiStatus
     };
 }
+
+app.get('/api/public/archives', async (req, res) => {
+    try {
+        const [rows] = await pool.query(
+            `
+            SELECT
+                id,
+                guild_id,
+                filename,
+                created_at
+            FROM archive_files
+            ORDER BY created_at DESC
+            `
+        );
+
+        res.json(rows);
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Failed to load archives'
+        });
+    }
+});
 
 app.get('/api/public/:guildSlug', async (req, res) => {
     try {
@@ -858,7 +976,7 @@ app.get('/api/guilds/:guildId/meta', async (req, res) => {
     }
 });
 
-app.post('/api/guilds/:guildId/events', async (req, res) => {
+app.post('/api/guilds/:guildId/events', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
     try {
         const { guildId } = req.params;
         const { name, slug } = req.body;
@@ -903,7 +1021,7 @@ app.post('/api/guilds/:guildId/events', async (req, res) => {
     }
 });
 
-app.post('/api/events/:slug/recalculate', async (req, res) => {
+app.post('/api/events/:slug/recalculate', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
     try {
         const { slug } = req.params;
 
@@ -946,7 +1064,7 @@ app.post('/api/events/:slug/recalculate', async (req, res) => {
     }
 });
 
-app.post('/api/matches/:matchId/lock', async (req, res) => {
+app.post('/api/matches/:matchId/lock', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
     try {
         const { matchId } = req.params;
         const { locked } = req.body;
@@ -962,26 +1080,8 @@ app.post('/api/matches/:matchId/lock', async (req, res) => {
         );
 
         if (result.affectedRows === 0) {
-            const [[match]] = await pool.query(
-                `
-  SELECT e.slug
-  FROM matches m
-  JOIN events e ON e.id = m.event_id
-  WHERE m.id = ?
-  LIMIT 1
-  `,
-                [matchId]
-            );
             return res.status(404).json({
                 error: 'Match not found'
-            });
-        }
-
-        if (match?.slug) {
-            io.emit('match:updated', {
-                slug: match.slug,
-                matchId,
-                locked: !!locked
             });
         }
 
@@ -998,6 +1098,12 @@ app.post('/api/matches/:matchId/lock', async (req, res) => {
         );
 
         if (match?.slug) {
+            io.emit('match:updated', {
+                slug: match.slug,
+                matchId,
+                locked: !!locked
+            });
+
             io.emit('dashboard:refresh', {
                 slug: match.slug
             });
@@ -1156,7 +1262,7 @@ app.get('/api/matches/:matchId/stats', async (req, res) => {
     }
 });
 
-app.post('/api/dev/matches/:matchId/score', async (req, res) => {
+app.post('/api/dev/matches/:matchId/score', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
     try {
         const { matchId } = req.params;
         const { score_a, score_b } = req.body;
@@ -1197,7 +1303,7 @@ app.post('/api/dev/matches/:matchId/score', async (req, res) => {
     }
 });
 
-app.post('/api/dev/matches/:matchId/final', async (req, res) => {
+app.post('/api/dev/matches/:matchId/final', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
     try {
         const { matchId } = req.params;
 
@@ -1671,6 +1777,12 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
         if (!match) {
             return res.status(404).json({
                 error: 'Match not found'
+            });
+        }
+
+        if (!isGuildMember(req.session.user, match.guild_id)) {
+            return res.status(403).json({
+                error: 'You are not a member of this server'
             });
         }
 
@@ -2412,6 +2524,12 @@ app.post('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
             });
         }
 
+        if (!isGuildMember(req.session.user, event.guild_id)) {
+            return res.status(403).json({
+                error: 'You are not a member of this server'
+            });
+        }
+
         const gate = await assertPredictionsAllowed({
             guildId: event.guild_id,
             kind: 'SWISS',
@@ -3009,6 +3127,12 @@ app.post('/api/public/events/:slug/playin-pickem', async (req, res) => {
             });
         }
 
+        if (!isGuildMember(req.session.user, event.guild_id)) {
+            return res.status(403).json({
+                error: 'You are not a member of this server'
+            });
+        }
+
         const gate = await assertPredictionsAllowed({
             guildId: event.guild_id,
             kind: 'PLAYIN'
@@ -3206,6 +3330,12 @@ app.post('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
+        if (!isGuildMember(req.session.user, event.guild_id)) {
+            return res.status(403).json({
+                error: 'You are not a member of this server'
+            });
+        }
+
         const gate = await assertPredictionsAllowed({
             guildId: event.guild_id,
             kind: 'PLAYOFFS'
@@ -3368,7 +3498,7 @@ app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
 
         const gate = await assertPredictionsAllowed({
             guildId: event.guild_id,
-            kind: 'PLAYIN'
+            kind: 'DOUBLEELIM'
         });
 
         const [teams] = await pool.query(
@@ -3461,6 +3591,12 @@ app.post('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
         if (!event) {
             return res.status(404).json({
                 error: 'Event not found'
+            });
+        }
+
+        if (!isGuildMember(req.session.user, event.guild_id)) {
+            return res.status(403).json({
+                error: 'You are not a member of this server'
             });
         }
 
@@ -3571,6 +3707,71 @@ app.post('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
 
         res.status(500).json({
             error: 'Double Elim PickEm save failed'
+        });
+    }
+});
+
+
+
+app.get('/api/public/archives/:id/download', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [[archive]] = await pool.query(
+            `
+            SELECT *
+            FROM archive_files
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [id]
+        );
+
+        if (!archive) {
+            return res.status(404).json({
+                error: 'Archive not found'
+            });
+        }
+
+        const dbPath = archive.path;
+
+        const rebuiltPath = path.join(
+            process.cwd(),
+            'archiwum',
+            String(archive.guild_id),
+            archive.filename
+        );
+
+        const finalPath = fs.existsSync(dbPath)
+            ? dbPath
+            : rebuiltPath;
+
+        console.log('[archive download]', {
+            id,
+            filename: archive.filename,
+            dbPath,
+            rebuiltPath,
+            existsDbPath: fs.existsSync(dbPath),
+            existsRebuiltPath: fs.existsSync(rebuiltPath),
+            cwd: process.cwd()
+        });
+
+        if (!fs.existsSync(finalPath)) {
+            return res.status(404).json({
+                error: 'Archive file missing',
+                filename: archive.filename,
+                dbPath,
+                rebuiltPath,
+                cwd: process.cwd()
+            });
+        }
+
+        return res.download(finalPath, archive.filename);
+    } catch (err) {
+        console.error(err);
+
+        return res.status(500).json({
+            error: 'Download failed'
         });
     }
 });

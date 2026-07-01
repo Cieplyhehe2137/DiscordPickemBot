@@ -1,0 +1,192 @@
+// handlers/submitDoubleElimDropdown.js
+
+const { withGuild } = require('../../utils/guildContext');
+const { logInfo, logWarn, logError, logger } = require('../../utils/logger');
+const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
+const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftCache');
+const { loadActiveTeams } = require('../../utils/loadActiveTeams');
+const { getOpenEventId } = require('../../utils/getOpenEventId');
+
+const uniq = (arr) => Array.from(new Set(arr));
+
+const NAMESPACE = 'doubleelim';
+const getCache = (key) => getDraft(NAMESPACE, key);
+const setCache = (key, data) => setDraft(NAMESPACE, key, data);
+
+function slotLabel(k) {
+  return {
+    upper_final_a: 'Upper Final A',
+    lower_final_a: 'Lower Final A',
+    upper_final_b: 'Upper Final B',
+    lower_final_b: 'Lower Final B',
+  }[k] || k;
+}
+
+module.exports = async (interaction) => {
+  if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+
+  const guildId = interaction.guildId;
+  if (!guildId) {
+    return interaction.reply({
+      content: '❌ Ta akcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
+
+  const { user, customId } = interaction;
+  const userId = user.id;
+  const username = user.username;
+  const displayName = interaction.member?.displayName || username;
+
+  const cacheKey = `${guildId}:${userId}`;
+
+  const selectMap = {
+    doubleelim_upper_final_a: 'upper_final_a',
+    doubleelim_lower_final_a: 'lower_final_a',
+    doubleelim_upper_final_b: 'upper_final_b',
+    doubleelim_lower_final_b: 'lower_final_b',
+  };
+
+  /* ===============================
+     SELECT MENUS
+     =============================== */
+  if (interaction.isStringSelectMenu()) {
+    if (!selectMap[customId]) {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferUpdate().catch(() => { });
+      }
+      return;
+    }
+
+    const key = selectMap[customId];
+    const values = uniq((interaction.values || []).map(String));
+
+    if (values.length !== 2) {
+      return interaction.reply({
+        content: '⚠️ Wybierz dokładnie **2** drużyny.',
+        ephemeral: true
+      });
+    }
+
+    const data = getCache(cacheKey) || {};
+    data[key] = values.slice(0, 2);
+    setCache(cacheKey, data);
+
+    logger.debug('submit', 'Double Elim dropdown updated', {
+      guildId,
+      userId,
+      key,
+      values: data[key]
+    });
+
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate().catch(() => { });
+    }
+    return;
+  }
+
+  /* ===============================
+     CONFIRM BUTTON
+     =============================== */
+  if (!interaction.isButton() || customId !== 'confirm_doubleelim') return;
+
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferReply({ ephemeral: true });
+  }
+
+  await withGuild(interaction, async ({ pool, guildId }) => {
+    const gate = await assertPredictionsAllowed({
+      guildId,
+      kind: 'DOUBLE_ELIM'
+    });
+
+    if (!gate.allowed) {
+      return interaction.editReply(
+        gate.message || '❌ Typowanie jest aktualnie zamknięte.'
+      );
+    }
+
+    const picks = getCache(cacheKey) || {};
+    const required = [
+      'upper_final_a',
+      'lower_final_a',
+      'upper_final_b',
+      'lower_final_b'
+    ];
+
+    const missing = required.filter(
+      k => !Array.isArray(picks[k]) || picks[k].length !== 2
+    );
+
+    if (missing.length) {
+      return interaction.editReply(
+        `❌ Brakuje wyborów w: **${missing.map(slotLabel).join(', ')}**.`
+      );
+    }
+
+    const all = required.flatMap(k => picks[k]);
+
+    if (new Set(all).size !== all.length) {
+      return interaction.editReply(
+        '⚠️ Te same drużyny nie mogą się powtarzać między slotami.'
+      );
+    }
+
+    const allowed = await loadActiveTeams(pool, guildId);
+    const invalid = all.filter(t => !allowed.includes(t));
+
+    if (invalid.length) {
+      return interaction.editReply(
+        `⚠️ Nieaktywne lub nieznane drużyny: ${invalid.join(', ')}.`
+      );
+    }
+
+    const eventId = await getOpenEventId(pool, guildId);
+
+    if (!eventId) {
+      return interaction.editReply(
+        '❌ Nie znaleziono aktywnego eventu.'
+      );
+    }
+
+    await pool.query(
+      `
+  INSERT INTO doubleelim_predictions
+    (guild_id, event_id, user_id, username, displayname,
+     upper_final_a, lower_final_a, upper_final_b, lower_final_b)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    event_id = VALUES(event_id),
+    upper_final_a = VALUES(upper_final_a),
+    lower_final_a = VALUES(lower_final_a),
+    upper_final_b = VALUES(upper_final_b),
+    lower_final_b = VALUES(lower_final_b),
+    displayname   = VALUES(displayname),
+    submitted_at  = CURRENT_TIMESTAMP
+  `,
+      [
+        guildId,
+        eventId,
+        userId,
+        username,
+        displayName,
+        picks.upper_final_a.join(', '),
+        picks.lower_final_a.join(', '),
+        picks.upper_final_b.join(', '),
+        picks.lower_final_b.join(', ')
+      ]
+    );
+
+
+    clearDraft(NAMESPACE, cacheKey);
+
+    logInfo('submit', 'Double Elim predictions saved', {
+      guildId,
+      userId
+    });
+
+    return interaction.editReply(
+      '✅ Twoje typy Double Elimination zostały zapisane!'
+    );
+  });
+};
