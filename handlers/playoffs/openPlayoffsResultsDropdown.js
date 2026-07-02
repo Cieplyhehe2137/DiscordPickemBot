@@ -8,20 +8,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
-
-async function loadTeamsFromDB(pool, guildId) {
-  const [rows] = await pool.query(
-    `
-    SELECT name
-    FROM teams
-    WHERE guild_id = ?
-      AND active = 1
-    ORDER BY sort_order ASC, name ASC
-    `,
-    [guildId]
-  );
-  return rows.map(r => r.name).filter(Boolean);
-}
+const { loadActiveTeamsBySortOrder } = require('../../utils/loadActiveTeams');
 
 module.exports = async (interaction) => {
   if (interaction.customId !== 'open_results_playoffs') return;
@@ -39,7 +26,7 @@ module.exports = async (interaction) => {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const teams = await loadTeamsFromDB(pool, guildId);
+      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
 
       if (!teams.length) {
         return interaction.editReply({

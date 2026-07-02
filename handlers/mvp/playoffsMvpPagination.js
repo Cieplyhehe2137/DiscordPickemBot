@@ -7,6 +7,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logError } = require('../../utils/logger');
+const { getActiveMvpCandidates } = require('../../utils/mvpRepository');
 
 const MVP_PAGE_SIZE = 25;
 
@@ -28,16 +29,7 @@ module.exports = async function playoffsMvpPagination(interaction) {
     );
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const [rows] = await pool.query(
-        `
-        SELECT id, nickname, team_name
-        FROM mvp_candidates
-        WHERE guild_id = ?
-          AND is_active = 1
-        ORDER BY nickname ASC
-        `,
-        [guildId]
-      );
+      const rows = await getActiveMvpCandidates(pool, guildId);
 
       const totalPages = Math.ceil(rows.length / MVP_PAGE_SIZE);
 

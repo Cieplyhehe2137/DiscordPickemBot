@@ -6,6 +6,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logError } = require('../../utils/logger');
+const { getActiveMvpCandidates } = require('../../utils/mvpRepository');
 
 const MVP_SELECT_LIMIT = 25;
 const DISCORD_OPTION_LABEL_LIMIT = 100;
@@ -22,18 +23,7 @@ module.exports = async function openAdminMvpResultEntry(interaction) {
     }
 
     const candidates = await withGuild(interaction, async ({ pool, guildId }) => {
-      const [rows] = await pool.query(
-        `
-        SELECT id, nickname, team_name
-        FROM mvp_candidates
-        WHERE guild_id = ?
-          AND is_active = 1
-        ORDER BY nickname ASC
-        `,
-        [guildId]
-      );
-
-      return rows;
+      return getActiveMvpCandidates(pool, guildId);
     });
 
     if (!candidates.length) {

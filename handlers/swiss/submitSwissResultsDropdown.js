@@ -4,6 +4,7 @@ const { buildSwissComponents } = require('./openSwissResultsDropdown');
 const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftCache');
 const { loadActiveTeams } = require('../../utils/loadActiveTeams');
 const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { getCurrentSwissResults } = require('../../utils/swissRepository');
 
 const NAMESPACE = 'swiss-results';
 const getCache = (key) => getDraft(NAMESPACE, key);
@@ -18,38 +19,6 @@ function normalize(arr = []) {
   return Array.from(
     new Set(arr.map(v => String(v || '').trim()).filter(Boolean))
   );
-}
-
-function parseList(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return normalize(value);
-
-  return normalize(
-    String(value)
-      .split(',')
-      .map(v => v.trim())
-  );
-}
-
-async function loadCurrentSwissDirect(pool, guildId, stage) {
-  const [[row]] = await pool.query(
-    `
-    SELECT correct_3_0, correct_0_3, correct_advancing
-    FROM swiss_results
-    WHERE guild_id = ?
-      AND stage = ?
-      AND active = 1
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId, stage]
-  );
-
-  return {
-    x3_0: parseList(row?.correct_3_0),
-    x0_3: parseList(row?.correct_0_3),
-    adv: parseList(row?.correct_advancing)
-  };
 }
 
 function mergeWithCap(base = [], add = [], cap) {
@@ -123,7 +92,15 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
   await withGuild(interaction, async ({ pool }) => {
     const teams = await loadActiveTeams(pool, guildId);
 
-    const current = await loadCurrentSwissDirect(pool, guildId, stage);
+    const eventId = await getOpenEventId(pool, guildId);
+
+    if (!eventId) {
+      return interaction.editReply({
+        content: '❌ Nie znaleziono aktywnego eventu.'
+      });
+    }
+
+    const current = await getCurrentSwissResults(pool, guildId, eventId, stage);
 
     const m3 = mergeWithCap(current.x3_0, sel.add3, 2);
     if (!m3.ok) {
@@ -160,14 +137,6 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
     if (invalid.length) {
       return interaction.editReply({
         content: `⚠️ Nieznane drużyny: ${invalid.join(', ')}`
-      });
-    }
-
-    const eventId = await getOpenEventId(pool, guildId);
-
-    if (!eventId) {
-      return interaction.editReply({
-        content: '❌ Nie znaleziono aktywnego eventu.'
       });
     }
 

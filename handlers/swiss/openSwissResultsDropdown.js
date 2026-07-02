@@ -9,6 +9,8 @@ const {
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { getCurrentSwissResults } = require('../../utils/swissRepository');
+const { loadActiveTeamsBySortOrder } = require('../../utils/loadActiveTeams');
 
 /* =======================
    HELPERS
@@ -20,65 +22,6 @@ function chunk(array, size = 25) {
     out.push(array.slice(i, i + size));
   }
   return out;
-}
-
-function parseList(input) {
-  if (!input) return [];
-  if (Array.isArray(input)) return input.map(String);
-
-  const s = String(input).trim();
-  if (!s) return [];
-
-  try {
-    const j = JSON.parse(s);
-    if (Array.isArray(j)) return j.map(String);
-  } catch (_) { }
-
-  return s
-    .replace(/[\[\]"]+/g, '')
-    .split(/[;,]+/)
-    .map(x => x.trim())
-    .filter(Boolean);
-}
-
-async function loadTeamsFromDB(pool, guildId) {
-  const [rows] = await pool.query(
-    `
-    SELECT name
-    FROM teams
-    WHERE guild_id = ?
-      AND active = 1
-    ORDER BY sort_order ASC, name ASC
-    `,
-    [guildId]
-  );
-  return rows.map(r => r.name);
-}
-
-async function getCurrentSwiss(pool, guildId, stageDb, eventId) {
-  const [rows] = await pool.query(
-    `
-    SELECT correct_3_0, correct_0_3, correct_advancing
-    FROM swiss_results
-    WHERE guild_id = ?
-      AND event_id = ?
-      AND stage = ?
-      AND active = 1
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId, eventId, stageDb]
-  );
-
-  if (!rows.length) {
-    return { x3_0: [], x0_3: [], adv: [] };
-  }
-
-  return {
-    x3_0: parseList(rows[0].correct_3_0),
-    x0_3: parseList(rows[0].correct_0_3),
-    adv: parseList(rows[0].correct_advancing)
-  };
 }
 
 /* =======================
@@ -184,7 +127,7 @@ module.exports = async function openSwissResultsDropdown(
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const teams = await loadTeamsFromDB(pool, guildId);
+      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
       const eventId = await getOpenEventId(pool, guildId);
 
       if (!eventId) {
@@ -192,7 +135,7 @@ module.exports = async function openSwissResultsDropdown(
           content: '❌ Nie znaleziono aktywnego eventu.'
         });
       }
-      const cur = await getCurrentSwiss(pool, guildId, stageDb, eventId);
+      const cur = await getCurrentSwissResults(pool, guildId, eventId, stageDb);
 
       const { embed, components } =
         buildSwissComponents(stageLabel, stageDb, teams, cur);
@@ -219,5 +162,3 @@ module.exports = async function openSwissResultsDropdown(
 };
 
 module.exports.buildSwissComponents = buildSwissComponents;
-module.exports.parseList = parseList;
-module.exports.getCurrentSwiss = getCurrentSwiss;

@@ -8,6 +8,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
+const { loadActiveTeamsBySortOrder } = require('../../utils/loadActiveTeams');
 
 module.exports = async (interaction) => {
   if (!interaction.guildId) {
@@ -25,18 +26,7 @@ module.exports = async (interaction) => {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const [rows] = await pool.query(
-        `
-        SELECT name
-        FROM teams
-        WHERE guild_id = ?
-          AND active = 1
-        ORDER BY sort_order ASC, name ASC
-        `,
-        [guildId]
-      );
-
-      const teams = rows.map(r => r.name).filter(Boolean);
+      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
 
       if (teams.length === 0) {
         return interaction.editReply({
