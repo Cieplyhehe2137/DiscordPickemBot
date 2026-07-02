@@ -3,7 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
 import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats, getPublicEventMatchStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
-import PublicAuthButton from '../components/public/PublicAuthButton';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import CommunityMatchPredictions from '../components/public/CommunityMatchPredictions';
 import CommunityPulse from '../components/public/CommunityPulse';
@@ -13,6 +12,13 @@ import TournamentProgress from '../components/public/TournamentProgress';
 import MyPickemProgress from '../components/public/MyPickemProgress';
 import StickyPickemProgress from '../components/public/StickyPickemProgress';
 import SwissPickemHistory from '../components/public/SwissPickemHistory';
+import PublicNavbar from '../components/public/PublicNavbar';
+import PublicEventStatsGrid from '../components/public/PublicEventStatsGrid';
+import PublicLatestPredictionCard from '../components/public/PublicLatestPredictionCard';
+import TeamLogoBlock, { MiniTeamLogo } from '../components/public/TeamLogoBlock';
+import PublicFeaturedMatch from '../components/public/PublicFeaturedMatch';
+import PublicMatchCard from '../components/public/PublicMatchCard';
+import PublicMatchesSection from '../components/public/PublicMatchesSection';
 
 export default function PublicEventPage() {
     const [eventMatchStats, setEventMatchStats] = useState([]);
@@ -480,193 +486,36 @@ export default function PublicEventPage() {
         <div className="relative min-h-screen overflow-hidden bg-zinc-950 px-6 py-10 text-white">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
             <div className="relative z-10 mx-auto max-w-7xl">
-                <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
-                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-                    >
-                        Communities
-                    </a>
+                <PublicNavbar
+                    active="guild"
+                    guildSlug="hyperland"
+                    eventName={event?.name || slug}
+                />
+                <PublicEventHero
+                    event={event}
+                    slug={slug}
+                    publicUrl={publicUrl}
+                    isLoggedIn={isLoggedIn}
+                    totalMatchesCount={totalMatchesCount}
+                    missingPredictionsCount={missingPredictionsCount}
+                    copyPublicUrl={copyPublicUrl}
+                />
 
-                    <div className="h-5 w-px bg-white/10" />
-
-                    <a
-                        href="/public/hyperland"
-                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-                    >
-                        Hyperland
-                    </a>
-
-                    <div className="h-5 w-px bg-white/10" />
-
-                    <a
-                        href="/public/leaderboard"
-                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-                    >
-                        Leaderboard
-                    </a>
-
-                    <div className="h-5 w-px bg-white/10" />
-
-                    <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
-                        {event?.name || slug}
-                    </span>
-                    <div className="ml-auto">
-                        <PublicAuthButton />
-                    </div>
-                </div>
-                <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Public Event
-                </p>
-
-                <h1 className="mt-3 text-4xl font-black md:text-6xl">
-                    {event?.name || slug}
-                </h1>
-
-                <div className="mt-4 flex flex-wrap gap-3">
-                    <div className="inline-flex rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                        Live Updates Enabled
-                    </div>
-                    {isLoggedIn && totalMatchesCount > 0 && missingPredictionsCount === 0 && (
-                        <div className="inline-flex rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                            Pick&apos;Em Complete
-                        </div>
-                    )}
-
-                    <span
-                        className={`inline-flex rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] ${event?.status === 'OPEN'
-                            ? 'bg-green-500/15 text-green-300'
-                            : event?.status === 'CLOSED'
-                                ? 'bg-red-500/15 text-red-300'
-                                : 'bg-zinc-500/15 text-zinc-300'
-                            }`}
-                    >
-                        {formatStatusLabel(event?.status || 'UNKNOWN')}
-                    </span>
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-4">
-                    <button
-                        onClick={copyPublicUrl}
-                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                    >
-                        Copy Public Link
-                    </button>
-
-                    <a
-                        href={`/public/event/${slug}/pickem/stage1`}
-                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                    >
-                        Full Pick&apos;Em
-                    </a>
-
-                    <a
-                        href={`/public/event/${slug}/leaderboard`}
-                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                    >
-                        Event Leaderboard
-                    </a>
-
-                    <a
-                        href="/public/leaderboard"
-                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                    >
-                        Leaderboard
-                    </a>
-
-                    <a
-                        href={`/public/event/${slug}/playin`}
-                        className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
-                    >
-                        Play-In Pick&apos;Em
-                    </a>
-
-                    <a
-                        href={`/public/event/${slug}/playoffs`}
-                        className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
-                    >
-                        Playoffs Pick&apos;Em
-                    </a>
-
-                    <a
-                        href="https://discord.gg/TWOJ-LINK"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                    >
-                        Join Discord
-                    </a>
-
-
-
-                    <div className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-white/60">
-                        {publicUrl}
-                    </div>
-                </div>
-
-                {isLoggedIn && latestPrediction && (
-                    <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
-                        <div className="flex flex-wrap items-center justify-between gap-6">
-                            <div>
-                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                    Your Latest Prediction
-                                </p>
-
-                                <h3 className="mt-2 text-2xl font-black">
-                                    {latestPrediction.series
-                                        ? `${latestPrediction.series.pred_a}:${latestPrediction.series.pred_b}`
-                                        : `${latestPrediction.score_a}:${latestPrediction.score_b}`}
-                                </h3>
-
-                                <p className="mt-2 text-white/50">
-                                    Match #{latestPrediction.match_id}
-                                </p>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <div className="rounded-2xl border border-white/10 bg-black/30 px-5 py-3">
-                                    <p className="text-sm text-white/40">
-                                        Progress
-                                    </p>
-
-                                    <p className="mt-1 text-2xl font-black text-violet-300">
-                                        {myPredictionsProgress}%
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={() => {
-                                        const picksSection =
-                                            document.getElementById('matches-section');
-
-                                        if (picksSection) {
-                                            picksSection.scrollIntoView({
-                                                behavior: 'smooth'
-                                            });
-                                        }
-                                    }}
-                                    className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
-                                >
-                                    View Picks
-                                </button>
-                                <a
-                                    href="/public/me/predictions"
-                                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
-                                >
-                                    All Predictions
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                {isLoggedIn && (
+                    <PublicLatestPredictionCard
+                        latestPrediction={latestPrediction}
+                        myPredictionsProgress={myPredictionsProgress}
+                    />
                 )}
 
-                <div className="mt-10 grid gap-6 md:grid-cols-4">
-                    <PublicStat title="Players" value={data?.stats?.participants ?? 0} />
-                    <PublicStat title="Predictions" value={data?.stats?.predictions ?? 0} />
-                    <PublicStat title="Matches" value={data?.stats?.matches ?? 0} />
-                    <PublicStat title="My Picks" value={myPredictionsCount} />
-
-                </div>
+                <PublicEventStatsGrid
+                    participants={data?.stats?.participants ?? 0}
+                    predictions={data?.stats?.predictions ?? 0}
+                    matches={data?.stats?.matches ?? 0}
+                    myPicks={myPredictionsCount}
+                    liveMatches={liveMatchesCount}
+                    communityAccuracy={communityAccuracy}
+                />
 
                 <MyPickemProgress
                     myPredictionsCount={myPredictionsCount}
@@ -675,187 +524,16 @@ export default function PublicEventPage() {
                     myPredictionsProgress={myPredictionsProgress}
                 />
 
-                {heroMatch && (
-                    <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)] transition-all duration-500 hover:scale-[1.01]">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.25),transparent_45%)]" />
-
-                        <div className="relative z-10">
-                            <p className="text-sm font-black uppercase tracking-[0.25em] text-violet-300">
-                                Featured Match
-                            </p>
-
-                            {heroMatch.ui_status === 'LIVE' && (
-                                <div className="mt-4 flex items-center gap-2">
-                                    <div className="h-3 w-3 rounded-full bg-green-400 animate-pulse" />
-
-                                    <span className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                                        Live Now
-                                    </span>
-                                </div>
-                            )}
-
-                            <div className="mt-6 grid items-center gap-6 md:grid-cols-[1fr_auto_1fr]">
-                                <div
-                                    className={
-                                        heroMatch.ui_status === 'FINAL'
-                                            ? Number(heroMatch.score_a) > Number(heroMatch.score_b)
-                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
-                                                : 'opacity-50'
-                                            : ''
-                                    }
-                                >
-                                    <TeamLogoBlock team={heroMatch.team_a} />
-                                </div>
-
-                                <div className="text-center">
-                                    <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                        Matchup
-                                    </p>
-
-                                    <h2 className="mt-2 text-5xl font-black text-violet-300">
-                                        VS
-                                    </h2>
-
-                                    <p className="mt-3 text-white/50">
-                                        {formatPhaseLabel(heroMatch.phase)}
-                                    </p>
-                                </div>
-
-                                <div
-                                    className={
-                                        heroMatch.ui_status === 'FINAL'
-                                            ? Number(heroMatch.score_b) > Number(heroMatch.score_a)
-                                                ? 'drop-shadow-[0_0_25px_rgba(74,222,128,0.45)]'
-                                                : 'opacity-50'
-                                            : ''
-                                    }
-                                >
-                                    <TeamLogoBlock team={heroMatch.team_b} />
-                                </div>
-                            </div>
-                            <div
-                                className={`mt-6 flex items-center justify-center gap-6 transition-all duration-500 ${heroMatch.just_updated
-                                    ? 'scale-110 text-green-300'
-                                    : ''
-                                    }`}
-                            >
-                                <span className="text-6xl font-black">
-                                    {heroMatch.score_a ?? 0}
-                                </span>
-
-                                <span className="text-2xl font-black text-white/30">
-                                    :
-                                </span>
-
-                                <span className="text-6xl font-black">
-                                    {heroMatch.score_b ?? 0}
-                                </span>
-                            </div>
-                            {!heroMatch.live_status && (
-                                <p className="mt-3 text-center text-sm text-white/40">
-                                    Community predictions opening soon
-                                </p>
-                            )}
-                            {heroMatch.live_status && (
-                                <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                                    {heroMatch.live_status} • MAP {heroMatch.current_map || 1}
-                                </p>
-                            )}
-
-                            <div className="mt-6 flex flex-wrap items-center gap-4">
-                                <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm font-black uppercase tracking-[0.15em] text-white/70">
-                                    {heroMatch.phase}
-                                </span>
-
-                                <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm font-black uppercase tracking-[0.15em] text-white/70">
-                                    BO{heroMatch.best_of || 3}
-                                </span>
-
-                                <span
-                                    className={`rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.15em] ${heroMatch.ui_status === 'LIVE'
-                                        ? 'bg-green-500/20 text-green-300 animate-pulse'
-                                        : heroMatch.ui_status === 'LOCKED'
-                                            ? 'bg-red-500/20 text-red-300'
-                                            : 'bg-yellow-500/20 text-yellow-300'
-                                        }`}
-                                >
-                                    {formatStatusLabel(heroMatch.ui_status)}
-                                </span>
-                            </div>
-
-                            <div className="mt-6 flex flex-wrap items-center gap-4 text-white/60">
-                                <span>
-                                    {heroMatch.formatted_time || 'Start time TBA'}
-                                </span>
-
-                                {heroMatch.start_time_utc && (
-                                    <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-4 py-2 text-sm font-black uppercase tracking-[0.15em] text-violet-200">
-                                        {heroMatch.countdown ||
-                                            getCountdown(heroMatch.start_time_utc, nowTick)}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="mt-6 flex flex-wrap gap-4">
-                                <button
-                                    disabled={heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL'}
-                                    onClick={() => {
-                                        if (heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL') {
-                                            return;
-                                        }
-
-                                        openPredictionModal(heroMatch);
-                                    }}
-                                    className={`rounded-2xl px-6 py-4 font-black transition ${heroMatch.ui_status === 'LOCKED' || heroMatch.ui_status === 'FINAL'
-                                        ? 'cursor-not-allowed bg-white/10 text-white/30'
-                                        : 'bg-violet-500 hover:bg-violet-400'
-                                        }`}
-                                >
-                                    {heroMatch.ui_status === 'FINAL'
-                                        ? 'Prediction Closed'
-                                        : heroMatch.ui_status === 'LOCKED'
-                                            ? 'Locked'
-                                            : myPredictions[heroMatch.id]
-                                                ? 'Edit Prediction'
-                                                : 'Predict This Match'}
-                                </button>
-
-                                <button
-                                    onClick={() => openMatchModal(heroMatch)}
-                                    className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                                >
-                                    Open Match Details
-                                </button>
-                            </div>
-                            {isLoggedIn && user && (
-                                <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
-                                    <div className="flex flex-wrap items-center gap-4">
-                                        {user.avatar && (
-                                            <img
-                                                src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`}
-                                                alt={user.global_name || user.username}
-                                                className="h-16 w-16 rounded-2xl object-cover"
-                                            />
-                                        )}
-
-                                        <div>
-                                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                                Signed in as
-                                            </p>
-
-                                            <h2 className="mt-1 text-2xl font-black">
-                                                {user.global_name || user.username}
-                                            </h2>
-
-                                            <p className="mt-1 text-white/40">
-                                                Your predictions are linked to Discord
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                <PublicFeaturedMatch
+                    heroMatch={heroMatch}
+                    myPrediction={heroMatch ? myPredictions[heroMatch.id] : null}
+                    nowTick={nowTick}
+                    formatPhaseLabel={formatPhaseLabel}
+                    formatStatusLabel={formatStatusLabel}
+                    getCountdown={getCountdown}
+                    openPredictionModal={openPredictionModal}
+                    openMatchModal={openMatchModal}
+                />
 
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <div className="flex flex-wrap items-center justify-between gap-4">
@@ -984,271 +662,23 @@ export default function PublicEventPage() {
                         </div>
                     </div>
 
-                    <div
-                        id="matches-section"
-                        className="rounded-[2rem] border border-white/10 bg-white/5 p-8"
-                    >
-                        <h2 className="text-3xl font-black">
-                            Matches
-                        </h2>
-                        {nextUnpredictedMatch && (
-                            <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
-                                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                    Next Pick
-                                </p>
-
-                                <h3 className="mt-2 text-2xl font-black">
-                                    {nextUnpredictedMatch.team_a} vs {nextUnpredictedMatch.team_b}
-                                </h3>
-
-                                <p className="mt-2 text-white/50">
-                                    {formatPhaseLabel(nextUnpredictedMatch.phase)} • BO{nextUnpredictedMatch.best_of || 3}
-                                </p>
-
-                                <button
-                                    onClick={() => openPredictionModal(nextUnpredictedMatch)}
-                                    className="mt-5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
-                                >
-                                    Predict Now
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="mt-6 flex flex-wrap gap-3">
-                            {['ALL', 'OPEN', 'LIVE', 'FINAL', 'LOCKED'].map((status) => (
-
-                                <button
-                                    key={status}
-                                    onClick={() => setMatchFilter(status)}
-                                    className={`rounded-2xl px-5 py-3 text-sm font-black transition ${matchFilter === status
-                                        ? 'bg-violet-500 text-white'
-                                        : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
-                                        }`}
-                                >
-                                    {status}
-                                </button>
-
-                            ))}
-
-                            <button
-                                onClick={() => setShowOnlyMyPicks((value) => !value)}
-                                className={`rounded-2xl px-5 py-3 text-sm font-black transition ${showOnlyMyPicks
-                                    ? 'bg-violet-500 text-white'
-                                    : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
-                                    }`}
-                            >
-                                My Picks
-                            </button>
-
-                            <button
-                                onClick={() => {
-                                    if (nextUnpredictedMatch) {
-                                        const element = document.getElementById(
-                                            `match-${nextUnpredictedMatch.id}`
-                                        );
-
-                                        if (element) {
-                                            element.scrollIntoView({
-                                                behavior: 'smooth',
-                                                block: 'center'
-                                            });
-
-                                            element.classList.add('ring-2', 'ring-violet-400');
-
-                                            setTimeout(() => {
-                                                element.classList.remove(
-                                                    'ring-2',
-                                                    'ring-violet-400'
-                                                );
-                                            }, 1800);
-                                        }
-
-                                        return;
-                                    }
-
-                                    const picksSection =
-                                        document.getElementById('matches-section');
-
-                                    if (picksSection) {
-                                        picksSection.scrollIntoView({
-                                            behavior: 'smooth'
-                                        });
-                                    }
-                                }}
-                                className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
-                            >
-                                {nextUnpredictedMatch
-                                    ? 'Next Match'
-                                    : 'All Picks Done'}
-                            </button>
-                        </div>
-
-                        <p className="mt-4 text-sm font-bold text-white/40">
-                            Showing {visiblePublicMatches.length} of {data?.matches?.length || 0} matches
-                        </p>
-
-                        <div className="mt-6 grid gap-4">
-                            {visiblePublicMatches.length === 0 && !heroMatch && (
-                                <p className="text-white/50">
-                                    {(data?.matches?.length || 0) === 0
-                                        ? 'No matches published yet.'
-                                        : 'No matches match this filter.'}
-                                </p>
-                            )}
-
-                            {visiblePublicMatches.map((match) => (
-                                <div
-                                    id={`match-${match.id}`}
-                                    key={match.id}
-                                    onClick={() => openMatchModal(match)}
-                                    className={`cursor-pointer rounded-2xl border p-5 transition-all duration-300 ${match.ui_status === 'LIVE'
-                                        ? 'border-green-400/40 bg-green-500/10 shadow-[0_0_60px_rgba(34,197,94,0.18)] scale-[1.01]'
-                                        : match.ui_status === 'FINAL'
-                                            ? 'border-zinc-500/20 bg-zinc-500/5'
-                                            : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5 hover:scale-[1.01]'
-                                        }`}
-                                >
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
-                                            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                                {formatPhaseLabel(match.phase)} • BO{match.best_of || 3}
-                                            </p>
-
-                                            <div className="mt-3 flex items-center gap-3">
-                                                <MiniTeamLogo team={match.team_a} />
-
-                                                <div className='flex items-center gap-2 text-2xl font-black'>
-                                                    <span
-                                                        className={
-                                                            match.ui_status === 'FINAL'
-                                                                ? Number(match.score_a) > Number(match.score_b)
-                                                                    ? 'text-green-300'
-                                                                    : 'text-white/40'
-                                                                : ''
-                                                        }
-                                                    >
-                                                        {match.team_a}
-                                                    </span>
-
-                                                    <span className="text-white/30">
-                                                        vs
-                                                    </span>
-
-                                                    <span
-                                                        className={
-                                                            match.ui_status === 'FINAL'
-                                                                ? Number(match.score_b) > Number(match.score_a)
-                                                                    ? 'text-green-300'
-                                                                    : 'text-white/40'
-                                                                : ''
-                                                        }
-                                                    >
-                                                        {match.team_b}
-                                                    </span>
-                                                </div>
-                                                <p
-                                                    className={`mt-2 text-lg font-black transition-all duration-500 ${match.just_updated
-                                                        ? 'scale-110 text-green-300'
-                                                        : match.ui_status === 'FINAL'
-                                                            ? 'text-zinc-300'
-                                                            : 'text-violet-300'
-                                                        }`}
-                                                >
-                                                    {match.score_a ?? 0} : {match.score_b ?? 0}
-                                                </p>
-
-                                                {match.live_status && (
-                                                    <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-green-300">
-                                                        {match.live_status} • MAP {match.current_map || 1}
-                                                    </p>
-                                                )}
-
-                                                <MiniTeamLogo team={match.team_b} />
-                                            </div>
-
-                                            <p className="mt-2 text-sm text-white/40">
-                                                Match #{match.match_no || '-'}
-                                            </p>
-
-                                            {myPredictions[match.id] && (
-                                                <p className="mt-2 inline-flex rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                                    Your Pick: {myPredictions[match.id].series
-                                                        ? `${myPredictions[match.id].series.pred_a}:${myPredictions[match.id].series.pred_b}`
-                                                        : `${myPredictions[match.id].score_a}:${myPredictions[match.id].score_b}`}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        <div
-                                            className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.15em] ${match.ui_status === 'LIVE'
-                                                ? 'border border-green-400/30 bg-green-500/10 text-green-300'
-                                                : match.ui_status === 'FINAL'
-                                                    ? 'bg-zinc-500/20 text-zinc-300'
-                                                    : match.ui_status === 'LOCKED'
-                                                        ? 'bg-red-500/20 text-red-300'
-                                                        : 'bg-yellow-500/20 text-yellow-300'
-                                                }`}
-                                        >
-                                            {match.ui_status === 'LIVE' && (
-                                                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                                            )}
-
-                                            {formatStatusLabel(match.ui_status)}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/40">
-                                        <span>
-                                            {match.formatted_time || 'Start time TBA'}
-                                        </span>
-
-                                        {match.start_time_utc && (
-                                            <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-200">
-                                                {match.countdown ||
-                                                    getCountdown(match.start_time_utc, nowTick)}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="mt-5 flex flex-wrap gap-3">
-                                        <button
-                                            disabled={match.ui_status === 'LOCKED' || match.ui_status === 'FINAL'}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-
-                                                if (match.ui_status === 'LOCKED' || match.ui_status === 'FINAL') {
-                                                    return;
-                                                }
-
-                                                openPredictionModal(match);
-                                            }}
-                                            className={`rounded-xl px-4 py-2 text-sm font-black transition ${match.ui_status === 'LOCKED' || match.ui_status === 'FINAL'
-                                                ? 'cursor-not-allowed bg-white/10 text-white/30'
-                                                : 'bg-violet-500 hover:bg-violet-400'
-                                                }`}
-                                        >
-                                            {match.ui_status === 'FINAL'
-                                                ? 'Prediction Closed'
-                                                : match.ui_status === 'LOCKED'
-                                                    ? 'Locked'
-                                                    : myPredictions[match.id]
-                                                        ? 'Edit Prediction'
-                                                        : 'Make Prediction'}
-                                        </button>
-
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                openMatchModal(match);
-                                            }}
-                                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10"
-                                        >
-                                            Match Details
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <PublicMatchesSection
+                        publicMatches={publicMatches}
+                        visiblePublicMatches={visiblePublicMatches}
+                        heroMatch={heroMatch}
+                        nextUnpredictedMatch={nextUnpredictedMatch}
+                        myPredictions={myPredictions}
+                        showOnlyMyPicks={showOnlyMyPicks}
+                        setShowOnlyMyPicks={setShowOnlyMyPicks}
+                        matchFilter={matchFilter}
+                        setMatchFilter={setMatchFilter}
+                        nowTick={nowTick}
+                        formatPhaseLabel={formatPhaseLabel}
+                        formatStatusLabel={formatStatusLabel}
+                        getCountdown={getCountdown}
+                        openPredictionModal={openPredictionModal}
+                        openMatchModal={openMatchModal}
+                    />
                 </div>
 
                 <div className="mt-10 grid gap-6 xl:grid-cols-2">
@@ -2263,82 +1693,6 @@ function PublicPhaseStep({ label, active }) {
             {label}
         </div>
     );
-}
-
-function TeamLogoBlock({ team }) {
-    return (
-        <div className="min-w-0 text-center">
-            <div
-                className={`relative mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br ${getTeamColor(team)} text-3xl font-black`}
-            >
-                <span className="relative z-0">
-                    {team?.charAt(0)}
-                </span>
-
-                <img
-                    src={getTeamLogo(team)}
-                    alt={team}
-                    className="absolute z-10 h-20 w-20 object-contain"
-                    onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                    }}
-                />
-            </div>
-
-            <h2 className="mt-4 break-words text-xl font-black md:text-2xl">
-                {team}
-            </h2>
-        </div>
-    );
-}
-
-function MiniTeamLogo({ team }) {
-    return (
-        <div className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br ${getTeamColor(team)} text-sm font-black`}>
-            <span className="relative z-0">
-                {team?.charAt(0)}
-            </span>
-
-            <img
-                src={getTeamLogo(team)}
-                alt={team}
-                className="absolute z-10 h-7 w-7 object-contain"
-                onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                }}
-            />
-        </div>
-    );
-}
-
-function getTeamLogo(teamName) {
-    if (!teamName) return null;
-
-    return `/team-logos/${teamName
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')}.png`;
-}
-
-function getTeamColor(teamName) {
-    if (!teamName) {
-        return 'from-violet-500/20 to-fuchsia-500/20';
-    }
-
-    const colors = [
-        'from-red-500/20 to-orange-500/20',
-        'from-blue-500/20 to-cyan-500/20',
-        'from-green-500/20 to-emerald-500/20',
-        'from-violet-500/20 to-fuchsia-500/20',
-        'from-yellow-500/20 to-orange-500/20',
-        'from-pink-500/20 to-rose-500/20'
-    ];
-
-    const hash = teamName
-        .split('')
-        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    return colors[hash % colors.length];
 }
 
 function PublicSkeletonCard() {

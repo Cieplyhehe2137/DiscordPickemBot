@@ -1,5 +1,6 @@
 import { NavLink, Link, Outlet } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { usePublicAuth } from '../../context/PublicAuthContext';
 
 export default function AppLayout() {
 
@@ -8,11 +9,14 @@ export default function AppLayout() {
         selectedEvent
     } = useApp();
 
+    const { user } = usePublicAuth();
+    const displayName = user?.global_name || user?.username || '';
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
             <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-white/10 bg-black/30 p-6 backdrop-blur-xl lg:block">
                 <h1 className="text-2xl font-black tracking-widest">
-                    HYPERLAND
+                    PICKEMBOT
                 </h1>
 
                 <p className="mt-1 text-sm text-white/40">
@@ -95,7 +99,7 @@ export default function AppLayout() {
                         </div>
 
                         <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold text-white/70">
-                            Local Dev
+                            {displayName}
                         </div>
                     </div>
                 </header>

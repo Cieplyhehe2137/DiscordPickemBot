@@ -1,0 +1,64 @@
+export default function PublicEventStatsGrid({
+    participants,
+    predictions,
+    matches,
+    myPicks,
+    liveMatches,
+    communityAccuracy
+}) {
+    const stats = [
+        {
+            label: 'Players',
+            value: participants ?? 0,
+            hint: 'unique participants'
+        },
+        {
+            label: 'Predictions',
+            value: predictions ?? 0,
+            hint: 'submitted picks'
+        },
+        {
+            label: 'Matches',
+            value: matches ?? 0,
+            hint: 'published matches'
+        },
+        {
+            label: 'My Picks',
+            value: myPicks ?? 0,
+            hint: 'your submitted picks'
+        },
+        {
+            label: 'Live',
+            value: liveMatches ?? 0,
+            hint: 'matches in progress'
+        },
+        {
+            label: 'Community Accuracy',
+            value: `${communityAccuracy ?? 0}%`,
+            hint: 'finished matches'
+        }
+    ];
+
+    return (
+        <div className="mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+            {stats.map((stat) => (
+                <div
+                    key={stat.label}
+                    className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                >
+                    <p className="text-xs uppercase tracking-[0.2em] text-violet-300">
+                        {stat.label}
+                    </p>
+
+                    <h2 className="mt-3 text-3xl font-black">
+                        {stat.value}
+                    </h2>
+
+                    <p className="mt-2 text-sm text-white/40">
+                        {stat.hint}
+                    </p>
+                </div>
+            ))}
+        </div>
+    );
+}

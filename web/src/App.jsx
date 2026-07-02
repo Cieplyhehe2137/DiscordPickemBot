@@ -5,6 +5,7 @@ import EventDashboard from './pages/EventDashboard';
 import GuildSelect from './pages/GuildSelect';
 import GuildDashboard from './pages/GuildDashboard';
 import AppLayout from './components/layout/AppLayout';
+import RequireAdmin from './components/auth/RequireAdmin';
 import PublicServersPage from './pages/PublicServersPage';
 import PublicGuildPage from './pages/PublicGuildPage';
 import PublicUserPage from './pages/PublicUserPage';
@@ -16,6 +17,7 @@ import PublicEventLeaderboardPage from './pages/PublicEventLeaderboardPage';
 import PublicPlayinPickemPage from './pages/PublicPlayinPickemPage';
 import PublicPlayoffsPickemPage from './pages/PublicPlayoffsPickemPage';
 import PublicDoubleElimPickemPage from './pages/PublicDoubleElimPickemPage';
+import PublicArchivePage from './pages/PublicArchivePage';
 
 export default function App() {
   return (
@@ -35,10 +37,17 @@ export default function App() {
       <Route path="/public/event/:slug/pickem/:stage" element={<PublicSwissPickemPage />} />
       <Route path="/public/event/:slug/leaderboard" element={<PublicEventLeaderboardPage />} />
       <Route path="/public/event/:slug" element={<PublicEventPage />} />
-
+      <Route path="/public/archives" element={<PublicArchivePage />} />
       <Route path="/public/:guildSlug" element={<PublicGuildPage />} />
 
-      <Route path="/app" element={<AppLayout />}>
+      <Route
+        path="/app"
+        element={
+          <RequireAdmin>
+            <AppLayout />
+          </RequireAdmin>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="guilds" element={<GuildSelect />} />
         <Route path="guilds/:guildId" element={<GuildDashboard />} />

@@ -202,3 +202,7 @@ export async function saveDoubleElimPickem(slug, payload) {
     body: JSON.stringify(payload)
   });
 }
+
+export async function getPublicArchives() {
+  return apiFetch('/public/archives');
+}
