@@ -749,6 +749,72 @@ app.get('/api/public/archives', async (req, res) => {
     }
 });
 
+// Known-guild display name/invite mapping - there's no real per-guild name/slug/invite
+// storage anywhere (config/*.env only has DB credentials), so only the one guild we
+// have real data for gets a friendly name and real Discord invite. Others fall back
+// to their raw guild_id and no invite link, rather than showing a wrong one.
+const KNOWN_GUILDS = {
+    '1161660208951607397': {
+        slug: 'hyperland',
+        name: 'Hyperland',
+        discord_url: 'https://discord.gg/NJhspKrXNK'
+    }
+};
+
+app.get('/api/public/servers', async (req, res) => {
+    try {
+        const [servers] = await pool.query(
+            `
+    SELECT
+        e.guild_id,
+        COUNT(*) AS events_count,
+        SUM(e.status = 'OPEN') AS open_events
+    FROM events e
+    WHERE e.guild_id IS NOT NULL
+    GROUP BY e.guild_id
+    ORDER BY events_count DESC
+    `
+        );
+
+        const [featuredEvents] = await pool.query(
+            `
+    SELECT
+        e.id,
+        e.name,
+        e.slug,
+        e.phase,
+        e.status,
+        e.guild_id
+    FROM events e
+    ORDER BY e.id DESC
+    LIMIT 6
+    `
+        );
+
+        res.json({
+            servers: servers.map((server) => {
+                const known = KNOWN_GUILDS[server.guild_id];
+
+                return {
+                    guild_id: server.guild_id,
+                    name: known?.name || server.guild_id,
+                    slug: known?.slug || server.guild_id,
+                    events_count: Number(server.events_count || 0),
+                    open_events: Number(server.open_events || 0),
+                    discord_url: known?.discord_url || null
+                };
+            }),
+            featured_events: featuredEvents
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
 app.get('/api/public/:guildSlug', async (req, res) => {
     try {
         const { guildSlug } = req.params;
@@ -757,6 +823,8 @@ app.get('/api/public/:guildSlug', async (req, res) => {
             guildSlug === 'hyperland'
                 ? '1161660208951607397'
                 : guildSlug;
+
+        const known = KNOWN_GUILDS[guildId];
 
         const [events] = await pool.query(
             `
@@ -812,11 +880,9 @@ app.get('/api/public/:guildSlug', async (req, res) => {
         res.json({
             guild: {
                 guild_id: guildId,
-                slug: guildSlug,
-                name: guildId === '1161660208951607397'
-                    ? 'Hyperland'
-                    : guildId,
-                discord_url: 'https://discord.gg/NJhspKrXNK'
+                slug: known?.slug || guildId,
+                name: known?.name || guildId,
+                discord_url: known?.discord_url || null
             },
             stats: {
                 events: Number(stats?.events_count || 0),
@@ -841,6 +907,7 @@ app.get('/api/public/:slug/overview', async (req, res) => {
             `
       SELECT
   id,
+  guild_id,
   name,
   slug,
   phase,
@@ -1349,117 +1416,6 @@ app.post('/api/dev/matches/:matchId/final', requireGuildAdmin(guildIdFromMatchId
 
         res.status(500).json({
             error: 'Final update failed'
-        });
-    }
-});
-
-app.get('/api/public/servers', async (req, res) => {
-    try {
-        const [servers] = await pool.query(
-            `
-    SELECT
-        e.guild_id,
-        COUNT(*) AS events_count,
-        SUM(e.status = 'OPEN') AS open_events,
-        MAX(e.id) AS latest_event_id
-    FROM events e
-    WHERE e.guild_id IS NOT NULL
-    GROUP BY e.guild_id
-    ORDER BY events_count DESC
-    `
-        );
-
-        const [featuredEvents] = await pool.query(
-            `
-    SELECT
-        e.id,
-        e.name,
-        e.slug,
-        e.phase,
-        e.status,
-        e.guild_id
-    FROM events e
-    ORDER BY e.id DESC
-    LIMIT 6
-    `
-        );
-
-        res.json({
-            servers: servers.map((server) => ({
-                guild_id: server.guild_id,
-                name:
-                    server.guild_id === '1161660208951607397'
-                        ? 'Hyperland'
-                        : server.guild_id,
-                slug:
-                    server.guild_id === '1161660208951607397'
-                        ? 'hyperland'
-                        : server.guild_id,
-                events_count: Number(server.events_count || 0),
-                open_events: Number(server.open_events),
-                featured_events: featuredEvents,
-                discord_url: 'https://discord.gg/NJhspKrXNK'
-            }))
-        });
-    } catch (err) {
-        console.error(err);
-
-        res.status(500).json({
-            error: 'Database error'
-        })
-    }
-})
-
-app.get('/api/public/:guildSlug', async (req, res) => {
-    try {
-        const { guildSlug } = req.params;
-
-        const guildId =
-            guildSlug === 'hyperland'
-                ? '1161660208951607397'
-                : guildSlug;
-
-        const [events] = await pool.query(
-            `
-            SELECT
-                id,
-                name,
-                slug,
-                phase,
-                status
-            FROM events
-            WHERE guild_id = ?
-            ORDER BY id DESC
-            LIMIT 12
-            `,
-            [guildId]
-        );
-
-        const featuredEvent =
-            events.find((e) => e.status === 'OPEN') ||
-            events[0] ||
-            null;
-
-        res.json({
-            guild: {
-                guild_id: guildId,
-                slug: guildSlug,
-                name:
-                    guildId === '1161660208951607397'
-                        ? 'Hyperland'
-                        : guildId,
-                discord_url: 'https://discord.gg/NJhspKrXNK'
-            },
-
-            featured_event: featuredEvent,
-
-            events
-        });
-    } catch (err) {
-        console.error(err);
-
-        res.status(500).json({
-            error: 'Database error'
         });
     }
 });

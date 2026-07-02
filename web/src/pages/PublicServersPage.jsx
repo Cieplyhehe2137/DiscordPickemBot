@@ -165,28 +165,18 @@ export default function PublicServersPage() {
                         Platform Stats
                     </p>
 
-                    <div className="mt-6 grid gap-6 md:grid-cols-4">
+                    <div className="mt-6 grid gap-6 md:grid-cols-2">
                         <PublicMiniStat
                             title="Communities"
                             value={servers.length}
                         />
 
                         <PublicMiniStat
-                            title="Events"
+                            title="Open Events"
                             value={servers.reduce(
                                 (acc, server) => acc + (server.open_events || 0),
                                 0
                             )}
-                        />
-
-                        <PublicMiniStat
-                            title="Players"
-                            value="1000+"
-                        />
-
-                        <PublicMiniStat
-                            title="Predictions"
-                            value="25k+"
                         />
                     </div>
                 </div>
@@ -274,24 +264,6 @@ export default function PublicServersPage() {
                     <p className="mt-4 max-w-2xl text-white/50">
                         Browse active Pick&apos;Em communities, join Discord and follow live events.
                     </p>
-
-                    <div className="mt-6 flex flex-wrap gap-4">
-                        <a
-                            href="/public/hyperland"
-                            className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                        >
-                            Open Hyperland Hub
-                        </a>
-
-                        <a
-                            href="https://discord.gg/NJhspKrXNK"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                        >
-                            Join Discord
-                        </a>
-                    </div>
                 </div>
 
                 <div className="mt-10 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8">
@@ -363,14 +335,16 @@ export default function PublicServersPage() {
                                     Open Hub
                                 </a>
 
-                                <a
-                                    href={server.discord_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                                >
-                                    Join Discord
-                                </a>
+                                {server.discord_url && (
+                                    <a
+                                        href={server.discord_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                                    >
+                                        Join Discord
+                                    </a>
+                                )}
                             </div>
                         </div>
                     ))}

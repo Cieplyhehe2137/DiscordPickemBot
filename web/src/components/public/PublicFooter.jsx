@@ -20,15 +20,6 @@ export default function PublicFooter() {
                     >
                         Communities
                     </a>
-
-                    <a
-                        href="https://discord.gg/NJhspKrXNK"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-                    >
-                        Discord
-                    </a>
                 </div>
             </div>
         </footer>

@@ -88,14 +88,16 @@ export default function PublicGuildPage() {
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-4">
-                    <a
-                        href={guild.discord_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                    >
-                        Join Discord
-                    </a>
+                    {guild.discord_url && (
+                        <a
+                            href={guild.discord_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                        >
+                            Join Discord
+                        </a>
+                    )}
 
                     {featuredEvent && (
                         <a
@@ -247,14 +249,16 @@ export default function PublicGuildPage() {
 
             <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-zinc-950/90 p-4 backdrop-blur xl:hidden">
                 <div className="flex gap-3">
-                    <a
-                        href={guild.discord_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 rounded-2xl bg-violet-500 px-5 py-4 text-center font-black transition hover:bg-violet-400"
-                    >
-                        Join Discord
-                    </a>
+                    {guild.discord_url && (
+                        <a
+                            href={guild.discord_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex-1 rounded-2xl bg-violet-500 px-5 py-4 text-center font-black transition hover:bg-violet-400"
+                        >
+                            Join Discord
+                        </a>
+                    )}
 
                     {featuredEvent && (
                         <a

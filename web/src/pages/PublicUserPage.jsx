@@ -14,9 +14,6 @@ export default function PublicUserPage() {
             try {
                 const result = await getPublicUser(userId);
 
-                console.log('PUBLIC USER RESULT:', result);
-                console.log('SWISS PICKS:', result.swiss_picks);
-
                 setData(result);
             } catch (err) {
                 console.error(err);
@@ -91,15 +88,6 @@ export default function PublicUserPage() {
                     <div className="h-5 w-px bg-white/10" />
 
                     <a
-                        href="/public/hyperland"
-                        className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
-                    >
-                        Hyperland
-                    </a>
-
-                    <div className="h-5 w-px bg-white/10" />
-
-                    <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
@@ -130,15 +118,8 @@ export default function PublicUserPage() {
 
                 <div className="mt-6 flex flex-wrap gap-4">
                     <a
-                        href="/public/hyperland"
-                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                    >
-                        Back to Hyperland
-                    </a>
-
-                    <a
                         href="/public"
-                        className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
+                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
                         Browse Communities
                     </a>

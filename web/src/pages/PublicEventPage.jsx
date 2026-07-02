@@ -488,7 +488,7 @@ export default function PublicEventPage() {
             <div className="relative z-10 mx-auto max-w-7xl">
                 <PublicNavbar
                     active="guild"
-                    guildSlug="hyperland"
+                    guildSlug={event?.guild_id}
                     eventName={event?.name || slug}
                 />
                 <PublicEventHero

@@ -3,7 +3,8 @@ import PublicAuthButton from './PublicAuthButton';
 export default function PublicNavbar({
     active,
     eventName,
-    guildSlug = 'hyperland'
+    guildSlug,
+    guildName
 }) {
     const linkClass = (name) =>
         active === name
@@ -17,11 +18,15 @@ export default function PublicNavbar({
                 Communities
             </a>
 
-            <div className="h-5 w-px bg-white/10" />
+            {guildSlug && (
+                <>
+                    <div className="h-5 w-px bg-white/10" />
 
-            <a href={`/public/${guildSlug}`} className={linkClass('guild')}>
-                Hyperland
-            </a>
+                    <a href={`/public/${guildSlug}`} className={linkClass('guild')}>
+                        {guildName || 'Server'}
+                    </a>
+                </>
+            )}
 
             <div className="h-5 w-px bg-white/10" />
 

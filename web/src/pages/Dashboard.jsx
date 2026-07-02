@@ -31,7 +31,7 @@ export default function Dashboard() {
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
                     <div>
                         <h1 className="text-3xl font-black tracking-widest">
-                            HYPERLAND
+                            PICKEMBOT
                         </h1>
 
                         <p className="text-sm text-white/40">
