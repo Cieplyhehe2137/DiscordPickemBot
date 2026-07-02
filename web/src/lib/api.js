@@ -145,6 +145,10 @@ export async function setMvpResult(slug, candidateId) {
   });
 }
 
+export function getClassificationExportUrl(slug) {
+  return `${API_BASE}/events/${slug}/export/classification`;
+}
+
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
 }

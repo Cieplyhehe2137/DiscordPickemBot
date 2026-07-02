@@ -15,6 +15,7 @@ import {
   getMvp,
   saveMvpCandidates,
   setMvpResult as apiSetMvpResult,
+  getClassificationExportUrl,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -633,6 +634,13 @@ export default function EventDashboard() {
                   className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Close Event
+                </button>
+
+                <button
+                  onClick={() => window.open(getClassificationExportUrl(slug), '_blank')}
+                  className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
+                >
+                  Export Classification
                 </button>
               </div>
             </div>

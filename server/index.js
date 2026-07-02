@@ -21,6 +21,7 @@ const teamsStore = require('../utils/teamsStore');
 const matchesStore = require('../utils/matchesStore');
 const recalculateMatchPoints = require('../services/recalculateMatchPoints');
 const { runInTransaction } = require('../utils/runInTransaction');
+const exportClassification = require('../handlers/admin/exportClassification');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1603,6 +1604,34 @@ app.post('/api/events/:slug/mvp/result', requireGuildAdmin(guildIdFromEventSlug)
 
         res.status(500).json({
             error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/events/:slug/export/classification', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const buffer = await exportClassification({ guildId, eventId: event.id });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="klasyfikacja-${slug}.xlsx"`);
+        res.send(buffer);
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Failed to generate classification export'
         });
     }
 });

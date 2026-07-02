@@ -159,7 +159,7 @@ module.exports = async function exportClassification(arg) {
     await interaction.deferReply({ ephemeral: true });
   }
 
-  await withGuild({ guildId }, async ({ pool, guildId }) => {
+  return withGuild({ guildId }, async ({ pool, guildId }) => {
     const eventId = arg?.eventId || await resolveEventId(pool, guildId);
 
     if (!eventId) {
@@ -1230,5 +1230,7 @@ module.exports = async function exportClassification(arg) {
         console.error('❌ Błąd przy wysyłaniu pliku na Discorda:', err);
       }
     }
+
+    return buffer;
   });
 };
