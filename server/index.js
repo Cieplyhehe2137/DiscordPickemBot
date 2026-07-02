@@ -285,15 +285,39 @@ app.get('/api/events/active', async (req, res) => {
     try {
         const [rows] = await pool.query(`
       SELECT
-        id,
-        name,
-        slug,
-        phase,
-        status
-      FROM events
-      WHERE is_active = 1
-        AND is_archived = 0
-      ORDER BY id DESC
+        e.id,
+        e.name,
+        e.slug,
+        e.phase,
+        e.status,
+
+        (
+          SELECT COUNT(DISTINCT mp.user_id)
+          FROM match_predictions mp
+          WHERE mp.event_id = e.id
+        ) AS participants,
+
+        (
+          SELECT COUNT(*)
+          FROM match_predictions mp
+          WHERE mp.event_id = e.id
+        ) AS predictions,
+
+        (
+          SELECT ap.deadline
+          FROM active_panels ap
+          WHERE ap.guild_id COLLATE utf8mb4_unicode_ci = e.guild_id
+            AND ap.phase COLLATE utf8mb4_unicode_ci = e.phase
+            AND ap.active = 1
+            AND ap.deadline IS NOT NULL
+          ORDER BY ap.deadline ASC
+          LIMIT 1
+        ) AS deadline
+
+      FROM events e
+      WHERE e.is_active = 1
+        AND e.is_archived = 0
+      ORDER BY e.id DESC
     `);
 
         res.json({

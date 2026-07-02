@@ -95,19 +95,19 @@ export default function Dashboard() {
                                 <InfoCard
                                     icon={<Users size={18} />}
                                     label="Participants"
-                                    value="124"
+                                    value={event.participants ?? 0}
                                 />
 
                                 <InfoCard
                                     icon={<Trophy size={18} />}
                                     label="Predictions"
-                                    value="981"
+                                    value={event.predictions ?? 0}
                                 />
 
                                 <InfoCard
                                     icon={<CalendarDays size={18} />}
                                     label="Deadline"
-                                    value="5 days left"
+                                    value={formatDeadline(event.deadline)}
                                 />
                             </div>
 
@@ -123,6 +123,22 @@ export default function Dashboard() {
             </main>
         </div>
     );
+}
+
+function formatDeadline(deadline) {
+    if (!deadline) return 'No deadline set';
+
+    const diff = new Date(deadline).getTime() - Date.now();
+
+    if (diff <= 0) return 'Deadline passed';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    if (days > 0) return `${days}d ${hours}h left`;
+
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m left`;
 }
 
 function InfoCard({ icon, label, value }) {
