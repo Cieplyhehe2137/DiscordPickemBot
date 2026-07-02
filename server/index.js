@@ -773,17 +773,32 @@ app.get('/api/public/archives', async (req, res) => {
     }
 });
 
-// Known-guild display name/invite mapping - there's no real per-guild name/slug/invite
-// storage anywhere (config/*.env only has DB credentials), so only the one guild we
-// have real data for gets a friendly name and real Discord invite. Others fall back
-// to their raw guild_id and no invite link, rather than showing a wrong one.
-const KNOWN_GUILDS = {
-    '1161660208951607397': {
-        slug: 'hyperland',
-        name: 'Hyperland',
-        discord_url: 'https://discord.gg/NJhspKrXNK'
+// Guild display name/slug/invite come from config/*.env (GUILD_NAME, GUILD_SLUG,
+// DISCORD_INVITE_URL) - the same files guildRegistry already loads for DB credentials.
+// A guild with no config file (shouldn't happen, but defensive) falls back to its
+// raw guild_id and no invite link rather than showing wrong info.
+function getKnownGuildInfo(guildId) {
+    const cfg = guildRegistry.getGuildConfig(guildId);
+
+    return {
+        slug: cfg?.GUILD_SLUG || guildId,
+        name: cfg?.GUILD_NAME || guildId,
+        discord_url: cfg?.DISCORD_INVITE_URL || null
+    };
+}
+
+// Resolves a URL slug (e.g. "hyperland") back to a guild_id by checking every
+// known guild's GUILD_SLUG. Falls back to treating the slug as a raw guild_id
+// directly, since /public/:guildSlug already supports that for guilds without
+// a configured vanity slug.
+function resolveGuildIdFromSlug(guildSlug) {
+    for (const id of guildRegistry.getAllGuildIds()) {
+        const cfg = guildRegistry.getGuildConfig(id);
+        if (cfg?.GUILD_SLUG === guildSlug) return id;
     }
-};
+
+    return guildSlug;
+}
 
 app.get('/api/public/servers', async (req, res) => {
     try {
@@ -817,15 +832,15 @@ app.get('/api/public/servers', async (req, res) => {
 
         res.json({
             servers: servers.map((server) => {
-                const known = KNOWN_GUILDS[server.guild_id];
+                const known = getKnownGuildInfo(server.guild_id);
 
                 return {
                     guild_id: server.guild_id,
-                    name: known?.name || server.guild_id,
-                    slug: known?.slug || server.guild_id,
+                    name: known.name,
+                    slug: known.slug,
                     events_count: Number(server.events_count || 0),
                     open_events: Number(server.open_events || 0),
-                    discord_url: known?.discord_url || null
+                    discord_url: known.discord_url
                 };
             }),
             featured_events: featuredEvents
@@ -843,12 +858,8 @@ app.get('/api/public/:guildSlug', async (req, res) => {
     try {
         const { guildSlug } = req.params;
 
-        const guildId =
-            guildSlug === 'hyperland'
-                ? '1161660208951607397'
-                : guildSlug;
-
-        const known = KNOWN_GUILDS[guildId];
+        const guildId = resolveGuildIdFromSlug(guildSlug);
+        const known = getKnownGuildInfo(guildId);
 
         const [events] = await pool.query(
             `
@@ -904,16 +915,16 @@ app.get('/api/public/:guildSlug', async (req, res) => {
         res.json({
             guild: {
                 guild_id: guildId,
-                slug: known?.slug || guildId,
-                name: known?.name || guildId,
-                discord_url: known?.discord_url || null
+                slug: known.slug,
+                name: known.name,
+                discord_url: known.discord_url
             },
             stats: {
                 events: Number(stats?.events_count || 0),
                 participants: Number(stats?.participants || 0),
-                predictions: Number(stats?.predictions || 0),
-                top_players: topPlayers,
+                predictions: Number(stats?.predictions || 0)
             },
+            top_players: topPlayers,
             featured_event: featuredEvent,
             events
         });
