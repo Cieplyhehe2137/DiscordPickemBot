@@ -12,14 +12,36 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || `API error ${res.status}`);
+    const err = new Error(text || `API error ${res.status}`);
+    err.status = res.status;
+    throw err;
   }
 
   return res.json();
 }
 
+// Turns a thrown apiFetch error into a user-facing message for admin action
+// handlers (button clicks that can 401/403 if the session expired or the
+// user isn't an admin of this guild), instead of the action silently doing
+// nothing while the real error only shows up in the console.
+export function describeActionError(err, actionLabel) {
+  if (err?.status === 401) {
+    return `You need to be logged in to ${actionLabel}.`;
+  }
+
+  if (err?.status === 403) {
+    return `You don't have permission to ${actionLabel} on this server.`;
+  }
+
+  return `Could not ${actionLabel}.`;
+}
+
 export function getMe() {
   return apiFetch('/auth/me');
+}
+
+export function logout() {
+  return apiFetch('/auth/logout', { method: 'POST' });
 }
 
 export function getActiveEvents() {
@@ -62,10 +84,6 @@ export async function getGuildEvents(guildId) {
 
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
-}
-
-export async function getGuildMeta(guildId) {
-  return apiFetch(`/guilds/${guildId}/meta`);
 }
 
 export async function createGuildEvent(guildId, payload) {

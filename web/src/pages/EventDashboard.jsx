@@ -8,7 +8,8 @@ import {
   updateEventStatus,
   recalculateEvent,
   updateMatchLock,
-  getMatchStats
+  getMatchStats,
+  describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
 import { useApp } from '../context/AppContext';
@@ -186,6 +187,7 @@ export default function EventDashboard() {
       await updateEventPhase(slug, selectedPhase);
     } catch (err) {
       console.error(err);
+      alert(describeActionError(err, 'update the phase'));
     } finally {
       setPhaseLoading(false);
     }
@@ -196,6 +198,7 @@ export default function EventDashboard() {
       await updateEventStatus(slug, status);
     } catch (err) {
       console.error(err);
+      alert(describeActionError(err, 'update the status'));
     }
   }
 
@@ -233,7 +236,7 @@ export default function EventDashboard() {
       alert('Scores recalculated!');
     } catch (err) {
       console.error(err);
-      alert('Could not recalculate scores');
+      alert(describeActionError(err, 'recalculate scores'));
     } finally {
       setRecalculating(false);
     }
@@ -244,6 +247,7 @@ export default function EventDashboard() {
       await updateMatchLock(matchId, locked);
     } catch (err) {
       console.error(err);
+      alert(describeActionError(err, 'update the match lock'));
     }
   }
 
@@ -261,6 +265,7 @@ export default function EventDashboard() {
 
     } catch (err) {
       console.error(err);
+      alert(describeActionError(err, 'update match locks'));
     }
   }
 

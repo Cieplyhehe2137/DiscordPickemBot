@@ -2,20 +2,23 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     getGuildEvents,
-    getGuildMeta,
     createGuildEvent,
-    updateEventStatus
+    updateEventStatus,
+    describeActionError
 } from '../lib/api';
 import { useApp } from '../context/AppContext';
+import { usePublicAuth } from '../context/PublicAuthContext';
 
 export default function GuildDashboard() {
     const { guildId } = useParams();
     const navigate = useNavigate();
     const { setSelectedGuild } = useApp();
+    const { user } = usePublicAuth();
 
     const [events, setEvents] = useState([]);
     const [guild, setGuild] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [accessDenied, setAccessDenied] = useState(false);
     const [stats, setStats] = useState(null);
 
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -59,23 +62,29 @@ export default function GuildDashboard() {
         async function load() {
             try {
                 setLoading(true);
+                setAccessDenied(false);
 
-                const meta = await getGuildMeta(guildId);
-                setGuild(meta.guild);
-                setSelectedGuild(meta.guild);
+                const known = user?.guilds?.find((g) => g.id === guildId);
+                const meta = { id: guildId, name: known?.name || guildId };
+                setGuild(meta);
+                setSelectedGuild(meta);
 
                 const data = await getGuildEvents(guildId);
                 setEvents(data.events || []);
                 setStats(data.stats || null);
             } catch (err) {
                 console.error(err);
+
+                if (err.status === 401 || err.status === 403) {
+                    setAccessDenied(true);
+                }
             } finally {
                 setLoading(false);
             }
         }
 
-        load();
-    }, [guildId, setSelectedGuild]);
+        if (user) load();
+    }, [guildId, user, setSelectedGuild]);
 
     async function refreshEvents() {
         const data = await getGuildEvents(guildId);
@@ -101,7 +110,7 @@ export default function GuildDashboard() {
             setShowCreateModal(false);
         } catch (err) {
             console.error(err);
-            setCreateError(err.message || 'Could not create event');
+            setCreateError(describeActionError(err, 'create the event'));
         } finally {
             setCreating(false);
         }
@@ -113,6 +122,7 @@ export default function GuildDashboard() {
             await refreshEvents();
         } catch (err) {
             console.error(err);
+            alert(describeActionError(err, 'update the status'));
         }
     }
 
@@ -137,6 +147,33 @@ export default function GuildDashboard() {
         }
     }
 
+    if (accessDenied) {
+        return (
+            <div className="flex min-h-[60vh] items-center justify-center px-6">
+                <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+                    <p className="text-sm uppercase tracking-[0.25em] text-red-300">
+                        Access denied
+                    </p>
+
+                    <h1 className="mt-3 text-2xl font-black">
+                        You don&apos;t have access to this server
+                    </h1>
+
+                    <p className="mt-2 text-sm text-white/50">
+                        Your account doesn&apos;t have Administrator permission on server <span className="font-bold text-white/80">{guildId}</span>.
+                    </p>
+
+                    <a
+                        href="/app/guilds"
+                        className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Back to server list
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="px-6 py-10">
             <div className="mx-auto max-w-7xl">
@@ -147,10 +184,6 @@ export default function GuildDashboard() {
                 <h1 className="mt-3 text-5xl font-black">
                     {guild?.name || guildId}
                 </h1>
-
-                <p className="mt-4 max-w-2xl text-lg text-white/50">
-                    {guild?.description}
-                </p>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
                     <GuildStat title="Total Events" value={stats?.totalEvents ?? 0} />

@@ -1,8 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePublicAuth } from '../../context/PublicAuthContext';
+import { logout } from '../../lib/api';
 
 export default function PublicAuthButton() {
     const { user, loading, isLoggedIn } = usePublicAuth();
+
+    async function handleLogout() {
+        try {
+            await logout();
+        } finally {
+            window.location.href = '/public';
+        }
+    }
 
     const [open, setOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -115,12 +124,12 @@ export default function PublicAuthButton() {
                             Dashboard
                         </a>
 
-                        <a
-                            href="/api/auth/logout"
-                            className="flex rounded-xl px-4 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/10"
+                        <button
+                            onClick={handleLogout}
+                            className="flex w-full rounded-xl px-4 py-3 text-left text-sm font-black text-red-300 transition hover:bg-red-500/10"
                         >
                             Logout
-                        </a>
+                        </button>
                     </div>
                 </div>
             )}
