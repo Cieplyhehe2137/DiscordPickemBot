@@ -7,6 +7,7 @@ const {
 } = require('discord.js');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { withGuild } = require('../../utils/guildContext');
+const { runInTransaction } = require('../../utils/runInTransaction');
 
 module.exports = async (interaction) => {
   if (!interaction.guildId) return;
@@ -125,44 +126,45 @@ module.exports = async (interaction) => {
 
   try {
     await withGuild(interaction.guildId, async ({ pool }) => {
-      const del = async (sql) => pool.query(sql, [guildId]);
-
       if (action === 'clear_db_yes') {
-        await pool.query('START TRANSACTION');
-        await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
-        await del('DELETE FROM playin_predictions WHERE guild_id = ?');
-        await pool.query('COMMIT');
+        await runInTransaction(pool, async (conn) => {
+          const del = async (sql) => conn.query(sql, [guildId]);
+          await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
+          await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
+          await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
+          await del('DELETE FROM playin_predictions WHERE guild_id = ?');
+        });
         return respond({ content: '🧹 Usunięto typy użytkowników.' });
       }
 
       if (action === 'clear_all_yes') {
-        await pool.query('START TRANSACTION');
-        await del('DELETE FROM active_panels WHERE guild_id = ?');
-        await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
-        await del('DELETE FROM playin_predictions WHERE guild_id = ?');
-        await del('DELETE FROM swiss_results WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_results WHERE guild_id =?');
-        await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
-        await del('DELETE FROM playin_results WHERE guild_id = ?');
-        await del('DELETE FROM swiss_scores WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
-        await del('DELETE FROM playin_scores WHERE guild_id = ?');
-        await pool.query('COMMIT');
+        await runInTransaction(pool, async (conn) => {
+          const del = async (sql) => conn.query(sql, [guildId]);
+          await del('DELETE FROM active_panels WHERE guild_id = ?');
+          await del('DELETE FROM swiss_predictions WHERE guild_id = ?');
+          await del('DELETE FROM playoffs_predictions WHERE guild_id = ?');
+          await del('DELETE FROM doubleelim_predictions WHERE guild_id = ?');
+          await del('DELETE FROM playin_predictions WHERE guild_id = ?');
+          await del('DELETE FROM swiss_results WHERE guild_id = ?');
+          await del('DELETE FROM playoffs_results WHERE guild_id =?');
+          await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
+          await del('DELETE FROM playin_results WHERE guild_id = ?');
+          await del('DELETE FROM swiss_scores WHERE guild_id = ?');
+          await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
+          await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
+          await del('DELETE FROM playin_scores WHERE guild_id = ?');
+        });
         return respond({ content: '💣 Wykonano pełny reset.' });
       }
 
       if (action === 'clear_only_results_yes') {
-        await pool.query('START TRANSACTION');
-        await del('DELETE FROM swiss_results WHERE guild_id = ?');
-        await del('DELETE FROM playoffs_results WHERE guild_id = ?');
-        await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
-        await del('DELETE FROM playin_results WHERE guild_id = ?');
-        await pool.query('COMMIT');
+        await runInTransaction(pool, async (conn) => {
+          const del = async (sql) => conn.query(sql, [guildId]);
+          await del('DELETE FROM swiss_results WHERE guild_id = ?');
+          await del('DELETE FROM playoffs_results WHERE guild_id = ?');
+          await del('DELETE FROM doubleelim_results WHERE guild_id = ?');
+          await del('DELETE FROM playin_results WHERE guild_id = ?');
+        });
         return respond({ content: '🧹 Usunięto oficjalne wyniki.' });
       }
 

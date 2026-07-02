@@ -2,6 +2,7 @@
 const { logInfo, logWarn, logError } = require('../../utils/logger');
 const { PermissionFlagsBits } = require('discord.js');
 const { withGuild } = require('../../utils/guildContext');
+const { runInTransaction } = require('../../utils/runInTransaction');
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -38,10 +39,8 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      await pool.query('START TRANSACTION');
-
-      try {
-        const [r1] = await pool.query(
+      const { r1, r2, r3, r4 } = await runInTransaction(pool, async (conn) => {
+        const [r1] = await conn.query(
           `
           DELETE mp
           FROM match_points mp
@@ -52,7 +51,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           [phase, guildId]
         );
 
-        const [r2] = await pool.query(
+        const [r2] = await conn.query(
           `
           DELETE pr
           FROM match_predictions pr
@@ -63,7 +62,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           [phase, guildId]
         );
 
-        const [r3] = await pool.query(
+        const [r3] = await conn.query(
           `
           DELETE mr
           FROM match_results mr
@@ -74,7 +73,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           [phase, guildId]
         );
 
-        const [r4] = await pool.query(
+        const [r4] = await conn.query(
           `
           DELETE FROM matches
           WHERE phase = ?
@@ -83,32 +82,28 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           [phase, guildId]
         );
 
-        await pool.query('COMMIT');
+        return { r1, r2, r3, r4 };
+      });
 
-        logInfo('matches', 'Cleared matches phase (guild-safe)', {
-          guildId,
-          phase,
-          deleted_points: r1?.affectedRows ?? 0,
-          deleted_predictions: r2?.affectedRows ?? 0,
-          deleted_results: r3?.affectedRows ?? 0,
-          deleted_matches: r4?.affectedRows ?? 0,
-          by: interaction.user?.id
-        });
+      logInfo('matches', 'Cleared matches phase (guild-safe)', {
+        guildId,
+        phase,
+        deleted_points: r1?.affectedRows ?? 0,
+        deleted_predictions: r2?.affectedRows ?? 0,
+        deleted_results: r3?.affectedRows ?? 0,
+        deleted_matches: r4?.affectedRows ?? 0,
+        by: interaction.user?.id
+      });
 
-        return interaction.update({
-          content:
-            `✅ Wyczyściłem fazę **${phase}**:\n` +
-            `• punkty: **${r1?.affectedRows ?? 0}**\n` +
-            `• typy: **${r2?.affectedRows ?? 0}**\n` +
-            `• wyniki: **${r3?.affectedRows ?? 0}**\n` +
-            `• mecze: **${r4?.affectedRows ?? 0}**`,
-          components: []
-        });
-
-      } catch (err) {
-        await pool.query('ROLLBACK');
-        throw err;
-      }
+      return interaction.update({
+        content:
+          `✅ Wyczyściłem fazę **${phase}**:\n` +
+          `• punkty: **${r1?.affectedRows ?? 0}**\n` +
+          `• typy: **${r2?.affectedRows ?? 0}**\n` +
+          `• wyniki: **${r3?.affectedRows ?? 0}**\n` +
+          `• mecze: **${r4?.affectedRows ?? 0}**`,
+        components: []
+      });
     });
 
   } catch (err) {
