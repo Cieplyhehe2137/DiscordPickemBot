@@ -20,6 +20,7 @@ const guildRegistry = require('../utils/guildRegistry');
 const teamsStore = require('../utils/teamsStore');
 const matchesStore = require('../utils/matchesStore');
 const recalculateMatchPoints = require('../services/recalculateMatchPoints');
+const { runInTransaction } = require('../utils/runInTransaction');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1458,6 +1459,150 @@ app.post('/api/events/:slug/recalculate', requireGuildAdmin(guildIdFromEventSlug
 
         res.status(500).json({
             error: 'Failed to recalculate scores'
+        });
+    }
+});
+
+app.get('/api/events/:slug/mvp', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [candidates] = await pool.query(
+            `
+            SELECT id, nickname, team_name, is_active
+            FROM mvp_candidates
+            WHERE guild_id = ? AND event_id = ?
+            ORDER BY is_active DESC, nickname ASC
+            `,
+            [guildId, event.id]
+        );
+
+        const [[result]] = await pool.query(
+            `
+            SELECT candidate_id
+            FROM mvp_results
+            WHERE guild_id = ? AND event_id = ? AND active = 1
+            LIMIT 1
+            `,
+            [guildId, event.id]
+        );
+
+        res.json({ candidates, result: result || null });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/mvp/candidates', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+        const { entries } = req.body;
+
+        if (!Array.isArray(entries) || !entries.length) {
+            return res.status(400).json({
+                error: 'entries must be a non-empty array of { nickname, teamName }'
+            });
+        }
+
+        const clean = entries
+            .map(e => ({
+                nickname: String(e.nickname || '').trim(),
+                teamName: e.teamName ? String(e.teamName).trim() : null
+            }))
+            .filter(e => e.nickname);
+
+        if (!clean.length) {
+            return res.status(400).json({ error: 'No valid candidates provided' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        await runInTransaction(pool, async (conn) => {
+            await conn.query(
+                'UPDATE mvp_candidates SET is_active = 0 WHERE guild_id = ? AND event_id = ?',
+                [guildId, event.id]
+            );
+
+            for (const c of clean) {
+                await conn.query(
+                    `
+                    INSERT INTO mvp_candidates (guild_id, event_id, nickname, team_name, is_active)
+                    VALUES (?, ?, ?, ?, 1)
+                    `,
+                    [guildId, event.id, c.nickname, c.teamName]
+                );
+            }
+        });
+
+        res.json({ ok: true, count: clean.length });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/mvp/result', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+        const candidateId = Number(req.body.candidateId);
+
+        if (!Number.isInteger(candidateId) || candidateId <= 0) {
+            return res.status(400).json({ error: 'candidateId is required' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO mvp_results (guild_id, event_id, candidate_id, active)
+            VALUES (?, ?, ?, 1)
+            ON DUPLICATE KEY UPDATE
+                candidate_id = VALUES(candidate_id),
+                active = 1,
+                updated_at = CURRENT_TIMESTAMP
+            `,
+            [guildId, event.id, candidateId]
+        );
+
+        res.json({ ok: true, candidateId });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
         });
     }
 });

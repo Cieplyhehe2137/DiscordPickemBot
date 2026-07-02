@@ -127,6 +127,24 @@ export async function submitMatchResult(matchId, resA, resB) {
   });
 }
 
+export async function getMvp(slug) {
+  return apiFetch(`/events/${slug}/mvp`);
+}
+
+export async function saveMvpCandidates(slug, entries) {
+  return apiFetch(`/events/${slug}/mvp/candidates`, {
+    method: 'POST',
+    body: JSON.stringify({ entries })
+  });
+}
+
+export async function setMvpResult(slug, candidateId) {
+  return apiFetch(`/events/${slug}/mvp/result`, {
+    method: 'POST',
+    body: JSON.stringify({ candidateId })
+  });
+}
+
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
 }

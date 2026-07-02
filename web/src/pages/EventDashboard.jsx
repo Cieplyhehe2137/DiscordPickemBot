@@ -12,6 +12,9 @@ import {
   getTeams,
   createMatch,
   submitMatchResult,
+  getMvp,
+  saveMvpCandidates,
+  setMvpResult as apiSetMvpResult,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -52,6 +55,15 @@ export default function EventDashboard() {
   const [resultForm, setResultForm] = useState({ resA: '', resB: '' });
   const [submittingResult, setSubmittingResult] = useState(false);
   const [resultError, setResultError] = useState(null);
+
+  const [mvpCandidates, setMvpCandidates] = useState([]);
+  const [mvpResult, setMvpResult] = useState(null);
+  const [mvpTextarea, setMvpTextarea] = useState('');
+  const [savingMvpCandidates, setSavingMvpCandidates] = useState(false);
+  const [mvpCandidatesError, setMvpCandidatesError] = useState(null);
+  const [selectedMvpCandidateId, setSelectedMvpCandidateId] = useState('');
+  const [savingMvpResult, setSavingMvpResult] = useState(false);
+  const [mvpResultError, setMvpResultError] = useState(null);
 
   const event = data?.event;
   const stats = data?.stats;
@@ -112,6 +124,10 @@ export default function EventDashboard() {
 
         const leaderboardResult = await getEventLeaderboard(slug);
         setLeaderboard(leaderboardResult.leaderboard || []);
+
+        const mvpData = await getMvp(slug);
+        setMvpCandidates(mvpData.candidates || []);
+        setMvpResult(mvpData.result || null);
       } catch (err) {
         console.error(err);
       } finally {
@@ -194,6 +210,10 @@ export default function EventDashboard() {
 
     const leaderboardResult = await getEventLeaderboard(slug);
     setLeaderboard(leaderboardResult.leaderboard || []);
+
+    const mvpData = await getMvp(slug);
+    setMvpCandidates(mvpData.candidates || []);
+    setMvpResult(mvpData.result || null);
   }
 
   async function handlePhaseUpdate() {
@@ -334,6 +354,56 @@ export default function EventDashboard() {
       setResultError(err?.status === 400 ? err.message : describeActionError(err, 'save the result'));
     } finally {
       setSubmittingResult(false);
+    }
+  }
+
+  function parseMvpTextarea(raw) {
+    return String(raw)
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [nickname, teamName] = line.split('|').map((v) => v?.trim());
+        return { nickname, teamName: teamName || null };
+      })
+      .filter((e) => e.nickname);
+  }
+
+  async function handleSaveMvpCandidates() {
+    try {
+      setSavingMvpCandidates(true);
+      setMvpCandidatesError(null);
+
+      const entries = parseMvpTextarea(mvpTextarea);
+
+      if (!entries.length) {
+        setMvpCandidatesError('Enter at least one candidate (format: nickname | team).');
+        return;
+      }
+
+      await saveMvpCandidates(slug, entries);
+      await refreshEventData();
+      setMvpTextarea('');
+    } catch (err) {
+      console.error(err);
+      setMvpCandidatesError(err?.status === 400 ? err.message : describeActionError(err, 'save MVP candidates'));
+    } finally {
+      setSavingMvpCandidates(false);
+    }
+  }
+
+  async function handleSetMvpResult() {
+    try {
+      setSavingMvpResult(true);
+      setMvpResultError(null);
+
+      await apiSetMvpResult(slug, Number(selectedMvpCandidateId));
+      await refreshEventData();
+    } catch (err) {
+      console.error(err);
+      setMvpResultError(describeActionError(err, 'set the official MVP'));
+    } finally {
+      setSavingMvpResult(false);
     }
   }
 
@@ -850,6 +920,92 @@ export default function EventDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
+              <h2 className="text-3xl font-black">
+                MVP
+              </h2>
+
+              <p className="mt-2 text-white/50">
+                Official MVP:{' '}
+                <strong className="text-white">
+                  {mvpResult
+                    ? (mvpCandidates.find((c) => c.id === mvpResult.candidate_id)?.nickname || `#${mvpResult.candidate_id}`)
+                    : 'Not set'}
+                </strong>
+              </p>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
+                    Add / Replace Candidates
+                  </p>
+
+                  <p className="mt-2 text-sm text-white/40">
+                    One per line, format: nickname | team (team optional). Replaces the current candidate list.
+                  </p>
+
+                  <textarea
+                    value={mvpTextarea}
+                    onChange={(e) => setMvpTextarea(e.target.value)}
+                    rows={6}
+                    placeholder={'s1mple | Team A\nZywOo | Team B'}
+                    className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
+                  />
+
+                  {mvpCandidatesError && (
+                    <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                      {mvpCandidatesError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSaveMvpCandidates}
+                    disabled={savingMvpCandidates || !mvpTextarea.trim()}
+                    className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
+                  >
+                    {savingMvpCandidates ? 'Saving...' : 'Save Candidates'}
+                  </button>
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
+                    Set Official MVP
+                  </p>
+
+                  <p className="mt-2 text-sm text-white/40">
+                    {mvpCandidates.filter((c) => c.is_active).length} active candidate(s)
+                  </p>
+
+                  <select
+                    value={selectedMvpCandidateId}
+                    onChange={(e) => setSelectedMvpCandidateId(e.target.value)}
+                    className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
+                  >
+                    <option value="">Select candidate...</option>
+                    {mvpCandidates.filter((c) => c.is_active).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nickname}{c.team_name ? ` (${c.team_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+
+                  {mvpResultError && (
+                    <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                      {mvpResultError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSetMvpResult}
+                    disabled={savingMvpResult || !selectedMvpCandidateId}
+                    className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
+                  >
+                    {savingMvpResult ? 'Saving...' : 'Set Official MVP'}
+                  </button>
+                </div>
               </div>
             </div>
           </>
