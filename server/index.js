@@ -18,6 +18,8 @@ const calculateScores = require('../handlers/matches/calculateScores');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 const guildRegistry = require('../utils/guildRegistry');
 const teamsStore = require('../utils/teamsStore');
+const matchesStore = require('../utils/matchesStore');
+const recalculateMatchPoints = require('../services/recalculateMatchPoints');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -338,6 +340,7 @@ app.get('/api/events/:slug/summary', async (req, res) => {
             `
       SELECT
         id,
+        guild_id,
         name,
         slug,
         phase,
@@ -1269,6 +1272,144 @@ app.post('/api/guilds/:guildId/events', requireGuildAdmin(req => req.params.guil
                 status: 'OPEN'
             }
         });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/events/:slug/matches', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId, slug } = req.params;
+        const { phase, teamA, teamB, bestOf, startTimeUtc } = req.body;
+
+        if (!phase || !teamA || !teamB || ![1, 3, 5].includes(Number(bestOf))) {
+            return res.status(400).json({
+                error: 'phase, teamA, teamB and a valid bestOf (1, 3 or 5) are required'
+            });
+        }
+
+        if (teamA === teamB) {
+            return res.status(400).json({
+                error: 'Team A and Team B must be different'
+            });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [activeTeams] = await pool.query(
+            'SELECT name FROM teams WHERE guild_id = ? AND active = 1 AND name IN (?, ?)',
+            [guildId, teamA, teamB]
+        );
+
+        const activeNames = new Set(activeTeams.map(t => t.name));
+
+        if (!activeNames.has(teamA) || !activeNames.has(teamB)) {
+            return res.status(400).json({
+                error: 'Both teams must be active teams on this server'
+            });
+        }
+
+        const [[next]] = await pool.query(
+            `
+            SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo
+            FROM matches
+            WHERE guild_id = ? AND event_id = ? AND phase = ?
+            `,
+            [guildId, event.id, phase]
+        );
+
+        const [result] = await pool.query(
+            `
+            INSERT INTO matches (
+                guild_id, event_id, phase, match_no, team_a, team_b, best_of, start_time_utc, is_locked
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+            `,
+            [guildId, event.id, phase, next.nextNo, teamA, teamB, Number(bestOf), startTimeUtc || null]
+        );
+
+        res.json({
+            ok: true,
+            match: {
+                id: result.insertId,
+                guild_id: guildId,
+                event_id: event.id,
+                phase,
+                match_no: next.nextNo,
+                team_a: teamA,
+                team_b: teamB,
+                best_of: Number(bestOf),
+                start_time_utc: startTimeUtc || null,
+                is_locked: 0
+            }
+        });
+
+        io.emit('dashboard:refresh', { slug });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/matches/:matchId/result', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { guildId } = req;
+        const resA = Number(req.body.resA);
+        const resB = Number(req.body.resB);
+
+        if (!Number.isInteger(resA) || !Number.isInteger(resB) || resA < 0 || resB < 0) {
+            return res.status(400).json({
+                error: 'resA and resB must be non-negative integers'
+            });
+        }
+
+        const match = await matchesStore.getMatchById(pool, guildId, matchId);
+
+        if (!match) {
+            return res.status(404).json({ error: 'Match not found' });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO match_results
+                (guild_id, event_id, match_id, res_a, res_b)
+            VALUES
+                (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                event_id = VALUES(event_id),
+                res_a = VALUES(res_a),
+                res_b = VALUES(res_b)
+            `,
+            [guildId, match.event_id, matchId, resA, resB]
+        );
+
+        await recalculateMatchPoints(pool, guildId, match.event_id, matchId, match.best_of);
+
+        const [[eventRow]] = await pool.query(
+            'SELECT slug FROM events WHERE id = ? LIMIT 1',
+            [match.event_id]
+        );
+
+        if (eventRow?.slug) {
+            io.emit('dashboard:refresh', { slug: eventRow.slug });
+        }
+
+        res.json({ ok: true, matchId: Number(matchId), resA, resB });
     } catch (err) {
         console.error(err);
 

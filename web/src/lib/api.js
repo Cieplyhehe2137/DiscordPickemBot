@@ -113,6 +113,20 @@ export async function reorderTeams(guildId, orderedIds) {
   });
 }
 
+export async function createMatch(guildId, slug, payload) {
+  return apiFetch(`/guilds/${guildId}/events/${slug}/matches`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function submitMatchResult(matchId, resA, resB) {
+  return apiFetch(`/matches/${matchId}/result`, {
+    method: 'POST',
+    body: JSON.stringify({ resA, resB })
+  });
+}
+
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
 }

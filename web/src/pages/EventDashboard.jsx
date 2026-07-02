@@ -9,6 +9,9 @@ import {
   recalculateEvent,
   updateMatchLock,
   getMatchStats,
+  getTeams,
+  createMatch,
+  submitMatchResult,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -38,6 +41,17 @@ export default function EventDashboard() {
   const [matchStatusFilter, setMatchStatusFilter] = useState('ALL');
   const [matchStats, setMatchStats] = useState({});
   const [matchStatsLoading, setMatchStatsLoading] = useState({});
+
+  const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const [activeTeams, setActiveTeams] = useState([]);
+  const [matchForm, setMatchForm] = useState({ phase: 'SWISS', teamA: '', teamB: '', bestOf: 3, startTimeUtc: '' });
+  const [creatingMatch, setCreatingMatch] = useState(false);
+  const [createMatchError, setCreateMatchError] = useState(null);
+
+  const [resultModalMatch, setResultModalMatch] = useState(null);
+  const [resultForm, setResultForm] = useState({ resA: '', resB: '' });
+  const [submittingResult, setSubmittingResult] = useState(false);
+  const [resultError, setResultError] = useState(null);
 
   const event = data?.event;
   const stats = data?.stats;
@@ -257,6 +271,69 @@ export default function EventDashboard() {
     } catch (err) {
       console.error(err);
       alert(describeActionError(err, 'update match locks'));
+    }
+  }
+
+  async function openCreateMatchModal() {
+    setCreateMatchError(null);
+    setMatchForm({ phase: event?.phase || 'SWISS', teamA: '', teamB: '', bestOf: 3, startTimeUtc: '' });
+    setShowCreateMatchModal(true);
+
+    try {
+      const result = await getTeams(event.guild_id, { includeInactive: false });
+      setActiveTeams(result.teams || []);
+    } catch (err) {
+      console.error(err);
+      setActiveTeams([]);
+    }
+  }
+
+  async function handleCreateMatch() {
+    try {
+      setCreatingMatch(true);
+      setCreateMatchError(null);
+
+      await createMatch(event.guild_id, slug, {
+        phase: matchForm.phase,
+        teamA: matchForm.teamA,
+        teamB: matchForm.teamB,
+        bestOf: Number(matchForm.bestOf),
+        startTimeUtc: matchForm.startTimeUtc || null
+      });
+
+      await refreshEventData();
+      setShowCreateMatchModal(false);
+    } catch (err) {
+      console.error(err);
+      setCreateMatchError(err?.status === 400 ? err.message : describeActionError(err, 'create the match'));
+    } finally {
+      setCreatingMatch(false);
+    }
+  }
+
+  function openResultModal(match) {
+    setResultError(null);
+    setResultForm({ resA: '', resB: '' });
+    setResultModalMatch(match);
+  }
+
+  async function handleSubmitResult() {
+    try {
+      setSubmittingResult(true);
+      setResultError(null);
+
+      const resA = Number(resultForm.resA);
+      const resB = Number(resultForm.resB);
+
+      await submitMatchResult(resultModalMatch.id, resA, resB);
+
+      await refreshEventData();
+      setResultModalMatch(null);
+    } catch (err) {
+      console.error(err);
+      setResultError(err?.status === 400 ? err.message : describeActionError(err, 'save the result'));
+    } finally {
+      setSubmittingResult(false);
     }
   }
 
@@ -501,9 +578,18 @@ export default function EventDashboard() {
             </div>
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
-              <h2 className="text-3xl font-black">
-                Matches
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-3xl font-black">
+                  Matches
+                </h2>
+
+                <button
+                  onClick={openCreateMatchModal}
+                  className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                >
+                  Create Match
+                </button>
+              </div>
 
               <div className="sticky top-4 z-20 mt-6 rounded-[2rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl">
                 <div className="grid gap-4 md:grid-cols-[1fr_260px]">
@@ -645,6 +731,13 @@ export default function EventDashboard() {
                             >
                               {match.ui_status === 'LOCKED' ? 'Unlock' : 'Lock'}
                             </button>
+
+                            <button
+                              onClick={() => openResultModal(match)}
+                              className="rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-200 transition hover:bg-violet-500/20"
+                            >
+                              Enter Result
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -762,6 +855,178 @@ export default function EventDashboard() {
           </>
         )}
       </main>
+
+      {showCreateMatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
+            <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+              Create Match
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black">
+              New Match
+            </h2>
+
+            <div className="mt-8 grid gap-5">
+              <div>
+                <label className="text-sm font-bold text-white/60">Phase</label>
+                <select
+                  value={matchForm.phase}
+                  onChange={(e) => setMatchForm((f) => ({ ...f, phase: e.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                >
+                  <option value="PLAY_IN">PLAY_IN</option>
+                  <option value="SWISS">SWISS</option>
+                  <option value="PLAYOFFS">PLAYOFFS</option>
+                </select>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-bold text-white/60">Team A</label>
+                  <select
+                    value={matchForm.teamA}
+                    onChange={(e) => setMatchForm((f) => ({ ...f, teamA: e.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                  >
+                    <option value="">Select team...</option>
+                    {activeTeams.map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-white/60">Team B</label>
+                  <select
+                    value={matchForm.teamB}
+                    onChange={(e) => setMatchForm((f) => ({ ...f, teamB: e.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                  >
+                    <option value="">Select team...</option>
+                    {activeTeams.map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-bold text-white/60">Best of</label>
+                  <select
+                    value={matchForm.bestOf}
+                    onChange={(e) => setMatchForm((f) => ({ ...f, bestOf: e.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                  >
+                    <option value={1}>BO1</option>
+                    <option value={3}>BO3</option>
+                    <option value={5}>BO5</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-white/60">Start Time (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={matchForm.startTimeUtc}
+                    onChange={(e) => setMatchForm((f) => ({ ...f, startTimeUtc: e.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {createMatchError && (
+              <div className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                {createMatchError}
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end gap-4">
+              <button
+                onClick={() => setShowCreateMatchModal(false)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleCreateMatch}
+                disabled={creatingMatch || !matchForm.teamA || !matchForm.teamB || matchForm.teamA === matchForm.teamB}
+                className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
+              >
+                {creatingMatch ? 'Creating...' : 'Create Match'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resultModalMatch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
+            <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+              Enter Result
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black">
+              {resultModalMatch.team_a} vs {resultModalMatch.team_b}
+            </h2>
+
+            <div className="mt-8 grid grid-cols-2 gap-5">
+              <div>
+                <label className="text-sm font-bold text-white/60">{resultModalMatch.team_a}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={resultForm.resA}
+                  onChange={(e) => setResultForm((f) => ({ ...f, resA: e.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-bold text-white/60">{resultModalMatch.team_b}</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={resultForm.resB}
+                  onChange={(e) => setResultForm((f) => ({ ...f, resB: e.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                />
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-white/40">
+              Saving recalculates points for all predictions on this match.
+            </p>
+
+            {resultError && (
+              <div className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                {resultError}
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end gap-4">
+              <button
+                onClick={() => setResultModalMatch(null)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleSubmitResult}
+                disabled={submittingResult || resultForm.resA === '' || resultForm.resB === ''}
+                className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
+              >
+                {submittingResult ? 'Saving...' : 'Save Result'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
