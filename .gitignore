@@ -23,6 +23,7 @@ web.zip
 config/*.local*
 config/*.env
 !config/*.env.example
+!server/.env.example
 
 
 .env

@@ -68,7 +68,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: IS_PRODUCTION,
         httpOnly: true,
         sameSite: 'lax'
     }
@@ -4237,8 +4237,10 @@ app.get('/api/public/archives/:id/download', async (req, res) => {
     }
 });
 
-httpServer.listen(3301, () => {
-    console.log('WEB SERWER DZIAŁA NA http://localhost:3301');
+const PORT = Number(process.env.PORT || 3301);
+
+httpServer.listen(PORT, () => {
+    console.log(`WEB SERWER DZIAŁA NA http://localhost:${PORT}`);
 });
 
 startCs2LogReceiver({
