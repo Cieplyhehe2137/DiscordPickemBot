@@ -8,6 +8,8 @@ import {
 } from '../lib/api';
 import { useApp } from '../context/AppContext';
 import { usePublicAuth } from '../context/PublicAuthContext';
+import EventStatusButtons from '../components/admin/EventStatusButtons';
+import PublicLinkButtons from '../components/admin/PublicLinkButtons';
 
 export default function GuildDashboard() {
     const { guildId } = useParams();
@@ -134,17 +136,6 @@ export default function GuildDashboard() {
         if (!confirmed) return;
 
         await handleStatusUpdate(event.slug, 'ARCHIVED');
-    }
-
-    async function handleCopyPublicLink(slug) {
-        const url = `${window.location.origin}/public/${slug}`;
-
-        try {
-            await navigator.clipboard.writeText(url);
-            alert('Public link copied!');
-        } catch (err) {
-            console.error(err);
-        }
     }
 
     if (accessDenied) {
@@ -335,44 +326,16 @@ export default function GuildDashboard() {
                                 Open Event Dashboard
                             </button>
 
-                            <button
-                                onClick={() => window.open(`/public/event/${event.slug}`, '_blank')}
-                                className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
-                            >
-                                Open Public Page
-                            </button>
-
-                            <button
-                                onClick={() => handleCopyPublicLink(event.slug)}
-                                className="mt-3 w-full rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
-                            >
-                                Copy Public Link
-                            </button>
+                            <PublicLinkButtons eventSlug={event.slug} size="lg" stacked />
 
                             <div className="mt-4 grid grid-cols-3 gap-3">
-                                <button
-                                    onClick={() => handleStatusUpdate(event.slug, 'OPEN')}
-                                    disabled={event.status === 'OPEN'}
-                                    className="rounded-2xl border border-green-400/20 bg-green-500/10 px-4 py-3 text-sm font-black text-green-300 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Open
-                                </button>
-
-                                <button
-                                    onClick={() => handleStatusUpdate(event.slug, 'CLOSED')}
-                                    disabled={event.status === 'CLOSED'}
-                                    className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Close
-                                </button>
-
-                                <button
-                                    onClick={() => handleArchiveEvent(event)}
-                                    disabled={event.status === 'ARCHIVED'}
-                                    className="rounded-2xl border border-zinc-400/20 bg-zinc-500/10 px-4 py-3 text-sm font-black text-zinc-300 transition hover:bg-zinc-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    Archive
-                                </button>
+                                <EventStatusButtons
+                                    status={event.status}
+                                    onOpen={() => handleStatusUpdate(event.slug, 'OPEN')}
+                                    onClose={() => handleStatusUpdate(event.slug, 'CLOSED')}
+                                    onArchive={() => handleArchiveEvent(event)}
+                                    size="sm"
+                                />
                             </div>
                         </div>
                     ))}

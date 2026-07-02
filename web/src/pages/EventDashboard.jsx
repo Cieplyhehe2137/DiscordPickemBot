@@ -15,6 +15,8 @@ import Breadcrumbs from '../components/layout/Breadcrumbs';
 import { useApp } from '../context/AppContext';
 import Skeleton from '../components/ui/Skeleton';
 import { socket } from '../lib/socket';
+import EventStatusButtons from '../components/admin/EventStatusButtons';
+import PublicLinkButtons from '../components/admin/PublicLinkButtons';
 
 export default function EventDashboard() {
   const { slug } = useParams();
@@ -216,17 +218,6 @@ export default function EventDashboard() {
     await handleStatusUpdate('ARCHIVED');
   }
 
-  async function handleCopyPublicLink() {
-    const url = `${window.location.origin}/public/${slug}`;
-
-    try {
-      await navigator.clipboard.writeText(url);
-      alert('Public link copied!');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   async function handleRecalculate() {
     try {
       setRecalculating(true);
@@ -349,43 +340,15 @@ export default function EventDashboard() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={handleCopyPublicLink}
-              className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-5 py-3 font-black text-violet-200 transition hover:bg-violet-500/20"
-            >
-              Copy Public Link
-            </button>
+            <PublicLinkButtons eventSlug={slug} size="sm" />
 
-            <button
-              onClick={() => window.open(`/public/${slug}`, '_blank')}
-              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
-            >
-              Open Public Page
-            </button>
-
-            <button
-              onClick={() => handleStatusUpdate('OPEN')}
-              disabled={event?.status === 'OPEN'}
-              className="rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 font-black text-green-300 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Open
-            </button>
-
-            <button
-              onClick={() => handleStatusUpdate('CLOSED')}
-              disabled={event?.status === 'CLOSED'}
-              className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Close
-            </button>
-
-            <button
-              onClick={handleArchiveEvent}
-              disabled={event?.status === 'ARCHIVED'}
-              className="rounded-2xl border border-zinc-400/20 bg-zinc-500/10 px-5 py-3 font-black text-zinc-300 transition hover:bg-zinc-500/20 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Archive
-            </button>
+            <EventStatusButtons
+              status={event?.status}
+              onOpen={() => handleStatusUpdate('OPEN')}
+              onClose={() => handleStatusUpdate('CLOSED')}
+              onArchive={handleArchiveEvent}
+              size="md"
+            />
 
             <button
               onClick={() => navigate(-1)}
