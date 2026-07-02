@@ -17,6 +17,7 @@ const require = createRequire(import.meta.url);
 const calculateScores = require('../handlers/matches/calculateScores');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
 const guildRegistry = require('../utils/guildRegistry');
+const teamsStore = require('../utils/teamsStore');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -665,6 +666,160 @@ ORDER BY e.id DESC
                 archivedEvents: events.filter(e => e.status === 'archived').length
             }
         });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/guilds/:guildId/teams', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const includeInactive = req.query.includeInactive === '1';
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive });
+
+        res.json({ guildId, teams });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/teams', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const { name, shortName } = req.body;
+
+        if (!name || !String(name).trim()) {
+            return res.status(400).json({
+                error: 'Team name is required'
+            });
+        }
+
+        await teamsStore.addTeam(guildId, name, { shortName: shortName || null });
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+        const team = teams.find(t => t.name === String(name).trim().replace(/\s+/g, ' '));
+
+        res.json({ ok: true, team });
+    } catch (err) {
+        if (err?.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({
+                error: 'A team with this name already exists on this server'
+            });
+        }
+
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.patch('/api/guilds/:guildId/teams/:teamId', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId, teamId } = req.params;
+        const { name, shortName, active } = req.body;
+
+        if (name !== undefined) {
+            await teamsStore.renameTeam(guildId, teamId, name, { shortName: shortName ?? null });
+        }
+
+        if (active !== undefined) {
+            const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+            const current = teams.find(t => String(t.id) === String(teamId));
+
+            if (current && Boolean(current.active) !== Boolean(active)) {
+                await teamsStore.toggleTeamActive(guildId, teamId);
+            }
+        }
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+        const team = teams.find(t => String(t.id) === String(teamId));
+
+        if (!team) {
+            return res.status(404).json({ error: 'Team not found' });
+        }
+
+        res.json({ ok: true, team });
+    } catch (err) {
+        if (err?.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({
+                error: 'A team with this name already exists on this server'
+            });
+        }
+
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.delete('/api/guilds/:guildId/teams/:teamId', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId, teamId } = req.params;
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+        const team = teams.find(t => String(t.id) === String(teamId));
+
+        if (!team) {
+            return res.status(404).json({ error: 'Team not found' });
+        }
+
+        const [[usage]] = await pool.query(
+            `
+            SELECT COUNT(*) AS count
+            FROM matches
+            WHERE guild_id = ?
+              AND (team_a = ? OR team_b = ?)
+            `,
+            [guildId, team.name, team.name]
+        );
+
+        if (usage.count > 0) {
+            return res.status(409).json({
+                error: `Cannot delete "${team.name}" - it is referenced by ${usage.count} match(es). Deactivate it instead.`
+            });
+        }
+
+        await teamsStore.deleteTeams(guildId, [teamId]);
+
+        res.json({ ok: true, deletedId: Number(teamId) });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/teams/reorder', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const { orderedIds } = req.body;
+
+        if (!Array.isArray(orderedIds) || !orderedIds.length) {
+            return res.status(400).json({
+                error: 'orderedIds must be a non-empty array'
+            });
+        }
+
+        await teamsStore.reorderTeams(guildId, orderedIds);
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+
+        res.json({ ok: true, teams });
     } catch (err) {
         console.error(err);
 

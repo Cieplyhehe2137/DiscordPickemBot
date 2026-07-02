@@ -82,6 +82,37 @@ export async function getGuildEvents(guildId) {
   return apiFetch(`/guilds/${guildId}/events`);
 }
 
+export async function getTeams(guildId, { includeInactive = true } = {}) {
+  return apiFetch(`/guilds/${guildId}/teams${includeInactive ? '?includeInactive=1' : ''}`);
+}
+
+export async function createTeam(guildId, payload) {
+  return apiFetch(`/guilds/${guildId}/teams`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateTeam(guildId, teamId, payload) {
+  return apiFetch(`/guilds/${guildId}/teams/${teamId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteTeam(guildId, teamId) {
+  return apiFetch(`/guilds/${guildId}/teams/${teamId}`, {
+    method: 'DELETE'
+  });
+}
+
+export async function reorderTeams(guildId, orderedIds) {
+  return apiFetch(`/guilds/${guildId}/teams/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ orderedIds })
+  });
+}
+
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
 }

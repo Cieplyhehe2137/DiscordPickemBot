@@ -176,6 +176,15 @@ export default function GuildDashboard() {
                     {guild?.name || guildId}
                 </h1>
 
+                <div className="mt-6">
+                    <button
+                        onClick={() => navigate(`/app/guilds/${guildId}/teams`)}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Manage Teams
+                    </button>
+                </div>
+
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
                     <GuildStat title="Total Events" value={stats?.totalEvents ?? 0} />
                     <GuildStat title="Active" value={stats?.activeEvents ?? 0} />

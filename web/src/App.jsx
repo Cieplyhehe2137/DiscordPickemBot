@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard';
 import EventDashboard from './pages/EventDashboard';
 import GuildSelect from './pages/GuildSelect';
 import GuildDashboard from './pages/GuildDashboard';
+import TeamsPage from './pages/TeamsPage';
 import AppLayout from './components/layout/AppLayout';
 import RequireAdmin from './components/auth/RequireAdmin';
 import PublicServersPage from './pages/PublicServersPage';
@@ -50,6 +51,7 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="guilds" element={<GuildSelect />} />
         <Route path="guilds/:guildId" element={<GuildDashboard />} />
+        <Route path="guilds/:guildId/teams" element={<TeamsPage />} />
         <Route path="events/:slug" element={<EventDashboard />} />
       </Route>
 
