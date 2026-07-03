@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Trophy, CalendarX } from 'lucide-react';
 import { getPublicGuild } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function PublicGuildPage() {
     const { guildSlug } = useParams();
@@ -165,7 +167,7 @@ export default function PublicGuildPage() {
                             <a
                                 key={player.user_id}
                                 href={`/public/users/${player.user_id}`}
-                                className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                                className="card-hover flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20 font-black">
@@ -196,9 +198,11 @@ export default function PublicGuildPage() {
                         ))}
 
                         {(data.top_players || []).length === 0 && (
-                            <p className="text-white/50">
-                                No community leaderboard yet.
-                            </p>
+                            <EmptyState
+                                icon={Trophy}
+                                title="No community leaderboard yet"
+                                description="Points will show up here once members start predicting."
+                            />
                         )}
                     </div>
                 </div>
@@ -213,7 +217,7 @@ export default function PublicGuildPage() {
                             <a
                                 key={event.id}
                                 href={`/public/event/${event.slug}`}
-                                className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                                className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
                                     {event.phase}
@@ -237,9 +241,11 @@ export default function PublicGuildPage() {
                         ))}
 
                         {(data.events || []).length === 0 && (
-                            <p className="text-white/50">
-                                No public events yet.
-                            </p>
+                            <EmptyState
+                                icon={CalendarX}
+                                title="No public events yet"
+                                description="This community hasn't opened a Pick'Em event yet."
+                            />
                         )}
                     </div>
                 </div>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Trophy } from 'lucide-react';
 import { getPublicLeaderboard } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function PublicLeaderboardPage() {
     const [data, setData] = useState(null);
@@ -142,9 +144,11 @@ export default function PublicLeaderboardPage() {
                     ))}
 
                     {leaderboard.length === 0 && (
-                        <p className="text-white/50">
-                            No leaderboard data yet.
-                        </p>
+                        <EmptyState
+                            icon={Trophy}
+                            title="No leaderboard data yet"
+                            description="Rankings appear once players start making predictions."
+                        />
                     )}
                 </div>
             </div>

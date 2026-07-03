@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { BarChart3, ListChecks } from 'lucide-react';
 import { getPublicUser } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import SwissPickemHistory from '../components/public/SwissPickemHistory';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function PublicUserPage() {
     const { userId } = useParams();
@@ -222,9 +224,11 @@ export default function PublicUserPage() {
                         ))}
 
                         {(data.event_performances || []).length === 0 && (
-                            <p className="text-white/50">
-                                No event performance data yet.
-                            </p>
+                            <EmptyState
+                                icon={BarChart3}
+                                title="No event performance data yet"
+                                description="This player hasn't scored points in any public event yet."
+                            />
                         )}
                     </div>
                 </div>
@@ -322,9 +326,11 @@ export default function PublicUserPage() {
                         ))}
 
                         {(data.recent_predictions || []).length === 0 && (
-                            <p className="text-white/50">
-                                No public predictions yet.
-                            </p>
+                            <EmptyState
+                                icon={ListChecks}
+                                title="No public predictions yet"
+                                description="Predictions this player makes will show up here."
+                            />
                         )}
                     </div>
                 </div>

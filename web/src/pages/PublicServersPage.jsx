@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Trophy, Radar, Users } from 'lucide-react';
 import { getPublicServers, getPublicLeaderboard } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
+import EmptyState from '../components/ui/EmptyState';
 import { usePublicAuth } from '../context/PublicAuthContext';
 
 export default function PublicServersPage() {
@@ -78,7 +80,7 @@ export default function PublicServersPage() {
                     </div>
                 </div>
 
-                <div className="relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)]">
+                <div className="animate-fade-in-up relative mt-10 overflow-hidden rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8 shadow-[0_0_60px_rgba(139,92,246,0.15)]">
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.25),transparent_45%)]" />
 
                     <div className="relative z-10">
@@ -206,7 +208,7 @@ export default function PublicServersPage() {
                             <a
                                 key={player.user_id}
                                 href={`/public/users/${player.user_id}`}
-                                className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                                className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-6">
                                     <div className="flex items-center gap-4">
@@ -245,9 +247,11 @@ export default function PublicServersPage() {
                         ))}
 
                         {leaderboard.length === 0 && (
-                            <p className="text-white/50">
-                                No leaderboard data yet.
-                            </p>
+                            <EmptyState
+                                icon={Trophy}
+                                title="No leaderboard data yet"
+                                description="Once predictions start rolling in, top players will show up here."
+                            />
                         )}
                     </div>
                 </div>
@@ -276,7 +280,7 @@ export default function PublicServersPage() {
                             <a
                                 key={event.id}
                                 href={`/public/event/${event.slug}`}
-                                className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                                className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
                                     {event.phase}
@@ -301,9 +305,11 @@ export default function PublicServersPage() {
                         ))}
 
                         {(data.featured_events || []).length === 0 && (
-                            <p className="text-white/50">
-                                No trending events yet.
-                            </p>
+                            <EmptyState
+                                icon={Radar}
+                                title="No trending events yet"
+                                description="Check back once a community opens up a new Pick'Em event."
+                            />
                         )}
                     </div>
                 </div>
@@ -312,7 +318,7 @@ export default function PublicServersPage() {
                     {servers.map((server) => (
                         <div
                             key={server.guild_id}
-                            className="rounded-[2rem] border border-white/10 bg-white/5 p-8 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                            className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-8 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                         >
                             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                                 Community
@@ -350,9 +356,11 @@ export default function PublicServersPage() {
                     ))}
 
                     {servers.length === 0 && (
-                        <p className="text-white/50">
-                            No public communities yet.
-                        </p>
+                        <EmptyState
+                            icon={Users}
+                            title="No public communities yet"
+                            description="Communities running this bot will appear here once they go live."
+                        />
                     )}
                 </div>
 
@@ -378,7 +386,7 @@ function PublicMiniStat({ title, value }) {
 
 function HomeFeatureCard({ title, description }) {
     return (
-        <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+        <div className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-6 transition hover:border-violet-400/30">
             <p className="text-xl font-black">
                 {title}
             </p>

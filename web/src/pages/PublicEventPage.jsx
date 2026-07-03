@@ -18,6 +18,8 @@ import PublicLatestPredictionCard from '../components/public/PublicLatestPredict
 import TeamLogoBlock, { MiniTeamLogo } from '../components/public/TeamLogoBlock';
 import PublicFeaturedMatch from '../components/public/PublicFeaturedMatch';
 import PublicMatchCard from '../components/public/PublicMatchCard';
+import EmptyState from '../components/ui/EmptyState';
+import { Trophy } from 'lucide-react';
 import PublicMatchesSection from '../components/public/PublicMatchesSection';
 
 export default function PublicEventPage() {
@@ -585,9 +587,11 @@ export default function PublicEventPage() {
 
                         <div className="mt-6 grid gap-4">
                             {(!data?.leaderboard || data.leaderboard.length === 0) && (
-                                <p className="text-white/50">
-                                    No leaderboard data yet.
-                                </p>
+                                <EmptyState
+                                    icon={Trophy}
+                                    title="No leaderboard data yet"
+                                    description="Standings appear once predictions start coming in for this event."
+                                />
                             )}
 
                             {data?.leaderboard?.map((player, index) => {

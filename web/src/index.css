@@ -1,16 +1,57 @@
 @import "tailwindcss";
 
+@keyframes drift {
+  0%, 100% { background-position: 0% 0%, 100% 0%; }
+  50% { background-position: 8% 6%, 92% -4%; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+@utility card-hover {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+@utility card-hover {
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -20px rgba(124, 58, 237, 0.45);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  background: 
+  background:
     radial-gradient(circle at top left, rgba(124, 58, 237, 0.35), transparent 35%),
     radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 30%),
     #050712;
+  background-size: 140% 140%, 140% 140%, auto;
+  animation: drift 22s ease-in-out infinite;
   color: white;
   font-family: Inter, system-ut, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+  color: white;
 }

@@ -1,3 +1,6 @@
+import { History } from 'lucide-react';
+import EmptyState from '../ui/EmptyState';
+
 export default function SwissPickemHistory({ swissPicks }) {
     return (
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
@@ -54,9 +57,11 @@ export default function SwissPickemHistory({ swissPicks }) {
                 ))}
 
                 {(swissPicks || []).length === 0 && (
-                    <p className="text-white/50">
-                        No Swiss Pick&apos;Em predictions yet.
-                    </p>
+                    <EmptyState
+                        icon={History}
+                        title="No Swiss Pick'Em predictions yet"
+                        description="This player hasn't submitted any Swiss stage picks yet."
+                    />
                 )}
             </div>
         </div>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Archive } from 'lucide-react';
 import { getPublicArchives } from '../lib/api';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import PublicFooter from '../components/public/PublicFooter';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function PublicArchivePage() {
   const [archives, setArchives] = useState([]);
@@ -69,17 +71,17 @@ export default function PublicArchivePage() {
           )}
 
           {!loading && archives.length === 0 && (
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
-              <p className="text-white/50">
-                No archived tournaments yet.
-              </p>
-            </div>
+            <EmptyState
+              icon={Archive}
+              title="No archived tournaments yet"
+              description="Finished tournaments will show up here once they're archived."
+            />
           )}
 
           {!loading && archives.map((archive) => (
             <div
               key={archive.id}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+              className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-6 transition hover:border-violet-400/30 hover:bg-violet-500/5"
             >
               <div className="flex flex-wrap items-center justify-between gap-6">
                 <div>

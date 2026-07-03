@@ -1,4 +1,6 @@
+import { Swords, FilterX } from 'lucide-react';
 import PublicMatchCard from './PublicMatchCard';
+import EmptyState from '../ui/EmptyState';
 
 export default function PublicMatchesSection({
     publicMatches,
@@ -123,11 +125,19 @@ export default function PublicMatchesSection({
 
             <div className="mt-6 grid gap-4">
                 {visiblePublicMatches.length === 0 && !heroMatch && (
-                    <p className="text-white/50">
-                        {publicMatches.length === 0
-                            ? 'No matches published yet.'
-                            : 'No matches match this filter.'}
-                    </p>
+                    publicMatches.length === 0 ? (
+                        <EmptyState
+                            icon={Swords}
+                            title="No matches published yet"
+                            description="Matches will show up here once the organizers add them."
+                        />
+                    ) : (
+                        <EmptyState
+                            icon={FilterX}
+                            title="No matches match this filter"
+                            description="Try a different status filter or clear My Picks."
+                        />
+                    )
                 )}
 
                 {visiblePublicMatches.map((match) => (

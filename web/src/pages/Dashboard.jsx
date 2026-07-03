@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Trophy, Users, CalendarDays } from 'lucide-react';
+import { Trophy, Users, CalendarDays, PartyPopper } from 'lucide-react';
 import { getActiveEvents } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -64,16 +65,19 @@ export default function Dashboard() {
                 )}
 
                 {!loading && events.length === 0 && (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        No active events found.
-                    </div>
+                    <EmptyState
+                        icon={PartyPopper}
+                        title="No active events found"
+                        description="Create an event from a server dashboard to see it here."
+                    />
                 )}
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    {events.map((event) => (
+                    {events.map((event, index) => (
                         <div
                             key={event.id}
-                            className="rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl transition hover:border-violet-400/30 hover:bg-white/10"
+                            style={{ animationDelay: `${index * 60}ms` }}
+                            className="card-hover animate-fade-in-up rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl transition hover:border-violet-400/30 hover:bg-white/10"
                         >
                             <div className="flex items-start justify-between">
                                 <div>

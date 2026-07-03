@@ -1,3 +1,6 @@
+import { Trophy } from 'lucide-react';
+import EmptyState from '../ui/EmptyState';
+
 export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
     return (
         <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
@@ -25,7 +28,7 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                     <a
                         key={player.user_id}
                         href={`/public/users/${player.user_id}`}
-                        className="rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+                        className="card-hover rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                     >
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -46,9 +49,11 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                 ))}
 
                 {eventLeaderboard.length === 0 && (
-                    <p className="text-white/50">
-                        No leaderboard data yet.
-                    </p>
+                    <EmptyState
+                        icon={Trophy}
+                        title="No leaderboard data yet"
+                        description="Standings appear once predictions start coming in."
+                    />
                 )}
             </div>
         </div>

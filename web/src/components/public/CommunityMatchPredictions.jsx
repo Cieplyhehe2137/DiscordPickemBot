@@ -1,3 +1,6 @@
+import { LineChart } from 'lucide-react';
+import EmptyState from '../ui/EmptyState';
+
 export default function CommunityMatchPredictions({ eventMatchStats }) {
     return (
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
@@ -22,9 +25,11 @@ export default function CommunityMatchPredictions({ eventMatchStats }) {
                 ))}
 
                 {eventMatchStats.length === 0 && (
-                    <p className="text-white/50">
-                        No match prediction data yet.
-                    </p>
+                    <EmptyState
+                        icon={LineChart}
+                        title="No match prediction data yet"
+                        description="Trends appear once community members start predicting matches."
+                    />
                 )}
             </div>
         </div>
