@@ -1,5 +1,6 @@
 // handlers/panelSelectAction.js
 const { logInfo, logWarn, logError } = require('../../utils/logger');
+const isAdmin = require('../../utils/isAdmin');
 
 const VALUE_TO_TARGET_CUSTOM_ID = {
   'results:export': 'export_ranking',
@@ -55,6 +56,13 @@ module.exports = async function panelSelectAction(
   maps
 ) {
   try {
+    if (!isAdmin(interaction)) {
+      return interaction.reply({
+        content: '⛔ Tylko administracja.',
+        ephemeral: true,
+      });
+    }
+
     const value = interaction.values?.[0];
 
     logInfo('PANEL_SELECT_RECEIVED', {

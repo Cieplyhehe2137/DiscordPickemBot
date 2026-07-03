@@ -1,7 +1,8 @@
 // handlers/submitArchiveDropdown.js
 const path = require('path');
 const fs = require('fs');
-const logger = require('../../utils/logger.js');
+const { logError } = require('../../utils/logger.js');
+const isAdmin = require('../../utils/isAdmin');
 
 const BASE_ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum');
 
@@ -26,6 +27,13 @@ module.exports = async (interaction) => {
   if (!guildId) {
     return interaction.reply({
       content: '❌ Ta funkcja działa tylko na serwerze.',
+      ephemeral: true
+    });
+  }
+
+  if (!isAdmin(interaction)) {
+    return interaction.reply({
+      content: '⛔ Tylko administracja.',
       ephemeral: true
     });
   }

@@ -3203,11 +3203,6 @@ app.post('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
                 error: 'Team can only be selected once'
             });
         }
-        console.log({
-            eventId: event.id,
-            phase: event.phase,
-            userId
-        });
         await pool.query(
             `
     INSERT INTO swiss_predictions (
@@ -4372,23 +4367,9 @@ app.get('/api/public/archives/:id/download', async (req, res) => {
             ? dbPath
             : rebuiltPath;
 
-        console.log('[archive download]', {
-            id,
-            filename: archive.filename,
-            dbPath,
-            rebuiltPath,
-            existsDbPath: fs.existsSync(dbPath),
-            existsRebuiltPath: fs.existsSync(rebuiltPath),
-            cwd: process.cwd()
-        });
-
         if (!fs.existsSync(finalPath)) {
             return res.status(404).json({
-                error: 'Archive file missing',
-                filename: archive.filename,
-                dbPath,
-                rebuiltPath,
-                cwd: process.cwd()
+                error: 'Archive file missing'
             });
         }
 

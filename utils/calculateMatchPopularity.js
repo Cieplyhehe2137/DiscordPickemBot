@@ -28,7 +28,7 @@ function toPercentList(counter, total) {
 }
 
 async function pickExistingColumn(pool, table, candidates) {
-  const [cols] = await pool.query(`SHOW COLUMNS FROM ${table}`);
+  const [cols] = await pool.query('SHOW COLUMNS FROM ??', [table]);
   const names = new Set(cols.map(c => c.Field));
 
   return candidates.find(c => names.has(c)) || null;

@@ -4,6 +4,7 @@ const restoreBackup = require('../../utils/restoreBackup');
 const { getGuildPaths, ensureGuildDirs } = require('../../utils/guildRegistry');
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logWarn, logError } = require('../../utils/logger');
+const isAdmin = require('../../utils/isAdmin');
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
@@ -12,6 +13,13 @@ module.exports = async (interaction) => {
   if (!guildId) {
     return interaction.reply({
       content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
+      ephemeral: true
+    });
+  }
+
+  if (!isAdmin(interaction)) {
+    return interaction.reply({
+      content: '⛔ Tylko administracja.',
       ephemeral: true
     });
   }

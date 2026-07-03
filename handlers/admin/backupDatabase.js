@@ -10,6 +10,7 @@ const {
 
 const { withGuild } = require('../../utils/guildContext');
 const { logInfo, logError } = require('../../utils/logger');
+const isAdmin = require('../../utils/isAdmin');
 
 function sqlEscape(value) {
   return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -57,6 +58,13 @@ module.exports = async function backupDatabase(interaction) {
   if (!guildId) {
     return interaction.reply({
       content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
+      ephemeral: true
+    });
+  }
+
+  if (!isAdmin(interaction)) {
+    return interaction.reply({
+      content: '⛔ Tylko administracja.',
       ephemeral: true
     });
   }
