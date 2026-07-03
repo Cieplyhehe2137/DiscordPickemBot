@@ -24,6 +24,8 @@ const recalculateMatchPoints = require('../services/recalculateMatchPoints');
 const { runInTransaction } = require('../utils/runInTransaction');
 const exportClassification = require('../handlers/admin/exportClassification');
 const { logWarn } = require('../utils/logger');
+const { loadActiveTeams } = require('../utils/loadActiveTeams');
+const { getCurrentSwissResults } = require('../utils/swissRepository');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1470,6 +1472,115 @@ app.post('/api/events/:slug/recalculate', requireGuildAdmin(guildIdFromEventSlug
 
         res.status(500).json({
             error: 'Failed to recalculate scores'
+        });
+    }
+});
+
+const SWISS_STAGES = ['stage1', 'stage2', 'stage3'];
+
+app.get('/api/events/:slug/swiss-results/:stage', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug, stage } = req.params;
+        const { guildId } = req;
+
+        if (!SWISS_STAGES.includes(stage)) {
+            return res.status(400).json({ error: 'Invalid stage' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const current = await getCurrentSwissResults(pool, guildId, event.id, stage);
+
+        res.json({
+            x3_0: current.x3_0,
+            x0_3: current.x0_3,
+            advancing: current.adv
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/swiss-results/:stage', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug, stage } = req.params;
+        const { guildId } = req;
+
+        if (!SWISS_STAGES.includes(stage)) {
+            return res.status(400).json({ error: 'Invalid stage' });
+        }
+
+        const x3_0 = Array.isArray(req.body.x3_0) ? req.body.x3_0.map(String) : [];
+        const x0_3 = Array.isArray(req.body.x0_3) ? req.body.x0_3.map(String) : [];
+        const advancing = Array.isArray(req.body.advancing) ? req.body.advancing.map(String) : [];
+
+        if (x3_0.length > 2) {
+            return res.status(400).json({ error: '3-0: limit 2 teams' });
+        }
+
+        if (x0_3.length > 2) {
+            return res.status(400).json({ error: '0-3: limit 2 teams' });
+        }
+
+        if (advancing.length > 6) {
+            return res.status(400).json({ error: 'Advancing: limit 6 teams' });
+        }
+
+        const all = [...x3_0, ...x0_3, ...advancing];
+
+        if (new Set(all.map((v) => v.toLowerCase())).size !== all.length) {
+            return res.status(400).json({ error: 'A team cannot be in more than one category' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const teams = await loadActiveTeams(pool, guildId);
+        const validTeams = new Set(teams.map((t) => t.toLowerCase()));
+        const invalid = all.filter((t) => !validTeams.has(t.toLowerCase()));
+
+        if (invalid.length) {
+            return res.status(400).json({ error: `Unknown or inactive teams: ${invalid.join(', ')}` });
+        }
+
+        await pool.query(
+            `
+            INSERT INTO swiss_results
+              (guild_id, event_id, stage, correct_3_0, correct_0_3, correct_advancing, active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+            ON DUPLICATE KEY UPDATE
+              event_id = VALUES(event_id),
+              correct_3_0 = VALUES(correct_3_0),
+              correct_0_3 = VALUES(correct_0_3),
+              correct_advancing = VALUES(correct_advancing),
+              active = 1
+            `,
+            [guildId, event.id, stage, x3_0.join(', '), x0_3.join(', '), advancing.join(', ')]
+        );
+
+        res.json({ ok: true, stage, x3_0, x0_3, advancing });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
         });
     }
 });

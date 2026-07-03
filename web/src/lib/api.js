@@ -127,6 +127,17 @@ export async function submitMatchResult(matchId, resA, resB) {
   });
 }
 
+export async function getSwissResults(slug, stage) {
+  return apiFetch(`/events/${slug}/swiss-results/${stage}`);
+}
+
+export async function saveSwissResults(slug, stage, payload) {
+  return apiFetch(`/events/${slug}/swiss-results/${stage}`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }
