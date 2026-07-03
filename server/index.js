@@ -13,7 +13,9 @@ import { parseCs2LogLine } from './live/cs2LogParser.js';
 import session from 'express-session';
 import MySQLStoreFactory from 'express-mysql-session';
 import path from 'path'
+import { fileURLToPath } from 'url'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const calculateScores = require('../handlers/matches/calculateScores');
 const { assertPredictionsAllowed } = require('../utils/protectionsGuards');
@@ -5010,6 +5012,22 @@ app.get('/api/public/archives/:id/download', async (req, res) => {
         });
     }
 });
+
+// Serve the built web/ frontend (npm run build -> web/dist) as static files
+// in production, so one process/port handles both the API and the SPA -
+// no separate web host, no second exposed port, no cross-origin cookies.
+// Registered last so it never shadows an /api/* route above. The wildcard
+// only needs to exclude /api and /socket.io - everything else is a client
+// side route handled by React Router, so it always falls back to index.html.
+if (IS_PRODUCTION) {
+    const webDist = path.join(__dirname, '../web/dist');
+
+    app.use(express.static(webDist));
+
+    app.get(/^(?!\/api|\/socket\.io).*/, (req, res) => {
+        res.sendFile(path.join(webDist, 'index.html'));
+    });
+}
 
 const PORT = Number(process.env.PORT || 3301);
 
