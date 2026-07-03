@@ -7,6 +7,7 @@ import {
     updateTeam,
     deleteTeam,
     reorderTeams,
+    importTeams,
     describeActionError
 } from '../lib/api';
 import { usePublicAuth } from '../context/PublicAuthContext';
@@ -21,11 +22,16 @@ export default function TeamsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const [modal, setModal] = useState(null); // null | 'add' | { team }
+    const [modal, setModal] = useState(null); // null | 'add' | 'import' | { team }
     const [formName, setFormName] = useState('');
     const [formShortName, setFormShortName] = useState('');
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState(null);
+
+    const [importJson, setImportJson] = useState('');
+    const [importConfirmText, setImportConfirmText] = useState('');
+    const [importSaving, setImportSaving] = useState(false);
+    const [importError, setImportError] = useState(null);
 
     const guildName = user?.guilds?.find((g) => g.id === guildId)?.name || guildId;
 
@@ -53,6 +59,30 @@ export default function TeamsPage() {
         setFormShortName('');
         setFormError(null);
         setModal('add');
+    }
+
+    function openImportModal() {
+        setImportJson('');
+        setImportConfirmText('');
+        setImportError(null);
+        setModal('import');
+    }
+
+    async function handleImport() {
+        try {
+            setImportSaving(true);
+            setImportError(null);
+
+            await importTeams(guildId, importJson);
+
+            await load();
+            setModal(null);
+        } catch (err) {
+            console.error(err);
+            setImportError(err?.status === 400 ? err.message : describeActionError(err, 'import teams'));
+        } finally {
+            setImportSaving(false);
+        }
     }
 
     function openEditModal(team) {
@@ -155,12 +185,21 @@ export default function TeamsPage() {
                         Manage the active team list used when creating matches.
                     </p>
 
-                    <button
-                        onClick={openAddModal}
-                        className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                    >
-                        Add Team
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={openImportModal}
+                            className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20"
+                        >
+                            Import from JSON
+                        </button>
+
+                        <button
+                            onClick={openAddModal}
+                            className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                        >
+                            Add Team
+                        </button>
+                    </div>
                 </div>
 
                 {error && (
@@ -256,7 +295,7 @@ export default function TeamsPage() {
                 </div>
             </div>
 
-            {modal && (
+            {modal && modal !== 'import' && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
                     <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
@@ -315,6 +354,75 @@ export default function TeamsPage() {
                                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                             >
                                 {saving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {modal === 'import' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+                    <div className="w-full max-w-xl rounded-[2rem] border border-red-500/30 bg-zinc-950 p-8 text-white shadow-2xl">
+                        <p className="text-sm uppercase tracking-[0.25em] text-red-300">
+                            Import from JSON
+                        </p>
+
+                        <h2 className="mt-2 text-3xl font-black">
+                            Replace Team Roster
+                        </h2>
+
+                        <p className="mt-2 text-white/50">
+                            This <strong className="text-red-300">deletes all {teams.length} existing team(s)</strong> for
+                            this server and replaces them with the names below. This cannot be undone.
+                        </p>
+
+                        <div className="mt-6">
+                            <label className="text-sm font-bold text-white/60">
+                                Team names (JSON array of strings)
+                            </label>
+
+                            <textarea
+                                value={importJson}
+                                onChange={(e) => setImportJson(e.target.value)}
+                                rows={6}
+                                placeholder={'["FaZe","NAVI","G2","Vitality"]'}
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 font-mono text-sm text-white outline-none focus:border-red-400/40"
+                            />
+                        </div>
+
+                        <div className="mt-6">
+                            <label className="text-sm font-bold text-white/60">
+                                Type <span className="text-red-300">REPLACE</span> to confirm:
+                            </label>
+
+                            <input
+                                value={importConfirmText}
+                                onChange={(e) => setImportConfirmText(e.target.value)}
+                                placeholder="REPLACE"
+                                className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-red-400/40"
+                            />
+                        </div>
+
+                        {importError && (
+                            <div className="mt-6 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                                {importError}
+                            </div>
+                        )}
+
+                        <div className="mt-8 flex justify-end gap-4">
+                            <button
+                                onClick={() => setModal(null)}
+                                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                onClick={handleImport}
+                                disabled={importSaving || !importJson.trim() || importConfirmText !== 'REPLACE'}
+                                className="rounded-2xl bg-red-500 px-6 py-4 font-black transition hover:bg-red-400 disabled:opacity-50"
+                            >
+                                {importSaving ? 'Importing...' : 'Replace Roster'}
                             </button>
                         </div>
                     </div>

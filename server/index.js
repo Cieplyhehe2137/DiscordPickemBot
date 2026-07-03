@@ -825,6 +825,35 @@ app.delete('/api/guilds/:guildId/teams/:teamId', requireGuildAdmin(req => req.pa
     }
 });
 
+app.post('/api/guilds/:guildId/teams/import', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const jsonText = String(req.body.jsonText ?? '');
+
+        let count;
+
+        try {
+            count = await teamsStore.importTeamsFromJsonText(guildId, jsonText);
+        } catch (err) {
+            if (err.message === 'INVALID_JSON') {
+                return res.status(400).json({ error: 'Invalid JSON - expected an array of team name strings, e.g. ["FaZe","NAVI","G2"]' });
+            }
+
+            throw err;
+        }
+
+        const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
+
+        res.json({ ok: true, count, teams });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
 app.post('/api/guilds/:guildId/teams/reorder', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
     try {
         const { guildId } = req.params;

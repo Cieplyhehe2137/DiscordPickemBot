@@ -106,6 +106,13 @@ export async function deleteTeam(guildId, teamId) {
   });
 }
 
+export async function importTeams(guildId, jsonText) {
+  return apiFetch(`/guilds/${guildId}/teams/import`, {
+    method: 'POST',
+    body: JSON.stringify({ jsonText })
+  });
+}
+
 export async function reorderTeams(guildId, orderedIds) {
   return apiFetch(`/guilds/${guildId}/teams/reorder`, {
     method: 'POST',
