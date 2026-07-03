@@ -160,6 +160,17 @@ export async function saveDoubleElimResults(slug, payload) {
   });
 }
 
+export async function getPlayinResults(slug) {
+  return apiFetch(`/events/${slug}/playin-results`);
+}
+
+export async function savePlayinResults(slug, teams) {
+  return apiFetch(`/events/${slug}/playin-results`, {
+    method: 'POST',
+    body: JSON.stringify({ teams })
+  });
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }

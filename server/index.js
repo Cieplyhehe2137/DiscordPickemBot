@@ -28,6 +28,7 @@ const { loadActiveTeams } = require('../utils/loadActiveTeams');
 const { getCurrentSwissResults } = require('../utils/swissRepository');
 const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
 const { getCurrentDoubleElimResults } = require('../utils/doubleelimRepository');
+const { getCurrentPlayinResults } = require('../utils/playinRepository');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1773,6 +1774,82 @@ app.post('/api/events/:slug/doubleelim-results', requireGuildAdmin(guildIdFromEv
         });
 
         res.json({ ok: true, upperFinalA, lowerFinalA, upperFinalB, lowerFinalB });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/events/:slug/playin-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const current = await getCurrentPlayinResults(pool, guildId, event.id);
+
+        res.json(current);
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/playin-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const teams = Array.isArray(req.body.teams) ? Array.from(new Set(req.body.teams.map(String))) : [];
+
+        if (teams.length !== 8) {
+            return res.status(400).json({ error: `Play-In requires exactly 8 teams (got ${teams.length})` });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const activeTeams = await loadActiveTeams(pool, guildId);
+        const invalid = teams.filter((t) => !activeTeams.includes(t));
+
+        if (invalid.length) {
+            return res.status(400).json({ error: `Unknown or inactive teams: ${invalid.join(', ')}` });
+        }
+
+        await runInTransaction(pool, async (conn) => {
+            await conn.query(
+                'UPDATE playin_results SET active = 0 WHERE guild_id = ? AND event_id = ?',
+                [guildId, event.id]
+            );
+
+            await conn.query(
+                `INSERT INTO playin_results (guild_id, event_id, correct_teams, active)
+                 VALUES (?, ?, ?, 1)`,
+                [guildId, event.id, teams.join(', ')]
+            );
+        });
+
+        res.json({ ok: true, teams });
     } catch (err) {
         console.error(err);
 

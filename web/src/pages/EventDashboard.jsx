@@ -29,6 +29,7 @@ import PublicLinkButtons from '../components/admin/PublicLinkButtons';
 import SwissResultsPanel from '../components/admin/SwissResultsPanel';
 import PlayoffsResultsPanel from '../components/admin/PlayoffsResultsPanel';
 import DoubleElimResultsPanel from '../components/admin/DoubleElimResultsPanel';
+import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
 
@@ -700,6 +701,8 @@ export default function EventDashboard() {
             <PlayoffsResultsPanel slug={slug} guildId={event?.guild_id} />
 
             <DoubleElimResultsPanel slug={slug} guildId={event?.guild_id} />
+
+            <PlayInResultsPanel slug={slug} guildId={event?.guild_id} />
 
             <div className="mt-10 rounded-[2rem] border border-red-500/30 bg-red-500/5 p-8">
               <p className="text-sm uppercase tracking-[0.25em] text-red-300">
