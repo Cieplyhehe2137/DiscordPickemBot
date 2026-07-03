@@ -27,6 +27,7 @@ const { logWarn } = require('../utils/logger');
 const { loadActiveTeams } = require('../utils/loadActiveTeams');
 const { getCurrentSwissResults } = require('../utils/swissRepository');
 const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
+const { getCurrentDoubleElimResults } = require('../utils/doubleelimRepository');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1680,6 +1681,98 @@ app.post('/api/events/:slug/playoffs-results', requireGuildAdmin(guildIdFromEven
         });
 
         res.json({ ok: true, semifinalists, finalists, winner, third });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/events/:slug/doubleelim-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const current = await getCurrentDoubleElimResults(pool, guildId, event.id);
+
+        res.json(current);
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/doubleelim-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const upperFinalA = Array.isArray(req.body.upperFinalA) ? req.body.upperFinalA.map(String) : [];
+        const lowerFinalA = Array.isArray(req.body.lowerFinalA) ? req.body.lowerFinalA.map(String) : [];
+        const upperFinalB = Array.isArray(req.body.upperFinalB) ? req.body.upperFinalB.map(String) : [];
+        const lowerFinalB = Array.isArray(req.body.lowerFinalB) ? req.body.lowerFinalB.map(String) : [];
+
+        for (const [label, arr] of [['Upper Final A', upperFinalA], ['Lower Final A', lowerFinalA], ['Upper Final B', upperFinalB], ['Lower Final B', lowerFinalB]]) {
+            if (arr.length > 2) {
+                return res.status(400).json({ error: `${label}: limit 2 teams` });
+            }
+        }
+
+        const all = [...upperFinalA, ...lowerFinalA, ...upperFinalB, ...lowerFinalB];
+
+        if (!all.length) {
+            return res.status(400).json({ error: 'No teams selected' });
+        }
+
+        if (new Set(all).size !== all.length) {
+            return res.status(400).json({ error: 'A team cannot appear in more than one slot' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const teams = await loadActiveTeams(pool, guildId);
+        const invalid = all.filter((t) => !teams.includes(t));
+
+        if (invalid.length) {
+            return res.status(400).json({ error: `Unknown or inactive teams: ${invalid.join(', ')}` });
+        }
+
+        await runInTransaction(pool, async (conn) => {
+            await conn.query(
+                'UPDATE doubleelim_results SET active = 0 WHERE guild_id = ? AND event_id = ? AND active = 1',
+                [guildId, event.id]
+            );
+
+            await conn.query(
+                `INSERT INTO doubleelim_results
+                    (guild_id, event_id, upper_final_a, lower_final_a, upper_final_b, lower_final_b, active, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, 1, NOW())`,
+                [guildId, event.id, upperFinalA.join(', ') || null, lowerFinalA.join(', ') || null, upperFinalB.join(', ') || null, lowerFinalB.join(', ') || null]
+            );
+        });
+
+        res.json({ ok: true, upperFinalA, lowerFinalA, upperFinalB, lowerFinalB });
     } catch (err) {
         console.error(err);
 

@@ -149,6 +149,17 @@ export async function savePlayoffsResults(slug, payload) {
   });
 }
 
+export async function getDoubleElimResults(slug) {
+  return apiFetch(`/events/${slug}/doubleelim-results`);
+}
+
+export async function saveDoubleElimResults(slug, payload) {
+  return apiFetch(`/events/${slug}/doubleelim-results`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }
