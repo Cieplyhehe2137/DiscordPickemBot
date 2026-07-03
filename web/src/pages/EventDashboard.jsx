@@ -152,17 +152,10 @@ export default function EventDashboard() {
   }, [slug, setSelectedEvent]);
 
   useEffect(() => {
-    function handleConnect() {
-      console.log('Socket connected:', socket.id);
-    }
-
     function handleDashboardRefresh(payload) {
-      console.log('LIVE REFRESH', payload);
-
       if (payload?.slug !== slug) return;
 
       refreshEventData();
-      console.log('LIVE DASHBOARD UPDATE');
     }
 
     function handleMatchUpdated(payload) {
@@ -197,14 +190,11 @@ export default function EventDashboard() {
       }));
     }
 
-    socket.on('connect', handleConnect);
     socket.on('dashboard:refresh', handleDashboardRefresh);
     socket.on('match:updated', handleMatchUpdated);
     socket.on('event:status_updated', handleEventStatusUpdated);
-    
 
     return () => {
-      socket.off('connect', handleConnect);
       socket.off('dashboard:refresh', handleDashboardRefresh);
       socket.off('event:status_updated', handleEventStatusUpdated);
       socket.off('match:updated', handleMatchUpdated);
