@@ -41,11 +41,12 @@ export default function GuildSelect() {
         )}
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
-          {guilds.map((guild) => (
+          {guilds.map((guild, index) => (
             <button
               key={guild.id}
               onClick={() => navigate(`/app/guilds/${guild.id}`)}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-8 text-left transition hover:border-violet-400/40 hover:bg-white/10"
+              style={{ animationDelay: `${index * 60}ms` }}
+              className="card-hover animate-fade-in-up rounded-[2rem] border border-white/10 bg-white/5 p-8 text-left transition hover:border-violet-400/40 hover:bg-white/10"
             >
               <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
                 {guild.role}

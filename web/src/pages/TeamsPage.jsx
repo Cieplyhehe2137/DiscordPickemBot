@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ShieldOff } from 'lucide-react';
 import {
     getTeams,
     createTeam,
@@ -10,6 +11,7 @@ import {
 } from '../lib/api';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function TeamsPage() {
     const { guildId } = useParams();
@@ -174,8 +176,12 @@ export default function TeamsPage() {
                 )}
 
                 {!loading && teams.length === 0 && (
-                    <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        No teams yet. Add your first team above.
+                    <div className="mt-10">
+                        <EmptyState
+                            icon={ShieldOff}
+                            title="No teams yet"
+                            description="Add your first team above to start creating matches."
+                        />
                     </div>
                 )}
 
@@ -183,7 +189,8 @@ export default function TeamsPage() {
                     {teams.map((team, index) => (
                         <div
                             key={team.id}
-                            className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-5"
+                            style={{ animationDelay: `${index * 40}ms` }}
+                            className="animate-fade-in-up flex items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:border-violet-400/20"
                         >
                             <div className="flex flex-col gap-1">
                                 <button

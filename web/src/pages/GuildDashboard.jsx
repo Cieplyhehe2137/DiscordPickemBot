@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { CalendarX } from 'lucide-react';
 import {
     getGuildEvents,
     createGuildEvent,
@@ -10,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import EventStatusButtons from '../components/admin/EventStatusButtons';
 import PublicLinkButtons from '../components/admin/PublicLinkButtons';
+import EmptyState from '../components/ui/EmptyState';
 
 export default function GuildDashboard() {
     const { guildId } = useParams();
@@ -253,10 +255,12 @@ export default function GuildDashboard() {
                 )}
 
                 {!loading && filteredEvents.length === 0 && (
-                    <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        {events.length === 0
-                            ? 'No events found for this server.'
-                            : 'No events match your current filters.'}
+                    <div className="mt-10">
+                        <EmptyState
+                            icon={CalendarX}
+                            title={events.length === 0 ? 'No events found for this server' : 'No events match your current filters'}
+                            description={events.length === 0 ? 'Create your first event above to get started.' : 'Try a different status filter or search term.'}
+                        />
                     </div>
                 )}
 
@@ -265,10 +269,11 @@ export default function GuildDashboard() {
                 </div>
 
                 <div className="mt-10 grid gap-6 lg:grid-cols-2">
-                    {filteredEvents.map((event) => (
+                    {filteredEvents.map((event, index) => (
                         <div
                             key={event.id}
-                            className="rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl"
+                            style={{ animationDelay: `${index * 60}ms` }}
+                            className="card-hover animate-fade-in-up rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur-xl transition hover:border-violet-400/30"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div>

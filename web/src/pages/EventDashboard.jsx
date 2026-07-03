@@ -26,6 +26,8 @@ import Skeleton from '../components/ui/Skeleton';
 import { socket } from '../lib/socket';
 import EventStatusButtons from '../components/admin/EventStatusButtons';
 import PublicLinkButtons from '../components/admin/PublicLinkButtons';
+import EmptyState from '../components/ui/EmptyState';
+import { Swords, FilterX, Trophy } from 'lucide-react';
 
 export default function EventDashboard() {
   const { slug } = useParams();
@@ -829,14 +831,22 @@ export default function EventDashboard() {
 
               <div className="mt-6 grid gap-4">
                 {sortedMatches.length === 0 && (
-                  <p className="text-white/50">
-                    {matches.length === 0
-                      ? 'No matches found for this event.'
-                      : 'No matches match your current filters.'}
-                  </p>
+                  matches.length === 0 ? (
+                    <EmptyState
+                      icon={Swords}
+                      title="No matches found for this event"
+                      description="Use Create Match above to add the first one."
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={FilterX}
+                      title="No matches match your current filters"
+                      description="Try a different status filter or clear them."
+                    />
+                  )
                 )}
 
-                {sortedMatches.map((match) => {
+                {sortedMatches.map((match, matchIndex) => {
                   const predictions = matchStats[match.id]?.predictions || 0;
                   const teamAPicks = matchStats[match.id]?.team_a_picks || 0;
                   const teamBPicks = matchStats[match.id]?.team_b_picks || 0;
@@ -852,7 +862,8 @@ export default function EventDashboard() {
                   return (
                     <div
                       key={match.id}
-                      className="rounded-2xl border border-white/10 bg-black/30 p-5"
+                      style={{ animationDelay: `${Math.min(matchIndex, 10) * 40}ms` }}
+                      className="animate-fade-in-up rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/20"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-6">
                         <div>
@@ -979,15 +990,18 @@ export default function EventDashboard() {
 
               <div className="mt-6 grid gap-4">
                 {leaderboard.length === 0 && (
-                  <p className="text-white/50">
-                    No leaderboard data.
-                  </p>
+                  <EmptyState
+                    icon={Trophy}
+                    title="No leaderboard data"
+                    description="Scores will appear once predictions are locked in and results come in."
+                  />
                 )}
 
                 {leaderboard.map((user, index) => (
                   <div
                     key={user.user_id}
-                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5"
+                    style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
+                    className="card-hover animate-fade-in-up flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/20"
                   >
                     <div className="flex items-center gap-5">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/20 text-xl font-black">
