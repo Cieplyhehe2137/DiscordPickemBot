@@ -145,6 +145,16 @@ export async function setMvpResult(slug, candidateId) {
   });
 }
 
+export async function getPhaseClearPreview(slug, phase) {
+  return apiFetch(`/events/${slug}/phases/${phase}/clear-preview`);
+}
+
+export async function clearEventPhase(slug, phase) {
+  return apiFetch(`/events/${slug}/phases/${phase}/clear`, {
+    method: 'POST'
+  });
+}
+
 export function getClassificationExportUrl(slug) {
   return `${API_BASE}/events/${slug}/export/classification`;
 }

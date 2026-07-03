@@ -16,6 +16,8 @@ import {
   saveMvpCandidates,
   setMvpResult as apiSetMvpResult,
   getClassificationExportUrl,
+  getPhaseClearPreview,
+  clearEventPhase,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -65,6 +67,14 @@ export default function EventDashboard() {
   const [selectedMvpCandidateId, setSelectedMvpCandidateId] = useState('');
   const [savingMvpResult, setSavingMvpResult] = useState(false);
   const [mvpResultError, setMvpResultError] = useState(null);
+
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearPhase, setClearPhase] = useState('SWISS');
+  const [clearPreview, setClearPreview] = useState(null);
+  const [clearPreviewLoading, setClearPreviewLoading] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState(null);
 
   const event = data?.event;
   const stats = data?.stats;
@@ -408,6 +418,51 @@ export default function EventDashboard() {
     }
   }
 
+  async function openClearModal() {
+    setClearError(null);
+    setClearConfirmText('');
+    setShowClearModal(true);
+    await loadClearPreview(clearPhase);
+  }
+
+  async function loadClearPreview(phase) {
+    try {
+      setClearPreviewLoading(true);
+      setClearPreview(null);
+
+      const result = await getPhaseClearPreview(slug, phase);
+      setClearPreview(result);
+    } catch (err) {
+      console.error(err);
+      setClearError(describeActionError(err, 'load the clear preview'));
+    } finally {
+      setClearPreviewLoading(false);
+    }
+  }
+
+  async function handleConfirmClear() {
+    try {
+      setClearing(true);
+      setClearError(null);
+
+      const result = await clearEventPhase(slug, clearPhase);
+
+      await refreshEventData();
+      setShowClearModal(false);
+
+      alert(
+        `Cleared ${clearPhase}: ${result.deleted.matches} matches, ` +
+        `${result.deleted.predictions} predictions, ${result.deleted.results} results, ` +
+        `${result.deleted.points} points.`
+      );
+    } catch (err) {
+      console.error(err);
+      setClearError(describeActionError(err, 'clear the phase'));
+    } finally {
+      setClearing(false);
+    }
+  }
+
   async function handleToggleMatchDetails(matchId) {
     if (expandedMatchId === matchId) {
       setExpandedMatchId(null);
@@ -641,6 +696,39 @@ export default function EventDashboard() {
                   className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
                 >
                   Export Classification
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-10 rounded-[2rem] border border-red-500/30 bg-red-500/5 p-8">
+              <p className="text-sm uppercase tracking-[0.25em] text-red-300">
+                Danger Zone
+              </p>
+
+              <h2 className="mt-2 text-3xl font-black">
+                Clear Phase
+              </h2>
+
+              <p className="mt-2 text-white/50">
+                Permanently deletes all matches, predictions, results and points for a phase of this event only.
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <select
+                  value={clearPhase}
+                  onChange={(e) => setClearPhase(e.target.value)}
+                  className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-red-400/40"
+                >
+                  <option value="PLAY_IN">PLAY_IN</option>
+                  <option value="SWISS">SWISS</option>
+                  <option value="PLAYOFFS">PLAYOFFS</option>
+                </select>
+
+                <button
+                  onClick={openClearModal}
+                  className="rounded-2xl border border-red-400/40 bg-red-500/20 px-6 py-4 font-black text-red-200 transition hover:bg-red-500/30"
+                >
+                  Clear Phase...
                 </button>
               </div>
             </div>
@@ -1186,6 +1274,85 @@ export default function EventDashboard() {
                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
               >
                 {submittingResult ? 'Saving...' : 'Save Result'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2rem] border border-red-500/40 bg-zinc-950 p-8 text-white shadow-2xl">
+            <p className="text-sm uppercase tracking-[0.25em] text-red-300">
+              Danger Zone
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black">
+              Clear {clearPhase}
+            </h2>
+
+            <p className="mt-4 text-white/60">
+              This permanently deletes the following for this event's <strong>{clearPhase}</strong> phase only:
+            </p>
+
+            {clearPreviewLoading && (
+              <div className="mt-4 text-sm font-bold text-white/40">
+                Loading preview...
+              </div>
+            )}
+
+            {!clearPreviewLoading && clearPreview && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Matches</p>
+                  <p className="mt-2 text-2xl font-black">{clearPreview.matches}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Predictions</p>
+                  <p className="mt-2 text-2xl font-black">{clearPreview.predictions}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Results</p>
+                  <p className="mt-2 text-2xl font-black">{clearPreview.results}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Points</p>
+                  <p className="mt-2 text-2xl font-black">{clearPreview.points}</p>
+                </div>
+              </div>
+            )}
+
+            <p className="mt-6 text-sm font-bold text-white/60">
+              Type <span className="text-red-300">{clearPhase}</span> to confirm:
+            </p>
+
+            <input
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              placeholder={clearPhase}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-red-400/50"
+            />
+
+            {clearError && (
+              <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
+                {clearError}
+              </div>
+            )}
+
+            <div className="mt-8 flex justify-end gap-4">
+              <button
+                onClick={() => setShowClearModal(false)}
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmClear}
+                disabled={clearing || clearConfirmText !== clearPhase}
+                className="rounded-2xl bg-red-500 px-6 py-4 font-black transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {clearing ? 'Clearing...' : 'Clear Phase'}
               </button>
             </div>
           </div>

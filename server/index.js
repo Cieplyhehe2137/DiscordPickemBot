@@ -23,6 +23,7 @@ const matchesStore = require('../utils/matchesStore');
 const recalculateMatchPoints = require('../services/recalculateMatchPoints');
 const { runInTransaction } = require('../utils/runInTransaction');
 const exportClassification = require('../handlers/admin/exportClassification');
+const { logWarn } = require('../utils/logger');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1641,6 +1642,161 @@ app.get('/api/events/:slug/export/classification', requireGuildAdmin(guildIdFrom
 
         res.status(500).json({
             error: 'Failed to generate classification export'
+        });
+    }
+});
+
+app.get('/api/events/:slug/phases/:phase/clear-preview', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug, phase } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [[points]] = await pool.query(
+            `
+            SELECT COUNT(*) AS count
+            FROM match_points mp
+            JOIN matches m ON m.id = mp.match_id
+            WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+            `,
+            [phase, guildId, event.id]
+        );
+
+        const [[predictions]] = await pool.query(
+            `
+            SELECT COUNT(*) AS count
+            FROM match_predictions pr
+            JOIN matches m ON m.id = pr.match_id
+            WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+            `,
+            [phase, guildId, event.id]
+        );
+
+        const [[results]] = await pool.query(
+            `
+            SELECT COUNT(*) AS count
+            FROM match_results mr
+            JOIN matches m ON m.id = mr.match_id
+            WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+            `,
+            [phase, guildId, event.id]
+        );
+
+        const [[matches]] = await pool.query(
+            `
+            SELECT COUNT(*) AS count
+            FROM matches
+            WHERE phase = ? AND guild_id = ? AND event_id = ?
+            `,
+            [phase, guildId, event.id]
+        );
+
+        res.json({
+            matches: matches.count,
+            predictions: predictions.count,
+            results: results.count,
+            points: points.count
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/phases/:phase/clear', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug, phase } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const { r1, r2, r3, r4 } = await runInTransaction(pool, async (conn) => {
+            const [r1] = await conn.query(
+                `
+                DELETE mp
+                FROM match_points mp
+                JOIN matches m ON m.id = mp.match_id
+                WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
+            const [r2] = await conn.query(
+                `
+                DELETE pr
+                FROM match_predictions pr
+                JOIN matches m ON m.id = pr.match_id
+                WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
+            const [r3] = await conn.query(
+                `
+                DELETE mr
+                FROM match_results mr
+                JOIN matches m ON m.id = mr.match_id
+                WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
+            const [r4] = await conn.query(
+                `
+                DELETE FROM matches
+                WHERE phase = ? AND guild_id = ? AND event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
+            return { r1, r2, r3, r4 };
+        });
+
+        logWarn('matches', 'Cleared matches phase via web panel', {
+            guildId,
+            eventId: event.id,
+            phase,
+            deleted_points: r1?.affectedRows ?? 0,
+            deleted_predictions: r2?.affectedRows ?? 0,
+            deleted_results: r3?.affectedRows ?? 0,
+            deleted_matches: r4?.affectedRows ?? 0,
+            by: req.session?.user?.id
+        });
+
+        io.emit('dashboard:refresh', { slug });
+
+        res.json({
+            ok: true,
+            deleted: {
+                matches: r4?.affectedRows ?? 0,
+                predictions: r2?.affectedRows ?? 0,
+                results: r3?.affectedRows ?? 0,
+                points: r1?.affectedRows ?? 0
+            }
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
         });
     }
 });
