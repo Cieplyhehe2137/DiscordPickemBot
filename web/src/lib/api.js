@@ -106,6 +106,20 @@ export async function deleteTeam(guildId, teamId) {
   });
 }
 
+export async function setDeadline(guildId, { phase, data, stage }) {
+  return apiFetch(`/guilds/${guildId}/deadline`, {
+    method: 'POST',
+    body: JSON.stringify({ phase, data, stage })
+  });
+}
+
+export async function setMatchDeadline(guildId, { phase, data }) {
+  return apiFetch(`/guilds/${guildId}/match-deadline`, {
+    method: 'POST',
+    body: JSON.stringify({ phase, data })
+  });
+}
+
 export async function importTeams(guildId, jsonText) {
   return apiFetch(`/guilds/${guildId}/teams/import`, {
     method: 'POST',

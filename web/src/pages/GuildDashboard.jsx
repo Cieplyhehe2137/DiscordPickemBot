@@ -11,6 +11,7 @@ import { useApp } from '../context/AppContext';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import EventStatusButtons from '../components/admin/EventStatusButtons';
 import PublicLinkButtons from '../components/admin/PublicLinkButtons';
+import DeadlineModal from '../components/admin/DeadlineModal';
 import EmptyState from '../components/ui/EmptyState';
 
 export default function GuildDashboard() {
@@ -30,6 +31,8 @@ export default function GuildDashboard() {
     const [eventSlug, setEventSlug] = useState('');
     const [creating, setCreating] = useState(false);
     const [createError, setCreateError] = useState(null);
+
+    const [showDeadlineModal, setShowDeadlineModal] = useState(false);
 
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [search, setSearch] = useState('');
@@ -178,12 +181,19 @@ export default function GuildDashboard() {
                     {guild?.name || guildId}
                 </h1>
 
-                <div className="mt-6">
+                <div className="mt-6 flex flex-wrap gap-3">
                     <button
                         onClick={() => navigate(`/app/guilds/${guildId}/teams`)}
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Manage Teams
+                    </button>
+
+                    <button
+                        onClick={() => setShowDeadlineModal(true)}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Set Deadlines
                     </button>
                 </div>
 
@@ -440,6 +450,10 @@ export default function GuildDashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showDeadlineModal && (
+                <DeadlineModal guildId={guildId} onClose={() => setShowDeadlineModal(false)} />
             )}
         </div>
     );

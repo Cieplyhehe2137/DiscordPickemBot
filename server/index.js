@@ -30,6 +30,7 @@ const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
 const { getCurrentDoubleElimResults } = require('../utils/doubleelimRepository');
 const { getCurrentPlayinResults } = require('../utils/playinRepository');
 const { maxMapsFromBo } = require('../utils/mapLabels');
+const { VALID_PHASES, parseDeadlineInput, findPanelForDeadline, findPanelForMatchDeadline } = require('../utils/deadlineRepository');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -845,6 +846,86 @@ app.post('/api/guilds/:guildId/teams/import', requireGuildAdmin(req => req.param
         const teams = await teamsStore.listTeams(guildId, { includeInactive: true });
 
         res.json({ ok: true, count, teams });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/deadline', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const { phase, data, stage } = req.body;
+
+        if (!VALID_PHASES.includes(phase)) {
+            return res.status(400).json({ error: `phase must be one of: ${VALID_PHASES.join(', ')}` });
+        }
+
+        if (phase === 'swiss' && !stage) {
+            return res.status(400).json({ error: 'stage is required for phase=swiss (e.g. 1, 2, or 3)' });
+        }
+
+        const parsed = parseDeadlineInput(data);
+
+        if (!parsed.ok) {
+            return res.status(400).json({ error: parsed.error });
+        }
+
+        const lookup = await findPanelForDeadline(pool, guildId, phase, stage);
+
+        if (lookup.error) {
+            return res.status(400).json({ error: lookup.error });
+        }
+
+        if (!lookup.row) {
+            return res.status(404).json({ error: `No active panel found for phase "${lookup.lookupPhase}"${lookup.lookupStageKey ? ` / stage "${lookup.lookupStageKey}"` : ''}` });
+        }
+
+        await pool.query(
+            'UPDATE active_panels SET deadline = ?, reminded = 0 WHERE id = ?',
+            [parsed.utcDate, lookup.row.id]
+        );
+
+        res.json({ ok: true, deadline: parsed.utcDate });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/guilds/:guildId/match-deadline', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+        const { phase, data } = req.body;
+
+        if (!VALID_PHASES.includes(phase)) {
+            return res.status(400).json({ error: `phase must be one of: ${VALID_PHASES.join(', ')}` });
+        }
+
+        const parsed = parseDeadlineInput(data);
+
+        if (!parsed.ok) {
+            return res.status(400).json({ error: parsed.error });
+        }
+
+        const lookup = await findPanelForMatchDeadline(pool, guildId, phase);
+
+        if (!lookup.row) {
+            return res.status(404).json({ error: `No active panel found for phase "${phase}"` });
+        }
+
+        await pool.query(
+            'UPDATE active_panels SET match_deadline = ? WHERE id = ?',
+            [parsed.utcDate, lookup.row.id]
+        );
+
+        res.json({ ok: true, matchDeadline: parsed.utcDate });
     } catch (err) {
         console.error(err);
 
