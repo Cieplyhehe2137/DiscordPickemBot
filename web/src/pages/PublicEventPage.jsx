@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
 import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats, getPublicEventMatchStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
+import PublicEventHero from '../components/public/PublicEventHero';
 import { usePublicAuth } from '../context/PublicAuthContext';
 import CommunityMatchPredictions from '../components/public/CommunityMatchPredictions';
 import CommunityPulse from '../components/public/CommunityPulse';
@@ -1284,7 +1285,12 @@ function getMapsToPredict(match, series) {
 
     if (!series) return [];
 
-    return Math.max(Number(series.pred_a), Number(series.pred_b));
+    const totalMaps = Math.min(
+        Number(series.pred_a || 0) + Number(series.pred_b || 0),
+        bestOf
+    );
+
+    return Array.from({ length: totalMaps }, (_, i) => i + 1);
 }
 
 function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
