@@ -35,7 +35,6 @@ export default function PublicEventLeaderboardPage() {
     }
 
     const leaderboard = data.leaderboard || [];
-    const isMe = user?.id === player.user_id;
 
     return (
         <PageShell>
@@ -53,7 +52,10 @@ export default function PublicEventLeaderboardPage() {
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                 <div className="grid gap-4">
-                    {leaderboard.map((player) => (
+                    {leaderboard.map((player) => {
+                        const isMe = user?.id === player.user_id;
+
+                        return (
                         <a
                             key={player.user_id}
                             href={`/public/users/${player.user_id}`}
@@ -103,7 +105,8 @@ export default function PublicEventLeaderboardPage() {
                                 </div>
                             </div>
                         </a>
-                    ))}
+                        );
+                    })}
 
                     {leaderboard.length === 0 && (
                         <p className="text-white/50">

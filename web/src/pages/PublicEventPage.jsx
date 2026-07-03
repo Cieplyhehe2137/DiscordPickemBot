@@ -12,13 +12,11 @@ import EventLeaderboardPreview from '../components/public/EventLeaderboardPrevie
 import TournamentProgress from '../components/public/TournamentProgress';
 import MyPickemProgress from '../components/public/MyPickemProgress';
 import StickyPickemProgress from '../components/public/StickyPickemProgress';
-import SwissPickemHistory from '../components/public/SwissPickemHistory';
 import PublicNavbar from '../components/public/PublicNavbar';
 import PublicEventStatsGrid from '../components/public/PublicEventStatsGrid';
 import PublicLatestPredictionCard from '../components/public/PublicLatestPredictionCard';
-import TeamLogoBlock, { MiniTeamLogo } from '../components/public/TeamLogoBlock';
+import TeamLogoBlock from '../components/public/TeamLogoBlock';
 import PublicFeaturedMatch from '../components/public/PublicFeaturedMatch';
-import PublicMatchCard from '../components/public/PublicMatchCard';
 import EmptyState from '../components/ui/EmptyState';
 import { Trophy } from 'lucide-react';
 import PublicMatchesSection from '../components/public/PublicMatchesSection';
@@ -1264,20 +1262,6 @@ function getMapLabel(mapNo, bestOf) {
     return `Map ${mapNo}`;
 }
 
-function formatPredictionSummary(prediction) {
-    if (!prediction) return null;
-
-    if (prediction.series) {
-        return `${prediction.series.pred_a}:${prediction.series.pred_b}`;
-    }
-
-    if (prediction.score_a != null && prediction.score_b != null) {
-        return `${prediction.score_a}:${prediction.score_b}`;
-    }
-
-    return 'Saved';
-}
-
 function getMapsToPredict(match, series) {
     const bestOf = Number(match.best_of || 1);
 
@@ -1730,82 +1714,6 @@ function formatStatusLabel(status) {
         .replaceAll('_', ' ')
         .toLowerCase()
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function StatsMiniColumn({ title, rows }) {
-    return (
-        <div>
-            <p className="mb-3 text-sm font-black uppercase tracking-[0.15em] text-violet-300">
-                {title}
-            </p>
-
-            <div className="space-y-3">
-                {rows.map((row) => (
-                    <div
-                        key={row.team}
-                        className="rounded-2xl border border-white/10 bg-black/30 p-3"
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="font-black">
-                                {row.team}
-                            </span>
-
-                            <span className="text-sm text-violet-300">
-                                {row.percentage}%
-                            </span>
-                        </div>
-                    </div>
-                ))}
-
-                {rows.length === 0 && (
-                    <p className="text-sm text-white/40">
-                        No data
-                    </p>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function InsightCard({ title, match, empty }) {
-    if (!match) {
-        return (
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                    {title}
-                </p>
-
-                <p className="mt-3 text-white/40">
-                    {empty}
-                </p>
-            </div>
-        );
-    }
-
-    const confidence = Math.max(
-        match.team_a_percentage,
-        match.team_b_percentage
-    );
-
-    return (
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-            <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                {title}
-            </p>
-
-            <h3 className="mt-3 text-2xl font-black">
-                {match.team_a} vs {match.team_b}
-            </h3>
-
-            <p className="mt-2 text-white/50">
-                Community picked {match.community_pick} with {confidence}% confidence.
-            </p>
-
-            <p className="mt-2 text-white/50">
-                Winner: {match.winner}
-            </p>
-        </div>
-    );
 }
 
 function MatchTrendBar({ team, percentage, variant }) {
