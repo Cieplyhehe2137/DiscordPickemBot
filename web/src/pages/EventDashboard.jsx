@@ -30,6 +30,7 @@ import SwissResultsPanel from '../components/admin/SwissResultsPanel';
 import PlayoffsResultsPanel from '../components/admin/PlayoffsResultsPanel';
 import DoubleElimResultsPanel from '../components/admin/DoubleElimResultsPanel';
 import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
+import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
 
@@ -61,6 +62,7 @@ export default function EventDashboard() {
   const [createMatchError, setCreateMatchError] = useState(null);
 
   const [resultModalMatch, setResultModalMatch] = useState(null);
+  const [exactScoreMatch, setExactScoreMatch] = useState(null);
   const [resultForm, setResultForm] = useState({ resA: '', resB: '' });
   const [submittingResult, setSubmittingResult] = useState(false);
   const [resultError, setResultError] = useState(null);
@@ -917,6 +919,13 @@ export default function EventDashboard() {
                             >
                               Enter Result
                             </button>
+
+                            <button
+                              onClick={() => setExactScoreMatch(match)}
+                              className="rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-200 transition hover:bg-violet-500/20"
+                            >
+                              Exact Scores
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1294,6 +1303,17 @@ export default function EventDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {exactScoreMatch && (
+        <ExactScoreModal
+          match={exactScoreMatch}
+          onClose={() => setExactScoreMatch(null)}
+          onSaved={async () => {
+            await refreshEventData();
+            setExactScoreMatch(null);
+          }}
+        />
       )}
 
       {showClearModal && (

@@ -171,6 +171,17 @@ export async function savePlayinResults(slug, teams) {
   });
 }
 
+export async function getMatchExactScores(matchId) {
+  return apiFetch(`/matches/${matchId}/exact`);
+}
+
+export async function saveMatchExactScores(matchId, maps) {
+  return apiFetch(`/matches/${matchId}/exact`, {
+    method: 'POST',
+    body: JSON.stringify({ maps })
+  });
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }

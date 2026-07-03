@@ -29,6 +29,7 @@ const { getCurrentSwissResults } = require('../utils/swissRepository');
 const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
 const { getCurrentDoubleElimResults } = require('../utils/doubleelimRepository');
 const { getCurrentPlayinResults } = require('../utils/playinRepository');
+const { maxMapsFromBo } = require('../utils/mapLabels');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1427,6 +1428,138 @@ app.post('/api/matches/:matchId/result', requireGuildAdmin(guildIdFromMatchId), 
         }
 
         res.json({ ok: true, matchId: Number(matchId), resA, resB });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/matches/:matchId/exact', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { guildId } = req;
+
+        const match = await matchesStore.getMatchById(pool, guildId, matchId);
+
+        if (!match) {
+            return res.status(404).json({ error: 'Match not found' });
+        }
+
+        const maxMaps = maxMapsFromBo(match.best_of);
+        const maps = [];
+
+        if (maxMaps === 1) {
+            const [[row]] = await pool.query(
+                'SELECT exact_a, exact_b FROM match_results WHERE match_id = ? AND guild_id = ? LIMIT 1',
+                [matchId, guildId]
+            );
+
+            maps.push({ mapNo: 1, exactA: row?.exact_a ?? null, exactB: row?.exact_b ?? null });
+        } else {
+            const [rows] = await pool.query(
+                'SELECT map_no, exact_a, exact_b FROM match_map_results WHERE match_id = ? AND guild_id = ?',
+                [matchId, guildId]
+            );
+
+            const byMap = new Map(rows.map((r) => [Number(r.map_no), r]));
+
+            for (let i = 1; i <= maxMaps; i += 1) {
+                const r = byMap.get(i);
+                maps.push({ mapNo: i, exactA: r?.exact_a ?? null, exactB: r?.exact_b ?? null });
+            }
+        }
+
+        res.json({ bestOf: match.best_of, maxMaps, maps });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/matches/:matchId/exact', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const { matchId } = req.params;
+        const { guildId } = req;
+
+        const match = await matchesStore.getMatchById(pool, guildId, matchId);
+
+        if (!match) {
+            return res.status(404).json({ error: 'Match not found' });
+        }
+
+        const maxMaps = maxMapsFromBo(match.best_of);
+        const inputMaps = Array.isArray(req.body.maps) ? req.body.maps : [];
+        const clean = [];
+
+        for (const m of inputMaps) {
+            const mapNo = Number(m.mapNo);
+            const exactA = Number(m.exactA);
+            const exactB = Number(m.exactB);
+
+            if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
+                return res.status(400).json({ error: `Invalid mapNo: ${m.mapNo}` });
+            }
+
+            if (!Number.isFinite(exactA) || !Number.isFinite(exactB) || exactA < 0 || exactB < 0 || exactA > 99 || exactB > 99) {
+                return res.status(400).json({ error: `Map ${mapNo}: score must be a number 0-99` });
+            }
+
+            clean.push({ mapNo, exactA, exactB });
+        }
+
+        if (!clean.length) {
+            return res.status(400).json({ error: 'No map scores provided' });
+        }
+
+        if (maxMaps === 1) {
+            const { exactA, exactB } = clean[0];
+
+            await pool.query(
+                `
+                INSERT INTO match_results (guild_id, event_id, match_id, exact_a, exact_b)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    event_id = VALUES(event_id),
+                    exact_a = VALUES(exact_a),
+                    exact_b = VALUES(exact_b)
+                `,
+                [guildId, match.event_id, matchId, exactA, exactB]
+            );
+        } else {
+            for (const { mapNo, exactA, exactB } of clean) {
+                await pool.query(
+                    `
+                    INSERT INTO match_map_results (guild_id, event_id, match_id, map_no, exact_a, exact_b)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        event_id = VALUES(event_id),
+                        exact_a = VALUES(exact_a),
+                        exact_b = VALUES(exact_b),
+                        updated_at = CURRENT_TIMESTAMP
+                    `,
+                    [guildId, match.event_id, matchId, mapNo, exactA, exactB]
+                );
+            }
+        }
+
+        await recalculateMatchPoints(pool, guildId, match.event_id, matchId, match.best_of);
+
+        const [[eventRow]] = await pool.query(
+            'SELECT slug FROM events WHERE id = ? LIMIT 1',
+            [match.event_id]
+        );
+
+        if (eventRow?.slug) {
+            io.emit('dashboard:refresh', { slug: eventRow.slug });
+        }
+
+        res.json({ ok: true, maps: clean });
     } catch (err) {
         console.error(err);
 
