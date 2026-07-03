@@ -138,6 +138,17 @@ export async function saveSwissResults(slug, stage, payload) {
   });
 }
 
+export async function getPlayoffsResults(slug) {
+  return apiFetch(`/events/${slug}/playoffs-results`);
+}
+
+export async function savePlayoffsResults(slug, payload) {
+  return apiFetch(`/events/${slug}/playoffs-results`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }

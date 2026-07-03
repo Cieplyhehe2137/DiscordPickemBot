@@ -6,44 +6,11 @@ const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftC
 const { loadActiveTeams } = require('../../utils/loadActiveTeams');
 const { getOpenEventId } = require('../../utils/getOpenEventId');
 const { runInTransaction } = require('../../utils/runInTransaction');
+const { getCurrentPlayoffs } = require('../../utils/playoffsRepository');
 
 const NAMESPACE = 'playoffs-results';
 const getCache = (key) => getDraft(NAMESPACE, key);
 const setCache = (key, data) => setDraft(NAMESPACE, key, data);
-
-/* ===============================
-   DB HELPERS
-=============================== */
-async function getCurrentPlayoffs(pool, guildId, eventId) {
-  const [rows] = await pool.query(
-    `SELECT correct_semifinalists,
-            correct_finalists,
-            correct_winner,
-            correct_third_place_winner
-     FROM playoffs_results
-     WHERE guild_id = ?
-       AND event_id = ?
-       AND active = 1
-     ORDER BY id DESC
-     LIMIT 1`,
-    [guildId, eventId]
-  );
-
-  if (!rows.length) {
-    return { semifinalists: [], finalists: [], winner: [], third: [] };
-  }
-
-  const toArr = (s) =>
-    !s ? [] : String(s).split(',').map(v => v.trim()).filter(Boolean);
-
-  const r = rows[0];
-  return {
-    semifinalists: toArr(r.correct_semifinalists),
-    finalists: toArr(r.correct_finalists),
-    winner: toArr(r.correct_winner),
-    third: toArr(r.correct_third_place_winner),
-  };
-}
 
 /* ===============================
    UTILS

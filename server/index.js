@@ -26,6 +26,7 @@ const exportClassification = require('../handlers/admin/exportClassification');
 const { logWarn } = require('../utils/logger');
 const { loadActiveTeams } = require('../utils/loadActiveTeams');
 const { getCurrentSwissResults } = require('../utils/swissRepository');
+const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
 const fs = require('fs')
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
@@ -1576,6 +1577,109 @@ app.post('/api/events/:slug/swiss-results/:stage', requireGuildAdmin(guildIdFrom
         );
 
         res.json({ ok: true, stage, x3_0, x0_3, advancing });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.get('/api/events/:slug/playoffs-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const current = await getCurrentPlayoffs(pool, guildId, event.id);
+
+        res.json({
+            semifinalists: current.semifinalists,
+            finalists: current.finalists,
+            winner: current.winner[0] || null,
+            third: current.third[0] || null
+        });
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            error: 'Database error'
+        });
+    }
+});
+
+app.post('/api/events/:slug/playoffs-results', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const semifinalists = Array.isArray(req.body.semifinalists) ? req.body.semifinalists.map(String) : [];
+        const finalists = Array.isArray(req.body.finalists) ? req.body.finalists.map(String) : [];
+        const winner = req.body.winner ? String(req.body.winner) : null;
+        const third = req.body.third ? String(req.body.third) : null;
+
+        if (semifinalists.length > 4) {
+            return res.status(400).json({ error: 'Semifinalists: limit 4 teams' });
+        }
+
+        if (finalists.length > 2) {
+            return res.status(400).json({ error: 'Finalists: limit 2 teams' });
+        }
+
+        if (finalists.some((t) => !semifinalists.includes(t))) {
+            return res.status(400).json({ error: 'Finalists must be semifinalists' });
+        }
+
+        if (winner && !finalists.includes(winner)) {
+            return res.status(400).json({ error: 'Winner must be a finalist' });
+        }
+
+        if (third && (third === winner || !semifinalists.includes(third))) {
+            return res.status(400).json({ error: 'Invalid third place' });
+        }
+
+        const all = [...semifinalists, ...finalists, ...(winner ? [winner] : []), ...(third ? [third] : [])];
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const teams = await loadActiveTeams(pool, guildId);
+        const invalid = all.filter((t) => !teams.includes(t));
+
+        if (invalid.length) {
+            return res.status(400).json({ error: `Unknown or inactive teams: ${invalid.join(', ')}` });
+        }
+
+        await runInTransaction(pool, async (conn) => {
+            await conn.query(
+                'UPDATE playoffs_results SET active = 0 WHERE guild_id = ? AND event_id = ?',
+                [guildId, event.id]
+            );
+
+            await conn.query(
+                `INSERT INTO playoffs_results
+                    (guild_id, event_id, correct_semifinalists, correct_finalists, correct_winner, correct_third_place_winner, active)
+                 VALUES (?, ?, ?, ?, ?, ?, 1)`,
+                [guildId, event.id, semifinalists.join(', '), finalists.join(', '), winner || null, third || null]
+            );
+        });
+
+        res.json({ ok: true, semifinalists, finalists, winner, third });
     } catch (err) {
         console.error(err);
 
