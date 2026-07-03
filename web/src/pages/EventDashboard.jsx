@@ -611,7 +611,7 @@ export default function EventDashboard() {
             )}
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
                     Tournament Progress
