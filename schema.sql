@@ -629,3 +629,13 @@ CREATE TABLE `user_total_scores` (
   PRIMARY KEY (`guild_id`,`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- ============================================================
+-- sessions (migrations/0001_add_sessions_table.sql)
+-- ============================================================
+CREATE TABLE `sessions` (
+  `session_id` varchar(128) COLLATE utf8mb4_bin NOT NULL,
+  `expires` int unsigned NOT NULL,
+  `data` mediumtext COLLATE utf8mb4_bin,
+  PRIMARY KEY (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+

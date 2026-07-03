@@ -11,6 +11,7 @@ import { Server } from 'socket.io';
 import { startCs2LogReceiver } from './live/cs2LogReceiver.js';
 import { parseCs2LogLine } from './live/cs2LogParser.js';
 import session from 'express-session';
+import MySQLStoreFactory from 'express-mysql-session';
 import path from 'path'
 
 const require = createRequire(import.meta.url);
@@ -63,7 +64,15 @@ app.use(cors({
 
 app.use(express.json());
 
+const MySQLStore = MySQLStoreFactory(session);
+
+// Table is created manually (see migrations/README.md) rather than via
+// createDatabaseTable, so schema changes stay reviewable like everything
+// else touching the shared production database.
+const sessionStore = new MySQLStore({ createDatabaseTable: false }, pool);
+
 app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'pickem-secret',
     resave: false,
     saveUninitialized: false,
