@@ -48,7 +48,7 @@ export default function TeamsPage() {
             setTeams(data.teams || []);
         } catch (err) {
             console.error(err);
-            setError(describeActionError(err, 'load teams'));
+            setError(describeActionError(err, 'wczytać drużyny'));
         } finally {
             setLoading(false);
         }
@@ -79,7 +79,7 @@ export default function TeamsPage() {
             setModal(null);
         } catch (err) {
             console.error(err);
-            setImportError(err?.status === 400 ? err.message : describeActionError(err, 'import teams'));
+            setImportError(err?.status === 400 ? err.message : describeActionError(err, 'zaimportować drużyny'));
         } finally {
             setImportSaving(false);
         }
@@ -113,7 +113,7 @@ export default function TeamsPage() {
             setModal(null);
         } catch (err) {
             console.error(err);
-            setFormError(err?.status === 409 ? err.message : describeActionError(err, 'save the team'));
+            setFormError(err?.status === 409 ? err.message : describeActionError(err, 'zapisać drużynę'));
         } finally {
             setSaving(false);
         }
@@ -125,12 +125,12 @@ export default function TeamsPage() {
             await load();
         } catch (err) {
             console.error(err);
-            alert(describeActionError(err, 'update the team'));
+            alert(describeActionError(err, 'zaktualizować drużynę'));
         }
     }
 
     async function handleDelete(team) {
-        const confirmed = window.confirm(`Delete team "${team.name}"? This cannot be undone.`);
+        const confirmed = window.confirm(`Usunąć drużynę "${team.name}"? Tej operacji nie można cofnąć.`);
         if (!confirmed) return;
 
         try {
@@ -138,7 +138,7 @@ export default function TeamsPage() {
             await load();
         } catch (err) {
             console.error(err);
-            alert(err?.status === 409 ? err.message : describeActionError(err, 'delete the team'));
+            alert(err?.status === 409 ? err.message : describeActionError(err, 'usunąć drużynę'));
         }
     }
 
@@ -156,7 +156,7 @@ export default function TeamsPage() {
             await load();
         } catch (err) {
             console.error(err);
-            alert(describeActionError(err, 'reorder teams'));
+            alert(describeActionError(err, 'zmienić kolejność drużyn'));
             await load();
         }
     }
@@ -166,14 +166,14 @@ export default function TeamsPage() {
             <div className="mx-auto max-w-5xl">
                 <Breadcrumbs
                     items={[
-                        { label: 'Servers', to: '/app/guilds' },
-                        { label: 'Guild', to: `/app/guilds/${guildId}` },
-                        { label: 'Teams' }
+                        { label: 'Serwery', to: '/app/guilds' },
+                        { label: 'Serwer', to: `/app/guilds/${guildId}` },
+                        { label: 'Drużyny' }
                     ]}
                 />
 
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Team Roster
+                    Lista drużyn
                 </p>
 
                 <h1 className="mt-3 text-5xl font-black">
@@ -182,7 +182,7 @@ export default function TeamsPage() {
 
                 <div className="mt-10 flex items-center justify-between">
                     <p className="text-white/50">
-                        Manage the active team list used when creating matches.
+                        Zarządzaj listą aktywnych drużyn używaną przy tworzeniu meczów.
                     </p>
 
                     <div className="flex gap-3">
@@ -190,14 +190,14 @@ export default function TeamsPage() {
                             onClick={openImportModal}
                             className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20"
                         >
-                            Import from JSON
+                            Importuj z JSON
                         </button>
 
                         <button
                             onClick={openAddModal}
                             className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                         >
-                            Add Team
+                            Dodaj drużynę
                         </button>
                     </div>
                 </div>
@@ -210,7 +210,7 @@ export default function TeamsPage() {
 
                 {loading && (
                     <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        Loading teams...
+                        Ładowanie drużyn...
                     </div>
                 )}
 
@@ -218,8 +218,8 @@ export default function TeamsPage() {
                     <div className="mt-10">
                         <EmptyState
                             icon={ShieldOff}
-                            title="No teams yet"
-                            description="Add your first team above to start creating matches."
+                            title="Brak jeszcze drużyn"
+                            description="Dodaj pierwszą drużynę powyżej, aby zacząć tworzyć mecze."
                         />
                     </div>
                 )}
@@ -267,28 +267,28 @@ export default function TeamsPage() {
                                     : 'bg-zinc-500/15 text-zinc-300'
                                     }`}
                             >
-                                {team.active ? 'ACTIVE' : 'INACTIVE'}
+                                {team.active ? 'AKTYWNA' : 'NIEAKTYWNA'}
                             </span>
 
                             <button
                                 onClick={() => handleToggleActive(team)}
                                 className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                             >
-                                {team.active ? 'Deactivate' : 'Activate'}
+                                {team.active ? 'Dezaktywuj' : 'Aktywuj'}
                             </button>
 
                             <button
                                 onClick={() => openEditModal(team)}
                                 className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-5 py-3 font-black text-violet-200 transition hover:bg-violet-500/20"
                             >
-                                Edit
+                                Edytuj
                             </button>
 
                             <button
                                 onClick={() => handleDelete(team)}
                                 className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 font-black text-red-300 transition hover:bg-red-500/20"
                             >
-                                Delete
+                                Usuń
                             </button>
                         </div>
                     ))}
@@ -299,17 +299,17 @@ export default function TeamsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
                     <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            {modal === 'add' ? 'Add Team' : 'Edit Team'}
+                            {modal === 'add' ? 'Dodaj drużynę' : 'Edytuj drużynę'}
                         </p>
 
                         <h2 className="mt-2 text-3xl font-black">
-                            {modal === 'add' ? 'New Team' : modal.team.name}
+                            {modal === 'add' ? 'Nowa drużyna' : modal.team.name}
                         </h2>
 
                         <div className="mt-8 grid gap-5">
                             <div>
                                 <label className="text-sm font-bold text-white/60">
-                                    Team Name
+                                    Nazwa drużyny
                                 </label>
 
                                 <input
@@ -322,7 +322,7 @@ export default function TeamsPage() {
 
                             <div>
                                 <label className="text-sm font-bold text-white/60">
-                                    Short Name (optional)
+                                    Krótka nazwa (opcjonalnie)
                                 </label>
 
                                 <input
@@ -345,7 +345,7 @@ export default function TeamsPage() {
                                 onClick={() => setModal(null)}
                                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
                             >
-                                Cancel
+                                Anuluj
                             </button>
 
                             <button
@@ -353,7 +353,7 @@ export default function TeamsPage() {
                                 disabled={saving || !formName.trim()}
                                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                             >
-                                {saving ? 'Saving...' : 'Save'}
+                                {saving ? 'Zapisywanie...' : 'Zapisz'}
                             </button>
                         </div>
                     </div>
@@ -364,21 +364,21 @@ export default function TeamsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
                     <div className="w-full max-w-xl rounded-[2rem] border border-red-500/30 bg-zinc-950 p-8 text-white shadow-2xl">
                         <p className="text-sm uppercase tracking-[0.25em] text-red-300">
-                            Import from JSON
+                            Importuj z JSON
                         </p>
 
                         <h2 className="mt-2 text-3xl font-black">
-                            Replace Team Roster
+                            Zastąp listę drużyn
                         </h2>
 
                         <p className="mt-2 text-white/50">
-                            This <strong className="text-red-300">deletes all {teams.length} existing team(s)</strong> for
-                            this server and replaces them with the names below. This cannot be undone.
+                            To <strong className="text-red-300">usuwa wszystkie {teams.length} istniejących drużyn</strong> dla
+                            tego serwera i zastępuje je nazwami poniżej. Tej operacji nie można cofnąć.
                         </p>
 
                         <div className="mt-6">
                             <label className="text-sm font-bold text-white/60">
-                                Team names (JSON array of strings)
+                                Nazwy drużyn (tablica JSON stringów)
                             </label>
 
                             <textarea
@@ -392,7 +392,7 @@ export default function TeamsPage() {
 
                         <div className="mt-6">
                             <label className="text-sm font-bold text-white/60">
-                                Type <span className="text-red-300">REPLACE</span> to confirm:
+                                Wpisz <span className="text-red-300">REPLACE</span>, aby potwierdzić:
                             </label>
 
                             <input
@@ -414,7 +414,7 @@ export default function TeamsPage() {
                                 onClick={() => setModal(null)}
                                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
                             >
-                                Cancel
+                                Anuluj
                             </button>
 
                             <button
@@ -422,7 +422,7 @@ export default function TeamsPage() {
                                 disabled={importSaving || !importJson.trim() || importConfirmText !== 'REPLACE'}
                                 className="rounded-2xl bg-red-500 px-6 py-4 font-black transition hover:bg-red-400 disabled:opacity-50"
                             >
-                                {importSaving ? 'Importing...' : 'Replace Roster'}
+                                {importSaving ? 'Importowanie...' : 'Zastąp listę'}
                             </button>
                         </div>
                     </div>

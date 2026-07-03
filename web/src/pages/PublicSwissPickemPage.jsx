@@ -32,7 +32,7 @@ export default function PublicSwissPickemPage() {
                 }
             } catch (err) {
                 console.error(err);
-                setError('Failed to load Swiss Pick&apos;Em.');
+                setError('Nie udało się wczytać Pick&apos;Em Swiss.');
             }
         }
 
@@ -97,12 +97,12 @@ export default function PublicSwissPickemPage() {
         }
 
         if (pickedTeams.has(teamName)) {
-            setError('This team is already selected in another category.');
+            setError('Ta drużyna jest już wybrana w innej kategorii.');
             return;
         }
 
         if (current.length >= limits[section]) {
-            setError(`You can only select ${limits[section]} teams here.`);
+            setError(`Możesz wybrać tutaj tylko ${limits[section]} drużyn.`);
             return;
         }
 
@@ -126,7 +126,7 @@ export default function PublicSwissPickemPage() {
             setSuccess(true);
         } catch (err) {
             console.error(err);
-            setError(err?.message || 'Failed to save Swiss Pick&apos;Em.');
+            setError(err?.message || 'Nie udało się zapisać Pick&apos;Em Swiss.');
         } finally {
             setSaving(false);
         }
@@ -135,7 +135,7 @@ export default function PublicSwissPickemPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Swiss Pick&apos;Em
+                Pick&apos;Em Swiss
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -144,9 +144,9 @@ export default function PublicSwissPickemPage() {
 
             <div className="mt-6 flex flex-wrap gap-3">
                 {[
-                    ['stage1', 'Stage 1'],
-                    ['stage2', 'Stage 2'],
-                    ['stage3', 'Stage 3']
+                    ['stage1', 'Etap 1'],
+                    ['stage2', 'Etap 2'],
+                    ['stage3', 'Etap 3']
                 ].map(([value, label]) => (
                     <a
                         key={value}
@@ -163,41 +163,41 @@ export default function PublicSwissPickemPage() {
 
             <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                    Current Swiss Stage
+                    Aktualny etap Swiss
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black">
                     {stage === 'stage1'
-                        ? 'Swiss Stage 1'
+                        ? 'Swiss - Etap 1'
                         : stage === 'stage2'
-                            ? 'Swiss Stage 2'
-                            : 'Swiss Stage 3'}
+                            ? 'Swiss - Etap 2'
+                            : 'Swiss - Etap 3'}
                 </h2>
 
                 <p className="mt-2 text-white/50">
-                    Your picks are saved separately for each Swiss stage.
+                    Twoje typy są zapisywane osobno dla każdego etapu Swiss.
                 </p>
                 {isLocked && (
                     <div className="mt-4 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                            Pick&apos;Em Locked
+                            Pick&apos;Em zablokowane
                         </p>
 
                         <p className="mt-2 text-white/60">
-                            {lock.message || 'This Swiss stage is closed for predictions.'}
+                            {lock.message || 'Ten etap Swiss jest zamknięty na typowanie.'}
                         </p>
                     </div>
                 )}
             </div>
 
             <p className="mt-4 max-w-3xl text-white/50">
-                Pick 2 teams for 3-0, 2 teams for 0-3 and 6 teams to advance.
+                Wybierz 2 drużyny na 3-0, 2 drużyny na 0-3 oraz 6 drużyn awansujących.
             </p>
 
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Signed in as
+                        Zalogowano jako
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
@@ -209,11 +209,11 @@ export default function PublicSwissPickemPage() {
             {!loading && !isLoggedIn && (
                 <div className="mt-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                        Login Required
+                        Wymagane logowanie
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        Sign in with Discord to save your Swiss Pick&apos;Em.
+                        Zaloguj się przez Discord, aby zapisać swój Pick&apos;Em Swiss.
                     </p>
 
                     <a
@@ -222,15 +222,15 @@ export default function PublicSwissPickemPage() {
                         )}`}
                         className="mt-4 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Login Discord
+                        Zaloguj przez Discord
                     </a>
                 </div>
             )}
 
             <div className="mt-10 grid gap-6 xl:grid-cols-3">
                 <PickSection
-                    title="3-0 Picks"
-                    description="Pick exactly 2 teams."
+                    title="Typy 3-0"
+                    description="Wybierz dokładnie 2 drużyny."
                     teams={teams}
                     selected={threeZero}
                     limit={2}
@@ -240,8 +240,8 @@ export default function PublicSwissPickemPage() {
                 />
 
                 <PickSection
-                    title="0-3 Picks"
-                    description="Pick exactly 2 teams."
+                    title="Typy 0-3"
+                    description="Wybierz dokładnie 2 drużyny."
                     teams={teams}
                     selected={zeroThree}
                     limit={2}
@@ -251,8 +251,8 @@ export default function PublicSwissPickemPage() {
                 />
 
                 <PickSection
-                    title="Advancing Teams"
-                    description="Pick exactly 6 teams."
+                    title="Drużyny awansujące"
+                    description="Wybierz dokładnie 6 drużyn."
                     teams={teams}
                     selected={advancing}
                     limit={6}
@@ -266,11 +266,11 @@ export default function PublicSwissPickemPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Progress
+                            Postęp
                         </p>
 
                         <p className="mt-2 text-white/50">
-                            3-0: {threeZero.length}/2 • 0-3: {zeroThree.length}/2 • Advancing: {advancing.length}/6
+                            3-0: {threeZero.length}/2 • 0-3: {zeroThree.length}/2 • Awans: {advancing.length}/6
                         </p>
                     </div>
 
@@ -282,13 +282,13 @@ export default function PublicSwissPickemPage() {
                             : 'cursor-not-allowed bg-white/10 text-white/30'
                             }`}
                     >
-                        {saving ? 'Saving...' : "Save Swiss Pick'Em"}
+                        {saving ? 'Zapisywanie...' : "Zapisz Pick'Em Swiss"}
                     </button>
                 </div>
 
                 {success && (
                     <p className="mt-4 font-black text-green-300">
-                        Swiss Pick&apos;Em saved!
+                        Pick&apos;Em Swiss zapisane!
                     </p>
                 )}
 
@@ -301,34 +301,34 @@ export default function PublicSwissPickemPage() {
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
                 <SummaryCard
-                    title="3-0 Picks"
+                    title="Typy 3-0"
                     teams={threeZero}
                 />
 
                 <SummaryCard
-                    title="0-3 Picks"
+                    title="Typy 0-3"
                     teams={zeroThree}
                 />
 
                 <SummaryCard
-                    title="Advancing Teams"
+                    title="Drużyny awansujące"
                     teams={advancing}
                 />
             </div>
             {stats && (
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Community Swiss Stats
+                        Statystyki Swiss społeczności
                     </p>
 
                     <p className="mt-2 text-white/50">
-                        Based on {stats.total_predictions} submitted Pick&apos;Ems.
+                        Na podstawie {stats.total_predictions} zapisanych typów Pick&apos;Em.
                     </p>
 
                     <div className="mt-6 grid gap-6 md:grid-cols-3">
-                        <StatsColumn title="Most picked 3-0" rows={stats.stats.three_zero} />
-                        <StatsColumn title="Most picked 0-3" rows={stats.stats.zero_three} />
-                        <StatsColumn title="Most picked advancing" rows={stats.stats.advancing} />
+                        <StatsColumn title="Najczęściej typowane 3-0" rows={stats.stats.three_zero} />
+                        <StatsColumn title="Najczęściej typowane 0-3" rows={stats.stats.zero_three} />
+                        <StatsColumn title="Najczęściej typowani awansujący" rows={stats.stats.advancing} />
                     </div>
                 </div>
             )}
@@ -406,14 +406,14 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="ml-auto">
@@ -446,7 +446,7 @@ function SummaryCard({ title, teams }) {
                     ))
                 ) : (
                     <span className="text-white/40">
-                        No teams selected
+                        Brak wybranych drużyn
                     </span>
                 )}
             </div>
@@ -473,7 +473,7 @@ function StatsColumn({ title, rows }) {
                             </p>
 
                             <p className="text-sm font-black text-violet-300">
-                                {row.count} picks
+                                {row.count} typów
                             </p>
                         </div>
 
@@ -485,14 +485,14 @@ function StatsColumn({ title, rows }) {
                         </div>
 
                         <p className="mt-2 text-xs text-white/40">
-                            {row.percentage}% of players
+                            {row.percentage}% graczy
                         </p>
                     </div>
                 ))}
 
                 {(rows || []).length === 0 && (
                     <p className="text-white/40">
-                        No data yet.
+                        Brak jeszcze danych.
                     </p>
                 )}
             </div>

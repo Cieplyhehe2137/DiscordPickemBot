@@ -2,26 +2,26 @@ export default function SwissPickemTrends({ swissStats }) {
     return (
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Swiss Pick&apos;Em Trends
+                Trendy Pick&apos;Em Swiss
             </p>
 
             <p className="mt-2 text-white/50">
-                Based on {swissStats?.total_predictions || 0} submitted Pick&apos;Ems.
+                Na podstawie {swissStats?.total_predictions || 0} zapisanych typów Pick&apos;Em.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
                 <StatsMiniColumn
-                    title="Most Picked 3-0"
+                    title="Najczęściej typowane 3-0"
                     rows={(swissStats?.stats?.three_zero || []).slice(0, 5)}
                 />
 
                 <StatsMiniColumn
-                    title="Most Picked 0-3"
+                    title="Najczęściej typowane 0-3"
                     rows={(swissStats?.stats?.zero_three || []).slice(0, 5)}
                 />
 
                 <StatsMiniColumn
-                    title="Most Picked Advancing"
+                    title="Najczęściej typowani awansujący"
                     rows={(swissStats?.stats?.advancing || []).slice(0, 5)}
                 />
             </div>
@@ -56,7 +56,7 @@ function StatsMiniColumn({ title, rows }) {
 
                 {rows.length === 0 && (
                     <p className="text-sm text-white/40">
-                        No data
+                        Brak danych
                     </p>
                 )}
             </div>

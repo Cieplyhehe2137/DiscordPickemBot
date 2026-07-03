@@ -50,7 +50,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
                     });
                 }
             } catch (err) {
-                if (!cancelled) setError(describeActionError(err, 'load Double Elimination results'));
+                if (!cancelled) setError(describeActionError(err, 'wczytać wyniki Double Elimination'));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -82,7 +82,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
         try {
             await saveDoubleElimResults(slug, selection);
         } catch (err) {
-            setError(err?.status === 400 ? err.message : describeActionError(err, 'save Double Elimination results'));
+            setError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać wyniki Double Elimination'));
         } finally {
             setSaving(false);
         }
@@ -91,7 +91,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
     return (
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Official Phase Results
+                Oficjalne wyniki fazy
             </p>
 
             <h2 className="mt-2 text-3xl font-black">
@@ -99,7 +99,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
             </h2>
 
             {loading ? (
-                <p className="mt-6 text-white/40">Loading...</p>
+                <p className="mt-6 text-white/40">Ładowanie...</p>
             ) : (
                 <div className="mt-6 grid gap-6 lg:grid-cols-4">
                     {SLOTS.map((slot) => (
@@ -110,7 +110,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
 
                             <div className="mt-3 max-h-56 overflow-y-auto rounded-2xl border border-white/10 bg-black/30 p-3">
                                 {teams.length === 0 && (
-                                    <p className="px-2 py-1.5 text-sm text-white/30">No active teams</p>
+                                    <p className="px-2 py-1.5 text-sm text-white/30">Brak aktywnych drużyn</p>
                                 )}
 
                                 {teams.map((team) => {
@@ -147,7 +147,7 @@ export default function DoubleElimResultsPanel({ slug, guildId }) {
                 disabled={saving || loading}
                 className="mt-6 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
             >
-                {saving ? 'Saving...' : 'Save Double Elimination Results'}
+                {saving ? 'Zapisywanie...' : 'Zapisz wyniki Double Elimination'}
             </button>
         </div>
     );

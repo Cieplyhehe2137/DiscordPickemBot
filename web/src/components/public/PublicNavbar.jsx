@@ -15,7 +15,7 @@ export default function PublicNavbar({
         <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
 
             <a href="/public" className={linkClass('communities')}>
-                Communities
+                Społeczności
             </a>
 
             {guildSlug && (
@@ -23,7 +23,7 @@ export default function PublicNavbar({
                     <div className="h-5 w-px bg-white/10" />
 
                     <a href={`/public/${guildSlug}`} className={linkClass('guild')}>
-                        {guildName || 'Server'}
+                        {guildName || 'Serwer'}
                     </a>
                 </>
             )}
@@ -31,11 +31,11 @@ export default function PublicNavbar({
             <div className="h-5 w-px bg-white/10" />
 
             <a href="/public/archives" className={linkClass('archives')}>
-                Archives
+                Archiwum
             </a>
 
             <a href="/public/leaderboard" className={linkClass('leaderboard')}>
-                Leaderboard
+                Ranking
             </a>
 
             {eventName && (

@@ -5,6 +5,7 @@ import { getPublicGuild } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import EmptyState from '../components/ui/EmptyState';
+import { translateStatus } from '../lib/labels';
 
 export default function PublicGuildPage() {
     const { guildSlug } = useParams();
@@ -51,7 +52,7 @@ export default function PublicGuildPage() {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <div className="h-5 w-px bg-white/10" />
@@ -68,7 +69,7 @@ export default function PublicGuildPage() {
                                 href={`/public/event/${featuredEvent.slug}`}
                                 className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                             >
-                                Featured Event
+                                Wyróżniony event
                             </a>
                         </>
                     )}
@@ -78,7 +79,7 @@ export default function PublicGuildPage() {
                 </div>
 
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Community Hub
+                    Strona społeczności
                 </p>
 
                 <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -86,7 +87,7 @@ export default function PublicGuildPage() {
                 </h1>
 
                 <p className="mt-4 max-w-2xl text-white/50">
-                    Follow active Pick&apos;Em events, live matches and community leaderboards.
+                    Śledź aktywne wydarzenia Pick&apos;Em, mecze na żywo i rankingi społeczności.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-4">
@@ -97,7 +98,7 @@ export default function PublicGuildPage() {
                             rel="noreferrer"
                             className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                         >
-                            Join Discord
+                            Dołącz do Discorda
                         </a>
                     )}
 
@@ -106,15 +107,15 @@ export default function PublicGuildPage() {
                             href={`/public/event/${featuredEvent.slug}`}
                             className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                         >
-                            Open Featured Event
+                            Otwórz wyróżniony event
                         </a>
                     )}
                 </div>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-3">
-                    <CommunityStat title="Events" value={data?.stats?.events ?? 0} />
-                    <CommunityStat title="Players" value={data?.stats?.participants ?? 0} />
-                    <CommunityStat title="Predictions" value={data?.stats?.predictions ?? 0} />
+                    <CommunityStat title="Eventy" value={data?.stats?.events ?? 0} />
+                    <CommunityStat title="Gracze" value={data?.stats?.participants ?? 0} />
+                    <CommunityStat title="Typy" value={data?.stats?.predictions ?? 0} />
                 </div>
 
                 {featuredEvent && (
@@ -123,7 +124,7 @@ export default function PublicGuildPage() {
 
                         <div className="relative z-10">
                             <p className="text-sm font-black uppercase tracking-[0.25em] text-violet-300">
-                                Featured Event
+                                Wyróżniony event
                             </p>
 
                             <h2 className="mt-4 text-4xl font-black md:text-5xl">
@@ -143,7 +144,7 @@ export default function PublicGuildPage() {
                                                 : 'bg-zinc-500/20 text-zinc-300'
                                         }`}
                                 >
-                                    {featuredEvent.status}
+                                    {translateStatus(featuredEvent.status)}
                                 </span>
                             </div>
 
@@ -151,7 +152,7 @@ export default function PublicGuildPage() {
                                 href={`/public/event/${featuredEvent.slug}`}
                                 className="mt-8 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                             >
-                                Open Event
+                                Otwórz event
                             </a>
                         </div>
                     </div>
@@ -159,7 +160,7 @@ export default function PublicGuildPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Top Community Players
+                        Najlepsi gracze społeczności
                     </p>
 
                     <div className="mt-6 grid gap-4">
@@ -180,7 +181,7 @@ export default function PublicGuildPage() {
                                         </h3>
 
                                         <p className="text-sm text-white/40">
-                                            Community Player
+                                            Gracz społeczności
                                         </p>
                                     </div>
                                 </div>
@@ -191,7 +192,7 @@ export default function PublicGuildPage() {
                                     </p>
 
                                     <p className="text-sm text-white/40">
-                                        points
+                                        punktów
                                     </p>
                                 </div>
                             </a>
@@ -200,8 +201,8 @@ export default function PublicGuildPage() {
                         {(data.top_players || []).length === 0 && (
                             <EmptyState
                                 icon={Trophy}
-                                title="No community leaderboard yet"
-                                description="Points will show up here once members start predicting."
+                                title="Brak jeszcze rankingu społeczności"
+                                description="Punkty pojawią się tutaj, gdy członkowie zaczną typować."
                             />
                         )}
                     </div>
@@ -209,7 +210,7 @@ export default function PublicGuildPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Events
+                        Eventy
                     </p>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -235,7 +236,7 @@ export default function PublicGuildPage() {
                                                 : 'bg-zinc-500/20 text-zinc-300'
                                         }`}
                                 >
-                                    {event.status}
+                                    {translateStatus(event.status)}
                                 </span>
                             </a>
                         ))}
@@ -243,8 +244,8 @@ export default function PublicGuildPage() {
                         {(data.events || []).length === 0 && (
                             <EmptyState
                                 icon={CalendarX}
-                                title="No public events yet"
-                                description="This community hasn't opened a Pick'Em event yet."
+                                title="Brak jeszcze publicznych eventów"
+                                description="Ta społeczność nie otworzyła jeszcze wydarzenia Pick'Em."
                             />
                         )}
                     </div>
@@ -262,7 +263,7 @@ export default function PublicGuildPage() {
                             rel="noreferrer"
                             className="flex-1 rounded-2xl bg-violet-500 px-5 py-4 text-center font-black transition hover:bg-violet-400"
                         >
-                            Join Discord
+                            Dołącz do Discorda
                         </a>
                     )}
 
@@ -271,7 +272,7 @@ export default function PublicGuildPage() {
                             href={`/public/event/${featuredEvent.slug}`}
                             className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center font-black text-white/80 transition hover:bg-white/10"
                         >
-                            Open Event
+                            Otwórz event
                         </a>
                     )}
                 </div>

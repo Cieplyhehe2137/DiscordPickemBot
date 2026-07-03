@@ -3,10 +3,10 @@ import { getMatchExactScores, saveMatchExactScores, describeActionError } from '
 
 function mapLabel(mapNo, bestOf) {
     if (Number(bestOf) === 1) return 'BO1';
-    if (mapNo === 1) return 'Pick Team A';
-    if (mapNo === 2) return 'Pick Team B';
-    if (mapNo === 3) return 'Decider';
-    return `Map #${mapNo}`;
+    if (mapNo === 1) return 'Wybór drużyny A';
+    if (mapNo === 2) return 'Wybór drużyny B';
+    if (mapNo === 3) return 'Decydująca';
+    return `Mapa #${mapNo}`;
 }
 
 export default function ExactScoreModal({ match, onClose, onSaved }) {
@@ -35,7 +35,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
                     );
                 }
             } catch (err) {
-                if (!cancelled) setError(describeActionError(err, 'load exact scores'));
+                if (!cancelled) setError(describeActionError(err, 'wczytać dokładne wyniki'));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -54,7 +54,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
         const filled = maps.filter((m) => m.exactA !== '' && m.exactB !== '');
 
         if (!filled.length) {
-            setError('Enter at least one map score');
+            setError('Wpisz wynik przynajmniej jednej mapy');
             return;
         }
 
@@ -70,7 +70,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
 
             onSaved();
         } catch (err) {
-            setError(err?.status === 400 ? err.message : describeActionError(err, 'save exact scores'));
+            setError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać dokładne wyniki'));
         } finally {
             setSaving(false);
         }
@@ -80,7 +80,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Exact Map Scores
+                    Dokładne wyniki map
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black">
@@ -88,7 +88,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
                 </h2>
 
                 {loading ? (
-                    <p className="mt-6 text-white/40">Loading...</p>
+                    <p className="mt-6 text-white/40">Ładowanie...</p>
                 ) : (
                     <div className="mt-8 grid gap-5">
                         {maps.map((m) => (
@@ -128,7 +128,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
                 )}
 
                 <p className="mt-4 text-sm text-white/40">
-                    Round score per map (0-99). Saving recalculates points for all predictions on this match.
+                    Wynik rundy dla każdej mapy (0-99). Zapis przelicza punkty dla wszystkich typów tego meczu.
                 </p>
 
                 {error && (
@@ -142,7 +142,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
                         onClick={onClose}
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
                     >
-                        Cancel
+                        Anuluj
                     </button>
 
                     <button
@@ -150,7 +150,7 @@ export default function ExactScoreModal({ match, onClose, onSaved }) {
                         disabled={saving || loading}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                     >
-                        {saving ? 'Saving...' : 'Save Exact Scores'}
+                        {saving ? 'Zapisywanie...' : 'Zapisz dokładne wyniki'}
                     </button>
                 </div>
             </div>

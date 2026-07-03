@@ -33,6 +33,14 @@ import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
 import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
+import { translateStatus, translatePhase } from '../lib/labels';
+
+const MATCH_STATUS_FILTER_LABELS = {
+  ALL: 'WSZYSTKIE',
+  LIVE: 'NA ŻYWO',
+  LOCKED: 'ZABLOKOWANE',
+  SCHEDULED: 'ZAPLANOWANE'
+};
 
 export default function EventDashboard() {
   const { slug } = useParams();
@@ -232,7 +240,7 @@ export default function EventDashboard() {
       await updateEventPhase(slug, selectedPhase);
     } catch (err) {
       console.error(err);
-      alert(describeActionError(err, 'update the phase'));
+      alert(describeActionError(err, 'zaktualizować fazę'));
     } finally {
       setPhaseLoading(false);
     }
@@ -243,7 +251,7 @@ export default function EventDashboard() {
       await updateEventStatus(slug, status);
     } catch (err) {
       console.error(err);
-      alert(describeActionError(err, 'update the status'));
+      alert(describeActionError(err, 'zaktualizować status'));
     }
   }
 
@@ -253,7 +261,7 @@ export default function EventDashboard() {
 
   async function handleArchiveEvent() {
     const confirmed = window.confirm(
-      `Archive event "${event?.name || slug}"?\n\nThis will hide it from active views, but it will not delete data from the database.`
+      `Zarchiwizować event "${event?.name || slug}"?\n\nUkryje go to z widoków aktywnych eventów, ale nie usunie danych z bazy.`
     );
 
     if (!confirmed) return;
@@ -267,10 +275,10 @@ export default function EventDashboard() {
 
       await recalculateEvent(slug);
 
-      alert('Scores recalculated!');
+      alert('Wyniki przeliczone!');
     } catch (err) {
       console.error(err);
-      alert(describeActionError(err, 'recalculate scores'));
+      alert(describeActionError(err, 'przeliczyć wyniki'));
     } finally {
       setRecalculating(false);
     }
@@ -281,13 +289,13 @@ export default function EventDashboard() {
       await updateMatchLock(matchId, locked);
     } catch (err) {
       console.error(err);
-      alert(describeActionError(err, 'update the match lock'));
+      alert(describeActionError(err, 'zaktualizować blokadę meczu'));
     }
   }
 
   async function handleBulkMatchLock(locked) {
     const confirmed = window.confirm(
-      `${locked ? 'Lock' : 'Unlock'} all visible matches?`
+      `${locked ? 'Zablokować' : 'Odblokować'} wszystkie widoczne mecze?`
     );
 
     if (!confirmed) return;
@@ -299,7 +307,7 @@ export default function EventDashboard() {
 
     } catch (err) {
       console.error(err);
-      alert(describeActionError(err, 'update match locks'));
+      alert(describeActionError(err, 'zaktualizować blokady meczów'));
     }
   }
 
@@ -334,7 +342,7 @@ export default function EventDashboard() {
       setShowCreateMatchModal(false);
     } catch (err) {
       console.error(err);
-      setCreateMatchError(err?.status === 400 ? err.message : describeActionError(err, 'create the match'));
+      setCreateMatchError(err?.status === 400 ? err.message : describeActionError(err, 'utworzyć mecz'));
     } finally {
       setCreatingMatch(false);
     }
@@ -360,7 +368,7 @@ export default function EventDashboard() {
       setResultModalMatch(null);
     } catch (err) {
       console.error(err);
-      setResultError(err?.status === 400 ? err.message : describeActionError(err, 'save the result'));
+      setResultError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać wynik'));
     } finally {
       setSubmittingResult(false);
     }
@@ -386,7 +394,7 @@ export default function EventDashboard() {
       const entries = parseMvpTextarea(mvpTextarea);
 
       if (!entries.length) {
-        setMvpCandidatesError('Enter at least one candidate (format: nickname | team).');
+        setMvpCandidatesError('Wpisz przynajmniej jednego kandydata (format: nick | drużyna).');
         return;
       }
 
@@ -395,7 +403,7 @@ export default function EventDashboard() {
       setMvpTextarea('');
     } catch (err) {
       console.error(err);
-      setMvpCandidatesError(err?.status === 400 ? err.message : describeActionError(err, 'save MVP candidates'));
+      setMvpCandidatesError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać kandydatów MVP'));
     } finally {
       setSavingMvpCandidates(false);
     }
@@ -410,7 +418,7 @@ export default function EventDashboard() {
       await refreshEventData();
     } catch (err) {
       console.error(err);
-      setMvpResultError(describeActionError(err, 'set the official MVP'));
+      setMvpResultError(describeActionError(err, 'ustawić oficjalnego MVP'));
     } finally {
       setSavingMvpResult(false);
     }
@@ -432,7 +440,7 @@ export default function EventDashboard() {
       setClearPreview(result);
     } catch (err) {
       console.error(err);
-      setClearError(describeActionError(err, 'load the clear preview'));
+      setClearError(describeActionError(err, 'wczytać podgląd czyszczenia'));
     } finally {
       setClearPreviewLoading(false);
     }
@@ -449,13 +457,13 @@ export default function EventDashboard() {
       setShowClearModal(false);
 
       alert(
-        `Cleared ${clearPhase}: ${result.deleted.matches} matches, ` +
-        `${result.deleted.predictions} predictions, ${result.deleted.results} results, ` +
-        `${result.deleted.points} points.`
+        `Wyczyszczono ${clearPhase}: ${result.deleted.matches} meczów, ` +
+        `${result.deleted.predictions} typów, ${result.deleted.results} wyników, ` +
+        `${result.deleted.points} punktów.`
       );
     } catch (err) {
       console.error(err);
-      setClearError(describeActionError(err, 'clear the phase'));
+      setClearError(describeActionError(err, 'wyczyścić fazę'));
     } finally {
       setClearing(false);
     }
@@ -497,11 +505,11 @@ export default function EventDashboard() {
         <Breadcrumbs
           items={[
             {
-              label: 'Servers',
+              label: 'Serwery',
               to: '/app/guilds'
             },
             {
-              label: 'Guild',
+              label: 'Serwer',
               to: `/app/guilds/${event?.guild_id || ''}`
             },
             {
@@ -512,7 +520,7 @@ export default function EventDashboard() {
 
         <div className="mb-10">
           <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-            Event Dashboard
+            Panel eventu
           </p>
 
           <h1 className="mt-2 text-5xl font-black">
@@ -528,16 +536,16 @@ export default function EventDashboard() {
                   : 'bg-zinc-500/15 text-zinc-300'
                 }`}
             >
-              {event?.status || 'UNKNOWN'}
+              {event?.status ? translateStatus(event.status) : 'NIEZNANY'}
             </span>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-5">
-            <InfoPill label="Phase" value={event?.phase || '-'} />
-            <InfoPill label="Status" value={event?.status || '-'} />
-            <InfoPill label="Participants" value={stats?.participants ?? 0} />
-            <InfoPill label="Matches" value={stats?.matches ?? 0} />
-            <InfoPill label="Predictions" value={stats?.predictions ?? 0} />
+            <InfoPill label="Faza" value={event?.phase ? translatePhase(event.phase) : '-'} />
+            <InfoPill label="Status" value={event?.status ? translateStatus(event.status) : '-'} />
+            <InfoPill label="Uczestnicy" value={stats?.participants ?? 0} />
+            <InfoPill label="Mecze" value={stats?.matches ?? 0} />
+            <InfoPill label="Typy" value={stats?.predictions ?? 0} />
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -555,7 +563,7 @@ export default function EventDashboard() {
               onClick={() => navigate(-1)}
               className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/70 transition hover:bg-white/10"
             >
-              Back
+              Wstecz
             </button>
           </div>
         </div>
@@ -576,22 +584,22 @@ export default function EventDashboard() {
         {!loading && data && (
           <>
             <div className="grid gap-6 lg:grid-cols-4">
-              <Panel title="Participants" value={stats?.participants ?? 0} />
-              <Panel title="Predictions" value={stats?.predictions ?? 0} />
-              <Panel title="Matches" value={stats?.matches ?? 0} />
-              <Panel title="Current Phase" value={event?.phase || '-'} />
+              <Panel title="Uczestnicy" value={stats?.participants ?? 0} />
+              <Panel title="Typy" value={stats?.predictions ?? 0} />
+              <Panel title="Mecze" value={stats?.matches ?? 0} />
+              <Panel title="Aktualna faza" value={event?.phase ? translatePhase(event.phase) : '-'} />
             </div>
 
             <div className="mt-10 grid gap-6 lg:grid-cols-3">
-              <StatusCard title="LIVE" value={matchStatus?.live ?? 0} />
-              <StatusCard title="LOCKED" value={matchStatus?.locked ?? 0} />
-              <StatusCard title="SCHEDULED" value={matchStatus?.scheduled ?? 0} />
+              <StatusCard title="NA ŻYWO" value={matchStatus?.live ?? 0} />
+              <StatusCard title="ZABLOKOWANE" value={matchStatus?.locked ?? 0} />
+              <StatusCard title="ZAPLANOWANE" value={matchStatus?.scheduled ?? 0} />
             </div>
 
             {nextMatch && (
               <div className="mt-10 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8">
                 <p className="text-sm font-bold uppercase tracking-[0.25em] text-violet-300">
-                  Next Match
+                  Następny mecz
                 </p>
 
                 <h2 className="mt-3 text-4xl font-black">
@@ -599,7 +607,7 @@ export default function EventDashboard() {
                 </h2>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <InfoMini label="Phase" value={nextMatch.phase || '-'} />
+                  <InfoMini label="Faza" value={nextMatch.phase ? translatePhase(nextMatch.phase) : '-'} />
                   <InfoMini label="BO" value={`BO${nextMatch.best_of || 3}`} />
                   <InfoMini label="Start UTC" value={nextMatch.start_time_utc || '-'} />
                 </div>
@@ -610,11 +618,11 @@ export default function EventDashboard() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Tournament Progress
+                    Postęp turnieju
                   </p>
 
                   <h2 className="mt-2 text-4xl font-black">
-                    {phaseInfo?.current || 'UNKNOWN'}
+                    {phaseInfo?.current ? translatePhase(phaseInfo.current) : 'NIEZNANA'}
                   </h2>
                 </div>
 
@@ -624,7 +632,7 @@ export default function EventDashboard() {
                   </p>
 
                   <p className="mt-1 text-xl font-black text-green-300">
-                    {phaseInfo?.status || 'UNKNOWN'}
+                    {phaseInfo?.status ? translateStatus(phaseInfo.status) : 'NIEZNANY'}
                   </p>
                 </div>
               </div>
@@ -633,17 +641,17 @@ export default function EventDashboard() {
                 <PhaseStep active={phaseInfo?.current === 'PLAY_IN'} label="Play-In" />
                 <PhaseStep active={phaseInfo?.current === 'SWISS'} label="Swiss" />
                 <PhaseStep active={phaseInfo?.current === 'PLAYOFFS'} label="Playoffs" />
-                <PhaseStep active={phaseInfo?.current === 'FINISHED'} label="Finished" />
+                <PhaseStep active={phaseInfo?.current === 'FINISHED'} label="Zakończona" />
               </div>
             </div>
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Admin Controls
+                Panel administracyjny
               </p>
 
               <h2 className="mt-2 text-3xl font-black">
-                Event Management
+                Zarządzanie eventem
               </h2>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -652,12 +660,12 @@ export default function EventDashboard() {
                   disabled={recalculating}
                   className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                 >
-                  {recalculating ? 'Recalculating...' : 'Recalculate Scores'}
+                  {recalculating ? 'Przeliczanie...' : 'Przelicz wyniki'}
                 </button>
 
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
                   <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Change Phase
+                    Zmień fazę
                   </p>
 
                   <select
@@ -665,11 +673,11 @@ export default function EventDashboard() {
                     onChange={(e) => setSelectedPhase(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none"
                   >
-                    <option value="NOT_STARTED">NOT_STARTED</option>
-                    <option value="PLAY_IN">PLAY_IN</option>
-                    <option value="SWISS">SWISS</option>
-                    <option value="PLAYOFFS">PLAYOFFS</option>
-                    <option value="FINISHED">FINISHED</option>
+                    <option value="NOT_STARTED">Nierozpoczęta</option>
+                    <option value="PLAY_IN">Play-In</option>
+                    <option value="SWISS">Swiss</option>
+                    <option value="PLAYOFFS">Playoffs</option>
+                    <option value="FINISHED">Zakończona</option>
                   </select>
 
                   <button
@@ -677,7 +685,7 @@ export default function EventDashboard() {
                     disabled={phaseLoading}
                     className="mt-4 w-full rounded-xl bg-violet-500 px-4 py-3 font-black transition hover:bg-violet-400 disabled:opacity-50"
                   >
-                    {phaseLoading ? 'Saving...' : 'Save Phase'}
+                    {phaseLoading ? 'Zapisywanie...' : 'Zapisz fazę'}
                   </button>
                 </div>
 
@@ -686,14 +694,14 @@ export default function EventDashboard() {
                   disabled={event?.status === 'CLOSED'}
                   className="rounded-2xl border border-red-400/20 bg-red-500/10 px-6 py-4 font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Close Event
+                  Zamknij event
                 </button>
 
                 <button
                   onClick={() => window.open(getClassificationExportUrl(slug), '_blank')}
                   className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
                 >
-                  Export Classification
+                  Eksportuj klasyfikację
                 </button>
               </div>
             </div>
@@ -708,15 +716,15 @@ export default function EventDashboard() {
 
             <div className="mt-10 rounded-[2rem] border border-red-500/30 bg-red-500/5 p-8">
               <p className="text-sm uppercase tracking-[0.25em] text-red-300">
-                Danger Zone
+                Strefa zagrożenia
               </p>
 
               <h2 className="mt-2 text-3xl font-black">
-                Clear Phase
+                Wyczyść fazę
               </h2>
 
               <p className="mt-2 text-white/50">
-                Permanently deletes all matches, predictions, results and points for a phase of this event only.
+                Trwale usuwa wszystkie mecze, typy, wyniki i punkty tylko dla jednej fazy tego eventu.
               </p>
 
               <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -725,41 +733,41 @@ export default function EventDashboard() {
                   onChange={(e) => setClearPhase(e.target.value)}
                   className="rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-red-400/40"
                 >
-                  <option value="PLAY_IN">PLAY_IN</option>
-                  <option value="SWISS">SWISS</option>
-                  <option value="PLAYOFFS">PLAYOFFS</option>
+                  <option value="PLAY_IN">Play-In</option>
+                  <option value="SWISS">Swiss</option>
+                  <option value="PLAYOFFS">Playoffs</option>
                 </select>
 
                 <button
                   onClick={openClearModal}
                   className="rounded-2xl border border-red-400/40 bg-red-500/20 px-6 py-4 font-black text-red-200 transition hover:bg-red-500/30"
                 >
-                  Clear Phase...
+                  Wyczyść fazę...
                 </button>
               </div>
             </div>
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <h2 className="text-3xl font-black">
-                Match Overview
+                Przegląd meczów
               </h2>
 
               <p className="mt-4 text-white/60">
-                Event ID: {event?.id}
+                ID eventu: {event?.id}
               </p>
             </div>
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-3xl font-black">
-                  Matches
+                  Mecze
                 </h2>
 
                 <button
                   onClick={openCreateMatchModal}
                   className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                 >
-                  Create Match
+                  Utwórz mecz
                 </button>
               </div>
 
@@ -768,7 +776,7 @@ export default function EventDashboard() {
                   <input
                     value={matchSearch}
                     onChange={(e) => setMatchSearch(e.target.value)}
-                    placeholder="Search matches..."
+                    placeholder="Szukaj meczów..."
                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
                   />
 
@@ -777,10 +785,10 @@ export default function EventDashboard() {
                     onChange={(e) => setMatchSortBy(e.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
                   >
-                    <option value="match_no">Sort by Match No</option>
-                    <option value="start_time">Sort by Start Time</option>
-                    <option value="phase">Sort by Phase</option>
-                    <option value="locked">Locked first</option>
+                    <option value="match_no">Sortuj wg numeru meczu</option>
+                    <option value="start_time">Sortuj wg czasu rozpoczęcia</option>
+                    <option value="phase">Sortuj wg fazy</option>
+                    <option value="locked">Najpierw zablokowane</option>
                   </select>
                 </div>
 
@@ -794,13 +802,13 @@ export default function EventDashboard() {
                         : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
                         }`}
                     >
-                      {status}
+                      {MATCH_STATUS_FILTER_LABELS[status]}
                     </button>
                   ))}
                 </div>
 
                 <div className="mt-4 text-sm font-bold text-white/40">
-                  Showing {sortedMatches.length} of {matches.length} matches
+                  Pokazano {sortedMatches.length} z {matches.length} meczów
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-3">
@@ -809,7 +817,7 @@ export default function EventDashboard() {
                     disabled={sortedMatches.length === 0}
                     className="rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-3 text-sm font-black text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Lock Visible
+                    Zablokuj widoczne
                   </button>
 
                   <button
@@ -817,7 +825,7 @@ export default function EventDashboard() {
                     disabled={sortedMatches.length === 0}
                     className="rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 text-sm font-black text-green-300 transition hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Unlock Visible
+                    Odblokuj widoczne
                   </button>
 
                   <button
@@ -828,7 +836,7 @@ export default function EventDashboard() {
                     }}
                     className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/70 transition hover:bg-white/10"
                   >
-                    Clear Filters
+                    Wyczyść filtry
                   </button>
                 </div>
               </div>
@@ -838,14 +846,14 @@ export default function EventDashboard() {
                   matches.length === 0 ? (
                     <EmptyState
                       icon={Swords}
-                      title="No matches found for this event"
-                      description="Use Create Match above to add the first one."
+                      title="Brak meczów dla tego eventu"
+                      description="Użyj przycisku Utwórz mecz powyżej, aby dodać pierwszy."
                     />
                   ) : (
                     <EmptyState
                       icon={FilterX}
-                      title="No matches match your current filters"
-                      description="Try a different status filter or clear them."
+                      title="Żaden mecz nie pasuje do wybranych filtrów"
+                      description="Spróbuj innego filtra statusu lub je wyczyść."
                     />
                   )
                 )}
@@ -872,7 +880,7 @@ export default function EventDashboard() {
                       <div className="flex flex-wrap items-start justify-between gap-6">
                         <div>
                           <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-300">
-                            {match.phase || 'Match'}
+                            {match.phase ? translatePhase(match.phase) : 'Mecz'}
                           </p>
 
                           <h3 className="mt-2 text-2xl font-black">
@@ -889,13 +897,13 @@ export default function EventDashboard() {
                                 : 'bg-yellow-500/20 text-yellow-300'
                               }`}
                           >
-                            {match.ui_status}
+                            {translateStatus(match.ui_status)}
                           </div>
 
                           <p className="mt-2 text-sm text-white/40">
                             {match.start_time_utc
                               ? new Date(match.start_time_utc).toLocaleString()
-                              : 'No date'}
+                              : 'Brak daty'}
                           </p>
 
                           <div className="mt-4 flex gap-2">
@@ -903,28 +911,28 @@ export default function EventDashboard() {
                               onClick={() => handleToggleMatchDetails(match.id)}
                               className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white/70 transition hover:bg-white/10"
                             >
-                              {expandedMatchId === match.id ? 'Hide' : 'Open'}
+                              {expandedMatchId === match.id ? 'Ukryj' : 'Otwórz'}
                             </button>
 
                             <button
                               onClick={() => handleMatchLock(match.id, match.ui_status !== 'LOCKED')}
                               className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-black text-red-300 transition hover:bg-red-500/20"
                             >
-                              {match.ui_status === 'LOCKED' ? 'Unlock' : 'Lock'}
+                              {match.ui_status === 'LOCKED' ? 'Odblokuj' : 'Zablokuj'}
                             </button>
 
                             <button
                               onClick={() => openResultModal(match)}
                               className="rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-200 transition hover:bg-violet-500/20"
                             >
-                              Enter Result
+                              Wpisz wynik
                             </button>
 
                             <button
                               onClick={() => setExactScoreMatch(match)}
                               className="rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-xs font-black text-violet-200 transition hover:bg-violet-500/20"
                             >
-                              Exact Scores
+                              Dokładne wyniki
                             </button>
                           </div>
                         </div>
@@ -933,24 +941,24 @@ export default function EventDashboard() {
                       {expandedMatchId === match.id && (
                         <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-5">
                           <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Match Details
+                            Szczegóły meczu
                           </p>
 
                           {matchStatsLoading[match.id] && (
                             <p className="mt-4 text-sm font-bold text-white/40">
-                              Loading match stats...
+                              Ładowanie statystyk meczu...
                             </p>
                           )}
 
                           <div className="mt-4 grid gap-4 md:grid-cols-9">
-                            <InfoMini label="Match ID" value={match.id} />
-                            <InfoMini label="Phase" value={match.phase || '-'} />
+                            <InfoMini label="ID meczu" value={match.id} />
+                            <InfoMini label="Faza" value={match.phase ? translatePhase(match.phase) : '-'} />
                             <InfoMini label="BO" value={`BO${match.best_of || 3}`} />
                             <InfoMini
-                              label="Locked"
-                              value={match.is_locked ? 'YES' : 'NO'}
+                              label="Zablokowany"
+                              value={match.is_locked ? 'TAK' : 'NIE'}
                             />
-                            <InfoMini label="Predictions" value={predictions} />
+                            <InfoMini label="Typy" value={predictions} />
                             <InfoMini label={match.team_a} value={teamAPicks} />
                             <InfoMini label={match.team_b} value={teamBPicks} />
                             <InfoMini label={`${match.team_a} %`} value={`${teamAPercent}%`} />
@@ -996,15 +1004,15 @@ export default function EventDashboard() {
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
               <h2 className="text-3xl font-black">
-                Leaderboard
+                Ranking
               </h2>
 
               <div className="mt-6 grid gap-4">
                 {leaderboard.length === 0 && (
                   <EmptyState
                     icon={Trophy}
-                    title="No leaderboard data"
-                    description="Scores will appear once predictions are locked in and results come in."
+                    title="Brak danych rankingu"
+                    description="Wyniki pojawią się, gdy typy zostaną zablokowane i napłyną wyniki."
                   />
                 )}
 
@@ -1025,7 +1033,7 @@ export default function EventDashboard() {
                         </h3>
 
                         <p className="text-sm text-white/40">
-                          Pick&apos;Em Player
+                          Gracz Pick&apos;Em
                         </p>
                       </div>
                     </div>
@@ -1036,7 +1044,7 @@ export default function EventDashboard() {
                       </p>
 
                       <p className="text-sm text-white/40">
-                        points
+                        punktów
                       </p>
                     </div>
                   </div>
@@ -1050,22 +1058,22 @@ export default function EventDashboard() {
               </h2>
 
               <p className="mt-2 text-white/50">
-                Official MVP:{' '}
+                Oficjalny MVP:{' '}
                 <strong className="text-white">
                   {mvpResult
                     ? (mvpCandidates.find((c) => c.id === mvpResult.candidate_id)?.nickname || `#${mvpResult.candidate_id}`)
-                    : 'Not set'}
+                    : 'Nie ustawiono'}
                 </strong>
               </p>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <div>
                   <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Add / Replace Candidates
+                    Dodaj / zastąp kandydatów
                   </p>
 
                   <p className="mt-2 text-sm text-white/40">
-                    One per line, format: nickname | team (team optional). Replaces the current candidate list.
+                    Jeden na linię, format: nick | drużyna (drużyna opcjonalna). Zastępuje obecną listę kandydatów.
                   </p>
 
                   <textarea
@@ -1087,17 +1095,17 @@ export default function EventDashboard() {
                     disabled={savingMvpCandidates || !mvpTextarea.trim()}
                     className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                   >
-                    {savingMvpCandidates ? 'Saving...' : 'Save Candidates'}
+                    {savingMvpCandidates ? 'Zapisywanie...' : 'Zapisz kandydatów'}
                   </button>
                 </div>
 
                 <div>
                   <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Set Official MVP
+                    Ustaw oficjalnego MVP
                   </p>
 
                   <p className="mt-2 text-sm text-white/40">
-                    {mvpCandidates.filter((c) => c.is_active).length} active candidate(s)
+                    {mvpCandidates.filter((c) => c.is_active).length} aktywnych kandydatów
                   </p>
 
                   <select
@@ -1105,7 +1113,7 @@ export default function EventDashboard() {
                     onChange={(e) => setSelectedMvpCandidateId(e.target.value)}
                     className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
                   >
-                    <option value="">Select candidate...</option>
+                    <option value="">Wybierz kandydata...</option>
                     {mvpCandidates.filter((c) => c.is_active).map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nickname}{c.team_name ? ` (${c.team_name})` : ''}
@@ -1124,7 +1132,7 @@ export default function EventDashboard() {
                     disabled={savingMvpResult || !selectedMvpCandidateId}
                     className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                   >
-                    {savingMvpResult ? 'Saving...' : 'Set Official MVP'}
+                    {savingMvpResult ? 'Zapisywanie...' : 'Ustaw oficjalnego MVP'}
                   </button>
                 </div>
               </div>
@@ -1137,36 +1145,36 @@ export default function EventDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-              Create Match
+              Utwórz mecz
             </p>
 
             <h2 className="mt-2 text-3xl font-black">
-              New Match
+              Nowy mecz
             </h2>
 
             <div className="mt-8 grid gap-5">
               <div>
-                <label className="text-sm font-bold text-white/60">Phase</label>
+                <label className="text-sm font-bold text-white/60">Faza</label>
                 <select
                   value={matchForm.phase}
                   onChange={(e) => setMatchForm((f) => ({ ...f, phase: e.target.value }))}
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
                 >
-                  <option value="PLAY_IN">PLAY_IN</option>
-                  <option value="SWISS">SWISS</option>
-                  <option value="PLAYOFFS">PLAYOFFS</option>
+                  <option value="PLAY_IN">Play-In</option>
+                  <option value="SWISS">Swiss</option>
+                  <option value="PLAYOFFS">Playoffs</option>
                 </select>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-bold text-white/60">Team A</label>
+                  <label className="text-sm font-bold text-white/60">Drużyna A</label>
                   <select
                     value={matchForm.teamA}
                     onChange={(e) => setMatchForm((f) => ({ ...f, teamA: e.target.value }))}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
                   >
-                    <option value="">Select team...</option>
+                    <option value="">Wybierz drużynę...</option>
                     {activeTeams.map((t) => (
                       <option key={t.id} value={t.name}>{t.name}</option>
                     ))}
@@ -1174,13 +1182,13 @@ export default function EventDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-white/60">Team B</label>
+                  <label className="text-sm font-bold text-white/60">Drużyna B</label>
                   <select
                     value={matchForm.teamB}
                     onChange={(e) => setMatchForm((f) => ({ ...f, teamB: e.target.value }))}
                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
                   >
-                    <option value="">Select team...</option>
+                    <option value="">Wybierz drużynę...</option>
                     {activeTeams.map((t) => (
                       <option key={t.id} value={t.name}>{t.name}</option>
                     ))}
@@ -1190,7 +1198,7 @@ export default function EventDashboard() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-bold text-white/60">Best of</label>
+                  <label className="text-sm font-bold text-white/60">Do ilu wygranych (BO)</label>
                   <select
                     value={matchForm.bestOf}
                     onChange={(e) => setMatchForm((f) => ({ ...f, bestOf: e.target.value }))}
@@ -1203,7 +1211,7 @@ export default function EventDashboard() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-white/60">Start Time (optional)</label>
+                  <label className="text-sm font-bold text-white/60">Czas rozpoczęcia (opcjonalnie)</label>
                   <input
                     type="datetime-local"
                     value={matchForm.startTimeUtc}
@@ -1225,7 +1233,7 @@ export default function EventDashboard() {
                 onClick={() => setShowCreateMatchModal(false)}
                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
               >
-                Cancel
+                Anuluj
               </button>
 
               <button
@@ -1233,7 +1241,7 @@ export default function EventDashboard() {
                 disabled={creatingMatch || !matchForm.teamA || !matchForm.teamB || matchForm.teamA === matchForm.teamB}
                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
               >
-                {creatingMatch ? 'Creating...' : 'Create Match'}
+                {creatingMatch ? 'Tworzenie...' : 'Utwórz mecz'}
               </button>
             </div>
           </div>
@@ -1244,7 +1252,7 @@ export default function EventDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-              Enter Result
+              Wpisz wynik
             </p>
 
             <h2 className="mt-2 text-3xl font-black">
@@ -1276,7 +1284,7 @@ export default function EventDashboard() {
             </div>
 
             <p className="mt-4 text-sm text-white/40">
-              Saving recalculates points for all predictions on this match.
+              Zapis przelicza punkty dla wszystkich typów tego meczu.
             </p>
 
             {resultError && (
@@ -1290,7 +1298,7 @@ export default function EventDashboard() {
                 onClick={() => setResultModalMatch(null)}
                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
               >
-                Cancel
+                Anuluj
               </button>
 
               <button
@@ -1298,7 +1306,7 @@ export default function EventDashboard() {
                 disabled={submittingResult || resultForm.resA === '' || resultForm.resB === ''}
                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
               >
-                {submittingResult ? 'Saving...' : 'Save Result'}
+                {submittingResult ? 'Zapisywanie...' : 'Zapisz wynik'}
               </button>
             </div>
           </div>
@@ -1320,46 +1328,46 @@ export default function EventDashboard() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[2rem] border border-red-500/40 bg-zinc-950 p-8 text-white shadow-2xl">
             <p className="text-sm uppercase tracking-[0.25em] text-red-300">
-              Danger Zone
+              Strefa zagrożenia
             </p>
 
             <h2 className="mt-2 text-3xl font-black">
-              Clear {clearPhase}
+              Wyczyść {clearPhase}
             </h2>
 
             <p className="mt-4 text-white/60">
-              This permanently deletes the following for this event's <strong>{clearPhase}</strong> phase only:
+              To trwale usuwa poniższe dane wyłącznie dla fazy <strong>{clearPhase}</strong> tego eventu:
             </p>
 
             {clearPreviewLoading && (
               <div className="mt-4 text-sm font-bold text-white/40">
-                Loading preview...
+                Ładowanie podglądu...
               </div>
             )}
 
             {!clearPreviewLoading && clearPreview && (
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Matches</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Mecze</p>
                   <p className="mt-2 text-2xl font-black">{clearPreview.matches}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Predictions</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Typy</p>
                   <p className="mt-2 text-2xl font-black">{clearPreview.predictions}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Results</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Wyniki</p>
                   <p className="mt-2 text-2xl font-black">{clearPreview.results}</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
-                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Points</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/40">Punkty</p>
                   <p className="mt-2 text-2xl font-black">{clearPreview.points}</p>
                 </div>
               </div>
             )}
 
             <p className="mt-6 text-sm font-bold text-white/60">
-              Type <span className="text-red-300">{clearPhase}</span> to confirm:
+              Wpisz <span className="text-red-300">{clearPhase}</span>, aby potwierdzić:
             </p>
 
             <input
@@ -1380,7 +1388,7 @@ export default function EventDashboard() {
                 onClick={() => setShowClearModal(false)}
                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
               >
-                Cancel
+                Anuluj
               </button>
 
               <button
@@ -1388,7 +1396,7 @@ export default function EventDashboard() {
                 disabled={clearing || clearConfirmText !== clearPhase}
                 className="rounded-2xl bg-red-500 px-6 py-4 font-black transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {clearing ? 'Clearing...' : 'Clear Phase'}
+                {clearing ? 'Czyszczenie...' : 'Wyczyść fazę'}
               </button>
             </div>
           </div>

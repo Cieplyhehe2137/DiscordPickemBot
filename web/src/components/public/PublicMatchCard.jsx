@@ -57,12 +57,12 @@ export default function PublicMatchCard({
                     </p>
 
                     <p className="mt-2 text-sm text-white/40">
-                        Match #{match.match_no || '-'}
+                        Mecz #{match.match_no || '-'}
                     </p>
 
                     {predictionSummary && (
                         <p className="mt-2 inline-flex rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                            Your Pick: {predictionSummary}
+                            Twój typ: {predictionSummary}
                         </p>
                     )}
                 </div>
@@ -87,7 +87,7 @@ export default function PublicMatchCard({
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/40">
-                <span>{match.formatted_time || 'Start time TBA'}</span>
+                <span>{match.formatted_time || 'Termin do ustalenia'}</span>
 
                 {match.start_time_utc && (
                     <span className="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-200">
@@ -113,12 +113,12 @@ export default function PublicMatchCard({
                     }`}
                 >
                     {match.ui_status === 'FINAL'
-                        ? 'Prediction Closed'
+                        ? 'Typowanie zamknięte'
                         : match.ui_status === 'LOCKED'
-                            ? 'Locked'
+                            ? 'Zablokowane'
                             : myPrediction
-                                ? 'Edit Prediction'
-                                : 'Make Prediction'}
+                                ? 'Edytuj typ'
+                                : 'Wpisz typ'}
                 </button>
 
                 <button
@@ -128,7 +128,7 @@ export default function PublicMatchCard({
                     }}
                     className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10"
                 >
-                    Match Details
+                    Szczegóły meczu
                 </button>
             </div>
         </div>

@@ -26,7 +26,7 @@ export default function PublicPlayinPickemPage() {
                 }
             } catch (err) {
                 console.error(err);
-                setError("Failed to load Play-In Pick'Em.");
+                setError("Nie udało się wczytać Pick'Em Play-In.");
             }
         }
 
@@ -66,7 +66,7 @@ export default function PublicPlayinPickemPage() {
         }
 
         if (selectedTeams.length >= 8) {
-            setError('You can only select 8 teams.');
+            setError('Możesz wybrać tylko 8 drużyn.');
             return;
         }
 
@@ -88,7 +88,7 @@ export default function PublicPlayinPickemPage() {
             setSuccess(true);
         } catch (err) {
             console.error(err);
-            setError(err?.message || "Failed to save Play-In Pick'Em.");
+            setError(err?.message || "Nie udało się zapisać Pick'Em Play-In.");
         } finally {
             setSaving(false);
         }
@@ -97,7 +97,7 @@ export default function PublicPlayinPickemPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Play-In Pick&apos;Em
+                Pick&apos;Em Play-In
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -105,17 +105,17 @@ export default function PublicPlayinPickemPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-white/50">
-                Pick exactly 8 teams to advance from Play-In.
+                Wybierz dokładnie 8 drużyn awansujących z Play-In.
             </p>
 
             {isLocked && (
                 <div className="mt-6 rounded-[2rem] border border-red-400/20 bg-red-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                        Pick&apos;Em Locked
+                        Pick&apos;Em zablokowane
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        {lock.message || 'This Pick&apos;Em is closed.'}
+                        {lock.message || 'Ten Pick&apos;Em jest zamknięty.'}
                     </p>
                 </div>
             )}
@@ -123,7 +123,7 @@ export default function PublicPlayinPickemPage() {
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Signed in as
+                        Zalogowano jako
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
@@ -135,11 +135,11 @@ export default function PublicPlayinPickemPage() {
             {!loading && !isLoggedIn && (
                 <div className="mt-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                        Login Required
+                        Wymagane logowanie
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        Sign in with Discord to save your Play-In Pick&apos;Em.
+                        Zaloguj się przez Discord, aby zapisać swój Pick&apos;Em Play-In.
                     </p>
 
                     <a
@@ -148,7 +148,7 @@ export default function PublicPlayinPickemPage() {
                         )}`}
                         className="mt-4 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Login Discord
+                        Zaloguj przez Discord
                     </a>
                 </div>
             )}
@@ -157,11 +157,11 @@ export default function PublicPlayinPickemPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Selected Teams
+                            Wybrane drużyny
                         </p>
 
                         <p className="mt-2 text-white/50">
-                            {selectedTeams.length}/8 selected
+                            {selectedTeams.length}/8 wybranych
                         </p>
                     </div>
 
@@ -173,13 +173,13 @@ export default function PublicPlayinPickemPage() {
                             : 'cursor-not-allowed bg-white/10 text-white/30'
                             }`}
                     >
-                        {saving ? 'Saving...' : "Save Play-In Pick'Em"}
+                        {saving ? 'Zapisywanie...' : "Zapisz Pick'Em Play-In"}
                     </button>
                 </div>
 
                 {success && (
                     <p className="mt-4 font-black text-green-300">
-                        Play-In Pick&apos;Em saved!
+                        Pick&apos;Em Play-In zapisane!
                     </p>
                 )}
 
@@ -214,7 +214,7 @@ export default function PublicPlayinPickemPage() {
 
             <div className="mt-8 rounded-[2rem] border border-white/10 bg-black/30 p-6">
                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                    Your Play-In Picks
+                    Twoje typy Play-In
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -229,7 +229,7 @@ export default function PublicPlayinPickemPage() {
                         ))
                     ) : (
                         <span className="text-white/40">
-                            No teams selected
+                            Brak wybranych drużyn
                         </span>
                     )}
                 </div>
@@ -251,14 +251,14 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="ml-auto">

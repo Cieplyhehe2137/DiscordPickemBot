@@ -31,9 +31,9 @@ export default function DeadlineModal({ guildId, onClose }) {
                 await setMatchDeadline(guildId, { phase, data });
             }
 
-            setSuccess('Deadline saved.');
+            setSuccess('Deadline zapisany.');
         } catch (err) {
-            setError(err?.status === 400 || err?.status === 404 ? err.message : describeActionError(err, 'save the deadline'));
+            setError(err?.status === 400 || err?.status === 404 ? err.message : describeActionError(err, 'zapisać deadline'));
         } finally {
             setSaving(false);
         }
@@ -43,20 +43,20 @@ export default function DeadlineModal({ guildId, onClose }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Panel Deadlines
+                    Deadline'y paneli
                 </p>
 
                 <h2 className="mt-2 text-3xl font-black">
-                    Set Deadline
+                    Ustaw deadline
                 </h2>
 
                 <p className="mt-2 text-sm text-white/40">
-                    Applies to the currently active Discord panel for this phase. Times are entered in Europe/Warsaw time.
+                    Dotyczy aktualnie aktywnego panelu Discorda dla tej fazy. Czasy podawane są w strefie Europe/Warsaw.
                 </p>
 
                 <div className="mt-6 grid gap-5">
                     <div>
-                        <label className="text-sm font-bold text-white/60">Deadline Type</label>
+                        <label className="text-sm font-bold text-white/60">Typ deadline'u</label>
 
                         <div className="mt-2 grid grid-cols-2 gap-3">
                             <button
@@ -66,7 +66,7 @@ export default function DeadlineModal({ guildId, onClose }) {
                                     : 'border-white/10 bg-black/30 text-white/60'
                                     }`}
                             >
-                                Pick Deadline
+                                Deadline typowania
                             </button>
 
                             <button
@@ -76,13 +76,13 @@ export default function DeadlineModal({ guildId, onClose }) {
                                     : 'border-white/10 bg-black/30 text-white/60'
                                     }`}
                             >
-                                Match Results Deadline
+                                Deadline wyników meczów
                             </button>
                         </div>
                     </div>
 
                     <div>
-                        <label className="text-sm font-bold text-white/60">Phase</label>
+                        <label className="text-sm font-bold text-white/60">Faza</label>
 
                         <select
                             value={phase}
@@ -97,23 +97,23 @@ export default function DeadlineModal({ guildId, onClose }) {
 
                     {deadlineType === 'pick' && phase === 'swiss' && (
                         <div>
-                            <label className="text-sm font-bold text-white/60">Swiss Stage</label>
+                            <label className="text-sm font-bold text-white/60">Etap Swiss</label>
 
                             <select
                                 value={stage}
                                 onChange={(e) => setStage(e.target.value)}
                                 className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
                             >
-                                <option value="1">Stage 1</option>
-                                <option value="2">Stage 2</option>
-                                <option value="3">Stage 3</option>
+                                <option value="1">Etap 1</option>
+                                <option value="2">Etap 2</option>
+                                <option value="3">Etap 3</option>
                             </select>
                         </div>
                     )}
 
                     {deadlineType === 'match' && phase === 'swiss' && (
                         <p className="text-sm text-yellow-300/80">
-                            Match results deadlines are not stage-specific for Swiss in the current bot - this mirrors existing Discord behavior, not a bug in this panel.
+                            Deadline wyników meczów nie jest per-etapowy dla Swiss w obecnym bocie - to wierna replika zachowania Discorda, nie błąd tego panelu.
                         </p>
                     )}
 
@@ -146,7 +146,7 @@ export default function DeadlineModal({ guildId, onClose }) {
                         onClick={onClose}
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
                     >
-                        Close
+                        Zamknij
                     </button>
 
                     <button
@@ -154,7 +154,7 @@ export default function DeadlineModal({ guildId, onClose }) {
                         disabled={saving || !datetime}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                     >
-                        {saving ? 'Saving...' : 'Save Deadline'}
+                        {saving ? 'Zapisywanie...' : 'Zapisz deadline'}
                     </button>
                 </div>
             </div>

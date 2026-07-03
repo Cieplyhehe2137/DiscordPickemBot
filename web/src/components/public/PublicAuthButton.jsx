@@ -16,7 +16,7 @@ export default function PublicAuthButton() {
     const [open, setOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    const displayName = user?.global_name || user?.username || 'Profile';
+    const displayName = user?.global_name || user?.username || 'Profil';
 
     const avatarUrl =
         user?.avatar
@@ -52,7 +52,7 @@ export default function PublicAuthButton() {
                 href={`/api/auth/discord?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                 className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-400"
             >
-                Login Discord
+                Zaloguj przez Discord
             </a>
         );
     }
@@ -91,7 +91,7 @@ export default function PublicAuthButton() {
                         </p>
 
                         <p className="mt-1 text-xs text-white/40">
-                            Discord Connected
+                            Połączono z Discord
                         </p>
                     </div>
 
@@ -100,35 +100,35 @@ export default function PublicAuthButton() {
                             href={`/public/users/${user.id}`}
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
-                            My Profile
+                            Mój Profil
                         </a>
 
                         <a
                             href="/public/me/predictions"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
-                            My Predictions
+                            Moje Typy
                         </a>
 
                         <a
                             href="/public/leaderboard"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
-                            Leaderboard
+                            Ranking
                         </a>
 
                         <a
                             href="/app"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
-                            Dashboard
+                            Panel
                         </a>
 
                         <button
                             onClick={handleLogout}
                             className="flex w-full rounded-xl px-4 py-3 text-left text-sm font-black text-red-300 transition hover:bg-red-500/10"
                         >
-                            Logout
+                            Wyloguj
                         </button>
                     </div>
                 </div>

@@ -7,11 +7,11 @@ export default function CommunityMatchPredictions({ eventMatchStats }) {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Community Match Predictions
+                        Typy społeczności na mecze
                     </p>
 
                     <h2 className="mt-2 text-3xl font-black">
-                        Match Trends
+                        Trendy meczowe
                     </h2>
                 </div>
             </div>
@@ -27,8 +27,8 @@ export default function CommunityMatchPredictions({ eventMatchStats }) {
                 {eventMatchStats.length === 0 && (
                     <EmptyState
                         icon={LineChart}
-                        title="No match prediction data yet"
-                        description="Trends appear once community members start predicting matches."
+                        title="Brak jeszcze danych typowania meczów"
+                        description="Trendy pojawią się, gdy członkowie społeczności zaczną typować mecze."
                     />
                 )}
             </div>
@@ -51,7 +51,7 @@ function MatchPredictionCard({ match }) {
                     </h3>
 
                     <p className="mt-1 text-sm text-white/40">
-                        {match.total_predictions} predictions
+                        {match.total_predictions} typów
                     </p>
                 </div>
 
@@ -74,26 +74,26 @@ function MatchPredictionCard({ match }) {
             <div className="mt-4">
                 <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
                     {confidence >= 75
-                        ? '🔥 Heavy Favorite'
+                        ? '🔥 Zdecydowany faworyt'
                         : confidence >= 60
-                            ? '📈 Slight Favorite'
-                            : '⚖️ Toss-Up'}
+                            ? '📈 Lekki faworyt'
+                            : '⚖️ Wyrównane szanse'}
                 </span>
             </div>
 
             {match.winner && (
                 <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
-                        Community vs Reality
+                        Społeczność vs rzeczywistość
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-3 text-sm">
                         <span className="rounded-full bg-violet-500/20 px-3 py-1 font-black text-violet-300">
-                            Community: {match.community_pick}
+                            Społeczność: {match.community_pick}
                         </span>
 
                         <span className="rounded-full bg-white/10 px-3 py-1 font-black text-white/70">
-                            Winner: {match.winner}
+                            Zwycięzca: {match.winner}
                         </span>
 
                         <span
@@ -104,8 +104,8 @@ function MatchPredictionCard({ match }) {
                             }`}
                         >
                             {match.community_was_right
-                                ? 'Community was right'
-                                : 'Community was wrong'}
+                                ? 'Społeczność miała rację'
+                                : 'Społeczność się myliła'}
                         </span>
                     </div>
                 </div>
@@ -114,7 +114,7 @@ function MatchPredictionCard({ match }) {
             {match.top_scores?.length > 0 && (
                 <div className="mt-5">
                     <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
-                        Most picked scores
+                        Najczęściej typowane wyniki
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -123,7 +123,7 @@ function MatchPredictionCard({ match }) {
                                 key={`${match.match_id}-${scorePick.score}`}
                                 className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
                             >
-                                {scorePick.score} • {scorePick.picks} picks
+                                {scorePick.score} • {scorePick.picks} typów
                             </span>
                         ))}
                     </div>

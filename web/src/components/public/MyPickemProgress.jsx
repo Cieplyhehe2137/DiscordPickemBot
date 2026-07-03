@@ -9,11 +9,11 @@ export default function MyPickemProgress({
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        My Pick&apos;Em Progress
+                        Twój postęp Pick&apos;Em
                     </p>
 
                     <p className="mt-2 text-white/50">
-                        {myPredictionsCount} of {totalMatchesCount} predicted • {missingPredictionsCount} left
+                        {myPredictionsCount} z {totalMatchesCount} obstawionych • zostało {missingPredictionsCount}
                     </p>
                 </div>
 
@@ -32,11 +32,11 @@ export default function MyPickemProgress({
             {totalMatchesCount > 0 && missingPredictionsCount === 0 && (
                 <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 p-5">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                        Pick&apos;Em Complete
+                        Pick&apos;Em ukończony
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        You have predicted every available match for this event.
+                        Obstawiłeś już wszystkie dostępne mecze w tym evencie.
                     </p>
                 </div>
             )}

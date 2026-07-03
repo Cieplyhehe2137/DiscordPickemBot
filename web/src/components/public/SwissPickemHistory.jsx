@@ -5,7 +5,7 @@ export default function SwissPickemHistory({ swissPicks }) {
     return (
         <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Swiss Pick&apos;Em History
+                Historia Pick&apos;Em Swiss
             </p>
 
             <div className="mt-6 grid gap-4">
@@ -25,9 +25,9 @@ export default function SwissPickemHistory({ swissPicks }) {
                                 </h3>
 
                                 <p className="mt-2 text-sm text-white/40">
-                                    Submitted: {pick.submitted_at
+                                    Zapisano: {pick.submitted_at
                                         ? new Date(pick.submitted_at).toLocaleString()
-                                        : 'Unknown'}
+                                        : 'Nieznane'}
                                 </p>
                             </div>
 
@@ -36,14 +36,14 @@ export default function SwissPickemHistory({ swissPicks }) {
                                     href={`/public/event/${pick.event_slug}/pickem/${pick.stage}`}
                                     className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
                                 >
-                                    Open Pick&apos;Em
+                                    Otwórz Pick&apos;Em
                                 </a>
 
                                 <a
                                     href={`/public/event/${pick.event_slug}/leaderboard`}
                                     className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
                                 >
-                                    Event Leaderboard
+                                    Ranking eventu
                                 </a>
                             </div>
                         </div>
@@ -51,7 +51,7 @@ export default function SwissPickemHistory({ swissPicks }) {
                         <div className="mt-5 grid gap-4 md:grid-cols-3">
                             <SwissPickList title="3-0" teams={pick.three_zero} />
                             <SwissPickList title="0-3" teams={pick.zero_three} />
-                            <SwissPickList title="Advancing" teams={pick.advancing} />
+                            <SwissPickList title="Awansujący" teams={pick.advancing} />
                         </div>
                     </div>
                 ))}
@@ -59,8 +59,8 @@ export default function SwissPickemHistory({ swissPicks }) {
                 {(swissPicks || []).length === 0 && (
                     <EmptyState
                         icon={History}
-                        title="No Swiss Pick'Em predictions yet"
-                        description="This player hasn't submitted any Swiss stage picks yet."
+                        title="Brak jeszcze typów Pick'Em Swiss"
+                        description="Ten gracz nie zapisał jeszcze żadnych typów etapu Swiss."
                     />
                 )}
             </div>
@@ -87,7 +87,7 @@ function SwissPickList({ title, teams }) {
 
                 {(!teams || teams.length === 0) && (
                     <span className="text-sm text-white/40">
-                        No picks
+                        Brak typów
                     </span>
                 )}
             </div>
@@ -96,9 +96,9 @@ function SwissPickList({ title, teams }) {
 }
 
 function formatSwissStage(stage) {
-    if (stage === 'stage1') return 'Swiss Stage 1';
-    if (stage === 'stage2') return 'Swiss Stage 2';
-    if (stage === 'stage3') return 'Swiss Stage 3';
+    if (stage === 'stage1') return 'Swiss - Etap 1';
+    if (stage === 'stage2') return 'Swiss - Etap 2';
+    if (stage === 'stage3') return 'Swiss - Etap 3';
 
-    return stage || 'Swiss Stage';
+    return stage || 'Etap Swiss';
 }

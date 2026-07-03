@@ -5,6 +5,7 @@ import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
 import EmptyState from '../components/ui/EmptyState';
 import { usePublicAuth } from '../context/PublicAuthContext';
+import { translateStatus } from '../lib/labels';
 
 export default function PublicServersPage() {
     const [data, setData] = useState(null);
@@ -65,14 +66,14 @@ export default function PublicServersPage() {
                         href="/public"
                         className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300"
                     >
-                        Pick&apos;Em Platform
+                        Platforma Pick&apos;Em
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="ml-auto">
@@ -85,18 +86,18 @@ export default function PublicServersPage() {
 
                     <div className="relative z-10">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Community Pick&apos;Em Platform
+                            Platforma Pick&apos;Em dla społeczności
                         </p>
 
                         <h1 className="mt-4 text-5xl font-black md:text-7xl">
-                            Predict esports.
+                            Typuj esport.
                             <br />
-                            Compete publicly.
+                            Rywalizuj publicznie.
                         </h1>
 
                         <p className="mt-6 max-w-3xl text-lg text-white/60">
-                            Join community Pick&apos;Em events, track your prediction accuracy,
-                            climb leaderboards and compete against other esports fans.
+                            Dołącz do wydarzeń Pick&apos;Em społeczności, śledź skuteczność swoich typów,
+                            wspinaj się w rankingach i rywalizuj z innymi fanami esportu.
                         </p>
 
                         {isLoggedIn && user && (
@@ -112,7 +113,7 @@ export default function PublicServersPage() {
 
                                     <div>
                                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                            Signed in as
+                                            Zalogowano jako
                                         </p>
 
                                         <h2 className="mt-1 text-2xl font-black">
@@ -120,7 +121,7 @@ export default function PublicServersPage() {
                                         </h2>
 
                                         <p className="mt-1 text-white/40">
-                                            Discord connected
+                                            Połączono z Discord
                                         </p>
                                     </div>
                                 </div>
@@ -132,14 +133,14 @@ export default function PublicServersPage() {
                                 href="/public/leaderboard"
                                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                             >
-                                View Leaderboard
+                                Zobacz ranking
                             </a>
 
                             <a
                                 href="/public/me/predictions"
                                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                             >
-                                My Predictions
+                                Moje typy
                             </a>
                         </div>
                     </div>
@@ -147,34 +148,34 @@ export default function PublicServersPage() {
 
                 <div className="mt-10 grid gap-6 md:grid-cols-3">
                     <HomeFeatureCard
-                        title="Live Events"
-                        description="Follow active community Pick&apos;Em events with live matches and public standings."
+                        title="Wydarzenia na żywo"
+                        description="Śledź aktywne wydarzenia Pick&apos;Em społeczności z meczami na żywo i publicznymi wynikami."
                     />
 
                     <HomeFeatureCard
-                        title="Player Profiles"
-                        description="Track prediction history, accuracy, exact score hits and achievements."
+                        title="Profile graczy"
+                        description="Śledź historię typów, skuteczność, trafienia dokładnych wyników i osiągnięcia."
                     />
 
                     <HomeFeatureCard
-                        title="Leaderboards"
-                        description="Compete with other players by points, accuracy and perfect score predictions."
+                        title="Rankingi"
+                        description="Rywalizuj z innymi graczami punktami, skutecznością i idealnie trafionymi wynikami."
                     />
                 </div>
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Platform Stats
+                        Statystyki platformy
                     </p>
 
                     <div className="mt-6 grid gap-6 md:grid-cols-2">
                         <PublicMiniStat
-                            title="Communities"
+                            title="Społeczności"
                             value={servers.length}
                         />
 
                         <PublicMiniStat
-                            title="Open Events"
+                            title="Otwarte eventy"
                             value={servers.reduce(
                                 (acc, server) => acc + (server.open_events || 0),
                                 0
@@ -187,11 +188,11 @@ export default function PublicServersPage() {
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                Top Players
+                                Najlepsi gracze
                             </p>
 
                             <h2 className="mt-3 text-4xl font-black">
-                                Community Leaderboard
+                                Ranking społeczności
                             </h2>
                         </div>
 
@@ -199,7 +200,7 @@ export default function PublicServersPage() {
                             href="/public/leaderboard"
                             className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                         >
-                            Full Leaderboard
+                            Pełny ranking
                         </a>
                     </div>
 
@@ -226,19 +227,19 @@ export default function PublicServersPage() {
                                             </h3>
 
                                             <p className="mt-1 text-sm text-white/40">
-                                                {player.total_predictions} predictions
+                                                {player.total_predictions} typów
                                             </p>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
                                         <PublicMiniStat
-                                            title="Points"
+                                            title="Punkty"
                                             value={player.total_points}
                                         />
 
                                         <PublicMiniStat
-                                            title="Accuracy"
+                                            title="Skuteczność"
                                             value={`${player.accuracy}%`}
                                         />
                                     </div>
@@ -249,8 +250,8 @@ export default function PublicServersPage() {
                         {leaderboard.length === 0 && (
                             <EmptyState
                                 icon={Trophy}
-                                title="No leaderboard data yet"
-                                description="Once predictions start rolling in, top players will show up here."
+                                title="Brak jeszcze danych rankingu"
+                                description="Gdy tylko zaczną napływać typy, najlepsi gracze pojawią się tutaj."
                             />
                         )}
                     </div>
@@ -258,21 +259,21 @@ export default function PublicServersPage() {
 
                 <div className="mt-10">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Pick&apos;Em Platform
+                        Platforma Pick&apos;Em
                     </p>
 
                     <h1 className="mt-3 text-4xl font-black md:text-6xl">
-                        Choose your community
+                        Wybierz swoją społeczność
                     </h1>
 
                     <p className="mt-4 max-w-2xl text-white/50">
-                        Browse active Pick&apos;Em communities, join Discord and follow live events.
+                        Przeglądaj aktywne społeczności Pick&apos;Em, dołącz do Discorda i śledź wydarzenia na żywo.
                     </p>
                 </div>
 
                 <div className="mt-10 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Trending Events
+                        Popularne wydarzenia
                     </p>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -299,7 +300,7 @@ export default function PublicServersPage() {
                                                 : 'bg-zinc-500/20 text-zinc-300'
                                     }`}
                                 >
-                                    {event.status}
+                                    {translateStatus(event.status)}
                                 </span>
                             </a>
                         ))}
@@ -307,8 +308,8 @@ export default function PublicServersPage() {
                         {(data.featured_events || []).length === 0 && (
                             <EmptyState
                                 icon={Radar}
-                                title="No trending events yet"
-                                description="Check back once a community opens up a new Pick'Em event."
+                                title="Brak jeszcze popularnych wydarzeń"
+                                description="Zajrzyj ponownie, gdy społeczność otworzy nowy event Pick'Em."
                             />
                         )}
                     </div>
@@ -321,7 +322,7 @@ export default function PublicServersPage() {
                             className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-8 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                         >
                             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                Community
+                                Społeczność
                             </p>
 
                             <h2 className="mt-3 text-4xl font-black">
@@ -329,8 +330,8 @@ export default function PublicServersPage() {
                             </h2>
 
                             <div className="mt-6 grid gap-4 md:grid-cols-2">
-                                <PublicMiniStat title="Events" value={server.events_count} />
-                                <PublicMiniStat title="Open Events" value={server.open_events} />
+                                <PublicMiniStat title="Eventy" value={server.events_count} />
+                                <PublicMiniStat title="Otwarte eventy" value={server.open_events} />
                             </div>
 
                             <div className="mt-6 flex flex-wrap gap-4">
@@ -338,7 +339,7 @@ export default function PublicServersPage() {
                                     href={`/public/${server.slug}`}
                                     className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                                 >
-                                    Open Hub
+                                    Otwórz stronę
                                 </a>
 
                                 {server.discord_url && (
@@ -348,7 +349,7 @@ export default function PublicServersPage() {
                                         rel="noreferrer"
                                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                                     >
-                                        Join Discord
+                                        Dołącz do Discorda
                                     </a>
                                 )}
                             </div>
@@ -358,8 +359,8 @@ export default function PublicServersPage() {
                     {servers.length === 0 && (
                         <EmptyState
                             icon={Users}
-                            title="No public communities yet"
-                            description="Communities running this bot will appear here once they go live."
+                            title="Brak jeszcze publicznych społeczności"
+                            description="Społeczności korzystające z tego bota pojawią się tutaj po uruchomieniu."
                         />
                     )}
                 </div>

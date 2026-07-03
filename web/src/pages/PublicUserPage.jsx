@@ -48,7 +48,7 @@ export default function PublicUserPage() {
     const achievements = [];
 
     if (profile.rank === 1) {
-        achievements.push('🥇 Event Champion');
+        achievements.push('🥇 Mistrz Eventu');
     } else if (profile.rank <= 3 && profile.rank > 0) {
         achievements.push('🥈 Top 3');
     } else if (profile.rank <= 10 && profile.rank > 0) {
@@ -56,15 +56,15 @@ export default function PublicUserPage() {
     }
 
     if (profile.accuracy >= 80) {
-        achievements.push('🎯 80% Accuracy');
+        achievements.push('🎯 80% Skuteczności');
     }
 
     if (profile.correct_winners >= 100) {
-        achievements.push('🔥 100 Correct Winners');
+        achievements.push('🔥 100 Trafionych Zwycięzców');
     }
 
     if (profile.exact_scores >= 25) {
-        achievements.push('💎 Exact Score Hunter');
+        achievements.push('💎 Łowca Dokładnych Wyników');
     }
     const rank = profile.rank || 0;
     const displayName = profile.displayname || profile.user_id;
@@ -84,7 +84,7 @@ export default function PublicUserPage() {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <div className="h-5 w-px bg-white/10" />
@@ -93,18 +93,18 @@ export default function PublicUserPage() {
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="h-5 w-px bg-white/10" />
 
                     <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
-                        Player Profile
+                        Profil gracza
                     </span>
                 </div>
 
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Public Player
+                    Publiczny gracz
                 </p>
 
                 <h1 className="mt-3 break-all text-4xl font-black md:text-6xl">
@@ -115,7 +115,7 @@ export default function PublicUserPage() {
                 </p>
 
                 <p className="mt-4 max-w-2xl text-white/50">
-                    Public Pick&apos;Em performance, recent predictions and player activity.
+                    Publiczne wyniki Pick&apos;Em, ostatnie typy i aktywność gracza.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-4">
@@ -123,33 +123,33 @@ export default function PublicUserPage() {
                         href="/public"
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Browse Communities
+                        Przeglądaj społeczności
                     </a>
 
                     <a
                         href="/public/me/predictions"
                         className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
                     >
-                        My Predictions
+                        Moje typy
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
                 </div>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
-                    <ProfileStat title="Rank" value={rank ? `#${rank}` : '-'} />
-                    <ProfileStat title="Total Points" value={profile.total_points} />
-                    <ProfileStat title="Swiss Points" value={profile.swiss_points} />
-                    <ProfileStat title="Match Points" value={profile.match_points} />
+                    <ProfileStat title="Pozycja" value={rank ? `#${rank}` : '-'} />
+                    <ProfileStat title="Punkty łącznie" value={profile.total_points} />
+                    <ProfileStat title="Punkty Swiss" value={profile.swiss_points} />
+                    <ProfileStat title="Punkty meczowe" value={profile.match_points} />
                 </div>
                 <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Points Breakdown
+                        Podział punktów
                     </p>
 
 
@@ -157,33 +157,33 @@ export default function PublicUserPage() {
                         <ProfileStat title="Playoffs" value={profile.playoffs_points} />
                         <ProfileStat title="Play-In" value={profile.playin_points} />
                         <ProfileStat title="Double Elim" value={profile.doubleelim_points} />
-                        <ProfileStat title="Correct Maps" value={profile.correct_maps} />
-                        <ProfileStat title="Exact Maps" value={profile.exact_maps} />
+                        <ProfileStat title="Trafione mapy" value={profile.correct_maps} />
+                        <ProfileStat title="Dokładne mapy" value={profile.exact_maps} />
                     </div>
                 </div>
                 <div className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Prediction Accuracy
+                        Skuteczność typowania
                     </p>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-4">
                         <ProfileStat
-                            title="Accuracy"
+                            title="Skuteczność"
                             value={`${profile.accuracy}%`}
                         />
 
                         <ProfileStat
-                            title="Finished"
+                            title="Zakończone"
                             value={profile.finished_predictions}
                         />
 
                         <ProfileStat
-                            title="Correct Winners"
+                            title="Trafieni zwycięzcy"
                             value={profile.correct_winners}
                         />
 
                         <ProfileStat
-                            title="Exact Scores"
+                            title="Dokładne wyniki"
                             value={profile.exact_scores}
                         />
                     </div>
@@ -191,7 +191,7 @@ export default function PublicUserPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Event Performance
+                        Wyniki w eventach
                     </p>
 
                     <div className="mt-6 grid gap-4">
@@ -208,13 +208,13 @@ export default function PublicUserPage() {
                                         </p>
 
                                         <h3 className="mt-2 text-3xl font-black">
-                                            {event.total_points} points
+                                            {event.total_points} punktów
                                         </h3>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                                         <ProfileStat title="Swiss" value={event.swiss_points} />
-                                        <ProfileStat title="Matches" value={event.match_points} />
+                                        <ProfileStat title="Mecze" value={event.match_points} />
                                         <ProfileStat title="Playoffs" value={event.playoffs_points} />
                                         <ProfileStat title="Play-In" value={event.playin_points} />
                                         <ProfileStat title="Double" value={event.doubleelim_points} />
@@ -226,8 +226,8 @@ export default function PublicUserPage() {
                         {(data.event_performances || []).length === 0 && (
                             <EmptyState
                                 icon={BarChart3}
-                                title="No event performance data yet"
-                                description="This player hasn't scored points in any public event yet."
+                                title="Brak jeszcze wyników w eventach"
+                                description="Ten gracz nie zdobył jeszcze punktów w żadnym publicznym evencie."
                             />
                         )}
                     </div>
@@ -241,15 +241,15 @@ export default function PublicUserPage() {
                     <div className="flex flex-wrap items-center justify-between gap-6">
                         <div>
                             <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                Player Performance
+                                Wyniki gracza
                             </p>
 
                             <h2 className="mt-3 text-3xl font-black">
-                                {accuracy}% Winner Accuracy
+                                {accuracy}% skuteczności zwycięzców
                             </h2>
 
                             <p className="mt-2 text-white/50">
-                                {correctWinners} correct winners • {exactScores} exact scores • {finishedPredictions} finished picks
+                                {correctWinners} trafionych zwycięzców • {exactScores} dokładnych wyników • {finishedPredictions} zakończonych typów
                             </p>
                         </div>
 
@@ -264,25 +264,25 @@ export default function PublicUserPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Achievements
+                        Osiągnięcia
                     </p>
 
                     <div className="mt-6 grid gap-4 md:grid-cols-3">
                         <PlayerBadge
-                            title="First Pick"
-                            description="Saved at least one prediction."
+                            title="Pierwszy typ"
+                            description="Zapisano co najmniej jeden typ."
                             active={profile.prediction_count > 0}
                         />
 
                         <PlayerBadge
-                            title="Sharp Eye"
-                            description="Hit at least one correct winner."
+                            title="Bystre oko"
+                            description="Trafiono co najmniej jednego zwycięzcę."
                             active={correctWinners > 0}
                         />
 
                         <PlayerBadge
-                            title="Perfect Read"
-                            description="Hit at least one exact score."
+                            title="Idealne odczytanie"
+                            description="Trafiono co najmniej jeden dokładny wynik."
                             active={exactScores > 0}
                         />
                     </div>
@@ -290,7 +290,7 @@ export default function PublicUserPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Recent Predictions
+                        Ostatnie typy
                     </p>
 
                     <div className="mt-6 grid gap-4">
@@ -310,10 +310,10 @@ export default function PublicUserPage() {
 
                                 <div className="mt-4 flex flex-wrap gap-3">
                                     <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                        Winner: {prediction.winner}
+                                        Zwycięzca: {prediction.winner}
                                     </span>
                                     <span className="rounded-full bg-violet-500/20 px-3 py-1 text-xs font-black uppercase tracking-[0.15em] text-violet-300">
-                                        Score: {prediction.score}
+                                        Wynik: {prediction.score}
                                     </span>
 
                                     {prediction.event_slug && (
@@ -328,8 +328,8 @@ export default function PublicUserPage() {
                         {(data.recent_predictions || []).length === 0 && (
                             <EmptyState
                                 icon={ListChecks}
-                                title="No public predictions yet"
-                                description="Predictions this player makes will show up here."
+                                title="Brak jeszcze publicznych typów"
+                                description="Typy tego gracza pojawią się tutaj."
                             />
                         )}
                     </div>
@@ -337,7 +337,7 @@ export default function PublicUserPage() {
 
                 <div className="mt-10 rounded-[2rem] border border-white/10 bg-black/30 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Activity Timeline
+                        Oś czasu aktywności
                     </p>
 
                     <div className="mt-6 space-y-4">
@@ -350,17 +350,17 @@ export default function PublicUserPage() {
 
                                 <div>
                                     <p className="font-black">
-                                        Predicted {prediction.team_a} vs {prediction.team_b}
+                                        Typ: {prediction.team_a} vs {prediction.team_b}
                                     </p>
 
                                     <p className="mt-1 text-sm text-white/50">
-                                        Pick: {prediction.pred_a}:{prediction.pred_b}
+                                        Typ: {prediction.pred_a}:{prediction.pred_b}
                                     </p>
 
                                     <p className="mt-1 text-xs uppercase tracking-[0.15em] text-violet-300">
                                         {prediction.updated_at
                                             ? new Date(prediction.updated_at).toLocaleString()
-                                            : 'Recently'}
+                                            : 'Niedawno'}
                                     </p>
                                 </div>
                             </div>

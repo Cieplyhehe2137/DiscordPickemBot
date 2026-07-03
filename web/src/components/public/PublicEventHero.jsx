@@ -1,3 +1,5 @@
+import { translateStatus } from '../../lib/labels';
+
 export default function PublicEventHero({
     event,
     slug,
@@ -13,7 +15,7 @@ export default function PublicEventHero({
 
             <div className="relative z-10">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Public Pick&apos;Em Event
+                    Publiczny event Pick&apos;Em
                 </p>
 
                 <h1 className="mt-4 text-4xl font-black md:text-7xl">
@@ -21,17 +23,17 @@ export default function PublicEventHero({
                 </h1>
 
                 <p className="mt-4 max-w-3xl text-lg text-white/60">
-                    Predict matches, follow community trends, climb the leaderboard and compare your picks with other players.
+                    Typuj mecze, śledź trendy społeczności, wspinaj się w rankingu i porównuj swoje typy z innymi graczami.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
                     <div className="inline-flex rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                        Live Updates Enabled
+                        Aktualizacje na żywo włączone
                     </div>
 
                     {isLoggedIn && totalMatchesCount > 0 && missingPredictionsCount === 0 && (
                         <div className="inline-flex rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                            Pick&apos;Em Complete
+                            Pick&apos;Em ukończony
                         </div>
                     )}
 
@@ -44,7 +46,7 @@ export default function PublicEventHero({
                                     : 'bg-zinc-500/15 text-zinc-300'
                         }`}
                     >
-                        {event?.status || 'UNKNOWN'}
+                        {event?.status ? translateStatus(event.status) : 'NIEZNANY'}
                     </span>
                 </div>
 
@@ -53,28 +55,28 @@ export default function PublicEventHero({
                         onClick={copyPublicUrl}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Copy Public Link
+                        Kopiuj link publiczny
                     </button>
 
                     <a
                         href={`/public/event/${slug}/pickem/stage1`}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Full Pick&apos;Em
+                        Pełny Pick&apos;Em
                     </a>
 
                     <a
                         href={`/public/event/${slug}/leaderboard`}
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Event Leaderboard
+                        Ranking eventu
                     </a>
 
                     <a
                         href="/public/archives"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Archives
+                        Archiwum
                     </a>
                 </div>
 

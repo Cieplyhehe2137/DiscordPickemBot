@@ -51,23 +51,23 @@ export default function PublicLeaderboardPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Public Rankings
+                Publiczne rankingi
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
-                Player Leaderboard
+                Ranking graczy
             </h1>
 
             <p className="mt-4 max-w-2xl text-white/50">
-                Track top Pick&apos;Em players by points, accuracy and exact score hits.
+                Śledź najlepszych graczy Pick&apos;Em pod względem punktów, skuteczności i dokładnych trafień.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-3">
                 {[
-                    ['POINTS', 'Points'],
-                    ['ACCURACY', 'Accuracy'],
-                    ['EXACT', 'Exact Hits'],
-                    ['PREDICTIONS', 'Predictions']
+                    ['POINTS', 'Punkty'],
+                    ['ACCURACY', 'Skuteczność'],
+                    ['EXACT', 'Dokładne trafienia'],
+                    ['PREDICTIONS', 'Typy']
                 ].map(([value, label]) => (
                     <button
                         key={value}
@@ -84,7 +84,7 @@ export default function PublicLeaderboardPage() {
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Top Players
+                    Najlepsi gracze
                 </p>
 
                 <div className="mt-6 grid gap-4">
@@ -128,16 +128,16 @@ export default function PublicLeaderboardPage() {
                                         </h3>
 
                                         <p className="mt-1 text-sm text-white/40">
-                                            {player.total_predictions} predictions
+                                            {player.total_predictions} typów
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                                    <MiniStat title="Points" value={player.total_points} />
-                                    <MiniStat title="Accuracy" value={`${player.accuracy}%`} />
-                                    <MiniStat title="Exact" value={player.exact_scores} />
-                                    <MiniStat title="Correct" value={player.correct_winners} />
+                                    <MiniStat title="Punkty" value={player.total_points} />
+                                    <MiniStat title="Skuteczność" value={`${player.accuracy}%`} />
+                                    <MiniStat title="Dokładne" value={player.exact_scores} />
+                                    <MiniStat title="Trafione" value={player.correct_winners} />
                                 </div>
                             </div>
                         </a>
@@ -146,8 +146,8 @@ export default function PublicLeaderboardPage() {
                     {leaderboard.length === 0 && (
                         <EmptyState
                             icon={Trophy}
-                            title="No leaderboard data yet"
-                            description="Rankings appear once players start making predictions."
+                            title="Brak jeszcze danych rankingu"
+                            description="Ranking pojawi się, gdy gracze zaczną typować."
                         />
                     )}
                 </div>
@@ -169,13 +169,13 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <div className="h-5 w-px bg-white/10" />
 
                     <span className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300">
-                        Leaderboard
+                        Ranking
                     </span>
 
                     <div className="ml-auto">

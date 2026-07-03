@@ -13,6 +13,14 @@ import EventStatusButtons from '../components/admin/EventStatusButtons';
 import PublicLinkButtons from '../components/admin/PublicLinkButtons';
 import DeadlineModal from '../components/admin/DeadlineModal';
 import EmptyState from '../components/ui/EmptyState';
+import { translateStatus } from '../lib/labels';
+
+const STATUS_FILTER_LABELS = {
+    ALL: 'WSZYSTKIE',
+    OPEN: 'OTWARTE',
+    CLOSED: 'ZAMKNIĘTE',
+    ARCHIVED: 'ZARCHIWIZOWANE'
+};
 
 export default function GuildDashboard() {
     const { guildId } = useParams();
@@ -117,7 +125,7 @@ export default function GuildDashboard() {
             setShowCreateModal(false);
         } catch (err) {
             console.error(err);
-            setCreateError(describeActionError(err, 'create the event'));
+            setCreateError(describeActionError(err, 'utworzyć event'));
         } finally {
             setCreating(false);
         }
@@ -129,13 +137,13 @@ export default function GuildDashboard() {
             await refreshEvents();
         } catch (err) {
             console.error(err);
-            alert(describeActionError(err, 'update the status'));
+            alert(describeActionError(err, 'zaktualizować status'));
         }
     }
 
     async function handleArchiveEvent(event) {
         const confirmed = window.confirm(
-            `Archive event "${event.name}"?\n\nThis will hide it from active views, but it will not delete data from the database.`
+            `Zarchiwizować event "${event.name}"?\n\nUkryje go to z widoków aktywnych eventów, ale nie usunie danych z bazy.`
         );
 
         if (!confirmed) return;
@@ -148,22 +156,22 @@ export default function GuildDashboard() {
             <div className="flex min-h-[60vh] items-center justify-center px-6">
                 <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
                     <p className="text-sm uppercase tracking-[0.25em] text-red-300">
-                        Access denied
+                        Brak dostępu
                     </p>
 
                     <h1 className="mt-3 text-2xl font-black">
-                        You don&apos;t have access to this server
+                        Nie masz dostępu do tego serwera
                     </h1>
 
                     <p className="mt-2 text-sm text-white/50">
-                        Your account doesn&apos;t have Administrator permission on server <span className="font-bold text-white/80">{guildId}</span>.
+                        Twoje konto nie ma uprawnień Administratora na serwerze <span className="font-bold text-white/80">{guildId}</span>.
                     </p>
 
                     <a
                         href="/app/guilds"
                         className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Back to server list
+                        Wróć do listy serwerów
                     </a>
                 </div>
             </div>
@@ -174,7 +182,7 @@ export default function GuildDashboard() {
         <div className="px-6 py-10">
             <div className="mx-auto max-w-7xl">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Guild Dashboard
+                    Panel serwera
                 </p>
 
                 <h1 className="mt-3 text-5xl font-black">
@@ -186,32 +194,32 @@ export default function GuildDashboard() {
                         onClick={() => navigate(`/app/guilds/${guildId}/teams`)}
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Manage Teams
+                        Zarządzaj drużynami
                     </button>
 
                     <button
                         onClick={() => setShowDeadlineModal(true)}
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        Set Deadlines
+                        Ustaw deadline'y
                     </button>
                 </div>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
-                    <GuildStat title="Total Events" value={stats?.totalEvents ?? 0} />
-                    <GuildStat title="Active" value={stats?.activeEvents ?? 0} />
-                    <GuildStat title="Closed" value={stats?.closedEvents ?? 0} />
-                    <GuildStat title="Archived" value={stats?.archivedEvents ?? 0} />
+                    <GuildStat title="Wszystkie eventy" value={stats?.totalEvents ?? 0} />
+                    <GuildStat title="Aktywne" value={stats?.activeEvents ?? 0} />
+                    <GuildStat title="Zamknięte" value={stats?.closedEvents ?? 0} />
+                    <GuildStat title="Zarchiwizowane" value={stats?.archivedEvents ?? 0} />
                 </div>
 
                 <div className="mt-10 flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h2 className="text-3xl font-black">
-                            Events
+                            Eventy
                         </h2>
 
                         <p className="mt-2 text-white/50">
-                            Manage Pick&apos;Em events for this server.
+                            Zarządzaj eventami Pick&apos;Em dla tego serwera.
                         </p>
                     </div>
 
@@ -219,7 +227,7 @@ export default function GuildDashboard() {
                         onClick={() => setShowCreateModal(true)}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Create Event
+                        Utwórz event
                     </button>
                 </div>
 
@@ -233,7 +241,7 @@ export default function GuildDashboard() {
                                     : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10'
                                 }`}
                         >
-                            {status}
+                            {STATUS_FILTER_LABELS[status]}
                         </button>
                     ))}
                 </div>
@@ -242,7 +250,7 @@ export default function GuildDashboard() {
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search events..."
+                        placeholder="Szukaj eventów..."
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
                     />
 
@@ -251,16 +259,16 @@ export default function GuildDashboard() {
                         onChange={(e) => setSortBy(e.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
                     >
-                        <option value="newest">Newest first</option>
-                        <option value="oldest">Oldest first</option>
-                        <option value="name">Name A-Z</option>
+                        <option value="newest">Najnowsze najpierw</option>
+                        <option value="oldest">Najstarsze najpierw</option>
+                        <option value="name">Nazwa A-Z</option>
                         <option value="status">Status</option>
                     </select>
                 </div>
 
                 {loading && (
                     <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        Loading events...
+                        Ładowanie eventów...
                     </div>
                 )}
 
@@ -268,14 +276,14 @@ export default function GuildDashboard() {
                     <div className="mt-10">
                         <EmptyState
                             icon={CalendarX}
-                            title={events.length === 0 ? 'No events found for this server' : 'No events match your current filters'}
-                            description={events.length === 0 ? 'Create your first event above to get started.' : 'Try a different status filter or search term.'}
+                            title={events.length === 0 ? 'Nie znaleziono eventów dla tego serwera' : 'Żaden event nie pasuje do wybranych filtrów'}
+                            description={events.length === 0 ? 'Utwórz swój pierwszy event powyżej, aby zacząć.' : 'Spróbuj innego filtra statusu lub frazy wyszukiwania.'}
                         />
                     </div>
                 )}
 
                 <div className="mt-8 text-sm font-bold text-white/40">
-                    Showing {filteredEvents.length} of {events.length} events
+                    Pokazano {filteredEvents.length} z {events.length} eventów
                 </div>
 
                 <div className="mt-10 grid gap-6 lg:grid-cols-2">
@@ -304,23 +312,23 @@ export default function GuildDashboard() {
                                                 : 'bg-zinc-500/15 text-zinc-300'
                                         }`}
                                 >
-                                    {event.status}
+                                    {translateStatus(event.status)}
                                 </span>
                             </div>
 
                             <div className="mt-6 grid grid-cols-3 gap-3">
                                 <MiniStat
-                                    label="Players"
+                                    label="Gracze"
                                     value={event.participants_count || 0}
                                 />
 
                                 <MiniStat
-                                    label="Predictions"
+                                    label="Typy"
                                     value={event.predictions_count || 0}
                                 />
 
                                 <MiniStat
-                                    label="Matches"
+                                    label="Mecze"
                                     value={event.matches_count || 0}
                                 />
                             </div>
@@ -335,7 +343,7 @@ export default function GuildDashboard() {
                                 </p>
 
                                 <p className="mt-4 text-sm text-white/40">
-                                    Created
+                                    Utworzono
                                 </p>
 
                                 <p className="mt-1 text-sm font-bold text-white/70">
@@ -347,7 +355,7 @@ export default function GuildDashboard() {
                                 onClick={() => navigate(`/app/events/${event.slug}`)}
                                 className="mt-8 w-full rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                             >
-                                Open Event Dashboard
+                                Otwórz panel eventu
                             </button>
 
                             <PublicLinkButtons eventSlug={event.slug} size="lg" stacked />
@@ -370,17 +378,17 @@ export default function GuildDashboard() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
                     <div className="w-full max-w-xl rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-2xl">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Create Event
+                            Utwórz event
                         </p>
 
                         <h2 className="mt-2 text-3xl font-black">
-                            New Pick&apos;Em Event
+                            Nowy event Pick&apos;Em
                         </h2>
 
                         <div className="mt-8 grid gap-5">
                             <div>
                                 <label className="text-sm font-bold text-white/60">
-                                    Event Name
+                                    Nazwa eventu
                                 </label>
 
                                 <input
@@ -415,7 +423,7 @@ export default function GuildDashboard() {
                                 />
 
                                 <p className="mt-2 text-sm text-white/40">
-                                    Final slug:{' '}
+                                    Ostateczny slug:{' '}
                                     <span className="text-violet-300">
                                         {normalizedSlug || '-'}
                                     </span>
@@ -437,7 +445,7 @@ export default function GuildDashboard() {
                                 }}
                                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/70 transition hover:bg-white/10"
                             >
-                                Cancel
+                                Anuluj
                             </button>
 
                             <button
@@ -445,7 +453,7 @@ export default function GuildDashboard() {
                                 disabled={creating || !eventName.trim() || !normalizedSlug}
                                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
                             >
-                                {creating ? 'Creating...' : 'Create Event'}
+                                {creating ? 'Tworzenie...' : 'Utwórz event'}
                             </button>
                         </div>
                     </div>

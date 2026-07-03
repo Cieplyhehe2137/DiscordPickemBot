@@ -44,7 +44,7 @@ export default function PublicDoubleElimPickemPage() {
                 }
             } catch (err) {
                 console.error(err);
-                setError("Failed to load Double Elim Pick'Em.");
+                setError("Nie udało się wczytać Pick'Em Double Elim.");
             }
         }
 
@@ -88,7 +88,7 @@ export default function PublicDoubleElimPickemPage() {
         }
 
         if (current.length >= 2) {
-            setError('You can only select 2 teams in this bracket.');
+            setError('Możesz wybrać tylko 2 drużyny w tej drabince.');
             return;
         }
 
@@ -111,7 +111,7 @@ export default function PublicDoubleElimPickemPage() {
             setSuccess(true);
         } catch (err) {
             console.error(err);
-            setError(err?.message || "Failed to save Double Elim Pick'Em.");
+            setError(err?.message || "Nie udało się zapisać Pick'Em Double Elim.");
         } finally {
             setSaving(false);
         }
@@ -120,7 +120,7 @@ export default function PublicDoubleElimPickemPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Double Elimination Pick&apos;Em
+                Pick&apos;Em Double Elimination
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -128,17 +128,17 @@ export default function PublicDoubleElimPickemPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-white/50">
-                Pick exactly 2 teams for each Double Elimination bracket.
+                Wybierz dokładnie 2 drużyny dla każdej drabinki Double Elimination.
             </p>
 
             {isLocked && (
                 <div className="mt-6 rounded-[2rem] border border-red-400/20 bg-red-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                        Pick&apos;Em Locked
+                        Pick&apos;Em zablokowane
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        {lock.message || 'This Pick&apos;Em is closed.'}
+                        {lock.message || 'Ten Pick&apos;Em jest zamknięty.'}
                     </p>
                 </div>
             )}
@@ -146,7 +146,7 @@ export default function PublicDoubleElimPickemPage() {
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Signed in as
+                        Zalogowano jako
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
@@ -158,11 +158,11 @@ export default function PublicDoubleElimPickemPage() {
             {!loading && !isLoggedIn && (
                 <div className="mt-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                        Login Required
+                        Wymagane logowanie
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        Sign in with Discord to save your Double Elim Pick&apos;Em.
+                        Zaloguj się przez Discord, aby zapisać swój Pick&apos;Em Double Elim.
                     </p>
 
                     <a
@@ -171,7 +171,7 @@ export default function PublicDoubleElimPickemPage() {
                         )}`}
                         className="mt-4 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Login Discord
+                        Zaloguj przez Discord
                     </a>
                 </div>
             )}
@@ -193,7 +193,7 @@ export default function PublicDoubleElimPickemPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Progress
+                            Postęp
                         </p>
 
                         <p className="mt-2 text-white/50">
@@ -209,13 +209,13 @@ export default function PublicDoubleElimPickemPage() {
                             : 'cursor-not-allowed bg-white/10 text-white/30'
                             }`}
                     >
-                        {saving ? 'Saving...' : "Save Double Elim Pick'Em"}
+                        {saving ? 'Zapisywanie...' : "Zapisz Pick'Em Double Elim"}
                     </button>
                 </div>
 
                 {success && (
                     <p className="mt-4 font-black text-green-300">
-                        Double Elim Pick&apos;Em saved!
+                        Pick&apos;Em Double Elim zapisane!
                     </p>
                 )}
 
@@ -251,7 +251,7 @@ function PickColumn({ title, teams, selected, onToggle, isLocked }) {
                     </p>
 
                     <p className="mt-2 text-white/50">
-                        Pick exactly 2 teams.
+                        Wybierz dokładnie 2 drużyny.
                     </p>
                 </div>
 
@@ -304,7 +304,7 @@ function SummaryCard({ title, teams }) {
                     ))
                 ) : (
                     <span className="text-white/40">
-                        No teams selected
+                        Brak wybranych drużyn
                     </span>
                 )}
             </div>
@@ -323,14 +323,14 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="ml-auto">

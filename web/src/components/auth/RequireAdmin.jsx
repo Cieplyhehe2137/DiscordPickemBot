@@ -39,22 +39,22 @@ export default function RequireAdmin({ children }) {
         return (
             <Screen>
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    PickemBot Admin
+                    Panel Admina PickemBot
                 </p>
 
                 <h1 className="mt-3 text-2xl font-black">
-                    Sign in to access the dashboard
+                    Zaloguj się, aby uzyskać dostęp do panelu
                 </h1>
 
                 <p className="mt-2 text-sm text-white/50">
-                    This area is only available to admins of Discord servers running this bot.
+                    Ten obszar jest dostępny tylko dla administratorów serwerów Discord korzystających z tego bota.
                 </p>
 
                 <a
                     href={`/api/auth/discord?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
                     className="mt-6 inline-flex rounded-xl bg-violet-500 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-400"
                 >
-                    Login with Discord
+                    Zaloguj się przez Discord
                 </a>
             </Screen>
         );
@@ -64,22 +64,22 @@ export default function RequireAdmin({ children }) {
         return (
             <Screen>
                 <p className="text-sm uppercase tracking-[0.25em] text-red-300">
-                    Access denied
+                    Brak dostępu
                 </p>
 
                 <h1 className="mt-3 text-2xl font-black">
-                    No admin permissions
+                    Brak uprawnień administratora
                 </h1>
 
                 <p className="mt-2 text-sm text-white/50">
-                    Signed in as <span className="font-bold text-white/80">{user.global_name || user.username}</span>, but this account doesn&apos;t have Administrator permission on any server running this bot.
+                    Zalogowano jako <span className="font-bold text-white/80">{user.global_name || user.username}</span>, ale to konto nie ma uprawnień Administratora na żadnym serwerze korzystającym z tego bota.
                 </p>
 
                 <a
                     href="/public"
                     className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/80 transition hover:bg-white/10"
                 >
-                    Back to public site
+                    Wróć do strony publicznej
                 </a>
             </Screen>
         );

@@ -9,11 +9,11 @@ export default function StickyPickemProgress({
             <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-violet-400/20 bg-zinc-950/90 p-5 shadow-[0_0_50px_rgba(139,92,246,0.2)] backdrop-blur-xl">
                 <div>
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        My Pick&apos;Em Progress
+                        Twój postęp Pick&apos;Em
                     </p>
 
                     <p className="mt-1 text-white/50">
-                        {myPredictionsCount} / {totalMatchesCount} predicted • {missingPredictionsCount} left
+                        {myPredictionsCount} / {totalMatchesCount} obstawionych • zostało {missingPredictionsCount}
                     </p>
                 </div>
 
@@ -41,14 +41,14 @@ export default function StickyPickemProgress({
                         }}
                         className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
                     >
-                        My Picks
+                        Moje typy
                     </button>
 
                     <a
                         href="/public/me/predictions"
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        All Predictions
+                        Wszystkie typy
                     </a>
                 </div>
             </div>

@@ -8,34 +8,34 @@ export default function PublicEventStatsGrid({
 }) {
     const stats = [
         {
-            label: 'Players',
+            label: 'Gracze',
             value: participants ?? 0,
-            hint: 'unique participants'
+            hint: 'unikalni uczestnicy'
         },
         {
-            label: 'Predictions',
+            label: 'Typy',
             value: predictions ?? 0,
-            hint: 'submitted picks'
+            hint: 'zapisane typy'
         },
         {
-            label: 'Matches',
+            label: 'Mecze',
             value: matches ?? 0,
-            hint: 'published matches'
+            hint: 'opublikowane mecze'
         },
         {
-            label: 'My Picks',
+            label: 'Moje typy',
             value: myPicks ?? 0,
-            hint: 'your submitted picks'
+            hint: 'twoje zapisane typy'
         },
         {
-            label: 'Live',
+            label: 'Na żywo',
             value: liveMatches ?? 0,
-            hint: 'matches in progress'
+            hint: 'trwające mecze'
         },
         {
-            label: 'Community Accuracy',
+            label: 'Skuteczność społeczności',
             value: `${communityAccuracy ?? 0}%`,
-            hint: 'finished matches'
+            hint: 'zakończone mecze'
         }
     ];
 

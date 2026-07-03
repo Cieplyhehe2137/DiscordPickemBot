@@ -20,7 +20,7 @@ export default function AppLayout() {
                 </h1>
 
                 <p className="mt-1 text-sm text-white/40">
-                    Pick&apos;Em Admin
+                    Panel Pick&apos;Em
                 </p>
 
                 <nav className="mt-10 grid gap-3">
@@ -33,7 +33,7 @@ export default function AppLayout() {
                             }`
                         }
                     >
-                        Servers
+                        Serwery
                     </NavLink>
 
                     <NavLink
@@ -46,16 +46,16 @@ export default function AppLayout() {
                             }`
                         }
                     >
-                        Events
+                        Eventy
                     </NavLink>
                 </nav>
                 <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
                     <p className="text-xs uppercase tracking-[0.2em] text-white/40">
-                        Current Guild
+                        Aktualny serwer
                     </p>
 
                     <h3 className="mt-2 text-xl font-black">
-                        {selectedGuild?.name || 'No Guild'}
+                        {selectedGuild?.name || 'Brak serwera'}
                     </h3>
 
                     {selectedGuild?.id && (
@@ -63,23 +63,23 @@ export default function AppLayout() {
                             to={`/app/guilds/${selectedGuild.id}`}
                             className="mt-3 inline-flex text-sm font-bold text-violet-300 transition hover:text-violet-200"
                         >
-                            Open Guild
+                            Otwórz serwer
                         </Link>
                     )}
 
                     <p className="mt-4 text-xs uppercase tracking-[0.2em] text-white/40">
-                        Current Event
+                        Aktualny event
                     </p>
 
                     <h3 className="mt-2 text-lg font-black">
-                        {selectedEvent?.name || 'No Event'}
+                        {selectedEvent?.name || 'Brak eventu'}
                     </h3>
                     {selectedEvent?.slug && (
                         <Link
                             to={`/app/events/${selectedEvent.slug}`}
                             className="mt-3 inline-flex text-sm font-bold text-violet-300 transition hover:text-violet-200"
                         >
-                            Open Event
+                            Otwórz event
                         </Link>
                     )}
                 </div>
@@ -94,7 +94,7 @@ export default function AppLayout() {
                             </p>
 
                             <h2 className="text-xl font-black">
-                                Admin Dashboard
+                                Panel Administracyjny
                             </h2>
                         </div>
 

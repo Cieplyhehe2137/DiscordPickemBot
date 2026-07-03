@@ -39,7 +39,7 @@ export default function PublicEventLeaderboardPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Event Leaderboard
+                Ranking eventu
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -47,7 +47,7 @@ export default function PublicEventLeaderboardPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-white/50">
-                Ranking for this event based on Swiss, match and playoff points.
+                Ranking tego eventu na podstawie punktów Swiss, meczów i playoffów.
             </p>
 
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
@@ -84,7 +84,7 @@ export default function PublicEventLeaderboardPage() {
 
                                             {isMe && (
                                                 <span className="rounded-full bg-violet-500 px-2 py-1 text-xs font-black text-white">
-                                                    YOU
+                                                    TY
                                                 </span>
                                             )}
                                         </div>
@@ -96,9 +96,9 @@ export default function PublicEventLeaderboardPage() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                                    <MiniStat title="Total" value={player.total_points} />
+                                    <MiniStat title="Razem" value={player.total_points} />
                                     <MiniStat title="Swiss" value={player.swiss_points} />
-                                    <MiniStat title="Matches" value={player.match_points} />
+                                    <MiniStat title="Mecze" value={player.match_points} />
                                     <MiniStat title="Playoffs" value={player.playoffs_points} />
                                     <MiniStat title="Play-In" value={player.playin_points} />
                                     <MiniStat title="Double" value={player.doubleelim_points} />
@@ -110,7 +110,7 @@ export default function PublicEventLeaderboardPage() {
 
                     {leaderboard.length === 0 && (
                         <p className="text-white/50">
-                            No event leaderboard data yet.
+                            Brak jeszcze danych rankingu tego eventu.
                         </p>
                     )}
                 </div>
@@ -132,14 +132,14 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Global Leaderboard
+                        Ranking globalny
                     </a>
 
                     <div className="ml-auto">

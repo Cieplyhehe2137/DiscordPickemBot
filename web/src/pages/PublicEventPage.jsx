@@ -53,7 +53,7 @@ export default function PublicEventPage() {
     async function copyPublicUrl() {
         try {
             await navigator.clipboard.writeText(publicUrl);
-            alert('Public link copied!');
+            alert('Link publiczny skopiowany!');
         } catch (err) {
             console.error(err);
         }
@@ -540,11 +540,11 @@ export default function PublicEventPage() {
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
                             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                Join the Pick&apos;Em
+                                Dołącz do Pick&apos;Em
                             </p>
 
                             <h2 className="mt-2 text-2xl font-black">
-                                Think you can predict better than the community?
+                                Myślisz, że przewidzisz lepiej niż społeczność?
                             </h2>
                         </div>
 
@@ -554,7 +554,7 @@ export default function PublicEventPage() {
                             rel="noreferrer"
                             className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                         >
-                            Join Discord
+                            Dołącz do Discorda
                         </a>
                     </div>
                 </div>
@@ -581,15 +581,15 @@ export default function PublicEventPage() {
                 <div className="mt-10 grid gap-6 lg:grid-cols-2">
                     <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
                         <h2 className="text-3xl font-black">
-                            Top Players
+                            Najlepsi gracze
                         </h2>
 
                         <div className="mt-6 grid gap-4">
                             {(!data?.leaderboard || data.leaderboard.length === 0) && (
                                 <EmptyState
                                     icon={Trophy}
-                                    title="No leaderboard data yet"
-                                    description="Standings appear once predictions start coming in for this event."
+                                    title="Brak jeszcze danych rankingu"
+                                    description="Wyniki pojawią się, gdy zaczną napływać typy do tego eventu."
                                 />
                             )}
 
@@ -633,7 +633,7 @@ export default function PublicEventPage() {
                                                 </a>
 
                                                 <p className="text-sm text-white/40">
-                                                    Pick&apos;Em Player
+                                                    Gracz Pick&apos;Em
                                                 </p>
 
                                                 {player.rank_change > 0 && (
@@ -656,7 +656,7 @@ export default function PublicEventPage() {
                                             </p>
 
                                             <p className="text-sm text-white/40">
-                                                points
+                                                punktów
                                             </p>
                                         </div>
                                     </div>
@@ -692,15 +692,15 @@ export default function PublicEventPage() {
 
                     <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Community Pulse
+                            Puls społeczności
                         </p>
 
                         <h2 className="mt-2 text-3xl font-black">
-                            Swiss Stage 1 Trends
+                            Trendy Swiss - Etap 1
                         </h2>
 
                         <p className="mt-2 text-white/50">
-                            Based on {swissStats?.total_predictions || 0} submitted Pick&apos;Ems.
+                            Na podstawie {swissStats?.total_predictions || 0} zapisanych typów Pick&apos;Em.
                         </p>
 
                         <div className="mt-6 grid gap-4">
@@ -715,7 +715,7 @@ export default function PublicEventPage() {
                                         </p>
 
                                         <p className="text-sm font-black text-violet-300">
-                                            {row.count} picks
+                                            {row.count} typów
                                         </p>
                                     </div>
 
@@ -730,7 +730,7 @@ export default function PublicEventPage() {
 
                             {(!swissStats || (swissStats?.stats?.three_zero || []).length === 0) && (
                                 <p className="text-white/50">
-                                    No Swiss stats yet.
+                                    Brak jeszcze statystyk Swiss.
                                 </p>
                             )}
                         </div>
@@ -780,6 +780,12 @@ export default function PublicEventPage() {
     );
 }
 
+const MATCH_MODAL_TAB_LABELS = {
+    overview: 'przegląd',
+    predictions: 'typy',
+    stats: 'statystyki'
+};
+
 function MatchModal({
     selectedMatch,
     matchModalTab,
@@ -823,14 +829,14 @@ function MatchModal({
             >
                 <div className="flex items-start justify-between gap-6">
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Match Details
+                        Szczegóły meczu
                     </p>
 
                     <button
                         onClick={closeMatchModal}
                         className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black text-white/70 transition hover:bg-white/10"
                     >
-                        Close
+                        Zamknij
                     </button>
                 </div>
 
@@ -849,7 +855,7 @@ function MatchModal({
 
                     <div className="text-center">
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Matchup
+                            Starcie
                         </p>
 
                         <h2 className="mt-2 text-5xl font-black text-violet-300">
@@ -895,12 +901,12 @@ function MatchModal({
 
                 {selectedMatch.live_status && (
                     <p className="mt-3 text-center text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                        {formatStatusLabel(selectedMatch.live_status)} • MAP {selectedMatch.current_map || 1}
+                        {formatStatusLabel(selectedMatch.live_status)} • MAPA {selectedMatch.current_map || 1}
                     </p>
                 )}
 
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
-                    <PublicStat title="Phase" value={formatPhaseLabel(selectedMatch.phase)} />
+                    <PublicStat title="Faza" value={formatPhaseLabel(selectedMatch.phase)} />
                     <PublicStat title="BO" value={`BO${selectedMatch.best_of || 3}`} />
                     <PublicStat title="Status" value={formatStatusLabel(selectedMatch.ui_status)} />
                 </div>
@@ -915,7 +921,7 @@ function MatchModal({
                                 : 'border border-white/10 bg-white/5 text-white/70 hover:bg-white/10'
                                 }`}
                         >
-                            {tab}
+                            {MATCH_MODAL_TAB_LABELS[tab]}
                         </button>
                     ))}
                 </div>
@@ -923,11 +929,11 @@ function MatchModal({
                 {matchModalTab === 'overview' && (
                     <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5">
                         <p className="text-sm uppercase tracking-[0.2em] text-white/40">
-                            Start time
+                            Czas rozpoczęcia
                         </p>
 
                         <p className="mt-2 text-xl font-black">
-                            {selectedMatch.formatted_time || 'Start time TBA'}
+                            {selectedMatch.formatted_time || 'Termin do ustalenia'}
                         </p>
 
                         {selectedMatch.countdown && (
@@ -941,12 +947,12 @@ function MatchModal({
                 {matchModalTab === 'predictions' && (
                     <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5">
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Predictions
+                            Typy
                         </p>
 
                         {matchStatsLoading && (
                             <p className="mt-3 text-white/50">
-                                Loading prediction stats...
+                                Ładowanie statystyk typów...
                             </p>
                         )}
 
@@ -954,7 +960,7 @@ function MatchModal({
                             <>
                                 <div className="mt-5 grid gap-4 md:grid-cols-3">
                                     <PublicStat
-                                        title="Total Picks"
+                                        title="Wszystkie typy"
                                         value={matchStats[selectedMatch.id]?.predictions ?? 0}
                                     />
 
@@ -998,7 +1004,7 @@ function MatchModal({
                                 {(matchStats[selectedMatch.id]?.series_breakdown || []).length > 0 && (
                                     <div className="mt-8">
                                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                            Series Picks
+                                            Typy na serię
                                         </p>
 
                                         <div className="mt-4 grid gap-3">
@@ -1019,7 +1025,7 @@ function MatchModal({
                                                             </p>
 
                                                             <p className="text-sm font-black text-violet-300">
-                                                                {row.picks} picks • {percent}%
+                                                                {row.picks} typów • {percent}%
                                                             </p>
                                                         </div>
 
@@ -1039,7 +1045,7 @@ function MatchModal({
                                 {(matchStats[selectedMatch.id]?.map_breakdown || []).length > 0 && (
                                     <div className="mt-8">
                                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                                            Most Picked Map Scores
+                                            Najczęściej typowane wyniki map
                                         </p>
 
                                         <div className="mt-4 grid gap-4">
@@ -1070,7 +1076,7 @@ function MatchModal({
 
                                 {(matchStats[selectedMatch.id]?.predictions ?? 0) === 0 && (
                                     <p className="mt-4 text-white/50">
-                                        No community predictions yet.
+                                        Brak jeszcze typów społeczności.
                                     </p>
                                 )}
                             </>
@@ -1081,12 +1087,12 @@ function MatchModal({
                 {matchModalTab === 'stats' && (
                     <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-5">
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Match Analytics
+                            Analiza meczu
                         </p>
 
                         {!publicMatchStats && (
                             <p className="mt-3 text-white/50">
-                                No public match stats yet.
+                                Brak jeszcze publicznych statystyk meczu.
                             </p>
                         )}
 
@@ -1094,17 +1100,17 @@ function MatchModal({
                             <>
                                 <div className="mt-5 grid gap-4 md:grid-cols-3">
                                     <PublicStat
-                                        title="Total Picks"
+                                        title="Wszystkie typy"
                                         value={publicMatchStats.total_predictions}
                                     />
 
                                     <PublicStat
-                                        title="Community Pick"
+                                        title="Typ społeczności"
                                         value={publicMatchStats.community_pick || '-'}
                                     />
 
                                     <PublicStat
-                                        title="Confidence"
+                                        title="Pewność"
                                         value={`${confidence}%`}
                                     />
                                 </div>
@@ -1125,16 +1131,16 @@ function MatchModal({
                                 {publicMatchStats.winner && (
                                     <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
                                         <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
-                                            Community vs Reality
+                                            Społeczność vs rzeczywistość
                                         </p>
 
                                         <div className="mt-3 flex flex-wrap gap-3 text-sm">
                                             <span className="rounded-full bg-violet-500/20 px-3 py-1 font-black text-violet-300">
-                                                Community: {publicMatchStats.community_pick}
+                                                Społeczność: {publicMatchStats.community_pick}
                                             </span>
 
                                             <span className="rounded-full bg-white/10 px-3 py-1 font-black text-white/70">
-                                                Winner: {publicMatchStats.winner}
+                                                Zwycięzca: {publicMatchStats.winner}
                                             </span>
 
                                             <span
@@ -1144,8 +1150,8 @@ function MatchModal({
                                                     }`}
                                             >
                                                 {publicMatchStats.community_was_right
-                                                    ? 'Community was right'
-                                                    : 'Community was wrong'}
+                                                    ? 'Społeczność miała rację'
+                                                    : 'Społeczność się myliła'}
                                             </span>
                                         </div>
                                     </div>
@@ -1154,7 +1160,7 @@ function MatchModal({
                                 {publicMatchStats.top_scores?.length > 0 && (
                                     <div className="mt-6">
                                         <p className="text-sm uppercase tracking-[0.15em] text-violet-300">
-                                            Most picked scores
+                                            Najczęściej typowane wyniki
                                         </p>
 
                                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1163,7 +1169,7 @@ function MatchModal({
                                                     key={`${publicMatchStats.match_id}-${scorePick.score}`}
                                                     className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm font-black text-white/70"
                                                 >
-                                                    {scorePick.score} • {scorePick.picks} picks
+                                                    {scorePick.score} • {scorePick.picks} typów
                                                 </span>
                                             ))}
                                         </div>
@@ -1176,12 +1182,12 @@ function MatchModal({
 
                 <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Want to make your pick?
+                        Chcesz obstawić swój typ?
                     </p>
 
                     <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
                         <p className="text-white/60">
-                            Join our Discord and submit your prediction before the match locks.
+                            Dołącz do naszego Discorda i zapisz swój typ, zanim mecz zostanie zablokowany.
                         </p>
 
                         <a
@@ -1190,7 +1196,7 @@ function MatchModal({
                             rel="noreferrer"
                             className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
                         >
-                            Join Discord
+                            Dołącz do Discorda
                         </a>
                     </div>
                 </div>
@@ -1255,11 +1261,11 @@ function getSeriesOptions(match) {
 function getMapLabel(mapNo, bestOf) {
     if (Number(bestOf) === 1) return 'BO1';
 
-    if (Number(mapNo) === 1) return 'Pick Team A';
-    if (Number(mapNo) === 2) return 'Pick Team B';
-    if (Number(mapNo) === 3) return 'Decider';
+    if (Number(mapNo) === 1) return 'Wybór drużyny A';
+    if (Number(mapNo) === 2) return 'Wybór drużyny B';
+    if (Number(mapNo) === 3) return 'Decydująca';
 
-    return `Map ${mapNo}`;
+    return `Mapa ${mapNo}`;
 }
 
 function getMapsToPredict(match, series) {
@@ -1400,7 +1406,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
             setError(
                 err?.message ||
                 err?.error ||
-                'Failed to save prediction.'
+                'Nie udało się zapisać typu.'
             );
         } finally {
             setSaving(false);
@@ -1419,7 +1425,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                 <div className="flex items-start justify-between gap-6">
                     <div>
                         <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                            Make Prediction
+                            Wpisz typ
                         </p>
 
                         <h2 className="mt-3 text-3xl font-black">
@@ -1435,18 +1441,18 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                         onClick={closePredictionModal}
                         className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-black text-white/70 transition hover:bg-white/10"
                     >
-                        Close
+                        Zamknij
                     </button>
                 </div>
 
                 {predictionClosed && (
                     <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 p-4">
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                            Prediction Closed
+                            Typowanie zamknięte
                         </p>
 
                         <p className="mt-2 text-white/60">
-                            This match is already locked or finished.
+                            Ten mecz jest już zablokowany lub zakończony.
                         </p>
                     </div>
                 )}
@@ -1454,25 +1460,25 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                 {!isLoggedIn && (
                     <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-500/10 p-4">
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                            Login Required
+                            Wymagane logowanie
                         </p>
 
                         <p className="mt-2 text-white/60">
-                            Sign in with Discord to save your prediction.
+                            Zaloguj się przez Discord, aby zapisać swój typ.
                         </p>
 
                         <a
                             href="/api/auth/discord"
                             className="mt-4 inline-flex rounded-xl bg-violet-500 px-4 py-3 text-sm font-black transition hover:bg-violet-400"
                         >
-                            Login Discord
+                            Zaloguj przez Discord
                         </a>
                     </div>
                 )}
 
                 <div className="mt-8 rounded-[2rem] border border-white/10 bg-black/30 p-5">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        1. Series Result
+                        1. Wynik serii
                     </p>
 
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
@@ -1495,7 +1501,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                                         }`}
                                 >
                                     <p className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                        Pick
+                                        Typ
                                     </p>
 
                                     <h3 className="mt-2 text-2xl font-black">
@@ -1509,12 +1515,12 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
 
                 <div className="mt-6 rounded-[2rem] border border-white/10 bg-black/30 p-5">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        2. Map Scores
+                        2. Wyniki map
                     </p>
 
                     {!selectedSeries && (
                         <p className="mt-4 text-white/50">
-                            Select series result first.
+                            Najpierw wybierz wynik serii.
                         </p>
                     )}
 
@@ -1531,7 +1537,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                                         <div className="flex flex-wrap items-center justify-between gap-4">
                                             <div>
                                                 <p className="text-xs uppercase tracking-[0.2em] text-white/40">
-                                                    Map {mapNo}
+                                                    Mapa {mapNo}
                                                 </p>
 
                                                 <h3 className="mt-1 text-xl font-black">
@@ -1591,11 +1597,11 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                 {selectedSeries && mapsValid && (
                     <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Your Prediction
+                            Twój typ
                         </p>
 
                         <p className="mt-2 text-2xl font-black">
-                            Series: {selectedSeries.pred_a}:{selectedSeries.pred_b}
+                            Seria: {selectedSeries.pred_a}:{selectedSeries.pred_b}
                         </p>
 
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1619,7 +1625,7 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
 
                 {success && (
                     <p className="mt-4 text-center font-black text-green-300">
-                        Prediction saved!
+                        Typ zapisany!
                     </p>
                 )}
 
@@ -1632,14 +1638,14 @@ function PredictionModal({ match, closePredictionModal, onPredictionSaved }) {
                         }`}
                 >
                     {saving
-                        ? 'Saving...'
+                        ? 'Zapisywanie...'
                         : predictionClosed
-                            ? 'Prediction Closed'
+                            ? 'Typowanie zamknięte'
                             : success
-                                ? 'Saved!'
+                                ? 'Zapisano!'
                                 : isLoggedIn
-                                    ? 'Save Prediction'
-                                    : 'Login Required'}
+                                    ? 'Zapisz typ'
+                                    : 'Wymagane logowanie'}
                 </button>
             </div>
         </div>
@@ -1664,7 +1670,7 @@ function getCountdown(date, nowTick) {
     const target = new Date(date).getTime();
     const diff = target - nowTick;
 
-    if (diff <= 0) return 'LIVE';
+    if (diff <= 0) return 'NA ŻYWO';
 
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor(
@@ -1698,8 +1704,26 @@ function PublicSkeletonCard() {
     );
 }
 
+const PHASE_LABELS = {
+    SWISS: 'Swiss',
+    PLAYOFFS: 'Playoffs',
+    PLAY_IN: 'Play-In',
+    DOUBLEELIM: 'Double Elimination',
+    NOT_STARTED: 'Nierozpoczęta',
+    FINISHED: 'Zakończona'
+};
+
+const STATUS_LABELS = {
+    LIVE: 'Na żywo',
+    OPEN: 'Otwarty',
+    LOCKED: 'Zablokowany',
+    FINAL: 'Zakończony'
+};
+
 function formatPhaseLabel(phase) {
     if (!phase) return '-';
+
+    if (PHASE_LABELS[phase]) return PHASE_LABELS[phase];
 
     return phase
         .replaceAll('_', ' ')
@@ -1709,6 +1733,8 @@ function formatPhaseLabel(phase) {
 
 function formatStatusLabel(status) {
     if (!status) return '-';
+
+    if (STATUS_LABELS[status]) return STATUS_LABELS[status];
 
     return status
         .replaceAll('_', ' ')

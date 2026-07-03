@@ -13,7 +13,7 @@ export default function PublicLatestPredictionCard({
             <div className="flex flex-wrap items-center justify-between gap-6">
                 <div>
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Your Latest Prediction
+                        Twój ostatni typ
                     </p>
 
                     <h3 className="mt-2 text-4xl font-black">
@@ -21,14 +21,14 @@ export default function PublicLatestPredictionCard({
                     </h3>
 
                     <p className="mt-2 text-white/50">
-                        Match #{latestPrediction.match_id}
+                        Mecz #{latestPrediction.match_id}
                     </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="rounded-2xl border border-white/10 bg-black/30 px-5 py-3">
                         <p className="text-sm text-white/40">
-                            Progress
+                            Postęp
                         </p>
 
                         <p className="mt-1 text-3xl font-black text-violet-300">
@@ -48,14 +48,14 @@ export default function PublicLatestPredictionCard({
                         }}
                         className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
                     >
-                        View Picks
+                        Zobacz typy
                     </button>
 
                     <a
                         href="/public/me/predictions"
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
-                        All Predictions
+                        Wszystkie typy
                     </a>
                 </div>
             </div>

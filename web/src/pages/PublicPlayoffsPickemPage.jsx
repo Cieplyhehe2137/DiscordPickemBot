@@ -32,7 +32,7 @@ export default function PublicPlayoffsPickemPage() {
                 }
             } catch (err) {
                 console.error(err);
-                setError("Failed to load Playoffs Pick'Em.");
+                setError("Nie udało się wczytać Pick'Em Playoffs.");
             }
         }
 
@@ -83,7 +83,7 @@ export default function PublicPlayoffsPickemPage() {
         }
 
         if (semifinalists.length >= 4) {
-            setError('You can only select 4 semifinalists.');
+            setError('Możesz wybrać tylko 4 półfinalistów.');
             return;
         }
 
@@ -94,7 +94,7 @@ export default function PublicPlayoffsPickemPage() {
         resetFeedback();
 
         if (!semifinalists.includes(teamName)) {
-            setError('Finalists must be selected from semifinalists.');
+            setError('Finaliści muszą być wybrani spośród półfinalistów.');
             return;
         }
 
@@ -107,7 +107,7 @@ export default function PublicPlayoffsPickemPage() {
         }
 
         if (finalists.length >= 2) {
-            setError('You can only select 2 finalists.');
+            setError('Możesz wybrać tylko 2 finalistów.');
             return;
         }
 
@@ -118,12 +118,12 @@ export default function PublicPlayoffsPickemPage() {
         resetFeedback();
 
         if (!finalists.includes(teamName)) {
-            setError('Winner must be selected from finalists.');
+            setError('Zwycięzca musi być wybrany spośród finalistów.');
             return;
         }
 
         if (teamName === thirdPlaceWinner) {
-            setError('Winner and third place winner cannot be the same team.');
+            setError('Zwycięzca i zdobywca 3. miejsca nie mogą być tą samą drużyną.');
             return;
         }
 
@@ -134,12 +134,12 @@ export default function PublicPlayoffsPickemPage() {
         resetFeedback();
 
         if (!semifinalists.includes(teamName)) {
-            setError('Third place winner must be selected from semifinalists.');
+            setError('Zdobywca 3. miejsca musi być wybrany spośród półfinalistów.');
             return;
         }
 
         if (teamName === winner) {
-            setError('Winner and third place winner cannot be the same team.');
+            setError('Zwycięzca i zdobywca 3. miejsca nie mogą być tą samą drużyną.');
             return;
         }
 
@@ -164,7 +164,7 @@ export default function PublicPlayoffsPickemPage() {
             setSuccess(true);
         } catch (err) {
             console.error(err);
-            setError(err?.message || "Failed to save Playoffs Pick'Em.");
+            setError(err?.message || "Nie udało się zapisać Pick'Em Playoffs.");
         } finally {
             setSaving(false);
         }
@@ -173,7 +173,7 @@ export default function PublicPlayoffsPickemPage() {
     return (
         <PageShell>
             <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                Playoffs Pick&apos;Em
+                Pick&apos;Em Playoffs
             </p>
 
             <h1 className="mt-3 text-4xl font-black md:text-6xl">
@@ -181,17 +181,17 @@ export default function PublicPlayoffsPickemPage() {
             </h1>
 
             <p className="mt-4 max-w-3xl text-white/50">
-                Pick 4 semifinalists, 2 finalists, the champion and the third place winner.
+                Wybierz 4 półfinalistów, 2 finalistów, mistrza oraz zdobywcę 3. miejsca.
             </p>
 
             {isLocked && (
                 <div className="mt-6 rounded-[2rem] border border-red-400/20 bg-red-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-red-300">
-                        Pick&apos;Em Locked
+                        Pick&apos;Em zablokowane
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        {lock.message || 'This Pick&apos;Em is closed.'}
+                        {lock.message || 'Ten Pick&apos;Em jest zamknięty.'}
                     </p>
                 </div>
             )}
@@ -199,7 +199,7 @@ export default function PublicPlayoffsPickemPage() {
             {isLoggedIn && user && (
                 <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
                     <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Signed in as
+                        Zalogowano jako
                     </p>
 
                     <h2 className="mt-1 text-2xl font-black">
@@ -211,11 +211,11 @@ export default function PublicPlayoffsPickemPage() {
             {!loading && !isLoggedIn && (
                 <div className="mt-6 rounded-[2rem] border border-yellow-400/20 bg-yellow-500/10 p-6">
                     <p className="text-sm font-black uppercase tracking-[0.2em] text-yellow-300">
-                        Login Required
+                        Wymagane logowanie
                     </p>
 
                     <p className="mt-2 text-white/60">
-                        Sign in with Discord to save your Playoffs Pick&apos;Em.
+                        Zaloguj się przez Discord, aby zapisać swój Pick&apos;Em Playoffs.
                     </p>
 
                     <a
@@ -224,15 +224,15 @@ export default function PublicPlayoffsPickemPage() {
                         )}`}
                         className="mt-4 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
-                        Login Discord
+                        Zaloguj przez Discord
                     </a>
                 </div>
             )}
 
             <div className="mt-10 grid gap-6 xl:grid-cols-4">
                 <PickColumn
-                    title="Semifinalists"
-                    description="Pick exactly 4 teams."
+                    title="Półfinaliści"
+                    description="Wybierz dokładnie 4 drużyny."
                     teams={teams.map((team) => team.name)}
                     selected={semifinalists}
                     limit={4}
@@ -241,8 +241,8 @@ export default function PublicPlayoffsPickemPage() {
                 />
 
                 <PickColumn
-                    title="Finalists"
-                    description="Pick exactly 2 from semifinalists."
+                    title="Finaliści"
+                    description="Wybierz dokładnie 2 spośród półfinalistów."
                     teams={semifinalists}
                     selected={finalists}
                     limit={2}
@@ -251,8 +251,8 @@ export default function PublicPlayoffsPickemPage() {
                 />
 
                 <SinglePickColumn
-                    title="Winner"
-                    description="Pick 1 from finalists."
+                    title="Zwycięzca"
+                    description="Wybierz 1 spośród finalistów."
                     teams={finalists}
                     selected={winner}
                     onSelect={selectWinner}
@@ -260,8 +260,8 @@ export default function PublicPlayoffsPickemPage() {
                 />
 
                 <SinglePickColumn
-                    title="Third Place"
-                    description="Pick 1 from semifinalists."
+                    title="3. miejsce"
+                    description="Wybierz 1 spośród półfinalistów."
                     teams={semifinalists}
                     selected={thirdPlaceWinner}
                     onSelect={selectThirdPlace}
@@ -273,11 +273,11 @@ export default function PublicPlayoffsPickemPage() {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                            Progress
+                            Postęp
                         </p>
 
                         <p className="mt-2 text-white/50">
-                            Semifinalists: {semifinalists.length}/4 • Finalists: {finalists.length}/2 • Winner: {winner ? '1/1' : '0/1'} • Third: {thirdPlaceWinner ? '1/1' : '0/1'}
+                            Półfinaliści: {semifinalists.length}/4 • Finaliści: {finalists.length}/2 • Zwycięzca: {winner ? '1/1' : '0/1'} • 3. miejsce: {thirdPlaceWinner ? '1/1' : '0/1'}
                         </p>
                     </div>
 
@@ -289,13 +289,13 @@ export default function PublicPlayoffsPickemPage() {
                             : 'cursor-not-allowed bg-white/10 text-white/30'
                             }`}
                     >
-                        {saving ? 'Saving...' : "Save Playoffs Pick'Em"}
+                        {saving ? 'Zapisywanie...' : "Zapisz Pick'Em Playoffs"}
                     </button>
                 </div>
 
                 {success && (
                     <p className="mt-4 font-black text-green-300">
-                        Playoffs Pick&apos;Em saved!
+                        Pick&apos;Em Playoffs zapisane!
                     </p>
                 )}
 
@@ -366,7 +366,7 @@ function PickColumn({
 
                 {teams.length === 0 && (
                     <p className="text-white/40">
-                        Select previous round first.
+                        Najpierw wybierz poprzednią rundę.
                     </p>
                 )}
             </div>
@@ -413,7 +413,7 @@ function SinglePickColumn({
 
                 {teams.length === 0 && (
                     <p className="text-white/40">
-                        Select previous round first.
+                        Najpierw wybierz poprzednią rundę.
                     </p>
                 )}
             </div>
@@ -429,10 +429,10 @@ function PlayoffsSummary({
 }) {
     return (
         <div className="mt-8 grid gap-4 md:grid-cols-4">
-            <SummaryCard title="Semifinalists" teams={semifinalists} />
-            <SummaryCard title="Finalists" teams={finalists} />
-            <SummaryCard title="Winner" teams={winner ? [winner] : []} />
-            <SummaryCard title="Third Place" teams={thirdPlaceWinner ? [thirdPlaceWinner] : []} />
+            <SummaryCard title="Półfinaliści" teams={semifinalists} />
+            <SummaryCard title="Finaliści" teams={finalists} />
+            <SummaryCard title="Zwycięzca" teams={winner ? [winner] : []} />
+            <SummaryCard title="3. miejsce" teams={thirdPlaceWinner ? [thirdPlaceWinner] : []} />
         </div>
     );
 }
@@ -456,7 +456,7 @@ function SummaryCard({ title, teams }) {
                     ))
                 ) : (
                     <span className="text-white/40">
-                        No teams selected
+                        Brak wybranych drużyn
                     </span>
                 )}
             </div>
@@ -475,14 +475,14 @@ function PageShell({ children }) {
                         href="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Communities
+                        Społeczności
                     </a>
 
                     <a
                         href="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
-                        Leaderboard
+                        Ranking
                     </a>
 
                     <div className="ml-auto">

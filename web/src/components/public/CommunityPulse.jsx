@@ -10,27 +10,27 @@ export default function CommunityPulse({
         <>
             <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
                 <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                    Community Pulse
+                    Puls społeczności
                 </p>
 
                 <div className="mt-6 grid gap-4 md:grid-cols-4">
                     <PulseStat
-                        title="Live Matches"
+                        title="Mecze na żywo"
                         value={liveMatchesCount}
                     />
 
                     <PulseStat
-                        title="Total Picks"
+                        title="Wszystkie typy"
                         value={totalPredictions}
                     />
 
                     <PulseStat
-                        title="Event Phase"
+                        title="Faza eventu"
                         value={phase}
                     />
 
                     <PulseStat
-                        title="Community Accuracy"
+                        title="Skuteczność społeczności"
                         value={`${communityAccuracy}%`}
                     />
                 </div>
@@ -38,15 +38,15 @@ export default function CommunityPulse({
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
                 <InsightCard
-                    title="Most Trusted Pick"
+                    title="Najbardziej zaufany typ"
                     match={mostTrustedPick}
-                    empty="No correct community picks yet."
+                    empty="Brak jeszcze trafionych typów społeczności."
                 />
 
                 <InsightCard
-                    title="Biggest Upset"
+                    title="Największa niespodzianka"
                     match={biggestUpset}
-                    empty="No upsets yet."
+                    empty="Brak jeszcze niespodzianek."
                 />
             </div>
         </>
@@ -98,11 +98,11 @@ function InsightCard({ title, match, empty }) {
             </h3>
 
             <p className="mt-2 text-white/50">
-                Community picked {match.community_pick} with {confidence}% confidence.
+                Społeczność typowała {match.community_pick} z pewnością {confidence}%.
             </p>
 
             <p className="mt-2 text-white/50">
-                Winner: {match.winner}
+                Zwycięzca: {match.winner}
             </p>
         </div>
     );

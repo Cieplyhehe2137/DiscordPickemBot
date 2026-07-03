@@ -36,12 +36,12 @@ export default function Dashboard() {
                         </h1>
 
                         <p className="text-sm text-white/40">
-                            Pick&apos;Em Dashboard
+                            Panel Pick&apos;Em
                         </p>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3">
-                        Admin Panel
+                        Panel Administracyjny
                     </div>
                 </div>
             </header>
@@ -50,25 +50,25 @@ export default function Dashboard() {
             <main className="mx-auto max-w-7xl px-6 py-10">
                 <div className="mb-10">
                     <p className="text-sm font-bold uppercase tracking-[0.25em] text-violet-300">
-                        Dashboard
+                        Panel
                     </p>
 
                     <h2 className="mt-2 text-5xl font-black">
-                        Active Events
+                        Aktywne eventy
                     </h2>
                 </div>
 
                 {loading && (
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-                        Loading events...
+                        Ładowanie eventów...
                     </div>
                 )}
 
                 {!loading && events.length === 0 && (
                     <EmptyState
                         icon={PartyPopper}
-                        title="No active events found"
-                        description="Create an event from a server dashboard to see it here."
+                        title="Brak aktywnych eventów"
+                        description="Utwórz event z poziomu panelu serwera, aby zobaczyć go tutaj."
                     />
                 )}
 
@@ -91,20 +91,20 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="rounded-2xl bg-green-500/15 px-4 py-2 text-sm font-black text-green-300">
-                                    ACTIVE
+                                    AKTYWNY
                                 </div>
                             </div>
 
                             <div className="mt-8 grid gap-4">
                                 <InfoCard
                                     icon={<Users size={18} />}
-                                    label="Participants"
+                                    label="Uczestnicy"
                                     value={event.participants ?? 0}
                                 />
 
                                 <InfoCard
                                     icon={<Trophy size={18} />}
-                                    label="Predictions"
+                                    label="Typy"
                                     value={event.predictions ?? 0}
                                 />
 
@@ -119,7 +119,7 @@ export default function Dashboard() {
                                 onClick={() => navigate(`/app/events/${event.slug || event.id}`)}
                                 className="mt-8 w-full rounded-2xl bg-violet-500 px-6 py-4 text-lg font-black transition hover:bg-violet-400"
                             >
-                                Open Event
+                                Otwórz event
                             </button>
                         </div>
                     ))}
@@ -130,19 +130,19 @@ export default function Dashboard() {
 }
 
 function formatDeadline(deadline) {
-    if (!deadline) return 'No deadline set';
+    if (!deadline) return 'Brak ustawionego deadline';
 
     const diff = new Date(deadline).getTime() - Date.now();
 
-    if (diff <= 0) return 'Deadline passed';
+    if (diff <= 0) return 'Deadline minął';
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
-    if (days > 0) return `${days}d ${hours}h left`;
+    if (days > 0) return `zostało ${days}d ${hours}h`;
 
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m left`;
+    return `zostało ${hours}h ${minutes}m`;
 }
 
 function InfoCard({ icon, label, value }) {

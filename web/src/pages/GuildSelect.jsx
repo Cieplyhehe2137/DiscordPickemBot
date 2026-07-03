@@ -31,12 +31,12 @@ export default function GuildSelect() {
         </p>
 
         <h1 className="mt-3 text-5xl font-black">
-          Select Server
+          Wybierz serwer
         </h1>
 
         {loading && (
           <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
-            Loading servers...
+            Ładowanie serwerów...
           </div>
         )}
 

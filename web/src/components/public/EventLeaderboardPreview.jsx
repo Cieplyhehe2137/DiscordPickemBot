@@ -7,11 +7,11 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                        Top Players
+                        Najlepsi gracze
                     </p>
 
                     <h2 className="mt-2 text-3xl font-black">
-                        Event Leaderboard
+                        Ranking eventu
                     </h2>
                 </div>
 
@@ -19,7 +19,7 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                     href={`/public/event/${slug}/leaderboard`}
                     className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
                 >
-                    Full Ranking
+                    Pełny ranking
                 </a>
             </div>
 
@@ -51,8 +51,8 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                 {eventLeaderboard.length === 0 && (
                     <EmptyState
                         icon={Trophy}
-                        title="No leaderboard data yet"
-                        description="Standings appear once predictions start coming in."
+                        title="Brak jeszcze danych rankingu"
+                        description="Wyniki pojawią się, gdy zaczną napływać typy."
                     />
                 )}
             </div>

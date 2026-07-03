@@ -24,7 +24,7 @@ export default function PublicFeaturedMatch({
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm font-black uppercase tracking-[0.25em] text-violet-300">
-                            Featured Match
+                            Wyróżniony mecz
                         </p>
 
                         {heroMatch.ui_status === 'LIVE' && (
@@ -32,7 +32,7 @@ export default function PublicFeaturedMatch({
                                 <div className="h-3 w-3 animate-pulse rounded-full bg-green-400" />
 
                                 <span className="text-sm font-black uppercase tracking-[0.2em] text-green-300">
-                                    Live Now
+                                    Na żywo teraz
                                 </span>
                             </div>
                         )}
@@ -93,7 +93,7 @@ export default function PublicFeaturedMatch({
 
                         {!heroMatch.live_status && (
                             <p className="mt-3 text-sm text-white/40">
-                                Community predictions opening soon
+                                Typowanie społeczności wkrótce się otworzy
                             </p>
                         )}
                     </div>
@@ -106,7 +106,7 @@ export default function PublicFeaturedMatch({
                 <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-3 text-white/60">
                         <span>
-                            {heroMatch.formatted_time || 'Start time TBA'}
+                            {heroMatch.formatted_time || 'Termin do ustalenia'}
                         </span>
 
                         {heroMatch.start_time_utc && (
@@ -117,7 +117,7 @@ export default function PublicFeaturedMatch({
 
                         {myPrediction && (
                             <span className="rounded-full bg-violet-500/20 px-4 py-2 text-sm font-black uppercase tracking-[0.15em] text-violet-300">
-                                Your Pick Saved
+                                Twój typ zapisany
                             </span>
                         )}
                     </div>
@@ -136,19 +136,19 @@ export default function PublicFeaturedMatch({
                             }`}
                         >
                             {heroMatch.ui_status === 'FINAL'
-                                ? 'Prediction Closed'
+                                ? 'Typowanie zamknięte'
                                 : heroMatch.ui_status === 'LOCKED'
-                                    ? 'Locked'
+                                    ? 'Zablokowane'
                                     : myPrediction
-                                        ? 'Edit Prediction'
-                                        : 'Predict This Match'}
+                                        ? 'Edytuj typ'
+                                        : 'Typuj ten mecz'}
                         </button>
 
                         <button
                             onClick={() => openMatchModal(heroMatch)}
                             className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                         >
-                            Match Details
+                            Szczegóły meczu
                         </button>
                     </div>
                 </div>
