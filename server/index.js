@@ -5021,11 +5021,51 @@ app.get('/api/public/archives/:id/download', async (req, res) => {
 // side route handled by React Router, so it always falls back to index.html.
 if (IS_PRODUCTION) {
     const webDist = path.join(__dirname, '../web/dist');
+    const indexHtmlPath = path.join(webDist, 'index.html');
 
-    app.use(express.static(webDist));
+    const escapeHtml = (s) => String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
 
-    app.get(/^(?!\/api|\/socket\.io).*/, (req, res) => {
-        res.sendFile(path.join(webDist, 'index.html'));
+    // index: false so "/" also goes through the wildcard below - one code
+    // path for every HTML response, static only serves real asset files.
+    app.use(express.static(webDist, { index: false }));
+
+    app.get(/^(?!\/api|\/socket\.io).*/, async (req, res) => {
+        // Discord/messengers build link previews from the raw HTML without
+        // running JS, so event pages get their og:title/description injected
+        // server-side; every other route falls back to the default tags.
+        try {
+            const eventMatch = req.path.match(/^\/public\/event\/([^/]+)/);
+
+            if (eventMatch) {
+                const [[event]] = await pool.query(
+                    'SELECT name FROM events WHERE slug = ? LIMIT 1',
+                    [decodeURIComponent(eventMatch[1])]
+                );
+
+                if (event) {
+                    const title = escapeHtml(`${event.name} — Pick'Em`);
+                    const description = escapeHtml(
+                        `Typuj mecze i śledź ranking eventu ${event.name}.`
+                    );
+
+                    const html = fs.readFileSync(indexHtmlPath, 'utf8')
+                        .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+                        .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${title}$2`)
+                        .replace(/(<meta name="description" content=")[^"]*(")/, `$1${description}$2`)
+                        .replace(/(<meta property="og:description" content=")[^"]*(")/, `$1${description}$2`);
+
+                    return res.send(html);
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        }
+
+        res.sendFile(indexHtmlPath);
     });
 }
 
