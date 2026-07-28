@@ -25,19 +25,156 @@ const matchesStore = require('../utils/matchesStore');
 const recalculateMatchPoints = require('../services/recalculateMatchPoints');
 const { runInTransaction } = require('../utils/runInTransaction');
 const exportClassification = require('../handlers/admin/exportClassification');
-const { logWarn } = require('../utils/logger');
 const { loadActiveTeams } = require('../utils/loadActiveTeams');
 const { getCurrentSwissResults } = require('../utils/swissRepository');
 const { getCurrentPlayoffs } = require('../utils/playoffsRepository');
 const { getCurrentDoubleElimResults } = require('../utils/doubleelimRepository');
 const { getCurrentPlayinResults } = require('../utils/playinRepository');
 const { maxMapsFromBo } = require('../utils/mapLabels');
-const { VALID_PHASES, parseDeadlineInput, findPanelForDeadline, findPanelForMatchDeadline } = require('../utils/deadlineRepository');
-const fs = require('fs')
+const fs = require('fs');
+
+const restoreBackup = require('../utils/restoreBackup');
+const mysqldump = require('mysqldump');
+const { logInfo, logWarn, logError } = require('../utils/logger');
+const mysql2 = require('mysql2/promise');
+
+const {
+    VALID_PHASES,
+    parseDeadlineInput,
+    findPanelForDeadline,
+    findPanelForMatchDeadline,
+    isPickDeadlinePassed,
+    isMatchDeadlinePassed
+} = require('../utils/deadlineRepository');
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || 'http://localhost:5173';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const ADMINISTRATOR_PERMISSION = 0x8n;
+
+function sqlEscape(value) {
+    return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function safeFileBase(value, fallback = 'pickem_export') {
+    const safe = String(value || fallback)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_');
+
+    return safe || fallback;
+}
+
+function assertSafeBackupFileName(fileName) {
+    const name = String(fileName || '');
+
+    if (!/^backup_[a-zA-Z0-9_-]+_\d{4}-\d{2}-\d{2}T[\d-]+Z\.sql$/.test(name)) {
+        throw new Error('Invalid backup file name');
+    }
+
+    return name;
+}
+
+async function getDatabaseTablesAndColumns(cfg) {
+    const connection = await mysql2.createConnection({
+        host: cfg.DB_HOST,
+        port: Number(cfg.DB_PORT) || 3306,
+        user: cfg.DB_USER,
+        password: cfg.DB_PASS || cfg.DB_PASSWORD,
+        database: cfg.DB_NAME,
+    });
+
+    try {
+        const [rows] = await connection.query(
+            `
+      SELECT TABLE_NAME, COLUMN_NAME
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = ?
+      ORDER BY TABLE_NAME, ORDINAL_POSITION
+      `,
+            [cfg.DB_NAME]
+        );
+
+        const map = new Map();
+
+        for (const row of rows) {
+            if (!map.has(row.TABLE_NAME)) {
+                map.set(row.TABLE_NAME, new Set());
+            }
+
+            map.get(row.TABLE_NAME).add(row.COLUMN_NAME);
+        }
+
+        return map;
+    } finally {
+        await connection.end();
+    }
+}
+
+async function createGuildBackup(guildId) {
+    const cfg = guildRegistry.getGuildConfig(guildId);
+    if (!cfg) throw new Error(`Missing DB config for guildId=${guildId}`);
+
+    guildRegistry.ensureGuildDirs(guildId);
+
+    const { backupDir } = guildRegistry.getGuildPaths(guildId);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `backup_${guildId}_${timestamp}.sql`;
+    const filePath = path.join(backupDir, fileName);
+
+    const tablesMap = await getDatabaseTablesAndColumns(cfg);
+    const tables = [...tablesMap.keys()];
+    const where = {};
+    const escapedGuildId = sqlEscape(guildId);
+
+    for (const [table, columns] of tablesMap.entries()) {
+        if (columns.has('guild_id')) {
+            where[table] = `guild_id = '${escapedGuildId}'`;
+        }
+    }
+
+    await mysqldump({
+        connection: {
+            host: cfg.DB_HOST,
+            port: Number(cfg.DB_PORT) || 3306,
+            user: cfg.DB_USER,
+            password: cfg.DB_PASS || cfg.DB_PASSWORD,
+            database: cfg.DB_NAME,
+        },
+        dump: {
+            tables,
+            where,
+        },
+        dumpToFile: filePath,
+    });
+
+    return {
+        fileName,
+        filePath,
+        tablesCount: tables.length,
+        filteredTablesCount: Object.keys(where).length,
+    };
+}
+
+function listGuildBackups(guildId) {
+    guildRegistry.ensureGuildDirs(guildId);
+
+    const { backupDir } = guildRegistry.getGuildPaths(guildId);
+
+    return fs.readdirSync(backupDir)
+        .filter((file) => file.endsWith('.sql'))
+        .map((file) => {
+            const fullPath = path.join(backupDir, file);
+            const stat = fs.statSync(fullPath);
+
+            return {
+                fileName: file,
+                sizeBytes: stat.size,
+                createdAt: stat.birthtime?.toISOString?.() || stat.mtime.toISOString(),
+                modifiedAt: stat.mtime.toISOString(),
+            };
+        })
+        .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+}
 
 const app = express();
 
@@ -138,6 +275,50 @@ function requireGuildAdmin(resolveGuildId) {
             res.status(500).json({ error: 'Authorization check failed' });
         }
     };
+}
+
+// Kind values used by the pickem endpoints -> phase strings stored in
+// active_panels (matches what /set_deadline writes; swiss additionally
+// resolves to swiss_stageN + stage_key inside isPickDeadlinePassed).
+const PICKEM_PANEL_PHASE = {
+    SWISS: 'swiss',
+    PLAYIN: 'playin',
+    PLAYOFFS: 'playoffs',
+    DOUBLEELIM: 'doubleelim'
+};
+
+// matches.phase values -> active_panels.phase strings for match panels
+// (what /set_match_deadline writes; not stage-specific, same as the bot).
+const MATCH_PANEL_PHASE = {
+    SWISS: 'swiss',
+    PLAY_IN: 'playin',
+    PLAYOFFS: 'playoffs',
+    DOUBLE_ELIM: 'doubleelim'
+};
+
+// Tournament-state gate + panel deadline gate in one place. Discord only
+// enforces deadlines by disabling message components, which the web API
+// never sees - this adds the equivalent server-side block for web saves.
+async function pickemGate(guildId, kind, stage = null) {
+    const gate = await assertPredictionsAllowed({ guildId, kind, stage });
+
+    if (!gate.allowed) return gate;
+
+    const { passed } = await isPickDeadlinePassed(
+        pool,
+        guildId,
+        PICKEM_PANEL_PHASE[kind],
+        stage
+    );
+
+    if (passed) {
+        return {
+            allowed: false,
+            message: 'Deadline typowania dla tej fazy minął.'
+        };
+    }
+
+    return gate;
 }
 
 async function guildIdFromEventSlug(req) {
@@ -2248,6 +2429,213 @@ app.post('/api/events/:slug/mvp/result', requireGuildAdmin(guildIdFromEventSlug)
     }
 });
 
+app.post('/api/events/:slug/phase', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { phase } = req.body;
+
+        const allowedPhases = [
+            'NOT_STARTED',
+            'PLAY_IN',
+            'SWISS',
+            'PLAYOFFS',
+            'FINISHED',
+            'SWISS_STAGE_1',
+            'SWISS_STAGE_2',
+            'SWISS_STAGE_3'
+        ];
+
+        if (!allowedPhases.includes(phase)) {
+            return res.status(400).json({ error: 'Invalid phase', allowedPhases });
+        }
+
+        const [result] = await pool.query(
+            `UPDATE events SET phase = ? WHERE slug = ? LIMIT 1`,
+            [phase, slug]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        io.emit('dashboard:refresh', { slug });
+
+        res.json({ ok: true, slug, phase });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.get('/api/guilds/:guildId/backups', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        res.json({ backups: listGuildBackups(req.params.guildId) });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Could not list backups' });
+    }
+});
+
+app.post('/api/guilds/:guildId/backups', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const result = await createGuildBackup(req.params.guildId);
+
+        logInfo('backup', 'Guild backup created from web panel', {
+            guildId: req.params.guildId,
+            fileName: result.fileName,
+            tablesCount: result.tablesCount,
+            filteredTablesCount: result.filteredTablesCount,
+            by: req.session?.user?.id,
+        });
+
+        res.json({
+            ok: true,
+            backup: result,
+            backups: listGuildBackups(req.params.guildId),
+        });
+    } catch (err) {
+        console.error(err);
+
+        logError('backup', 'Web backup failed', {
+            guildId: req.params.guildId,
+            message: err?.message,
+            stack: err?.stack,
+        });
+
+        res.status(500).json({ error: 'Backup failed' });
+    }
+});
+
+app.post('/api/guilds/:guildId/backups/:fileName/restore', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const guildId = req.params.guildId;
+        const fileName = assertSafeBackupFileName(req.params.fileName);
+        const { backupDir } = guildRegistry.getGuildPaths(guildId);
+        const filePath = path.join(backupDir, fileName);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Backup file not found' });
+        }
+
+        await restoreBackup(filePath, { guildId });
+
+        logWarn('backup', 'Guild backup restored from web panel', {
+            guildId,
+            fileName,
+            by: req.session?.user?.id,
+        });
+
+        io.emit('dashboard:refresh', {});
+
+        res.json({ ok: true, fileName });
+    } catch (err) {
+        console.error(err);
+
+        logError('backup', 'Web restore failed', {
+            guildId: req.params.guildId,
+            fileName: req.params.fileName,
+            message: err?.message,
+            stack: err?.stack,
+        });
+
+        res.status(500).json({ error: 'Restore failed' });
+    }
+});
+
+app.post('/api/events/:slug/end-tournament', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { archiveName, cleanup = false } = req.body || {};
+        const guildId = req.guildId;
+
+        const [[event]] = await pool.query(
+            'SELECT id, guild_id, name, slug FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        guildRegistry.ensureGuildDirs(guildId);
+
+        const { archiveDir } = guildRegistry.getGuildPaths(guildId);
+        const base = safeFileBase(archiveName || event.slug || event.name, 'pickem_archive');
+        const filename = `${base}.xlsx`;
+        const filePath = path.join(archiveDir, filename);
+
+        await exportClassification({ guildId, outputPath: filePath });
+
+        await pool.query(
+            `INSERT INTO archive_files (guild_id, filename, path) VALUES (?, ?, ?)`,
+            [guildId, filename, filePath]
+        );
+
+        await pool.query(
+            `UPDATE active_panels SET closed = 1, closed_at = NOW(), active = 0 WHERE guild_id = ? AND closed = 0`,
+            [guildId]
+        );
+
+        if (cleanup) {
+            await runInTransaction(pool, async (conn) => {
+                await conn.query(`DELETE FROM active_panels WHERE guild_id = ?`, [guildId]);
+                await conn.query(`DELETE FROM swiss_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playoffs_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM doubleelim_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playin_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM swiss_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playoffs_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM doubleelim_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playin_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM match_points WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM match_map_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM match_map_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM match_predictions WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM match_results WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM matches WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM swiss_scores WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playoffs_scores WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM doubleelim_scores WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+                await conn.query(`DELETE FROM playin_scores WHERE guild_id = ? AND event_id = ?`, [guildId, event.id]);
+            });
+        }
+
+        await pool.query(
+            `UPDATE events SET status = 'FINISHED', is_archived = 1, is_open = 0, is_active = 0, phase = 'FINISHED' WHERE id = ? LIMIT 1`,
+            [event.id]
+        );
+
+        logWarn('tournament', 'Tournament ended from web panel', {
+            guildId,
+            eventId: event.id,
+            slug,
+            filename,
+            cleanup: Boolean(cleanup),
+            by: req.session?.user?.id,
+        });
+
+        io.emit('dashboard:refresh', { slug });
+        io.emit('event:status_updated', { slug, status: 'FINISHED' });
+
+        res.json({
+            ok: true,
+            archive: { filename, path: filePath },
+            cleanup: Boolean(cleanup),
+        });
+    } catch (err) {
+        console.error(err);
+
+        logError('tournament', 'Web end tournament failed', {
+            slug: req.params.slug,
+            guildId: req.guildId,
+            message: err?.message,
+            stack: err?.stack,
+        });
+
+        res.status(500).json({ error: 'End tournament failed' });
+    }
+});
+
 app.get('/api/events/:slug/export/classification', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
     try {
         const { slug } = req.params;
@@ -3022,7 +3410,7 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
 
         const [[match]] = await pool.query(
             `
-            SELECT id, guild_id, event_id, team_a, team_b, best_of, is_locked
+            SELECT id, guild_id, event_id, phase, team_a, team_b, best_of, is_locked
             FROM matches
             WHERE id = ?
             LIMIT 1
@@ -3046,6 +3434,22 @@ app.post('/api/public/matches/:matchId/prediction', async (req, res) => {
             return res.status(403).json({
                 error: 'Match is locked'
             });
+        }
+
+        const matchPanelPhase = MATCH_PANEL_PHASE[match.phase];
+
+        if (matchPanelPhase) {
+            const { passed } = await isMatchDeadlinePassed(
+                pool,
+                match.guild_id,
+                matchPanelPhase
+            );
+
+            if (passed) {
+                return res.status(403).json({
+                    error: 'Deadline typowania wyników meczów dla tej fazy minął.'
+                });
+            }
         }
 
         const bestOf = Number(match.best_of || 1);
@@ -3683,11 +4087,7 @@ app.get('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'SWISS',
-            stage
-        });
+        const gate = await pickemGate(event.guild_id, 'SWISS', stage);
 
         const [teams] = await pool.query(
             `
@@ -3786,11 +4186,7 @@ app.post('/api/public/events/:slug/swiss-pickem/:stage', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'SWISS',
-            stage
-        });
+        const gate = await pickemGate(event.guild_id, 'SWISS', stage);
 
         if (!gate.allowed) {
             return res.status(403).json({
@@ -4293,10 +4689,7 @@ app.get('/api/public/events/:slug/playin-pickem', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'PLAYIN'
-        });
+        const gate = await pickemGate(event.guild_id, 'PLAYIN');
 
         const [teams] = await pool.query(
             `
@@ -4384,13 +4777,10 @@ app.post('/api/public/events/:slug/playin-pickem', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'PLAYIN'
-        });
+        const gate = await pickemGate(event.guild_id, 'PLAYIN');
 
         if (!gate.allowed) {
-            return res.json(403).json({
+            return res.status(403).json({
                 error: gate.message || "Play-In Pick'Em is closed."
             })
         }
@@ -4495,10 +4885,7 @@ app.get('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
             return res.status(404).json({ error: 'Event not found' });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'PLAYOFFS'
-        });
+        const gate = await pickemGate(event.guild_id, 'PLAYOFFS');
 
         const [teams] = await pool.query(
             `
@@ -4587,10 +4974,7 @@ app.post('/api/public/events/:slug/playoffs-pickem', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'PLAYOFFS'
-        });
+        const gate = await pickemGate(event.guild_id, 'PLAYOFFS');
 
         if (!gate.allowed) {
             return res.status(403).json({
@@ -4747,10 +5131,7 @@ app.get('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'DOUBLEELIM'
-        });
+        const gate = await pickemGate(event.guild_id, 'DOUBLEELIM');
 
         const [teams] = await pool.query(
             `
@@ -4851,10 +5232,7 @@ app.post('/api/public/events/:slug/doubleelim-pickem', async (req, res) => {
             });
         }
 
-        const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: 'DOUBLEELIM'
-        });
+        const gate = await pickemGate(event.guild_id, 'DOUBLEELIM');
 
         if (!gate.allowed) {
             return res.status(403).json({

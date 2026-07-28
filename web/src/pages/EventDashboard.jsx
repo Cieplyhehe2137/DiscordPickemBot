@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getEventSummary,
@@ -18,6 +18,10 @@ import {
   getClassificationExportUrl,
   getPhaseClearPreview,
   clearEventPhase,
+  getGuildBackups,
+  createGuildBackup,
+  restoreGuildBackup,
+  endTournament,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -91,6 +95,14 @@ export default function EventDashboard() {
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState(null);
+  const [backups, setBackups] = useState([]);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupActionLoading, setBackupActionLoading] = useState(false);
+  const [backupError, setBackupError] = useState(null);
+  const [endingTournament, setEndingTournament] = useState(false);
+  const [archiveName, setArchiveName] = useState('');
+  const [endTournamentCleanup, setEndTournamentCleanup] = useState(false);
+  const [operationsMessage, setOperationsMessage] = useState(null);
 
   const event = data?.event;
   const stats = data?.stats;
@@ -134,6 +146,131 @@ export default function EventDashboard() {
 
       return 0;
     });
+
+  const loadBackups = useCallback(async (guildId) => {
+    if (!guildId) return;
+
+    try {
+      setBackupLoading(true);
+      setBackupError(null);
+
+      const result = await getGuildBackups(guildId);
+      setBackups(result.backups || []);
+    } catch (err) {
+      console.error(err);
+      setBackupError(describeActionError(err, 'pobrać backupy'));
+    } finally {
+      setBackupLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!event?.guild_id) return;
+
+    loadBackups(event.guild_id);
+  }, [event?.guild_id, loadBackups]);
+
+  async function handleCreateBackup() {
+    if (!event?.guild_id) return;
+
+    try {
+      setBackupActionLoading(true);
+      setBackupError(null);
+      setOperationsMessage(null);
+
+      const result = await createGuildBackup(event.guild_id);
+
+      setBackups(result.backups || []);
+      setOperationsMessage(`Backup utworzony: ${result.backup?.fileName || 'OK'}`);
+    } catch (err) {
+      console.error(err);
+      setBackupError(describeActionError(err, 'utworzyć backup'));
+    } finally {
+      setBackupActionLoading(false);
+    }
+  }
+
+  async function refreshEventData() {
+    const result = await getEventSummary(slug);
+
+    setData(result);
+    setSelectedPhase(result?.event?.phase || '');
+    setSelectedEvent(result.event);
+
+    const matchesResult = await getEventMatches(slug);
+    setMatches(matchesResult.matches || []);
+
+    const leaderboardResult = await getEventLeaderboard(slug);
+    setLeaderboard(leaderboardResult.leaderboard || []);
+
+    const mvpData = await getMvp(slug);
+    setMvpCandidates(mvpData.candidates || []);
+    setMvpResult(mvpData.result || null);
+  }
+
+  async function handleRestoreBackup(fileName) {
+    if (!event?.guild_id) return;
+
+    const confirmed = window.confirm(
+      `Przywrócić backup ${fileName}?\n\nTo nadpisze dane turniejowe tego serwera danymi z backupu.`
+    );
+
+    if (!confirmed) return;
+
+    const secondConfirm = window.prompt('Dla bezpieczeństwa wpisz RESTORE');
+    if (secondConfirm !== 'RESTORE') return;
+
+    try {
+      setBackupActionLoading(true);
+      setBackupError(null);
+      setOperationsMessage(null);
+
+      await restoreGuildBackup(event.guild_id, fileName);
+      await refreshEventData();
+
+      setOperationsMessage(`Backup przywrócony: ${fileName}`);
+    } catch (err) {
+      console.error(err);
+      setBackupError(describeActionError(err, 'przywrócić backup'));
+    } finally {
+      setBackupActionLoading(false);
+    }
+  }
+
+  async function handleEndTournament() {
+    const name = archiveName.trim() || event?.slug || slug;
+
+    const confirmed = window.confirm(
+      `Zakończyć turniej "${event?.name || slug}"?\n\nZostanie utworzony plik archiwum XLSX, event zostanie oznaczony jako zakończony i przeniesiony do archiwum.` +
+      (endTournamentCleanup ? '\n\nUWAGA: włączone jest także czyszczenie danych operacyjnych eventu.' : '')
+    );
+
+    if (!confirmed) return;
+
+    if (endTournamentCleanup) {
+      const typed = window.prompt('Wpisz KONIEC, żeby potwierdzić czyszczenie danych po archiwizacji');
+      if (typed !== 'KONIEC') return;
+    }
+
+    try {
+      setEndingTournament(true);
+      setOperationsMessage(null);
+
+      const result = await endTournament(slug, {
+        archiveName: name,
+        cleanup: endTournamentCleanup
+      });
+
+      await refreshEventData();
+
+      setOperationsMessage(`Turniej zakończony. Archiwum: ${result.archive?.filename || `${name}.xlsx`}`);
+    } catch (err) {
+      console.error(err);
+      alert(describeActionError(err, 'zakończyć turniej'));
+    } finally {
+      setEndingTournament(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -215,23 +352,7 @@ export default function EventDashboard() {
     };
   }, [slug]);
 
-  async function refreshEventData() {
-    const result = await getEventSummary(slug);
 
-    setData(result);
-    setSelectedPhase(result?.event?.phase || '');
-    setSelectedEvent(result.event);
-
-    const matchesResult = await getEventMatches(slug);
-    setMatches(matchesResult.matches || []);
-
-    const leaderboardResult = await getEventLeaderboard(slug);
-    setLeaderboard(leaderboardResult.leaderboard || []);
-
-    const mvpData = await getMvp(slug);
-    setMvpCandidates(mvpData.candidates || []);
-    setMvpResult(mvpData.result || null);
-  }
 
   async function handlePhaseUpdate() {
     try {
@@ -703,6 +824,123 @@ export default function EventDashboard() {
                 >
                   Eksportuj klasyfikację
                 </button>
+              </div>
+            </div>
+
+            <div className="mt-10 rounded-[2rem] border border-amber-400/20 bg-amber-500/5 p-8">
+              <p className="text-sm uppercase tracking-[0.25em] text-amber-300">
+                Operacje turniejowe
+              </p>
+
+              <h2 className="mt-2 text-3xl font-black">
+                Backup, restore i zakończenie turnieju
+              </h2>
+
+              <p className="mt-2 text-white/50">
+                To są odpowiedniki operatorskich akcji z Discorda. Restore i cleanup mają dodatkowe potwierdzenia.
+              </p>
+
+              {operationsMessage && (
+                <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-4 font-bold text-green-200">
+                  {operationsMessage}
+                </div>
+              )}
+
+              {backupError && (
+                <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-4 font-bold text-red-200">
+                  {backupError}
+                </div>
+              )}
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-black">Backup bazy</h3>
+                      <p className="mt-1 text-sm text-white/50">
+                        Tworzy SQL tylko dla danych tego serwera tam, gdzie tabela ma guild_id.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleCreateBackup}
+                      disabled={backupActionLoading || !event?.guild_id}
+                      className="rounded-xl bg-amber-500 px-5 py-3 font-black text-black transition hover:bg-amber-400 disabled:opacity-50"
+                    >
+                      {backupActionLoading ? 'Pracuję...' : 'Utwórz backup'}
+                    </button>
+                  </div>
+
+                  <div className="mt-5 max-h-72 overflow-auto rounded-xl border border-white/10">
+                    {backupLoading && <p className="p-4 text-white/50">Ładowanie backupów...</p>}
+
+                    {!backupLoading && backups.length === 0 && (
+                      <p className="p-4 text-white/50">Brak backupów dla tego serwera.</p>
+                    )}
+
+                    {!backupLoading && backups.map((backup) => (
+                      <div
+                        key={backup.fileName}
+                        className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-4 last:border-b-0"
+                      >
+                        <div>
+                          <p className="break-all font-bold text-white">{backup.fileName}</p>
+                          <p className="mt-1 text-xs text-white/40">
+                            {new Date(backup.modifiedAt).toLocaleString('pl-PL')} · {(Number(backup.sizeBytes || 0) / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleRestoreBackup(backup.fileName)}
+                          disabled={backupActionLoading}
+                          className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-black text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                        >
+                          Przywróć
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+                  <h3 className="text-xl font-black">Zakończ turniej</h3>
+
+                  <p className="mt-1 text-sm text-white/50">
+                    Tworzy XLSX do archiwum, zamyka aktywne panele i oznacza event jako zakończony/archiwalny.
+                  </p>
+
+                  <label className="mt-5 block text-sm font-bold uppercase tracking-[0.2em] text-white/50">
+                    Nazwa archiwum
+                  </label>
+
+                  <input
+                    value={archiveName}
+                    onChange={(e) => setArchiveName(e.target.value)}
+                    placeholder={event?.slug || 'nazwa_archiwum'}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-amber-400/50"
+                  />
+
+                  <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-red-400/20 bg-red-500/5 p-4 text-sm text-white/70">
+                    <input
+                      type="checkbox"
+                      checked={endTournamentCleanup}
+                      onChange={(e) => setEndTournamentCleanup(e.target.checked)}
+                      className="mt-1"
+                    />
+
+                    <span>
+                      Po archiwizacji wyczyść dane operacyjne tego eventu. Zostaw wyłączone, jeśli chcesz tylko zamknąć i zarchiwizować event bez kasowania typów/meczów.
+                    </span>
+                  </label>
+
+                  <button
+                    onClick={handleEndTournament}
+                    disabled={endingTournament}
+                    className="mt-5 w-full rounded-xl border border-amber-400/40 bg-amber-500/20 px-5 py-4 font-black text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-50"
+                  >
+                    {endingTournament ? 'Kończenie turnieju...' : 'Zakończ i zarchiwizuj'}
+                  </button>
+                </div>
               </div>
             </div>
 

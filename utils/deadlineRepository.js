@@ -71,4 +71,60 @@ async function findPanelForMatchDeadline(pool, guildId, phase) {
   return { row: rows[0] || null, lookupPhase: phase };
 }
 
-module.exports = { VALID_PHASES, parseDeadlineInput, findPanelForDeadline, findPanelForMatchDeadline };
+// Read-side deadline checks for the web API. Deliberately NOT filtered by
+// `active` and comparing in SQL (UTC_TIMESTAMP() >= deadline, same expression
+// as utils/closeExpiredPanels.js): once a deadline fires, the bot's poller
+// flips the panel to active=0, so an active-only lookup would treat "deadline
+// passed and panel closed" as "no deadline at all" and reopen web predictions
+// right after Discord locked them. Latest row per phase wins - posting a new
+// panel (new row, no deadline yet) reopens predictions, matching the bot's
+// lifecycle.
+async function isPickDeadlinePassed(pool, guildId, phase, stage) {
+  let rows;
+
+  if (phase === 'swiss') {
+    const resolved = resolveSwissStage(stage);
+    if (!resolved) return { passed: false, deadline: null };
+
+    [rows] = await pool.query(
+      `SELECT deadline, (deadline IS NOT NULL AND UTC_TIMESTAMP() >= deadline) AS passed
+       FROM active_panels
+       WHERE guild_id = ? AND phase = ? AND stage_key = ?
+       ORDER BY id DESC LIMIT 1`,
+      [guildId, resolved.dbPhase, resolved.dbStageKey]
+    );
+  } else {
+    [rows] = await pool.query(
+      `SELECT deadline, (deadline IS NOT NULL AND UTC_TIMESTAMP() >= deadline) AS passed
+       FROM active_panels
+       WHERE guild_id = ? AND phase = ?
+       ORDER BY id DESC LIMIT 1`,
+      [guildId, phase]
+    );
+  }
+
+  const row = rows[0];
+  return { passed: Boolean(row?.passed), deadline: row?.deadline ?? null };
+}
+
+async function isMatchDeadlinePassed(pool, guildId, phase) {
+  const [rows] = await pool.query(
+    `SELECT match_deadline, (match_deadline IS NOT NULL AND UTC_TIMESTAMP() >= match_deadline) AS passed
+     FROM active_panels
+     WHERE guild_id = ? AND phase = ?
+     ORDER BY id DESC LIMIT 1`,
+    [guildId, phase]
+  );
+
+  const row = rows[0];
+  return { passed: Boolean(row?.passed), deadline: row?.match_deadline ?? null };
+}
+
+module.exports = {
+  VALID_PHASES,
+  parseDeadlineInput,
+  findPanelForDeadline,
+  findPanelForMatchDeadline,
+  isPickDeadlinePassed,
+  isMatchDeadlinePassed
+};

@@ -377,3 +377,26 @@ export async function saveDoubleElimPickem(slug, payload) {
 export async function getPublicArchives() {
   return apiFetch('/public/archives');
 }
+
+export async function getGuildBackups(guildId) {
+  return apiFetch(`/guilds/${guildId}/backups`);
+}
+
+export async function createGuildBackup(guildId) {
+  return apiFetch(`/guilds/${guildId}/backups`, {
+    method: 'POST'
+  });
+}
+
+export async function restoreGuildBackup(guildId, fileName) {
+  return apiFetch(`/guilds/${guildId}/backups/${encodeURIComponent(fileName)}/restore`, {
+    method: 'POST'
+  });
+}
+
+export async function endTournament(slug, payload) {
+  return apiFetch(`/events/${slug}/end-tournament`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
