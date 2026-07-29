@@ -203,6 +203,14 @@ export async function saveMatchExactScores(matchId, maps) {
   });
 }
 
+export async function getGuildArchive(guildId) {
+  return apiFetch(`/guilds/${guildId}/archive`);
+}
+
+export async function getArchivedTournament(slug) {
+  return apiFetch(`/events/${slug}/archive`);
+}
+
 export async function getMvp(slug) {
   return apiFetch(`/events/${slug}/mvp`);
 }

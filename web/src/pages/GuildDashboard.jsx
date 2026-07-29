@@ -55,8 +55,15 @@ export default function GuildDashboard() {
 
     const filteredEvents = events
         .filter((event) => {
+            // "ARCHIVED" nie jest wartością events.status (enum: UPCOMING/OPEN/
+            // CLOSED/FINISHED) - archiwizacja to flaga is_archived, więc
+            // porównanie po statusie nigdy nic nie zwracało.
             const matchesStatus =
-                statusFilter === 'ALL' || event.status === statusFilter;
+                statusFilter === 'ALL'
+                    ? true
+                    : statusFilter === 'ARCHIVED'
+                        ? Number(event.is_archived) === 1
+                        : event.status === statusFilter;
 
             const matchesSearch =
                 event.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -195,6 +202,13 @@ export default function GuildDashboard() {
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Zarządzaj drużynami
+                    </button>
+
+                    <button
+                        onClick={() => navigate(`/app/guilds/${guildId}/archive`)}
+                        className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
+                    >
+                        Archiwum turniejów
                     </button>
 
                     <button

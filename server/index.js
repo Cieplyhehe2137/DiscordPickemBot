@@ -760,23 +760,36 @@ app.post('/api/events/:slug/status', requireGuildAdmin(guildIdFromEventSlug), as
         const { slug } = req.params;
         const { status } = req.body;
 
-        const allowedStatuses = ['active', 'closed', 'archived'];
+        // The UI sends OPEN / CLOSED / ARCHIVED. ARCHIVED is not a value of
+        // the events.status enum ('UPCOMING','OPEN','CLOSED','FINISHED') -
+        // archiving is stored as status FINISHED + is_archived = 1, matching
+        // what the end-tournament endpoint writes.
+        const STATUS_ACTIONS = {
+            OPEN: { status: 'OPEN', is_open: 1, is_active: 1, is_archived: 0 },
+            CLOSED: { status: 'CLOSED', is_open: 0, is_active: 1, is_archived: 0 },
+            ARCHIVED: { status: 'FINISHED', is_open: 0, is_active: 0, is_archived: 1 }
+        };
 
-        if (!allowedStatuses.includes(status)) {
+        const action = STATUS_ACTIONS[String(status || '').toUpperCase()];
+
+        if (!action) {
             return res.status(400).json({
                 error: 'Invalid status',
-                allowedStatuses
+                allowedStatuses: Object.keys(STATUS_ACTIONS)
             });
         }
 
         const [result] = await pool.query(
             `
       UPDATE events
-      SET status = ?
+      SET status = ?,
+          is_open = ?,
+          is_active = ?,
+          is_archived = ?
       WHERE slug = ?
       LIMIT 1
       `,
-            [status, slug]
+            [action.status, action.is_open, action.is_active, action.is_archived, slug]
         );
 
         if (result.affectedRows === 0) {
@@ -786,15 +799,21 @@ app.post('/api/events/:slug/status', requireGuildAdmin(guildIdFromEventSlug), as
         }
         io.emit('dashboard:refresh', { slug });
 
+        // Broadcast the status actually stored, not the requested action -
+        // "ARCHIVED" is persisted as FINISHED + is_archived, so echoing the
+        // raw input would leave every open client showing a status that
+        // does not exist in the database.
         io.emit('event:status_updated', {
             slug,
-            status
+            status: action.status,
+            is_archived: action.is_archived
         });
 
         res.json({
             ok: true,
             slug,
-            status
+            status: action.status,
+            is_archived: action.is_archived
         });
     } catch (err) {
         console.error(err);
@@ -834,6 +853,7 @@ app.get('/api/guilds/:guildId/events', requireGuildAdmin(req => req.params.guild
   e.slug,
   e.phase,
   e.status,
+  e.is_archived,
   e.created_at,
 
   (
@@ -865,10 +885,13 @@ ORDER BY e.id DESC
             guildId,
             events,
             stats: {
+                // events.status enum is UPPERCASE ('UPCOMING','OPEN','CLOSED',
+                // 'FINISHED'); comparing against lowercase made all three
+                // counters permanently 0. Archived is a flag, not a status.
                 totalEvents: events.length,
-                activeEvents: events.filter(e => e.status === 'active').length,
-                closedEvents: events.filter(e => e.status === 'closed').length,
-                archivedEvents: events.filter(e => e.status === 'archived').length
+                activeEvents: events.filter(e => e.status === 'OPEN').length,
+                closedEvents: events.filter(e => e.status === 'CLOSED').length,
+                archivedEvents: events.filter(e => Number(e.is_archived) === 1).length
             }
         });
     } catch (err) {
@@ -2282,6 +2305,201 @@ app.post('/api/events/:slug/playin-results', requireGuildAdmin(guildIdFromEventS
         res.status(500).json({
             error: 'Database error'
         });
+    }
+});
+
+// Lista zakończonych turniejów danej gildii (archiwum).
+app.get('/api/guilds/:guildId/archive', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId } = req.params;
+
+        const [events] = await pool.query(
+            `
+            SELECT
+                e.id,
+                e.slug,
+                e.name,
+                e.status,
+                e.is_archived,
+                e.phase,
+                e.created_at,
+                (SELECT COUNT(*) FROM leaderboard l
+                  WHERE l.event_id = e.id AND l.guild_id = ?) AS players,
+                (SELECT COUNT(*) FROM matches m
+                  WHERE m.event_id = e.id AND m.guild_id = ?) AS matches,
+                (SELECT COALESCE(SUM(l.total_points), 0) FROM leaderboard l
+                  WHERE l.event_id = e.id AND l.guild_id = ?) AS total_points
+            FROM events e
+            WHERE e.guild_id = ?
+              AND (e.status IN ('CLOSED', 'FINISHED') OR e.is_archived = 1)
+            ORDER BY e.id DESC
+            `,
+            // guild_id porównujemy z parametrem, a nie z e.guild_id: kolumny
+            // guild_id w leaderboard/matches i events mają różne collation
+            // (utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci), więc złączenie
+            // kolumna-do-kolumny wywala ER_CANT_AGGREGATE_2COLLATIONS.
+            [guildId, guildId, guildId, guildId]
+        );
+
+        // Pliki eksportu są przypisane do gildii, nie do eventu - dopasowujemy
+        // po nazwie pliku, którą tworzy end-tournament (safeFileBase ze slug/nazwy).
+        const [files] = await pool.query(
+            'SELECT id, filename, created_at FROM archive_files WHERE guild_id = ? ORDER BY id DESC',
+            [guildId]
+        );
+
+        res.json({
+            guildId,
+            events: events.map((e) => ({
+                ...e,
+                archive_file: files.find((f) =>
+                    f.filename.toLowerCase().includes(String(e.slug).toLowerCase())
+                ) || null
+            })),
+            files
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// Podgląd wyników jednego zarchiwizowanego turnieju.
+//
+// Klasyfikacja bierze się z tabeli `leaderboard`, bo tylko ona przeżywa
+// "zakończ turniej" z opcją cleanup - tabele *_scores, match_points i matches
+// są wtedy kasowane. Rozbicie na fazy i nazwy graczy doklejamy z *_scores
+// tam, gdzie jeszcze istnieją, więc świeżo zamknięty turniej pokaże pełny
+// szczegół, a dawno wyczyszczony - samą klasyfikację końcową.
+app.get('/api/events/:slug/archive', requireGuildAdmin(guildIdFromEventSlug), async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const { guildId } = req;
+
+        const [[event]] = await pool.query(
+            `SELECT id, guild_id, slug, name, status, is_archived, phase, created_at
+             FROM events WHERE guild_id = ? AND slug = ? LIMIT 1`,
+            [guildId, slug]
+        );
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found' });
+        }
+
+        const [base] = await pool.query(
+            `SELECT user_id, total_points FROM leaderboard
+             WHERE guild_id = ? AND event_id = ?`,
+            [guildId, event.id]
+        );
+
+        const [detail] = await pool.query(
+            `
+            SELECT
+                c.user_id,
+                MAX(c.displayname)          AS displayname,
+                SUM(c.swiss_points)         AS swiss_points,
+                SUM(c.playoffs_points)      AS playoffs_points,
+                SUM(c.playin_points)        AS playin_points,
+                SUM(c.doubleelim_points)    AS doubleelim_points,
+                SUM(c.match_points)         AS match_points
+            FROM (
+                SELECT user_id, displayname, COALESCE(points,0) AS swiss_points,
+                       0 AS playoffs_points, 0 AS playin_points, 0 AS doubleelim_points, 0 AS match_points
+                FROM swiss_scores WHERE guild_id = ? AND event_id = ?
+                UNION ALL
+                SELECT user_id, displayname, 0, COALESCE(points, score, 0), 0, 0, 0
+                FROM playoffs_scores WHERE guild_id = ? AND event_id = ?
+                UNION ALL
+                SELECT user_id, displayname, 0, 0, COALESCE(points,0), 0, 0
+                FROM playin_scores WHERE guild_id = ? AND event_id = ?
+                UNION ALL
+                SELECT user_id, displayname, 0, 0, 0, COALESCE(points,0), 0
+                FROM doubleelim_scores WHERE guild_id = ? AND event_id = ?
+                UNION ALL
+                SELECT user_id, NULL, 0, 0, 0, 0, COALESCE(points,0)
+                FROM match_points WHERE guild_id = ? AND event_id = ?
+            ) c
+            GROUP BY c.user_id
+            `,
+            Array(5).fill([guildId, event.id]).flat()
+        );
+
+        const byUser = new Map(detail.map((d) => [d.user_id, d]));
+
+        // Jeśli leaderboard jest pusty (turniej sprzed jego wprowadzenia),
+        // opieramy klasyfikację na tym, co zostało w *_scores.
+        const source = base.length
+            ? base.map((b) => ({ ...b, ...(byUser.get(b.user_id) || {}) }))
+            : detail.map((d) => ({
+                ...d,
+                total_points:
+                    Number(d.swiss_points || 0) + Number(d.playoffs_points || 0) +
+                    Number(d.playin_points || 0) + Number(d.doubleelim_points || 0) +
+                    Number(d.match_points || 0)
+            }));
+
+        const standings = source
+            .map((r) => ({
+                user_id: r.user_id,
+                displayname: r.displayname || null,
+                total_points: Number(r.total_points || 0),
+                swiss_points: Number(r.swiss_points || 0),
+                playoffs_points: Number(r.playoffs_points || 0),
+                playin_points: Number(r.playin_points || 0),
+                doubleelim_points: Number(r.doubleelim_points || 0),
+                match_points: Number(r.match_points || 0)
+            }))
+            .sort((a, b) => b.total_points - a.total_points)
+            .map((r, i) => ({ rank: i + 1, ...r }));
+
+        const [matches] = await pool.query(
+            `SELECT m.id, m.match_no, m.phase, m.team_a, m.team_b, m.best_of,
+                    r.res_a, r.res_b
+             FROM matches m
+             LEFT JOIN match_results r ON r.match_id = m.id
+             WHERE m.guild_id = ? AND m.event_id = ?
+             ORDER BY m.phase, m.match_no`,
+            [guildId, event.id]
+        );
+
+        const [swiss] = await pool.query(
+            `SELECT stage, correct_3_0, correct_0_3, correct_advancing
+             FROM swiss_results WHERE guild_id = ? AND event_id = ? AND active = 1
+             ORDER BY stage`,
+            [guildId, event.id]
+        );
+
+        const playoffs = await getCurrentPlayoffs(pool, guildId, event.id);
+        const doubleelim = await getCurrentDoubleElimResults(pool, guildId, event.id);
+        const playin = await getCurrentPlayinResults(pool, guildId, event.id);
+
+        const [[mvp]] = await pool.query(
+            `SELECT c.nickname, c.team_name
+             FROM mvp_results r
+             JOIN mvp_candidates c ON c.id = r.candidate_id
+             WHERE r.guild_id = ? AND r.event_id = ? AND r.active = 1
+             LIMIT 1`,
+            [guildId, event.id]
+        );
+
+        const [files] = await pool.query(
+            'SELECT id, filename, created_at FROM archive_files WHERE guild_id = ? ORDER BY id DESC',
+            [guildId]
+        );
+
+        res.json({
+            event,
+            standings,
+            matches,
+            phase_results: { swiss, playoffs, doubleelim, playin },
+            mvp: mvp || null,
+            archive_file: files.find((f) =>
+                f.filename.toLowerCase().includes(String(event.slug).toLowerCase())
+            ) || null
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 

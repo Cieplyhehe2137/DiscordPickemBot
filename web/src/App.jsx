@@ -10,6 +10,8 @@ const EventDashboard = lazy(() => import('./pages/EventDashboard'));
 const GuildSelect = lazy(() => import('./pages/GuildSelect'));
 const GuildDashboard = lazy(() => import('./pages/GuildDashboard'));
 const TeamsPage = lazy(() => import('./pages/TeamsPage'));
+const TournamentArchivePage = lazy(() => import('./pages/TournamentArchivePage'));
+const ArchivedTournamentPage = lazy(() => import('./pages/ArchivedTournamentPage'));
 const AppLayout = lazy(() => import('./components/layout/AppLayout'));
 const RequireAdmin = lazy(() => import('./components/auth/RequireAdmin'));
 const PublicServersPage = lazy(() => import('./pages/PublicServersPage'));
@@ -69,6 +71,8 @@ export default function App() {
           <Route path="guilds" element={<GuildSelect />} />
           <Route path="guilds/:guildId" element={<GuildDashboard />} />
           <Route path="guilds/:guildId/teams" element={<TeamsPage />} />
+          <Route path="guilds/:guildId/archive" element={<TournamentArchivePage />} />
+          <Route path="guilds/:guildId/archive/:slug" element={<ArchivedTournamentPage />} />
           <Route path="events/:slug" element={<EventDashboard />} />
         </Route>
 
