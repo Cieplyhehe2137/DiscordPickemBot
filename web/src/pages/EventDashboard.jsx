@@ -147,28 +147,33 @@ export default function EventDashboard() {
       return 0;
     });
 
-  const loadBackups = useCallback(async (guildId) => {
+  useEffect(() => {
+    const guildId = event?.guild_id;
     if (!guildId) return;
 
-    try {
-      setBackupLoading(true);
-      setBackupError(null);
+    let cancelled = false;
 
-      const result = await getGuildBackups(guildId);
-      setBackups(result.backups || []);
-    } catch (err) {
-      console.error(err);
-      setBackupError(describeActionError(err, 'pobrać backupy'));
-    } finally {
-      setBackupLoading(false);
+    async function loadBackups() {
+      try {
+        setBackupLoading(true);
+        setBackupError(null);
+
+        const result = await getGuildBackups(guildId);
+        if (!cancelled) setBackups(result.backups || []);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setBackupError(describeActionError(err, 'pobrać backupy'));
+      } finally {
+        if (!cancelled) setBackupLoading(false);
+      }
     }
-  }, []);
 
-  useEffect(() => {
-    if (!event?.guild_id) return;
+    loadBackups();
 
-    loadBackups(event.guild_id);
-  }, [event?.guild_id, loadBackups]);
+    // Bez tego odpowiedź na porzucone żądanie (zmiana turnieju albo wyjście ze
+    // strony w trakcie ładowania) nadpisywała listę backupów już innej gildii.
+    return () => { cancelled = true; };
+  }, [event?.guild_id]);
 
   async function handleCreateBackup() {
     if (!event?.guild_id) return;
@@ -190,7 +195,9 @@ export default function EventDashboard() {
     }
   }
 
-  async function refreshEventData() {
+  // useCallback, bo efekt z nasłuchem socketu ma to w zależnościach - bez
+  // stabilnej referencji przepinałby handlery przy każdym renderze.
+  const refreshEventData = useCallback(async () => {
     const result = await getEventSummary(slug);
 
     setData(result);
@@ -206,7 +213,7 @@ export default function EventDashboard() {
     const mvpData = await getMvp(slug);
     setMvpCandidates(mvpData.candidates || []);
     setMvpResult(mvpData.result || null);
-  }
+  }, [slug, setSelectedEvent]);
 
   async function handleRestoreBackup(fileName) {
     if (!event?.guild_id) return;
@@ -350,7 +357,7 @@ export default function EventDashboard() {
       socket.off('event:status_updated', handleEventStatusUpdated);
       socket.off('match:updated', handleMatchUpdated);
     };
-  }, [slug]);
+  }, [slug, refreshEventData]);
 
 
 
