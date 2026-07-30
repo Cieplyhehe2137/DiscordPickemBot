@@ -121,16 +121,25 @@ async function createGuildBackup(guildId) {
     const fileName = `backup_${guildId}_${timestamp}.sql`;
     const filePath = path.join(backupDir, fileName);
 
+    // Backup gildii zrzuca WYŁĄCZNIE tabele z kolumną guild_id. Tabele bez
+    // niej (sessions, admin_users) są globalne - filtr po guild_id z definicji
+    // ich nie obejmuje, więc trafiały do pliku w całości. Admin jednej gildii
+    // pobierał w ten sposób sesje logowania wszystkich użytkowników panelu.
+    // Nie są to zresztą dane turniejowe, więc nie ma czego z nich odtwarzać.
     const tablesMap = await getDatabaseTablesAndColumns(cfg);
-    const tables = [...tablesMap.keys()];
     const where = {};
+    const skippedTables = [];
     const escapedGuildId = sqlEscape(guildId);
 
     for (const [table, columns] of tablesMap.entries()) {
         if (columns.has('guild_id')) {
             where[table] = `guild_id = '${escapedGuildId}'`;
+        } else {
+            skippedTables.push(table);
         }
     }
+
+    const tables = Object.keys(where);
 
     await mysqldump({
         connection: {
@@ -155,7 +164,8 @@ async function createGuildBackup(guildId) {
         fileName,
         filePath,
         tablesCount: tables.length,
-        filteredTablesCount: Object.keys(where).length,
+        filteredTablesCount: tables.length,
+        skippedTablesCount: skippedTables.length,
     };
 }
 
@@ -2739,17 +2749,20 @@ app.post('/api/guilds/:guildId/backups/:fileName/restore', requireGuildAdmin(req
             return res.status(404).json({ error: 'Backup file not found' });
         }
 
-        await restoreBackup(filePath, { guildId });
+        const summary = await restoreBackup(filePath, { guildId });
 
         logWarn('backup', 'Guild backup restored from web panel', {
             guildId,
             fileName,
+            clearedTables: summary?.clearedTables,
+            statementsApplied: summary?.statementsApplied,
+            skippedTables: summary?.skippedTables,
             by: req.session?.user?.id,
         });
 
         io.emit('dashboard:refresh', {});
 
-        res.json({ ok: true, fileName });
+        res.json({ ok: true, fileName, summary });
     } catch (err) {
         console.error(err);
 
