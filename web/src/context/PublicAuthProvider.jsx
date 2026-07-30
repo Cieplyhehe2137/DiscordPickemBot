@@ -1,7 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
-
-const PublicAuthContext = createContext(null);
+import { PublicAuthContext } from './PublicAuthContext';
 
 export function PublicAuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -35,8 +34,4 @@ export function PublicAuthProvider({ children }) {
             {children}
         </PublicAuthContext.Provider>
     );
-}
-
-export function usePublicAuth() {
-    return useContext(PublicAuthContext);
 }

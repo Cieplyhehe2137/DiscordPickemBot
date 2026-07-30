@@ -35,24 +35,35 @@ export default function TeamsPage() {
 
     const guildName = user?.guilds?.find((g) => g.id === guildId)?.name || guildId;
 
+    // Pobieranie listy należy do efektu, a akcje (dodanie, usunięcie, zmiana
+    // kolejności) proszą o odświeżenie podbijając ten licznik. Wcześniej
+    // wołały `load()` zadeklarowane obok efektu, przez co ta sama funkcja
+    // miała dwóch właścicieli i nie dało się jej uczciwie wpisać w zależności.
+    const [reloadToken, setReloadToken] = useState(0);
+    const reloadTeams = () => setReloadToken((n) => n + 1);
+
     useEffect(() => {
-        load();
-    }, [guildId]);
+        let cancelled = false;
 
-    async function load() {
-        try {
-            setLoading(true);
-            setError(null);
+        async function load() {
+            try {
+                setLoading(true);
+                setError(null);
 
-            const data = await getTeams(guildId, { includeInactive: true });
-            setTeams(data.teams || []);
-        } catch (err) {
-            console.error(err);
-            setError(describeActionError(err, 'wczytać drużyny'));
-        } finally {
-            setLoading(false);
+                const data = await getTeams(guildId, { includeInactive: true });
+                if (!cancelled) setTeams(data.teams || []);
+            } catch (err) {
+                console.error(err);
+                if (!cancelled) setError(describeActionError(err, 'wczytać drużyny'));
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
         }
-    }
+
+        load();
+
+        return () => { cancelled = true; };
+    }, [guildId, reloadToken]);
 
     function openAddModal() {
         setFormName('');
@@ -75,7 +86,7 @@ export default function TeamsPage() {
 
             await importTeams(guildId, importJson);
 
-            await load();
+            reloadTeams();
             setModal(null);
         } catch (err) {
             console.error(err);
@@ -109,7 +120,7 @@ export default function TeamsPage() {
                 });
             }
 
-            await load();
+            reloadTeams();
             setModal(null);
         } catch (err) {
             console.error(err);
@@ -122,7 +133,7 @@ export default function TeamsPage() {
     async function handleToggleActive(team) {
         try {
             await updateTeam(guildId, team.id, { active: !team.active });
-            await load();
+            reloadTeams();
         } catch (err) {
             console.error(err);
             alert(describeActionError(err, 'zaktualizować drużynę'));
@@ -135,7 +146,7 @@ export default function TeamsPage() {
 
         try {
             await deleteTeam(guildId, team.id);
-            await load();
+            reloadTeams();
         } catch (err) {
             console.error(err);
             alert(err?.status === 409 ? err.message : describeActionError(err, 'usunąć drużynę'));
@@ -153,11 +164,11 @@ export default function TeamsPage() {
 
         try {
             await reorderTeams(guildId, reordered.map((t) => t.id));
-            await load();
+            reloadTeams();
         } catch (err) {
             console.error(err);
             alert(describeActionError(err, 'zmienić kolejność drużyn'));
-            await load();
+            reloadTeams();
         }
     }
 

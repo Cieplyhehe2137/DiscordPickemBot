@@ -59,45 +59,6 @@ export default function PublicEventPage() {
         }
     }
 
-    async function loadPublicData() {
-        try {
-            const result = await getPublicOverview(slug);
-
-            setData(result);
-
-            try {
-                const leaderboardResult =
-                    await getPublicEventLeaderboard(slug);
-
-                setEventLeaderboard(
-                    (leaderboardResult.leaderboard || []).slice(0, 5)
-                );
-            } catch (err) {
-                console.error(err);
-            }
-
-            try {
-                const statsResult =
-                    await getSwissStats(slug, 'stage1');
-
-                setSwissStats(statsResult);
-            } catch (err) {
-                console.error(err);
-            }
-
-            try {
-                const matchStatsResult = await getPublicEventMatchStats(slug);
-
-                setEventMatchStats(matchStatsResult.matches || []);
-            } catch (err) {
-                console.error(err);
-            }
-
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
     async function loadMatchStats(matchId) {
         try {
             setMatchStatsLoading(true);
@@ -114,10 +75,6 @@ export default function PublicEventPage() {
             setMatchStatsLoading(false);
         }
     }
-
-    useEffect(() => {
-        loadPublicData();
-    }, [slug]);
 
     useEffect(() => {
         if (!data?.matches?.length) return;
@@ -161,7 +118,56 @@ export default function PublicEventPage() {
         loadMyPredictions();
     }, [isLoggedIn, user?.id, data?.event?.id]);
 
+    // Jeden efekt na wszystko, co utrzymuje dane tego turnieju w aktualności:
+    // pierwsze pobranie po wejściu i odświeżanie na sygnał z socketu wołają tę
+    // samą funkcję, więc trzymanie ich osobno tylko dublowało cykl życia.
     useEffect(() => {
+        let cancelled = false;
+
+        async function loadPublicData() {
+            try {
+                const result = await getPublicOverview(slug);
+
+                if (cancelled) return;
+                setData(result);
+
+                try {
+                    const leaderboardResult =
+                        await getPublicEventLeaderboard(slug);
+
+                    if (!cancelled) {
+                        setEventLeaderboard(
+                            (leaderboardResult.leaderboard || []).slice(0, 5)
+                        );
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+
+                try {
+                    const statsResult =
+                        await getSwissStats(slug, 'stage1');
+
+                    if (!cancelled) setSwissStats(statsResult);
+                } catch (err) {
+                    console.error(err);
+                }
+
+                try {
+                    const matchStatsResult = await getPublicEventMatchStats(slug);
+
+                    if (!cancelled) setEventMatchStats(matchStatsResult.matches || []);
+                } catch (err) {
+                    console.error(err);
+                }
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadPublicData();
+
         function handleDashboardRefresh(payload) {
             if (payload?.slug !== slug) return;
             loadPublicData();
@@ -300,6 +306,10 @@ export default function PublicEventPage() {
         socket.on('match:score_updated', handleScoreUpdated);
 
         return () => {
+            // Odpowiedź na porzucone żądanie (zmiana turnieju albo wyjście ze
+            // strony w trakcie ładowania) nie nadpisze już danych nowego slug-a.
+            cancelled = true;
+
             socket.off('dashboard:refresh', handleDashboardRefresh);
             socket.off('event:status_updated', handleEventStatusUpdated);
             socket.off('match:updated', handleMatchUpdated);

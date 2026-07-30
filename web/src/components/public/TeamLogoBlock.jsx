@@ -44,7 +44,9 @@ export function MiniTeamLogo({ team }) {
     );
 }
 
-export function getTeamLogo(teamName) {
+// Bez `export`: obie funkcje używa wyłącznie ten plik, a eksportowanie
+// czegokolwiek poza komponentami wyłącza tu fast refresh.
+function getTeamLogo(teamName) {
     if (!teamName) return null;
 
     return `/team-logos/${teamName
@@ -53,7 +55,7 @@ export function getTeamLogo(teamName) {
         .replace(/[^a-z0-9-]/g, '')}.png`;
 }
 
-export function getTeamColor(teamName) {
+function getTeamColor(teamName) {
     if (!teamName) {
         return 'from-violet-500/20 to-fuchsia-500/20';
     }
