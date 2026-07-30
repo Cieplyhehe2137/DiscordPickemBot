@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { History } from 'lucide-react';
 import EmptyState from '../ui/EmptyState';
 
@@ -32,19 +33,19 @@ export default function SwissPickemHistory({ swissPicks }) {
                             </div>
 
                             <div className="flex flex-wrap gap-3">
-                                <a
-                                    href={`/public/event/${pick.event_slug}/pickem/${pick.stage}`}
+                                <Link
+                                    to={`/public/event/${pick.event_slug}/pickem/${pick.stage}`}
                                     className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
                                 >
                                     Otwórz Pick&apos;Em
-                                </a>
+                                </Link>
 
-                                <a
-                                    href={`/public/event/${pick.event_slug}/leaderboard`}
+                                <Link
+                                    to={`/public/event/${pick.event_slug}/leaderboard`}
                                     className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
                                 >
                                     Ranking eventu
-                                </a>
+                                </Link>
                             </div>
                         </div>
 

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import PublicAuthButton from './PublicAuthButton';
 
 export default function PublicNavbar({
@@ -14,29 +15,32 @@ export default function PublicNavbar({
     return (
         <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
 
-            <a href="/public" className={linkClass('communities')}>
+            {/* Link, nie <a href>: zwykłe kotwice przeładowywały cały dokument
+                przy każdym kliknięciu w menu, więc aplikacja startowała od zera
+                i dociągała chunki na nowo - to niweczyło podział kodu na trasy. */}
+            <Link to="/public" className={linkClass('communities')}>
                 Społeczności
-            </a>
+            </Link>
 
             {guildSlug && (
                 <>
                     <div className="h-5 w-px bg-white/10" />
 
-                    <a href={`/public/${guildSlug}`} className={linkClass('guild')}>
+                    <Link to={`/public/${guildSlug}`} className={linkClass('guild')}>
                         {guildName || 'Serwer'}
-                    </a>
+                    </Link>
                 </>
             )}
 
             <div className="h-5 w-px bg-white/10" />
 
-            <a href="/public/archives" className={linkClass('archives')}>
+            <Link to="/public/archives" className={linkClass('archives')}>
                 Archiwum
-            </a>
+            </Link>
 
-            <a href="/public/leaderboard" className={linkClass('leaderboard')}>
+            <Link to="/public/leaderboard" className={linkClass('leaderboard')}>
                 Ranking
-            </a>
+            </Link>
 
             {eventName && (
                 <>

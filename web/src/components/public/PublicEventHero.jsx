@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { translateStatus } from '../../lib/labels';
 
 export default function PublicEventHero({
@@ -58,26 +59,26 @@ export default function PublicEventHero({
                         Kopiuj link publiczny
                     </button>
 
-                    <a
-                        href={`/public/event/${slug}/pickem/stage1`}
+                    <Link
+                        to={`/public/event/${slug}/pickem/stage1`}
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
                         Pełny Pick&apos;Em
-                    </a>
+                    </Link>
 
-                    <a
-                        href={`/public/event/${slug}/leaderboard`}
+                    <Link
+                        to={`/public/event/${slug}/leaderboard`}
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Ranking eventu
-                    </a>
+                    </Link>
 
-                    <a
-                        href="/public/archives"
+                    <Link
+                        to="/public/archives"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Archiwum
-                    </a>
+                    </Link>
                 </div>
 
                 <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-sm text-white/50">

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { getPublicLeaderboard } from '../lib/api';
@@ -89,9 +90,9 @@ export default function PublicLeaderboardPage() {
 
                 <div className="mt-6 grid gap-4">
                     {leaderboard.map((player, index) => (
-                        <a
+                        <Link
                             key={player.user_id}
-                            href={`/public/users/${player.user_id}`}
+                            to={`/public/users/${player.user_id}`}
                             className={`rounded-2xl border p-5 transition hover:scale-[1.01] ${index === 0
                                     ? 'border-yellow-400/30 bg-yellow-500/10'
                                     : index === 1
@@ -140,7 +141,7 @@ export default function PublicLeaderboardPage() {
                                     <MiniStat title="Trafione" value={player.correct_winners} />
                                 </div>
                             </div>
-                        </a>
+                        </Link>
                     ))}
 
                     {leaderboard.length === 0 && (
@@ -165,12 +166,12 @@ function PageShell({ children }) {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
 
                     <div className="h-5 w-px bg-white/10" />
 

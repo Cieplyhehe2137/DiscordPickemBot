@@ -243,6 +243,10 @@ export function getClassificationExportUrl(slug) {
   return `${API_BASE}/events/${slug}/export/classification`;
 }
 
+export function getBackupDownloadUrl(guildId, fileName) {
+  return `${API_BASE}/guilds/${guildId}/backups/${encodeURIComponent(fileName)}/download`;
+}
+
 export async function getPublicOverview(slug) {
   return apiFetch(`/public/${slug}/overview`);
 }

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 export default function PublicFooter() {
     return (
         <footer className="mt-20 border-t border-white/10 pt-10">
@@ -14,12 +15,12 @@ export default function PublicFooter() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
                 </div>
             </div>
         </footer>

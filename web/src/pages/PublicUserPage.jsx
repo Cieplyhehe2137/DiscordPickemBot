@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { BarChart3, ListChecks } from 'lucide-react';
 import { getPublicUser } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
@@ -80,21 +80,21 @@ export default function PublicUserPage() {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
 
                     <div className="h-5 w-px bg-white/10" />
 
-                    <a
-                        href="/public/leaderboard"
+                    <Link
+                        to="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Ranking
-                    </a>
+                    </Link>
 
                     <div className="h-5 w-px bg-white/10" />
 
@@ -119,26 +119,26 @@ export default function PublicUserPage() {
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-4">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                     >
                         Przeglądaj społeczności
-                    </a>
+                    </Link>
 
-                    <a
-                        href="/public/me/predictions"
+                    <Link
+                        to="/public/me/predictions"
                         className="rounded-2xl border border-violet-400/20 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
                     >
                         Moje typy
-                    </a>
+                    </Link>
 
-                    <a
-                        href="/public/leaderboard"
+                    <Link
+                        to="/public/leaderboard"
                         className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Ranking
-                    </a>
+                    </Link>
                 </div>
 
                 <div className="mt-10 grid gap-6 md:grid-cols-4">
@@ -196,9 +196,9 @@ export default function PublicUserPage() {
 
                     <div className="mt-6 grid gap-4">
                         {(data.event_performances || []).map((event) => (
-                            <a
+                            <Link
                                 key={event.event_id}
-                                href={`/public/event/${event.event_slug}/leaderboard`}
+                                to={`/public/event/${event.event_slug}/leaderboard`}
                                 className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-6">
@@ -220,7 +220,7 @@ export default function PublicUserPage() {
                                         <ProfileStat title="Double" value={event.doubleelim_points} />
                                     </div>
                                 </div>
-                            </a>
+                            </Link>
                         ))}
 
                         {(data.event_performances || []).length === 0 && (
@@ -295,9 +295,9 @@ export default function PublicUserPage() {
 
                     <div className="mt-6 grid gap-4">
                         {(data.recent_predictions || []).map((prediction) => (
-                            <a
+                            <Link
                                 key={`${prediction.match_id}-${prediction.event_slug}`}
-                                href={`/public/event/${prediction.event_slug}`}
+                                to={`/public/event/${prediction.event_slug}`}
                                 className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -322,7 +322,7 @@ export default function PublicUserPage() {
                                         </span>
                                     )}
                                 </div>
-                            </a>
+                            </Link>
                         ))}
 
                         {(data.recent_predictions || []).length === 0 && (

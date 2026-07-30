@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { socket } from '../lib/socket';
 import { getPublicOverview, getMatchStats, savePublicPrediction, getPublicPrediction, getPublicEventPredictions, getPublicEventLeaderboard, getSwissStats, getPublicEventMatchStats } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
@@ -635,12 +635,12 @@ export default function PublicEventPage() {
                                             </div>
 
                                             <div>
-                                                <a
-                                                    href={`/public/users/${player.user_id}`}
+                                                <Link
+                                                    to={`/public/users/${player.user_id}`}
                                                     className="text-xl font-black transition hover:text-violet-300 md:text-2xl"
                                                 >
                                                     {player.user_id}
-                                                </a>
+                                                </Link>
 
                                                 <p className="text-sm text-white/40">
                                                     Gracz Pick&apos;Em

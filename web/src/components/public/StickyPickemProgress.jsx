@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 export default function StickyPickemProgress({
     myPredictionsCount,
     totalMatchesCount,
@@ -44,12 +45,12 @@ export default function StickyPickemProgress({
                         Moje typy
                     </button>
 
-                    <a
-                        href="/public/me/predictions"
+                    <Link
+                        to="/public/me/predictions"
                         className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 font-black text-white/80 transition hover:bg-white/10"
                     >
                         Wszystkie typy
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

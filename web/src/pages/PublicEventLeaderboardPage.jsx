@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { getPublicEventLeaderboard } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
 import PublicAuthButton from '../components/public/PublicAuthButton';
@@ -56,9 +56,9 @@ export default function PublicEventLeaderboardPage() {
                         const isMe = user?.id === player.user_id;
 
                         return (
-                        <a
+                        <Link
                             key={player.user_id}
-                            href={`/public/users/${player.user_id}`}
+                            to={`/public/users/${player.user_id}`}
                             className={`rounded-2xl border p-5 transition ${isMe
                                 ? 'border-violet-400 bg-violet-500/10'
                                 : 'border-white/10 bg-black/30 hover:border-violet-400/30 hover:bg-violet-500/5'
@@ -104,7 +104,7 @@ export default function PublicEventLeaderboardPage() {
                                     <MiniStat title="Double" value={player.doubleelim_points} />
                                 </div>
                             </div>
-                        </a>
+                        </Link>
                         );
                     })}
 
@@ -128,19 +128,19 @@ function PageShell({ children }) {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
 
-                    <a
-                        href="/public/leaderboard"
+                    <Link
+                        to="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Ranking globalny
-                    </a>
+                    </Link>
 
                     <div className="ml-auto">
                         <PublicAuthButton />

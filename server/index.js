@@ -160,12 +160,15 @@ async function createGuildBackup(guildId) {
         dumpToFile: filePath,
     });
 
+    const removed = pruneGuildBackups(guildId);
+
     return {
         fileName,
         filePath,
         tablesCount: tables.length,
         filteredTablesCount: tables.length,
         skippedTablesCount: skippedTables.length,
+        prunedFiles: removed,
     };
 }
 
@@ -188,6 +191,37 @@ function listGuildBackups(guildId) {
             };
         })
         .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+}
+
+// Ile backupów trzymamy na gildię. Zrzut to ~40 KB, więc 10 sztuk to
+// pół megabajta - limit istnieje po to, żeby katalog nie rósł w nieskończoność
+// przy adminie klikającym "Utwórz backup" przed każdą zmianą, a nie po to,
+// żeby oszczędzać miejsce.
+const BACKUP_RETENTION = Number(process.env.BACKUP_RETENTION) || 10;
+
+function pruneGuildBackups(guildId) {
+    const { backupDir } = guildRegistry.getGuildPaths(guildId);
+
+    // listGuildBackups sortuje od najnowszego, więc do usunięcia idzie ogon.
+    const stale = listGuildBackups(guildId).slice(BACKUP_RETENTION);
+    const removed = [];
+
+    for (const backup of stale) {
+        try {
+            fs.unlinkSync(path.join(backupDir, backup.fileName));
+            removed.push(backup.fileName);
+        } catch (err) {
+            // Nieudane sprzątanie nie może wywrócić samego backupu - plik już
+            // powstał i jest ważniejszy niż limit.
+            logWarn('backup', 'Could not prune old backup', {
+                guildId,
+                fileName: backup.fileName,
+                message: err?.message,
+            });
+        }
+    }
+
+    return removed;
 }
 
 const app = express();
@@ -2708,6 +2742,33 @@ app.get('/api/guilds/:guildId/backups', requireGuildAdmin(req => req.params.guil
     }
 });
 
+// Backup, którego nie da się zabrać z serwera, chroni tylko przed pomyłką
+// admina - nie przed utratą samego hosta. Stąd pobieranie, tą samą bramką
+// uprawnień co tworzenie i przywracanie.
+app.get('/api/guilds/:guildId/backups/:fileName/download', requireGuildAdmin(req => req.params.guildId), (req, res) => {
+    try {
+        const guildId = req.params.guildId;
+        const fileName = assertSafeBackupFileName(req.params.fileName);
+        const { backupDir } = guildRegistry.getGuildPaths(guildId);
+        const filePath = path.join(backupDir, fileName);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Backup file not found' });
+        }
+
+        logInfo('backup', 'Guild backup downloaded from web panel', {
+            guildId,
+            fileName,
+            by: req.session?.user?.id,
+        });
+
+        res.download(filePath, fileName);
+    } catch (err) {
+        console.error(err);
+        res.status(400).json({ error: 'Invalid backup file name' });
+    }
+});
+
 app.post('/api/guilds/:guildId/backups', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
     try {
         const result = await createGuildBackup(req.params.guildId);
@@ -2717,6 +2778,7 @@ app.post('/api/guilds/:guildId/backups', requireGuildAdmin(req => req.params.gui
             fileName: result.fileName,
             tablesCount: result.tablesCount,
             filteredTablesCount: result.filteredTablesCount,
+            prunedFiles: result.prunedFiles,
             by: req.session?.user?.id,
         });
 

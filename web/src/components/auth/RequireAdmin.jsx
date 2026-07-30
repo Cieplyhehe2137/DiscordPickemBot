@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { usePublicAuth } from '../../context/PublicAuthContext';
 
 const ADMINISTRATOR_PERMISSION = 0x8n;
@@ -75,12 +76,12 @@ export default function RequireAdmin({ children }) {
                     Zalogowano jako <span className="font-bold text-white/80">{user.global_name || user.username}</span>, ale to konto nie ma uprawnień Administratora na żadnym serwerze korzystającym z tego bota.
                 </p>
 
-                <a
-                    href="/public"
+                <Link
+                    to="/public"
                     className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/80 transition hover:bg-white/10"
                 >
                     Wróć do strony publicznej
-                </a>
+                </Link>
             </Screen>
         );
     }

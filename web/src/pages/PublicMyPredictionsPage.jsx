@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { getMyPublicPredictions } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
@@ -220,9 +221,9 @@ export default function PublicMyPredictionsPage() {
 
                 <div className="mt-6 grid gap-4">
                     {sortedPredictions.map((prediction) => (
-                        <a
+                        <Link
                             key={`${prediction.event_slug}-${prediction.match_id}`}
-                            href={`/public/event/${prediction.event_slug}?match=${prediction.match_id}&predict=1`}
+                            to={`/public/event/${prediction.event_slug}?match=${prediction.match_id}&predict=1`}
                             className="rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -274,7 +275,7 @@ export default function PublicMyPredictionsPage() {
                                     {prediction.is_locked ? 'Zablokowane' : 'Edytowalne'}
                                 </span>
                             </div>
-                        </a>
+                        </Link>
                     ))}
 
                     {sortedPredictions.length === 0 && (
@@ -289,12 +290,12 @@ export default function PublicMyPredictionsPage() {
                                     : 'Żaden typ nie pasuje do wybranych filtrów.'}
                             </p>
 
-                            <a
-                                href="/public"
+                            <Link
+                                to="/public"
                                 className="mt-5 inline-flex rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
                             >
                                 Przeglądaj eventy
-                            </a>
+                            </Link>
                         </div>
                     )}
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -331,12 +332,12 @@ function PageShell({ children }) {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
 
                     <div className="h-5 w-px bg-white/10" />
 

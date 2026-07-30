@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CalendarX } from 'lucide-react';
 import {
     getGuildEvents,
@@ -174,12 +174,12 @@ export default function GuildDashboard() {
                         Twoje konto nie ma uprawnień Administratora na serwerze <span className="font-bold text-white/80">{guildId}</span>.
                     </p>
 
-                    <a
-                        href="/app/guilds"
+                    <Link
+                        to="/app/guilds"
                         className="mt-6 inline-flex rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white/80 transition hover:bg-white/10"
                     >
                         Wróć do listy serwerów
-                    </a>
+                    </Link>
                 </div>
             </div>
         );

@@ -21,6 +21,7 @@ import {
   getGuildBackups,
   createGuildBackup,
   restoreGuildBackup,
+  getBackupDownloadUrl,
   endTournament,
   describeActionError
 } from '../lib/api';
@@ -866,6 +867,7 @@ export default function EventDashboard() {
                       <h3 className="text-xl font-black">Backup bazy</h3>
                       <p className="mt-1 text-sm text-white/50">
                         Tworzy SQL tylko dla danych tego serwera tam, gdzie tabela ma guild_id.
+                        Trzymanych jest 10 najnowszych — starsze kasują się same.
                       </p>
                     </div>
 
@@ -897,13 +899,24 @@ export default function EventDashboard() {
                           </p>
                         </div>
 
-                        <button
-                          onClick={() => handleRestoreBackup(backup.fileName)}
-                          disabled={backupActionLoading}
-                          className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-black text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
-                        >
-                          Przywróć
-                        </button>
+                        <div className="flex gap-2">
+                          {/* Zwykła kotwica, nie Link: to pobranie pliku z API,
+                              a nie trasa aplikacji. */}
+                          <a
+                            href={getBackupDownloadUrl(event.guild_id, backup.fileName)}
+                            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
+                          >
+                            Pobierz
+                          </a>
+
+                          <button
+                            onClick={() => handleRestoreBackup(backup.fileName)}
+                            disabled={backupActionLoading}
+                            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-black text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
+                          >
+                            Przywróć
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Trophy, Swords } from 'lucide-react';
 import { getArchivedTournament, describeActionError } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -176,12 +176,12 @@ export default function ArchivedTournamentPage() {
                                             </div>
 
                                             <div>
-                                                <a
-                                                    href={`/public/users/${p.user_id}`}
+                                                <Link
+                                                    to={`/public/users/${p.user_id}`}
                                                     className="text-xl font-black transition hover:text-violet-300"
                                                 >
                                                     {p.displayname || p.user_id}
-                                                </a>
+                                                </Link>
 
                                                 <p className="break-all text-xs text-white/40">
                                                     {p.user_id}

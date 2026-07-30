@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { usePublicAuth } from '../../context/PublicAuthContext';
 import { logout } from '../../lib/api';
@@ -96,33 +97,33 @@ export default function PublicAuthButton() {
                     </div>
 
                     <div className="p-2">
-                        <a
-                            href={`/public/users/${user.id}`}
+                        <Link
+                            to={`/public/users/${user.id}`}
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
                             Mój Profil
-                        </a>
+                        </Link>
 
-                        <a
-                            href="/public/me/predictions"
+                        <Link
+                            to="/public/me/predictions"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
                             Moje Typy
-                        </a>
+                        </Link>
 
-                        <a
-                            href="/public/leaderboard"
+                        <Link
+                            to="/public/leaderboard"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
                             Ranking
-                        </a>
+                        </Link>
 
-                        <a
-                            href="/app"
+                        <Link
+                            to="/app"
                             className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
                         >
                             Panel
-                        </a>
+                        </Link>
 
                         <button
                             onClick={handleLogout}

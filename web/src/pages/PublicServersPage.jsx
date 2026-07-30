@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Trophy, Radar, Users } from 'lucide-react';
 import { getPublicServers, getPublicLeaderboard } from '../lib/api';
@@ -62,19 +63,19 @@ export default function PublicServersPage() {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl bg-violet-500/20 px-4 py-2 text-sm font-black text-violet-300"
                     >
                         Platforma Pick&apos;Em
-                    </a>
+                    </Link>
 
-                    <a
-                        href="/public/leaderboard"
+                    <Link
+                        to="/public/leaderboard"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Ranking
-                    </a>
+                    </Link>
 
                     <div className="ml-auto">
                         <PublicAuthButton />
@@ -129,19 +130,19 @@ export default function PublicServersPage() {
                         )}
 
                         <div className="mt-8 flex flex-wrap gap-4">
-                            <a
-                                href="/public/leaderboard"
+                            <Link
+                                to="/public/leaderboard"
                                 className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                             >
                                 Zobacz ranking
-                            </a>
+                            </Link>
 
-                            <a
-                                href="/public/me/predictions"
+                            <Link
+                                to="/public/me/predictions"
                                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                             >
                                 Moje typy
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -196,19 +197,19 @@ export default function PublicServersPage() {
                             </h2>
                         </div>
 
-                        <a
-                            href="/public/leaderboard"
+                        <Link
+                            to="/public/leaderboard"
                             className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                         >
                             Pełny ranking
-                        </a>
+                        </Link>
                     </div>
 
                     <div className="mt-8 grid gap-4">
                         {leaderboard.map((player, index) => (
-                            <a
+                            <Link
                                 key={player.user_id}
-                                href={`/public/users/${player.user_id}`}
+                                to={`/public/users/${player.user_id}`}
                                 className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-6">
@@ -244,7 +245,7 @@ export default function PublicServersPage() {
                                         />
                                     </div>
                                 </div>
-                            </a>
+                            </Link>
                         ))}
 
                         {leaderboard.length === 0 && (
@@ -278,9 +279,9 @@ export default function PublicServersPage() {
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {(data.featured_events || []).map((event) => (
-                            <a
+                            <Link
                                 key={event.id}
-                                href={`/public/event/${event.slug}`}
+                                to={`/public/event/${event.slug}`}
                                 className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -302,7 +303,7 @@ export default function PublicServersPage() {
                                 >
                                     {translateStatus(event.status)}
                                 </span>
-                            </a>
+                            </Link>
                         ))}
 
                         {(data.featured_events || []).length === 0 && (
@@ -335,12 +336,12 @@ export default function PublicServersPage() {
                             </div>
 
                             <div className="mt-6 flex flex-wrap gap-4">
-                                <a
-                                    href={`/public/${server.slug}`}
+                                <Link
+                                    to={`/public/${server.slug}`}
                                     className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                                 >
                                     Otwórz stronę
-                                </a>
+                                </Link>
 
                                 {server.discord_url && (
                                     <a

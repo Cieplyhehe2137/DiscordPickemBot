@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Trophy, CalendarX } from 'lucide-react';
 import { getPublicGuild } from '../lib/api';
 import PublicFooter from '../components/public/PublicFooter';
@@ -48,12 +48,12 @@ export default function PublicGuildPage() {
 
             <div className="relative z-10 mx-auto max-w-7xl">
                 <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                    <a
-                        href="/public"
+                    <Link
+                        to="/public"
                         className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                         Społeczności
-                    </a>
+                    </Link>
 
                     <div className="h-5 w-px bg-white/10" />
 
@@ -65,12 +65,12 @@ export default function PublicGuildPage() {
                         <>
                             <div className="h-5 w-px bg-white/10" />
 
-                            <a
-                                href={`/public/event/${featuredEvent.slug}`}
+                            <Link
+                                to={`/public/event/${featuredEvent.slug}`}
                                 className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
                             >
                                 Wyróżniony event
-                            </a>
+                            </Link>
                         </>
                     )}
                     <div className="ml-auto">
@@ -103,12 +103,12 @@ export default function PublicGuildPage() {
                     )}
 
                     {featuredEvent && (
-                        <a
-                            href={`/public/event/${featuredEvent.slug}`}
+                        <Link
+                            to={`/public/event/${featuredEvent.slug}`}
                             className="rounded-2xl border border-white/10 bg-white/5 px-6 py-4 font-black text-white/80 transition hover:bg-white/10"
                         >
                             Otwórz wyróżniony event
-                        </a>
+                        </Link>
                     )}
                 </div>
 
@@ -148,12 +148,12 @@ export default function PublicGuildPage() {
                                 </span>
                             </div>
 
-                            <a
-                                href={`/public/event/${featuredEvent.slug}`}
+                            <Link
+                                to={`/public/event/${featuredEvent.slug}`}
                                 className="mt-8 inline-flex rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
                             >
                                 Otwórz event
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 )}
@@ -165,9 +165,9 @@ export default function PublicGuildPage() {
 
                     <div className="mt-6 grid gap-4">
                         {(data.top_players || []).map((player, index) => (
-                            <a
+                            <Link
                                 key={player.user_id}
-                                href={`/public/users/${player.user_id}`}
+                                to={`/public/users/${player.user_id}`}
                                 className="card-hover flex items-center justify-between rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <div className="flex items-center gap-4">
@@ -195,7 +195,7 @@ export default function PublicGuildPage() {
                                         punktów
                                     </p>
                                 </div>
-                            </a>
+                            </Link>
                         ))}
 
                         {(data.top_players || []).length === 0 && (
@@ -215,9 +215,9 @@ export default function PublicGuildPage() {
 
                     <div className="mt-6 grid gap-4 md:grid-cols-2">
                         {(data.events || []).map((event) => (
-                            <a
+                            <Link
                                 key={event.id}
-                                href={`/public/event/${event.slug}`}
+                                to={`/public/event/${event.slug}`}
                                 className="card-hover rounded-2xl border border-white/10 bg-black/30 p-5 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                             >
                                 <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
@@ -238,7 +238,7 @@ export default function PublicGuildPage() {
                                 >
                                     {translateStatus(event.status)}
                                 </span>
-                            </a>
+                            </Link>
                         ))}
 
                         {(data.events || []).length === 0 && (
@@ -268,12 +268,12 @@ export default function PublicGuildPage() {
                     )}
 
                     {featuredEvent && (
-                        <a
-                            href={`/public/event/${featuredEvent.slug}`}
+                        <Link
+                            to={`/public/event/${featuredEvent.slug}`}
                             className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center font-black text-white/80 transition hover:bg-white/10"
                         >
                             Otwórz event
-                        </a>
+                        </Link>
                     )}
                 </div>
             </div>

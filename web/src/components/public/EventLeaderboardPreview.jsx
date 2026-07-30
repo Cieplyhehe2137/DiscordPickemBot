@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
 import EmptyState from '../ui/EmptyState';
 
@@ -15,19 +16,19 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                     </h2>
                 </div>
 
-                <a
-                    href={`/public/event/${slug}/leaderboard`}
+                <Link
+                    to={`/public/event/${slug}/leaderboard`}
                     className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black transition hover:bg-violet-400"
                 >
                     Pełny ranking
-                </a>
+                </Link>
             </div>
 
             <div className="mt-6 grid gap-3">
                 {eventLeaderboard.map((player) => (
-                    <a
+                    <Link
                         key={player.user_id}
-                        href={`/public/users/${player.user_id}`}
+                        to={`/public/users/${player.user_id}`}
                         className="card-hover rounded-2xl border border-white/10 bg-black/30 p-4 transition hover:border-violet-400/30 hover:bg-violet-500/5"
                     >
                         <div className="flex items-center justify-between gap-4">
@@ -45,7 +46,7 @@ export default function EventLeaderboardPreview({ slug, eventLeaderboard }) {
                                 {player.total_points}
                             </p>
                         </div>
-                    </a>
+                    </Link>
                 ))}
 
                 {eventLeaderboard.length === 0 && (
