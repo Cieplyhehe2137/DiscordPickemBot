@@ -142,7 +142,11 @@ async function createGuildBackup(guildId) {
         },
         dump: {
             tables,
-            where,
+            // `where` należy do DataDumpOptions (dump.data.where), a nie do
+            // dump.where - biblioteka po cichu ignoruje nieznane pola, więc
+            // filtr po guild_id nie działał i backup jednej gildii zawierał
+            // CAŁĄ bazę, czyli też dane pozostałych serwerów.
+            data: { where },
         },
         dumpToFile: filePath,
     });

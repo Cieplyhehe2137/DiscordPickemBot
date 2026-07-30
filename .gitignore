@@ -17,6 +17,15 @@ config/*.env
 klasyfikacja.xlsx
 web.zip
 
+# Zrzuty bazy i eksporty turniejów - zawierają dane graczy i sesje,
+# nigdy nie powinny trafić do repozytorium.
+server/backup/
+server/archiwum/
+archiwum/
+*.sql
+!schema.sql
+!migrations/*.sql
+
 
 
 # ===== Optional: runtime configs (jeśli generowane) =====
