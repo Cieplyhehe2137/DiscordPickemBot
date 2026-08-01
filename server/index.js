@@ -2139,10 +2139,23 @@ app.post('/api/events/:slug/recalculate', requireGuildAdmin(guildIdFromEventSlug
             });
         }
 
-        await calculateScores(
+        const wynik = await calculateScores(
             event.guild_id,
             event.id
         );
+
+        // Zarchiwizowany turniej nie jest przeliczany - zasady punktacji map
+        // zmieniły się po IEM Cologne 2026, więc przeliczenie zamkniętego
+        // eventu przepisałoby jego ranking nowymi regułami.
+        if (wynik?.skipped) {
+            return res.status(409).json({
+                error: `Turniej "${wynik.eventName}" jest zarchiwizowany, więc punkty nie zostały przeliczone. `
+                    + 'Zasady punktacji map zmieniły się po jego zakończeniu - przeliczenie zmieniłoby '
+                    + 'zamknięty ranking. Jeśli naprawdę tego chcesz, najpierw cofnij archiwizację.',
+                skipped: true,
+                reason: wynik.reason
+            });
+        }
 
         io.emit('dashboard:refresh', {
             slug

@@ -12,28 +12,46 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const text = await res.text();
-    const err = new Error(text || `API error ${res.status}`);
+
+    // Serwer odpowiada {"error":"..."} - wyciągamy sam komunikat, żeby
+    // wywołujący dostał zdanie dla człowieka, a nie surowy JSON.
+    let message = text;
+    try {
+      const body = JSON.parse(text);
+      if (body?.error) message = body.error;
+    } catch { /* nie JSON - zostaje treść odpowiedzi */ }
+
+    const err = new Error(message || `API error ${res.status}`);
     err.status = res.status;
+    err.serverMessage = message || null;
     throw err;
   }
 
   return res.json();
 }
 
-// Turns a thrown apiFetch error into a user-facing message for admin action
-// handlers (button clicks that can 401/403 if the session expired or the
-// user isn't an admin of this guild), instead of the action silently doing
-// nothing while the real error only shows up in the console.
+// Zamienia błąd z apiFetch na komunikat dla admina - inaczej kliknięcie
+// przycisku po prostu nic nie robi, a prawdziwa przyczyna ląduje wyłącznie
+// w konsoli.
 export function describeActionError(err, actionLabel) {
   if (err?.status === 401) {
-    return `You need to be logged in to ${actionLabel}.`;
+    return `Musisz być zalogowany, aby ${actionLabel}.`;
   }
 
   if (err?.status === 403) {
-    return `You don't have permission to ${actionLabel} on this server.`;
+    return `Nie masz uprawnień, aby ${actionLabel} na tym serwerze.`;
   }
 
-  return `Could not ${actionLabel}.`;
+  // Przy 4xx serwer tłumaczy, co jest nie tak z żądaniem, i to wyjaśnienie
+  // jest cenniejsze niż nasze ogólne zdanie - np. odmowa przeliczenia
+  // zarchiwizowanego turnieju opisuje powód i co zrobić dalej. Przy 5xx
+  // odwrotnie: to awaria wewnętrzna, a jej treść ("Database error") nic
+  // adminowi nie mówi.
+  if (err?.status >= 400 && err.status < 500 && err.serverMessage) {
+    return err.serverMessage;
+  }
+
+  return `Nie udało się ${actionLabel}.`;
 }
 
 export function getMe() {

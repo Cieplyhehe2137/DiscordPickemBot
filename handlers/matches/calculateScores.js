@@ -88,7 +88,9 @@ module.exports = async function calculateScores(guildId, eventId) {
     throw new Error('calculateScores requires guildId');
   }
 
-  await withGuild({ guildId }, async ({ pool, guildId }) => {
+  // Zwracamy wynik z withGuild, żeby wywołujący mógł sprawdzić, czy
+  // przeliczanie faktycznie się odbyło, czy zostało pominięte.
+  return withGuild({ guildId }, async ({ pool, guildId }) => {
     eventId = await resolveEventId(pool, guildId, eventId).catch(() => null);
 
     if (!eventId) {
@@ -97,6 +99,42 @@ module.exports = async function calculateScores(guildId, eventId) {
         eventId: null
       });
       return;
+    }
+
+    // Zarchiwizowanego turnieju nie przeliczamy. Zasady punktacji map zmieniły
+    // się po IEM Cologne 2026 (commit 60008a5: wcześniej "idealnie albo zero",
+    // teraz 3/2/1/0 wg odchylenia), więc ponowne przeliczenie starego eventu
+    // policzyłoby go NOWYMI regułami i przepisało zamknięty ranking. Na realnych
+    // danych Cologne oznaczałoby to zmianę punktów u 221 z 373 graczy i inne
+    // podium - zwycięzca spadłby na 5. miejsce.
+    //
+    // Blokada siedzi tutaj, a nie w endpoincie, bo przeliczanie wołają cztery
+    // ścieżki: przycisk w panelu, przycisk na Discordzie, eksport klasyfikacji
+    // ORAZ komenda /miejsce, której używają zwykli gracze. Zabezpieczenie
+    // wyłącznie endpointu chroniłoby jedną z czterech.
+    const [[archiwalny]] = await pool.query(
+      'SELECT is_archived, name FROM events WHERE id = ? AND guild_id = ? LIMIT 1',
+      [eventId, guildId]
+    );
+
+    // Pomijamy, a NIE rzucamy wyjątkiem: przeliczanie wołają też ścieżki tylko
+    // do odczytu (eksport klasyfikacji, komenda /miejsce zwykłego gracza),
+    // które muszą dalej działać na zarchiwizowanym turnieju - po prostu na
+    // zapisanych już punktach. Wywołania świadome (przycisk w panelu, przycisk
+    // na Discordzie) sprawdzają zwrócony status i informują admina.
+    if (archiwalny && Number(archiwalny.is_archived) === 1) {
+      logWarn('scores', 'Skipping score calculation for archived event', {
+        guildId,
+        eventId,
+        extra: { eventName: archiwalny.name }
+      });
+
+      return {
+        skipped: true,
+        reason: 'EVENT_ARCHIVED',
+        eventId,
+        eventName: archiwalny.name
+      };
     }
 
     logInfo('scores', '=== SCORE RUN START ===', {
@@ -897,5 +935,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       guildId,
       eventId
     });
+
+    return { skipped: false, eventId };
   });
 };
