@@ -261,6 +261,13 @@ export function getClassificationExportUrl(slug) {
   return `${API_BASE}/events/${slug}/export/classification`;
 }
 
+export async function bulkCreateMatches(guildId, slug, body) {
+  return apiFetch(`/guilds/${guildId}/events/${slug}/matches/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+}
+
 export async function getResultProposals(slug) {
   return apiFetch(`/events/${slug}/result-proposals`);
 }

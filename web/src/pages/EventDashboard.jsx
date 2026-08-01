@@ -36,6 +36,7 @@ import PlayoffsResultsPanel from '../components/admin/PlayoffsResultsPanel';
 import DoubleElimResultsPanel from '../components/admin/DoubleElimResultsPanel';
 import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
 import ResultProposalsPanel from '../components/admin/ResultProposalsPanel';
+import BulkMatchModal from '../components/admin/BulkMatchModal';
 import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
@@ -70,6 +71,7 @@ export default function EventDashboard() {
   const [matchStatsLoading, setMatchStatsLoading] = useState({});
 
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
+  const [showBulkMatchModal, setShowBulkMatchModal] = useState(false);
   const [activeTeams, setActiveTeams] = useState([]);
   const [matchForm, setMatchForm] = useState({ phase: 'SWISS', teamA: '', teamB: '', bestOf: 3, startTimeUtc: '' });
   const [creatingMatch, setCreatingMatch] = useState(false);
@@ -1026,12 +1028,21 @@ export default function EventDashboard() {
                   Mecze
                 </h2>
 
-                <button
-                  onClick={openCreateMatchModal}
-                  className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                >
-                  Utwórz mecz
-                </button>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => setShowBulkMatchModal(true)}
+                    className="rounded-2xl border border-violet-400/30 bg-violet-500/10 px-6 py-4 font-black text-violet-200 transition hover:bg-violet-500/20"
+                  >
+                    Utwórz hurtem
+                  </button>
+
+                  <button
+                    onClick={openCreateMatchModal}
+                    className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                  >
+                    Utwórz mecz
+                  </button>
+                </div>
               </div>
 
               <div className="sticky top-4 z-20 mt-6 rounded-[2rem] border border-white/10 bg-zinc-950/80 p-5 backdrop-blur-xl">
@@ -1403,6 +1414,18 @@ export default function EventDashboard() {
           </>
         )}
       </main>
+
+      {showBulkMatchModal && (
+        <BulkMatchModal
+          guildId={event?.guild_id}
+          slug={slug}
+          onClose={() => setShowBulkMatchModal(false)}
+          onCreated={(ile) => {
+            alert(`Utworzono ${ile} meczów.`);
+            refreshEventData();
+          }}
+        />
+      )}
 
       {showCreateMatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">

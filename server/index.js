@@ -27,6 +27,7 @@ const applyMatchResult = require('../services/applyMatchResult');
 const resultProposalsStore = require('../utils/resultProposalsStore');
 const { getResultProvider } = require('../utils/resultProviders');
 const { runInTransaction } = require('../utils/runInTransaction');
+const { parseMatchList } = require('../utils/parseMatchList');
 const exportClassification = require('../handlers/admin/exportClassification');
 const { loadActiveTeams } = require('../utils/loadActiveTeams');
 const { getCurrentSwissResults } = require('../utils/swissRepository');
@@ -1697,6 +1698,132 @@ app.post('/api/guilds/:guildId/events', requireGuildAdmin(req => req.params.guil
         res.status(500).json({
             error: 'Database error'
         });
+    }
+});
+
+// Hurtowe tworzenie meczów z wklejonej listy. Pojedynczy modal to najdroższa
+// czynność przy stawianiu turnieju - IEM Cologne 2026 ma 106 meczów.
+//
+// dryRun pozwala zobaczyć, co się utworzy i co zostanie odrzucone, ZANIM
+// cokolwiek trafi do bazy. Sam zapis idzie w transakcji: albo powstają
+// wszystkie mecze, albo żaden - połowicznie utworzona faza byłaby gorsza od
+// braku, bo trzeba by ją rozpoznawać ręcznie.
+app.post('/api/guilds/:guildId/events/:slug/matches/bulk', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
+    try {
+        const { guildId, slug } = req.params;
+        const { phase, text, defaultBestOf = 3, dryRun = false } = req.body || {};
+
+        if (!phase || !String(text || '').trim()) {
+            return res.status(400).json({ error: 'Wymagane: faza i lista meczów.' });
+        }
+
+        if (![1, 3, 5].includes(Number(defaultBestOf))) {
+            return res.status(400).json({ error: 'Domyślne BO musi wynosić 1, 3 albo 5.' });
+        }
+
+        const [[event]] = await pool.query(
+            'SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1',
+            [guildId, slug]
+        );
+
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+
+        const { mecze, bledy, duplikaty } = parseMatchList(text, {
+            domyslneBo: Number(defaultBestOf)
+        });
+
+        // Ta sama walidacja co przy pojedynczym meczu: drużyna musi istnieć i
+        // być aktywna. Nie luzujemy jej dla wygody, bo matches.team_a to zwykły
+        // varchar - literówka przeszłaby do bazy i rozjechała dopasowywanie
+        // wyników oraz typy graczy.
+        const [aktywne] = await pool.query(
+            'SELECT name FROM teams WHERE guild_id = ? AND active = 1',
+            [guildId]
+        );
+
+        const znane = new Map(aktywne.map(t => [t.name.toLowerCase(), t.name]));
+        const nieznane = new Set();
+        const doUtworzenia = [];
+
+        for (const m of mecze) {
+            const a = znane.get(m.teamA.toLowerCase());
+            const b = znane.get(m.teamB.toLowerCase());
+
+            if (!a) nieznane.add(m.teamA);
+            if (!b) nieznane.add(m.teamB);
+
+            if (a && b) {
+                // Zapisujemy nazwę w brzmieniu z tabeli teams, a nie tak, jak
+                // admin ją wkleił - inaczej "navi" i "NAVI" żyłyby obok siebie.
+                doUtworzenia.push({ ...m, teamA: a, teamB: b });
+            }
+        }
+
+        const podsumowanie = {
+            rozpoznanych: mecze.length,
+            doUtworzenia: doUtworzenia.length,
+            bledy,
+            duplikaty,
+            nieznaneDruzyny: [...nieznane],
+            podglad: doUtworzenia.slice(0, 200),
+        };
+
+        if (nieznane.size) {
+            podsumowanie.wskazowka = aktywne.length === 0
+                ? 'Ten serwer nie ma ani jednej aktywnej drużyny. Dodaj je najpierw na stronie Drużyny (jest tam import z JSON).'
+                : 'Drużyny muszą istnieć i być aktywne. Dodaj brakujące na stronie Drużyny albo popraw nazwy w liście.';
+        }
+
+        if (dryRun) {
+            return res.json({ ok: true, dryRun: true, ...podsumowanie });
+        }
+
+        if (!doUtworzenia.length) {
+            return res.status(400).json({
+                error: 'Nie ma czego utworzyć — żadna linia nie przeszła walidacji.',
+                ...podsumowanie
+            });
+        }
+
+        const [[next]] = await pool.query(
+            `SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo
+               FROM matches WHERE guild_id = ? AND event_id = ? AND phase = ?`,
+            [guildId, event.id, phase]
+        );
+
+        let numer = Number(next.nextNo);
+
+        const utworzone = await runInTransaction(pool, async (conn) => {
+            const lista = [];
+
+            for (const m of doUtworzenia) {
+                const [wynik] = await conn.query(
+                    `INSERT INTO matches
+                        (guild_id, event_id, phase, match_no, team_a, team_b, best_of, is_locked)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+                    [guildId, event.id, phase, numer, m.teamA, m.teamB, m.bestOf]
+                );
+
+                lista.push({ id: wynik.insertId, matchNo: numer, ...m });
+                numer++;
+            }
+
+            return lista;
+        });
+
+        logInfo('matches', 'Bulk match creation', {
+            guildId, slug, phase,
+            utworzonych: utworzone.length,
+            odrzuconych: bledy.length,
+            by: req.session?.user?.id,
+        });
+
+        io.emit('dashboard:refresh', { slug });
+
+        res.json({ ok: true, utworzone, ...podsumowanie });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Nie udało się utworzyć meczów.' });
     }
 });
 
