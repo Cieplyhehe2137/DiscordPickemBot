@@ -261,6 +261,21 @@ export function getClassificationExportUrl(slug) {
   return `${API_BASE}/events/${slug}/export/classification`;
 }
 
+export async function updateMatch(matchId, body) {
+  return apiFetch(`/matches/${matchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body)
+  });
+}
+
+export async function getMatchDeletePreview(matchId) {
+  return apiFetch(`/matches/${matchId}/delete-preview`);
+}
+
+export async function deleteMatch(matchId) {
+  return apiFetch(`/matches/${matchId}`, { method: 'DELETE' });
+}
+
 export async function bulkCreateMatches(guildId, slug, body) {
   return apiFetch(`/guilds/${guildId}/events/${slug}/matches/bulk`, {
     method: 'POST',

@@ -3400,6 +3400,29 @@ app.post('/api/events/:slug/phases/:phase/clear', requireGuildAdmin(guildIdFromE
                 [phase, guildId, event.id]
             );
 
+            // Tabele per-mapa były tu pominięte, więc czyszczenie fazy
+            // zostawiało wiersze wskazujące na skasowane mecze. Na produkcji
+            // jest już po tym 2 osieroconych typów map i 3 wyników map.
+            await conn.query(
+                `
+                DELETE mmp
+                FROM match_map_predictions mmp
+                JOIN matches m ON m.id = mmp.match_id
+                WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
+            await conn.query(
+                `
+                DELETE mmr
+                FROM match_map_results mmr
+                JOIN matches m ON m.id = mmr.match_id
+                WHERE m.phase = ? AND m.guild_id = ? AND m.event_id = ?
+                `,
+                [phase, guildId, event.id]
+            );
+
             const [r4] = await conn.query(
                 `
                 DELETE FROM matches
@@ -3439,6 +3462,179 @@ app.post('/api/events/:slug/phases/:phase/clear', requireGuildAdmin(guildIdFromE
         res.status(500).json({
             error: 'Database error'
         });
+    }
+});
+
+// ============================================================
+// Edycja i usuwanie POJEDYNCZEGO meczu
+//
+// Dotąd jedyną drogą do poprawienia literówki w nazwie drużyny było
+// "Wyczyść fazę", które kasuje WSZYSTKIE mecze tej fazy razem z typami
+// graczy i punktami. Nieproporcjonalne do pomyłki.
+// ============================================================
+
+// Co zniknie razem z meczem. Ten sam wzorzec co podgląd czyszczenia fazy:
+// admin widzi liczby, zanim cokolwiek potwierdzi.
+async function policzDaneMeczu(matchId) {
+    const licz = async (tabela) => {
+        const [[r]] = await pool.query(
+            `SELECT COUNT(*) n FROM \`${tabela}\` WHERE match_id = ?`, [matchId]
+        );
+        return r.n;
+    };
+
+    return {
+        typy: await licz('match_predictions'),
+        typyMap: await licz('match_map_predictions'),
+        wyniki: await licz('match_results'),
+        wynikiMap: await licz('match_map_results'),
+        punkty: await licz('match_points'),
+    };
+}
+
+app.get('/api/matches/:matchId/delete-preview', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const match = await matchesStore.getMatchById(pool, req.guildId, req.params.matchId);
+        if (!match) return res.status(404).json({ error: 'Mecz nie istnieje' });
+
+        res.json({
+            match: {
+                id: match.id, phase: match.phase, matchNo: match.match_no,
+                teamA: match.team_a, teamB: match.team_b, bestOf: match.best_of
+            },
+            usunie: await policzDaneMeczu(match.id)
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.delete('/api/matches/:matchId', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const { guildId } = req;
+        const match = await matchesStore.getMatchById(pool, guildId, req.params.matchId);
+
+        if (!match) return res.status(404).json({ error: 'Mecz nie istnieje' });
+
+        const usunie = await policzDaneMeczu(match.id);
+
+        // Kolejność jak przy czyszczeniu fazy, ale z tabelami per-mapa, których
+        // tamten kod nie obejmował - bez nich zostawałyby wiersze wskazujące
+        // na nieistniejący mecz.
+        await runInTransaction(pool, async (conn) => {
+            for (const tabela of [
+                'match_points', 'match_predictions', 'match_map_predictions',
+                'match_results', 'match_map_results'
+            ]) {
+                await conn.query(`DELETE FROM \`${tabela}\` WHERE match_id = ?`, [match.id]);
+            }
+
+            await conn.query(
+                'DELETE FROM matches WHERE id = ? AND guild_id = ?', [match.id, guildId]
+            );
+        });
+
+        logWarn('matches', 'Match deleted from web panel', {
+            guildId, matchId: match.id, phase: match.phase,
+            teams: `${match.team_a} vs ${match.team_b}`,
+            usunie, by: req.session?.user?.id,
+        });
+
+        const [[eventRow]] = await pool.query(
+            'SELECT slug FROM events WHERE id = ? LIMIT 1', [match.event_id]
+        );
+
+        if (eventRow?.slug) io.emit('dashboard:refresh', { slug: eventRow.slug });
+
+        res.json({ ok: true, usunieto: usunie });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Nie udało się usunąć meczu.' });
+    }
+});
+
+app.patch('/api/matches/:matchId', requireGuildAdmin(guildIdFromMatchId), async (req, res) => {
+    try {
+        const { guildId } = req;
+        const { teamA, teamB, bestOf, startTimeUtc } = req.body || {};
+
+        const match = await matchesStore.getMatchById(pool, guildId, req.params.matchId);
+        if (!match) return res.status(404).json({ error: 'Mecz nie istnieje' });
+
+        const noweA = teamA ?? match.team_a;
+        const noweB = teamB ?? match.team_b;
+        const noweBo = bestOf === undefined ? match.best_of : Number(bestOf);
+
+        if (noweA === noweB) {
+            return res.status(400).json({ error: 'Drużyny muszą być różne.' });
+        }
+
+        if (![1, 3, 5].includes(Number(noweBo))) {
+            return res.status(400).json({ error: 'BO musi wynosić 1, 3 albo 5.' });
+        }
+
+        // Ta sama walidacja co przy tworzeniu - matches.team_a to varchar, więc
+        // literówka wjechałaby do bazy i rozjechała dopasowywanie wyników.
+        if (teamA !== undefined || teamB !== undefined) {
+            const [aktywne] = await pool.query(
+                'SELECT name FROM teams WHERE guild_id = ? AND active = 1 AND name IN (?, ?)',
+                [guildId, noweA, noweB]
+            );
+
+            const znane = new Set(aktywne.map(t => t.name));
+
+            if (!znane.has(noweA) || !znane.has(noweB)) {
+                return res.status(400).json({
+                    error: 'Obie drużyny muszą istnieć i być aktywne na tym serwerze.'
+                });
+            }
+        }
+
+        await pool.query(
+            `UPDATE matches
+                SET team_a = ?, team_b = ?, best_of = ?, start_time_utc = ?
+              WHERE id = ? AND guild_id = ?`,
+            [
+                noweA, noweB, noweBo,
+                startTimeUtc === undefined ? match.start_time_utc : (startTimeUtc || null),
+                match.id, guildId
+            ]
+        );
+
+        // Zmiana drużyn albo BO unieważnia dotychczasowe punkty tego meczu -
+        // typy graczy zostają, ale liczą się teraz względem czego innego.
+        // Przeliczamy od razu, żeby ranking nie został z punktami policzonymi
+        // dla poprzedniego układu.
+        const zmianaWplywajacaNaPunkty =
+            noweA !== match.team_a || noweB !== match.team_b || Number(noweBo) !== Number(match.best_of);
+
+        if (zmianaWplywajacaNaPunkty) {
+            await recalculateMatchPoints(pool, guildId, match.event_id, match.id, noweBo);
+        }
+
+        logInfo('matches', 'Match edited from web panel', {
+            guildId, matchId: match.id,
+            przed: `${match.team_a} vs ${match.team_b} BO${match.best_of}`,
+            po: `${noweA} vs ${noweB} BO${noweBo}`,
+            przeliczono: zmianaWplywajacaNaPunkty,
+            by: req.session?.user?.id,
+        });
+
+        const [[eventRow]] = await pool.query(
+            'SELECT slug FROM events WHERE id = ? LIMIT 1', [match.event_id]
+        );
+
+        if (eventRow?.slug) io.emit('dashboard:refresh', { slug: eventRow.slug });
+
+        res.json({
+            ok: true,
+            match: await matchesStore.getMatchById(pool, guildId, match.id),
+            przeliczonoPunkty: zmianaWplywajacaNaPunkty
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Nie udało się zapisać zmian w meczu.' });
     }
 });
 

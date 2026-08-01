@@ -37,6 +37,7 @@ import DoubleElimResultsPanel from '../components/admin/DoubleElimResultsPanel';
 import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
 import ResultProposalsPanel from '../components/admin/ResultProposalsPanel';
 import BulkMatchModal from '../components/admin/BulkMatchModal';
+import MatchEditModal from '../components/admin/MatchEditModal';
 import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
@@ -72,6 +73,7 @@ export default function EventDashboard() {
 
   const [showCreateMatchModal, setShowCreateMatchModal] = useState(false);
   const [showBulkMatchModal, setShowBulkMatchModal] = useState(false);
+  const [editMatch, setEditMatch] = useState(null);
   const [activeTeams, setActiveTeams] = useState([]);
   const [matchForm, setMatchForm] = useState({ phase: 'SWISS', teamA: '', teamB: '', bestOf: 3, startTimeUtc: '' });
   const [creatingMatch, setCreatingMatch] = useState(false);
@@ -1208,6 +1210,13 @@ export default function EventDashboard() {
                             >
                               Dokładne wyniki
                             </button>
+
+                            <button
+                              onClick={() => setEditMatch(match)}
+                              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-black text-white/70 transition hover:bg-white/10"
+                            >
+                              Edytuj
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1414,6 +1423,22 @@ export default function EventDashboard() {
           </>
         )}
       </main>
+
+      {editMatch && (
+        <MatchEditModal
+          guildId={event?.guild_id}
+          match={editMatch}
+          onClose={() => setEditMatch(null)}
+          onSaved={(w) => {
+            refreshEventData();
+            if (w?.przeliczonoPunkty) alert('Zapisano. Punkty tego meczu przeliczone.');
+          }}
+          onDeleted={() => {
+            alert('Mecz usunięty.');
+            refreshEventData();
+          }}
+        />
+      )}
 
       {showBulkMatchModal && (
         <BulkMatchModal
