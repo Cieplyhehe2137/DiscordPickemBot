@@ -18,7 +18,8 @@ Nie mam dostępu do Twojego panelu ani do Discord Developer Portal — kroki pon
 
 ## 0. Zanim zaczniesz
 
-1. **Domena lub subdomena** wskazująca na hosting, np. `pickem.twojadomena.pl`. Część planów Cybrancee zawiera domenę w cenie; jeśli masz już domenę gdzie indziej, wystarczy subdomena z rekordem A na IP hostingu.
+0. **Właściwy produkt: „Node.js Hosting", nie „Web Hosting".** To u Cybrancee dwie różne usługi — zwykły web hosting nie wymienia obsługi Node'a, a ta aplikacja to proces Node. Najtańszy plan (Starter, 1 strona, 5 GB) w zupełności wystarcza: całość zajmuje ~85 MB. Node.js Hosting jest opisany jako „WebSocket Optimized", więc panel będzie się odświeżał na żywo bez obchodzenia problemu.
+1. **Domena lub subdomena** wskazująca na hosting, np. `pickem.twojadomena.pl`. Darmowa domena bywa dodawana przy rozliczeniu rocznym; jeśli masz już domenę gdzie indziej, wystarczy subdomena z rekordem A na IP hostingu.
 2. **Wersja Node w panelu: 20 LTS lub 22 LTS.** Nie schodź poniżej 18 — `server/` to moduły ESM (`"type": "module"`) i korzysta ze składni wymagającej nowszego runtime.
 3. **Nie kasuj niczego po stronie bota.** To wdrożenie niczego nie migruje ani nie przenosi.
 
@@ -49,7 +50,9 @@ Musi się znaleźć na serwerze:
 - `config/*.env` — konfiguracje gildii; **serwer web też ich potrzebuje**, bo z nich bierze dane dostępowe do bazy per gildia oraz nazwy, slugi i link zaproszenia na Discorda
 - `utils/` — współdzielone z botem (`restoreBackup.js`, `guildRegistry.js` itd.)
 
-Nie musi: `handlers/`, `commands/`, `web/src/`, `web/node_modules/`.
+- `handlers/` i `services/` — serwer korzysta z nich bezpośrednio (eksport klasyfikacji, przeliczanie punktów)
+
+Nie musi: `commands/`, `web/src/`, `web/node_modules/`.
 
 > `config/*.env` i `server/.env` są w `.gitignore` i **nie wgrają się przez integrację z gitem** — wrzuć je ręcznie przez File Manager lub FTP.
 
@@ -128,7 +131,21 @@ W panelu domeny → **Node.js**:
 
 Ścieżka do strony (`web/dist`) jest liczona względem **pliku**, nie katalogu roboczego, więc przy Application Root ustawionym na `server/` nadal poprawnie wskazuje na `web/dist`.
 
-Następnie kliknij **NPM install** i **Restart App**.
+### Zależności trzeba zainstalować w DWÓCH miejscach
+
+To najczęstsza przyczyna „aplikacja nie startuje" przy tym układzie. `server/index.js` korzysta z `utils/`, `handlers/` i `services/` leżących w katalogu głównym, a Node szuka pakietów **od katalogu pliku, który ich wymaga** — nie od punktu wejścia. Pliki z `utils/` potrzebują więc `node_modules` w katalogu głównym i `server/node_modules` im nie pomoże.
+
+Konkretnie z korzenia biorą się `winston`, `luxon`, `exceljs` i `mysql2`. `utils/logger.js` ładuje się przy starcie serwera, więc bez tego proces **nie wstanie w ogóle**, wywalając się na `Cannot find module 'winston'`.
+
+Kolejność:
+
+1. Application Root ustaw tymczasowo na katalog główny (`.../pickem`) → **NPM install**.
+2. Application Root przestaw na `.../pickem/server` → **NPM install** ponownie.
+3. **Restart App**.
+
+Zajmie to ~85 MB (`node_modules` w korzeniu ~71 MB, `server/node_modules` ~12 MB, `web/dist` ~0,6 MB) — mieści się w 5 GB najtańszego planu z ogromnym zapasem.
+
+Jeśli masz dostęp SSH, to po prostu `npm install --omit=dev` w obu katalogach.
 
 ---
 
@@ -163,8 +180,9 @@ Po kolei, bo każdy krok sprawdza co innego:
 | `Invalid OAuth2 redirect_uri` | `DISCORD_REDIRECT_URI` ≠ wpis w Developer Portal | porównaj znak po znaku, także ukośnik końcowy |
 | Strona publiczna działa, `/app` pokazuje pustą listę serwerów | serwer nie znalazł `config/*.env` | `GUILD_CONFIG_DIR` musi być ścieżką bezwzględną (krok 3) |
 | Biała strona, w konsoli 404 na plikach `.js` | brak `web/dist` na serwerze | krok 4 |
-| Aplikacja nie startuje, w logach `Cannot find module` | *NPM install* poszedł w złym katalogu | Application Root musi wskazywać `server/` (krok 5) |
-| Panel działa, ale nie odświeża się na żywo | brak WebSocketów po stronie hostingu | nic nie trzeba — Socket.io schodzi wtedy na long-polling, będzie działać wolniej |
+| Aplikacja nie startuje, `Cannot find module 'winston'` (albo `luxon`/`exceljs`) | brak `node_modules` w katalogu **głównym** | *NPM install* trzeba wykonać w obu katalogach (krok 5) |
+| Aplikacja nie startuje, `Cannot find module 'express'` | brak `server/node_modules` | jw. — drugi przebieg *NPM install* z Application Root na `server/` |
+| Panel działa, ale nie odświeża się na żywo | WebSockety nie przechodzą | nic nie trzeba — Socket.io schodzi wtedy na long-polling i działa dalej, tylko wolniej |
 | Backup zwraca 500 | katalog roboczy niezapisywalny | sprawdź prawa do `server/backup/` |
 
 Logi aplikacji: panel Plesk → Node.js → **Log file**, albo Logs domeny.
