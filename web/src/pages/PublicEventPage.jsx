@@ -42,6 +42,10 @@ export default function PublicEventPage() {
 
     const publicUrl = `${window.location.origin}/public/event/${slug}`;
 
+    // Zaproszenie z configu gildii (DISCORD_INVITE_URL). Gildie, które go nie
+    // mają, nie dostają przycisku - zamiast martwego linku po prostu nic.
+    const discordUrl = data?.guild?.discord_url || null;
+
     useEffect(() => {
         const interval = setInterval(() => {
             setNowTick(Date.now());
@@ -546,28 +550,30 @@ export default function PublicEventPage() {
                     openMatchModal={openMatchModal}
                 />
 
-                <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                            <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                                Dołącz do Pick&apos;Em
-                            </p>
+                {discordUrl && (
+                    <div className="mt-6 rounded-[2rem] border border-violet-400/20 bg-violet-500/10 p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div>
+                                <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
+                                    Dołącz do Pick&apos;Em
+                                </p>
 
-                            <h2 className="mt-2 text-2xl font-black">
-                                Myślisz, że przewidzisz lepiej niż społeczność?
-                            </h2>
+                                <h2 className="mt-2 text-2xl font-black">
+                                    Myślisz, że przewidzisz lepiej niż społeczność?
+                                </h2>
+                            </div>
+
+                            <a
+                                href={discordUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                            >
+                                Dołącz do Discorda
+                            </a>
                         </div>
-
-                        <a
-                            href="https://discord.gg/TWOJ-LINK"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                        >
-                            Dołącz do Discorda
-                        </a>
                     </div>
-                </div>
+                )}
 
                 <CommunityPulse
                     liveMatchesCount={liveMatchesCount}
@@ -767,6 +773,7 @@ export default function PublicEventPage() {
                             getPickPercent={getPickPercent}
                             closeMatchModal={closeMatchModal}
                             eventMatchStats={eventMatchStats}
+                            discordUrl={discordUrl}
                         />
 
                     )
@@ -804,7 +811,8 @@ function MatchModal({
     matchStatsLoading,
     getPickPercent,
     closeMatchModal,
-    eventMatchStats
+    eventMatchStats,
+    discordUrl
 }) {
     const teamAPercent = getPickPercent(selectedMatch.id, 'team_a');
     const teamBPercent = getPickPercent(selectedMatch.id, 'team_b');
@@ -1190,26 +1198,28 @@ function MatchModal({
                     </div>
                 )}
 
-                <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
-                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                        Chcesz obstawić swój typ?
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                        <p className="text-white/60">
-                            Dołącz do naszego Discorda i zapisz swój typ, zanim mecz zostanie zablokowany.
+                {discordUrl && (
+                    <div className="mt-6 rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
+                        <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                            Chcesz obstawić swój typ?
                         </p>
 
-                        <a
-                            href="https://discord.gg/TWOJ-LINK"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
-                        >
-                            Dołącz do Discorda
-                        </a>
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                            <p className="text-white/60">
+                                Dołącz do naszego Discorda i zapisz swój typ, zanim mecz zostanie zablokowany.
+                            </p>
+
+                            <a
+                                href={discordUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-2xl bg-violet-500 px-5 py-3 font-black transition hover:bg-violet-400"
+                            >
+                                Dołącz do Discorda
+                            </a>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

@@ -1578,6 +1578,11 @@ LIMIT 8
 
         res.json({
             event,
+            // Zaproszenie na Discorda bierze się z configu gildii, a nie ze
+            // stałej w kodzie. Gildie bez DISCORD_INVITE_URL dostają null i
+            // front po prostu nie rysuje przycisku - lepiej nie pokazać nic
+            // niż pokazać link prowadzący donikąd.
+            guild: getKnownGuildInfo(event.guild_id),
             stats: {
                 participants: predictionStats?.participants || 0,
                 predictions: predictionStats?.predictions || 0,
