@@ -45,14 +45,21 @@ Wgraj całe repozytorium na hosting, np. do `/var/www/vhosts/TWOJA-DOMENA/pickem
 
 Musi się znaleźć na serwerze:
 
-- `server/` — kod API
-- `web/dist/` — zbudowana strona (patrz krok 4)
-- `config/*.env` — konfiguracje gildii; **serwer web też ich potrzebuje**, bo z nich bierze dane dostępowe do bazy per gildia oraz nazwy, slugi i link zaproszenia na Discorda
-- `utils/` — współdzielone z botem (`restoreBackup.js`, `guildRegistry.js` itd.)
+Lista wyliczona z realnych importów serwera (29 plików projektu), nie z pamięci:
 
-- `handlers/` i `services/` — serwer korzysta z nich bezpośrednio (eksport klasyfikacji, przeliczanie punktów)
+| element | po co |
+|---|---|
+| `server/` | kod API |
+| `web/dist/` | zbudowana strona (krok 4) |
+| `utils/` | współdzielone z botem — `restoreBackup.js`, `guildRegistry.js`, repozytoria faz |
+| `handlers/` | eksport klasyfikacji, przeliczanie wyników |
+| `services/` | przeliczanie punktów meczów |
+| `rules/` | zasady punktacji |
+| `db.js` | pula połączeń per gildia — pojedynczy plik w katalogu głównym |
+| `package.json` + `package-lock.json` | potrzebne do `npm install` w katalogu głównym (krok 5) |
+| `config/*.env` | konfiguracje gildii — **serwer web też ich potrzebuje**: dane dostępowe do bazy per gildia oraz nazwy, slugi i link zaproszenia na Discorda |
 
-Nie musi: `commands/`, `web/src/`, `web/node_modules/`.
+Nie musi: `commands/`, `index.js` bota, `web/src/`, `web/node_modules/`, `node_modules/`.
 
 > `config/*.env` i `server/.env` są w `.gitignore` i **nie wgrają się przez integrację z gitem** — wrzuć je ręcznie przez File Manager lub FTP.
 
