@@ -152,9 +152,10 @@ CREATE TABLE `events` (
   `phase` varchar(50) DEFAULT 'SWISS_STAGE_1',
   `is_open` tinyint(1) DEFAULT '0',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `external_tournament_id` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_guild_slug` (`guild_id`,`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- leaderboard
@@ -554,11 +555,12 @@ CREATE TABLE `teams` (
   `sort_order` int NOT NULL DEFAULT '0',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `external_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_guild_name` (`guild_id`,`name`),
   KEY `idx_guild_active` (`guild_id`,`active`),
   KEY `idx_guild_sort` (`guild_id`,`sort_order`)
-) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- tournament_audit_log
@@ -639,3 +641,26 @@ CREATE TABLE `sessions` (
   PRIMARY KEY (`session_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- ============================================================
+-- match_result_proposals
+-- Propozycje wynikow z zewnetrznego dostawcy (migracja 0002).
+-- Wynik NIE trafia stad wprost do match_results - admin zatwierdza.
+-- ============================================================
+CREATE TABLE `match_result_proposals` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `guild_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_id` int NOT NULL,
+  `match_id` int NOT NULL,
+  `source` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `external_match_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `res_a` tinyint NOT NULL,
+  `res_b` tinyint NOT NULL,
+  `payload` json DEFAULT NULL,
+  `status` enum('PENDING','ACCEPTED','REJECTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'PENDING',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `resolved_by` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_proposal_match_source` (`guild_id`,`match_id`,`source`),
+  KEY `idx_proposals_pending` (`guild_id`,`event_id`,`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
