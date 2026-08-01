@@ -21,6 +21,7 @@ web.zip
 # nigdy nie powinny trafić do repozytorium.
 server/backup/
 server/archiwum/
+backup/
 archiwum/
 *.sql
 !schema.sql

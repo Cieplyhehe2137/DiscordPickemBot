@@ -252,6 +252,16 @@ function parseCsvPick(value) {
         .filter(Boolean);
 }
 
+// Na produkcji aplikacja stoi za reverse proxy (Plesk/nginx kończy TLS i
+// dopiero wewnętrznie odzywa się po HTTP). Bez tego Express widzi połączenie
+// jako nieszyfrowane i express-session PRZY cookie.secure=true w ogóle nie
+// ustawi ciasteczka sesji - logowanie po prostu przestaje działać, bez
+// żadnego błędu w logach. Zaufanie ograniczone do pierwszego skoku (proxy
+// hosta), żeby nie dało się podszyć nagłówkiem X-Forwarded-For z zewnątrz.
+if (IS_PRODUCTION) {
+    app.set('trust proxy', 1);
+}
+
 app.use(cors({
     origin: WEB_ORIGIN,
     credentials: true
