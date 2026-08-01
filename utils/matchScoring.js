@@ -41,7 +41,11 @@ function computeSeriesPoints({ predA, predB, resA, resB }) {
 
 /**
  * Punkty za dokładny wynik MAPY — wariant B
- * Liczymy łączną różnicę rund:
+ * Warunek wstępny: trzeba trafić ZWYCIĘZCĘ mapy. Bez tego sama bliskość
+ * wyniku dawała punkty za mapę wytypowaną na złą drużynę - typ 13:12 przy
+ * wyniku 12:13 to suma odchyleń 2, czyli 1 pkt mimo pomyłki co do zwycięzcy.
+ *
+ * Potem liczy się łączna różnica rund:
  *
  * totalDiff = |predA - exactA| + |predB - exactB|
  *
@@ -57,6 +61,13 @@ function computeMapPoints({ predExactA, predExactB, exactA, exactB }) {
   const eb = toFiniteNumber(exactB);
 
   if ([pa, pb, ea, eb].some(v => v === null)) {
+    return SCORING.MAP.MISS;
+  }
+
+  // getWinner zwraca null przy remisie, więc porównanie obejmuje też przypadek
+  // "obie strony to remis" (wtedy zgodne) oraz "typ remis, wynik rozstrzygnięty"
+  // (wtedy niezgodne).
+  if (getWinner(pa, pb) !== getWinner(ea, eb)) {
     return SCORING.MAP.MISS;
   }
 
