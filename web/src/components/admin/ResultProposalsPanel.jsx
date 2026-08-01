@@ -160,15 +160,21 @@ export default function ResultProposalsPanel({ slug, onResultApplied }) {
             <div className="mt-5 flex flex-wrap items-end gap-3">
                 <label className="flex-1">
                     <span className="text-xs uppercase tracking-[0.2em] text-white/40">
-                        ID turnieju u dostawcy
+                        Identyfikator u dostawcy
                     </span>
 
                     <input
                         value={externalId}
                         onChange={(e) => setExternalId(e.target.value)}
-                        placeholder="np. 15234"
+                        placeholder="serie:10488"
                         className="mt-2 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 font-mono text-sm"
                     />
+
+                    <span className="mt-2 block text-xs text-white/40">
+                        Zwykle chcesz <code>serie:ID</code> — jeden turniej u Was to u dostawcy
+                        cała seria (np. IEM Cologne to Stage&nbsp;1-3 plus Playoffs).
+                        <code>turniej:ID</code> zawęża do jednej fazy.
+                    </span>
                 </label>
 
                 <button

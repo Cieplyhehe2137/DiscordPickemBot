@@ -46,7 +46,19 @@ function paraKluczy(x, y) {
 }
 
 function matchProviderResults({ localMatches = [], providerMatches = [], teams = [] }) {
-    const resolve = buildTeamResolver(teams);
+    // Nazwy drużyn z samych meczów też muszą rozpoznawać się same. Nie każda
+    // gildia trzyma drużyny w tabeli teams - Hyperland ma tam zero wierszy, a
+    // w meczach 32 nazwy wpisane wprost. Bez tego mapa aliasów byłaby pusta i
+    // nie dopasowałoby się NIC.
+    const zMeczow = [];
+
+    for (const m of localMatches) {
+        if (m.team_a) zMeczow.push({ name: m.team_a });
+        if (m.team_b) zMeczow.push({ name: m.team_b });
+    }
+
+    // teams na końcu, żeby wpis z external_name nadpisał gołą nazwę z meczu.
+    const resolve = buildTeamResolver([...zMeczow, ...teams]);
 
     // Indeks lokalnych meczów po parze drużyn. Gdy ta sama para gra ze sobą
     // więcej niż raz w evencie (np. Swiss i playoffy), trzymamy wszystkie i
