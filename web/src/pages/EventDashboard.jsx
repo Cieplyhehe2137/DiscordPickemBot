@@ -35,6 +35,7 @@ import SwissResultsPanel from '../components/admin/SwissResultsPanel';
 import PlayoffsResultsPanel from '../components/admin/PlayoffsResultsPanel';
 import DoubleElimResultsPanel from '../components/admin/DoubleElimResultsPanel';
 import PlayInResultsPanel from '../components/admin/PlayInResultsPanel';
+import ResultProposalsPanel from '../components/admin/ResultProposalsPanel';
 import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
@@ -962,6 +963,10 @@ export default function EventDashboard() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div className="mt-10">
+              <ResultProposalsPanel slug={slug} onResultApplied={refreshEventData} />
             </div>
 
             <SwissResultsPanel slug={slug} guildId={event?.guild_id} />

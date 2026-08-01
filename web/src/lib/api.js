@@ -243,6 +243,29 @@ export function getClassificationExportUrl(slug) {
   return `${API_BASE}/events/${slug}/export/classification`;
 }
 
+export async function getResultProposals(slug) {
+  return apiFetch(`/events/${slug}/result-proposals`);
+}
+
+export async function syncResultProposals(slug) {
+  return apiFetch(`/events/${slug}/result-proposals/sync`, { method: 'POST' });
+}
+
+export async function acceptResultProposal(proposalId) {
+  return apiFetch(`/result-proposals/${proposalId}/accept`, { method: 'POST' });
+}
+
+export async function rejectResultProposal(proposalId) {
+  return apiFetch(`/result-proposals/${proposalId}/reject`, { method: 'POST' });
+}
+
+export async function setEventExternalLink(slug, externalTournamentId) {
+  return apiFetch(`/events/${slug}/external-link`, {
+    method: 'PATCH',
+    body: JSON.stringify({ externalTournamentId })
+  });
+}
+
 export function getBackupDownloadUrl(guildId, fileName) {
   return `${API_BASE}/guilds/${guildId}/backups/${encodeURIComponent(fileName)}/download`;
 }
