@@ -55,13 +55,15 @@ function createPandascoreProvider({ token, fetchImpl = fetch } = {}) {
                 throw new Error('pandascore: brak external_tournament_id dla eventu');
             }
 
-            const url = new URL(
-                `${BASE_URL}/csgo/tournaments/${encodeURIComponent(tournamentId)}/matches`
-            );
+            // Turniej zawężamy FILTREM, a nie ścieżką zagnieżdżoną:
+            // /csgo/tournaments/{id}/matches zwraca 404 (sprawdzone na żywym
+            // API). Działa /tournaments/{id}/matches, ale bez prefiksu gry, co
+            // gubi zawężenie do Counter-Strike'a. Ten wariant ma jedno i drugie.
+            const url = new URL(`${BASE_URL}/csgo/matches`);
 
+            url.searchParams.set('filter[tournament_id]', String(tournamentId));
             url.searchParams.set('filter[status]', 'finished');
             url.searchParams.set('per_page', '100');
-            url.searchParams.set('sort', '-end_at');
             url.searchParams.set('token', token);
 
             const res = await fetchImpl(url.toString());
