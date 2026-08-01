@@ -95,19 +95,27 @@ module.exports = async function backupDatabase(interaction) {
       const fileName = `backup_${guildId}_${timestamp}.sql`;
       const filePath = path.join(backupDir, fileName);
 
+      // Backup gildii obejmuje WYŁĄCZNIE tabele z kolumną guild_id. Tabele bez
+      // niej (sessions, admin_users) są globalne - filtr po guild_id z definicji
+      // ich nie obejmuje, więc trafiały do pliku w całości, razem z sesjami
+      // logowania wszystkich użytkowników panelu. Nie są to zresztą dane
+      // turniejowe, więc nie ma czego z nich odtwarzać.
       const tablesMap = await getDatabaseTablesAndColumns(cfg);
-
-      const tables = [...tablesMap.keys()];
 
       const escapedGuildId = sqlEscape(guildId);
 
       const where = {};
+      const skippedTables = [];
 
       for (const [table, columns] of tablesMap.entries()) {
         if (columns.has('guild_id')) {
           where[table] = `guild_id = '${escapedGuildId}'`;
+        } else {
+          skippedTables.push(table);
         }
       }
+
+      const tables = Object.keys(where);
 
       await mysqldump({
         connection: {
@@ -119,7 +127,11 @@ module.exports = async function backupDatabase(interaction) {
         },
         dump: {
           tables,
-          where,
+          // `where` należy do DataDumpOptions (dump.data.where), a nie do
+          // dump.where - biblioteka po cichu ignoruje nieznane pola, więc
+          // filtr po guild_id nie działał i backup jednej gildii zawierał
+          // CAŁĄ bazę, czyli też dane pozostałych serwerów.
+          data: { where },
         },
         dumpToFile: filePath,
       });
@@ -129,14 +141,14 @@ module.exports = async function backupDatabase(interaction) {
         fileName,
         filePath,
         tablesCount: tables.length,
-        filteredTablesCount: Object.keys(where).length,
+        skippedTablesCount: skippedTables.length,
       });
 
       await interaction.editReply({
         content:
           `✅ Backup ukończony!\n` +
-          `📦 Backup objął **wszystkie tabele z bazy**.\n` +
-          `🔒 Tabele z \`guild_id\` zapisano tylko dla tego serwera.\n` +
+          `📦 Zapisano **${tables.length}** tabel — wyłącznie dane tego serwera.\n` +
+          `🔒 Pominięto **${skippedTables.length}** tabel bez \`guild_id\` (globalne, m.in. sesje logowania).\n` +
           `🗂️ Plik: \`${fileName}\``
       });
 
