@@ -1024,10 +1024,21 @@ app.post('/api/guilds/:guildId/teams', requireGuildAdmin(req => req.params.guild
 app.patch('/api/guilds/:guildId/teams/:teamId', requireGuildAdmin(req => req.params.guildId), async (req, res) => {
     try {
         const { guildId, teamId } = req.params;
-        const { name, shortName, active } = req.body;
+        const { name, shortName, active, externalName } = req.body;
 
         if (name !== undefined) {
             await teamsStore.renameTeam(guildId, teamId, name, { shortName: shortName ?? null });
+        }
+
+        // Alias nazwy u dostawcy danych. Osobno od renameTeam, bo teamsStore
+        // jest współdzielony z botem, a ta kolumna dotyczy wyłącznie integracji
+        // z wynikami - pusty ciąg zapisujemy jako NULL, żeby nie mieszać
+        // "brak aliasu" z "alias to pusty tekst".
+        if (externalName !== undefined) {
+            await pool.query(
+                'UPDATE teams SET external_name = ? WHERE id = ? AND guild_id = ?',
+                [String(externalName).trim() || null, teamId, guildId]
+            );
         }
 
         if (active !== undefined) {

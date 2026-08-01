@@ -21,7 +21,7 @@ async function listTeams(source, { includeInactive = true } = {}) {
   return withGuild(source, async ({ guildId, pool }) => {
     const [rows] = await pool.query(
       `
-      SELECT id, name, short_name, active, sort_order, created_at, updated_at
+      SELECT id, name, short_name, external_name, active, sort_order, created_at, updated_at
       FROM teams
       WHERE guild_id = ?
         AND (? = 1 OR active = 1)

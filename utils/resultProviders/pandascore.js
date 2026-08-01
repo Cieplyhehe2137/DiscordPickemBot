@@ -66,6 +66,10 @@ function normalizePandascoreMatch(raw) {
         scoreB,
         bestOf: Number(raw.number_of_games) || null,
         finishedAt: raw.end_at || null,
+        // Nazwa turnieju w obrębie serii ("Stage 1", "Playoffs"). Potrzebna do
+        // rozstrzygania rewanżów: ta sama para drużyn potrafi zagrać ze sobą
+        // w kilku etapach Swiss, a wtedy sama para nazw nie wystarcza.
+        stageName: raw.tournament?.name || null,
         raw,
     };
 }

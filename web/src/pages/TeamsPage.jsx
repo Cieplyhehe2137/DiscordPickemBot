@@ -25,6 +25,7 @@ export default function TeamsPage() {
     const [modal, setModal] = useState(null); // null | 'add' | 'import' | { team }
     const [formName, setFormName] = useState('');
     const [formShortName, setFormShortName] = useState('');
+    const [formExternalName, setFormExternalName] = useState('');
     const [saving, setSaving] = useState(false);
     const [formError, setFormError] = useState(null);
 
@@ -68,6 +69,7 @@ export default function TeamsPage() {
     function openAddModal() {
         setFormName('');
         setFormShortName('');
+        setFormExternalName('');
         setFormError(null);
         setModal('add');
     }
@@ -99,6 +101,7 @@ export default function TeamsPage() {
     function openEditModal(team) {
         setFormName(team.name);
         setFormShortName(team.short_name || '');
+        setFormExternalName(team.external_name || '');
         setFormError(null);
         setModal({ team });
     }
@@ -116,7 +119,8 @@ export default function TeamsPage() {
             } else {
                 await updateTeam(guildId, modal.team.id, {
                     name: formName.trim(),
-                    shortName: formShortName.trim() || null
+                    shortName: formShortName.trim() || null,
+                    externalName: formExternalName.trim()
                 });
             }
 
@@ -343,6 +347,27 @@ export default function TeamsPage() {
                                     className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
                                 />
                             </div>
+
+                            {modal !== 'add' && (
+                                <div>
+                                    <label className="text-sm font-bold text-white/60">
+                                        Nazwa u dostawcy wyników (opcjonalnie)
+                                    </label>
+
+                                    <input
+                                        value={formExternalName}
+                                        onChange={(e) => setFormExternalName(e.target.value)}
+                                        placeholder="Natus Vincere"
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none focus:border-violet-400/50"
+                                    />
+
+                                    <p className="mt-2 text-xs text-white/40">
+                                        Wypełnij tylko wtedy, gdy dostawca nazywa tę drużynę inaczej niż Wy
+                                        (np. u Was &bdquo;NAVI&rdquo;, u niego &bdquo;Natus Vincere&rdquo;).
+                                        Panel propozycji wypisze z nazwy drużyny, których nie rozpoznał.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {formError && (

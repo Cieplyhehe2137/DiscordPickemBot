@@ -45,6 +45,36 @@ function paraKluczy(x, y) {
     return [normalizeTeamName(x), normalizeTeamName(y)].sort().join('|');
 }
 
+// Rozstrzyganie rewanżów po ETAPIE, a nie po dacie: ta sama para drużyn gra
+// ze sobą w kilku etapach Swiss, a nasze mecze mają start_time_utc puste
+// (sprawdzone: 0 ze 106 meczów IEM Cologne miało wypełnioną godzinę), więc
+// dopasowanie czasowe nie miałoby na czym się oprzeć. Faza za to jest
+// wypełniona zawsze - u nas "swiss_stage2", u dostawcy turniej "Stage 2".
+function numerEtapu(tekst) {
+    const m = /(\d+)/.exec(String(tekst || ''));
+    return m ? Number(m[1]) : null;
+}
+
+function etapPasuje(fazaLokalna, nazwaEtapuDostawcy) {
+    if (!fazaLokalna || !nazwaEtapuDostawcy) return null; // brak danych = brak zdania
+
+    const a = String(fazaLokalna).toLowerCase();
+    const b = String(nazwaEtapuDostawcy).toLowerCase();
+
+    const playoffA = /playoff|final|elim/.test(a);
+    const playoffB = /playoff|final/.test(b);
+
+    if (playoffA || playoffB) return playoffA && playoffB;
+
+    const nA = numerEtapu(a);
+    const nB = numerEtapu(b);
+
+    // Obie strony numerują etapy - to jedyny przypadek, w którym mamy pewność.
+    if (nA !== null && nB !== null) return nA === nB;
+
+    return null;
+}
+
 function matchProviderResults({ localMatches = [], providerMatches = [], teams = [] }) {
     // Nazwy drużyn z samych meczów też muszą rozpoznawać się same. Nie każda
     // gildia trzyma drużyny w tabeli teams - Hyperland ma tam zero wierszy, a
@@ -98,15 +128,27 @@ function matchProviderResults({ localMatches = [], providerMatches = [], teams =
             continue;
         }
 
-        if (kandydaci.length > 1) {
-            // Ta sama para drużyn w kilku meczach eventu - bez dodatkowego
-            // sygnału (data, faza) nie da się rozstrzygnąć. Lepiej pominąć
-            // niż wpisać wynik do niewłaściwego meczu.
-            niejednoznaczne.push({ provider: pm, kandydaci: kandydaci.map((m) => m.id) });
-            continue;
-        }
+        let mecz = kandydaci[0];
 
-        const mecz = kandydaci[0];
+        if (kandydaci.length > 1) {
+            // Ta sama para drużyn w kilku meczach eventu. Próbujemy zawęzić po
+            // etapie; jeśli nadal zostaje więcej niż jeden, pomijamy. Lepiej
+            // zostawić adminowi do ręcznego wpisania niż trafić w niewłaściwy
+            // mecz - wynik przelicza punkty wszystkim.
+            const poEtapie = kandydaci.filter(
+                (m) => etapPasuje(m.phase, pm.stageName) === true
+            );
+
+            if (poEtapie.length !== 1) {
+                niejednoznaczne.push({
+                    provider: pm,
+                    kandydaci: kandydaci.map((m) => m.id),
+                });
+                continue;
+            }
+
+            mecz = poEtapie[0];
+        }
 
         // Orientacja: dostawca mógł zapisać drużyny w odwrotnej kolejności niż
         // my. Odwrócenie wyniku byłoby cichym błędem, więc przypisujemy wynik
