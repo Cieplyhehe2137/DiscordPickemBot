@@ -21,6 +21,7 @@ module.exports = {
   'clear_db_with_results': 'clearDatabaseHandler',
   'backup_database': 'backupDatabase',
   'restore_backup': 'restoreBackupButton',
+  'match_pick_back:': 'matchPickBack',
 
   // ===== SWISS (CZYSTA WERSJA) =====
   'start_swiss_': 'openSwissDropdown',

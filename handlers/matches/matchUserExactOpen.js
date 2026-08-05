@@ -57,8 +57,13 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
     .setTitle(
       maxMaps === 1
         ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-        : `Dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
-    );
+        : `Dokładny wynik — ${getMapLabel(
+          mapNo,
+          match.best_of,
+          match.team_a,
+          match.team_b
+        )}`
+    )
 
   const inA = new TextInputBuilder()
     .setCustomId('exact_a')
