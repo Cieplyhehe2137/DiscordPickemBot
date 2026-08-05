@@ -47,8 +47,32 @@ module.exports = async (interaction) => {
     });
   }
 
-  const phase = `swiss_stage${stageNumber}`; // swiss_stage1
-  const stage = `stage${stageNumber}`;       // stage1
+  const phase = `swiss_stage${stageNumber}`;
+  const stage = `stage${stageNumber}`;
+
+  let eventId = null;
+
+  await withGuild(guildId, async ({ pool }) => {
+    const [events] = await pool.query(
+      `
+    SELECT id
+    FROM events
+    WHERE guild_id = ?
+      AND status = 'OPEN'
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+      [guildId]
+    );
+
+    eventId = Number(events?.[0]?.id || 0);
+  });
+
+  if (!eventId) {
+    return interaction.editReply({
+      content: '❌ Nie znaleziono aktywnego eventu.'
+    });
+  }
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (STAGE ${stageNumber})`)
@@ -65,8 +89,15 @@ module.exports = async (interaction) => {
     new ButtonBuilder()
       .setCustomId(`match_pick:${phase}`)
       .setLabel('🎯 Typuj wyniki meczów')
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId(`my_predictions:${phase}:${eventId}:0`)
+      .setLabel('📋 Moje typy')
+      .setStyle(ButtonStyle.Secondary)
   );
+
+
 
   try {
     const sentMessage = await interaction.channel.send({
