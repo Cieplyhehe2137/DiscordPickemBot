@@ -357,7 +357,12 @@ module.exports = {
           new ButtonBuilder()
             .setCustomId(`match_pick:${selected}`)
             .setLabel('🎯 Typuj wyniki meczów')
-            .setStyle(ButtonStyle.Success)
+            .setStyle(ButtonStyle.Success),
+
+          new ButtonBuilder()
+            .setCustomId(`my_predictions:${selected}:${eventId}:0`)
+            .setLabel('📋 Moje typy')
+            .setStyle(ButtonStyle.Secondary)
         );
 
         const message = await interaction.channel.send({
