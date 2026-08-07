@@ -11,6 +11,26 @@ const { getMapLabel } = require('../../utils/mapLabels');
 
 const PAGE_SIZE = 5;
 
+function formatPoints(match) {
+  if (!Number(match.has_result)) {
+    return '⏳ Punkty: oczekiwanie na wynik meczu';
+  }
+
+  if (match.pred_a == null || match.pred_b == null) {
+    return '➖ Punkty: brak typu';
+  }
+
+  const seriesPoints = Number(match.series_points || 0);
+  const mapPoints = Number(match.map_points || 0);
+  const totalPoints = Number(match.earned_points || 0);
+
+  return [
+    `⭐ Zdobyte punkty: **${totalPoints} pkt**`,
+    `└ Seria: **${seriesPoints} pkt**`,
+    `└ Mapy: **${mapPoints} pkt**`
+  ].join('\n');
+}
+
 function formatMatchPrediction(match, maps) {
   const header =
     `${match.match_no ? `#${match.match_no} ` : ''}` +
@@ -19,7 +39,8 @@ function formatMatchPrediction(match, maps) {
   if (match.pred_a == null || match.pred_b == null) {
     return [
       `🎮 **${header}**`,
-      'Brak zapisanego typu.'
+      'Brak zapisanego typu.',
+      formatPoints(match)
     ].join('\n');
   }
 
@@ -38,29 +59,33 @@ function formatMatchPrediction(match, maps) {
       `${match.pred_exact_a}:${match.pred_exact_b} ${match.team_b}**`
     );
 
+    lines.push('', formatPoints(match));
+
     return lines.join('\n');
   }
 
   if (!maps.length) {
     lines.push('⚠️ Brak zapisanych wyników map.');
-    return lines.join('\n');
+  } else {
+    lines.push('🗺️ Wyniki map:');
+
+    for (const map of maps) {
+      const mapLabel = getMapLabel(
+        map.map_no,
+        match.best_of,
+        match.team_a,
+        match.team_b
+      );
+
+      lines.push(
+        `• **${mapLabel}:** ` +
+        `${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}`
+      );
+    }
   }
 
-  lines.push('🗺️ Wyniki map:');
-
-  for (const map of maps) {
-    const mapLabel = getMapLabel(
-      map.map_no,
-      match.best_of,
-      match.team_a,
-      match.team_b
-    );
-
-    lines.push(
-      `• **${mapLabel}:** ` +
-      `${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}`
-    );
-  }
+  lines.push('');
+  lines.push(formatPoints(match));
 
   return lines.join('\n');
 }
@@ -145,33 +170,88 @@ module.exports = async function showMyPredictions(interaction) {
 
       const [matches] = await pool.query(
         `
-        SELECT
-          m.id,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          m.best_of,
+  SELECT
+    m.id,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
 
-          mp.pred_a,
-          mp.pred_b,
-          mp.pred_exact_a,
-          mp.pred_exact_b
+    mp.pred_a,
+    mp.pred_b,
+    mp.pred_exact_a,
+    mp.pred_exact_b,
 
-        FROM matches m
+    mr.res_a,
+    mr.res_b,
 
-        LEFT JOIN match_predictions mp
-          ON mp.guild_id = m.guild_id
-          AND mp.match_id = m.id
-          AND mp.user_id = ?
+    COALESCE(points.series_points, 0) AS series_points,
+    COALESCE(points.map_points, 0) AS map_points,
+    COALESCE(points.total_points, 0) AS earned_points,
 
-        WHERE m.guild_id = ?
-          AND m.event_id = ?
-          AND m.phase = ?
+    CASE
+      WHEN mr.match_id IS NOT NULL THEN 1
+      ELSE 0
+    END AS has_result
 
-        ORDER BY COALESCE(m.match_no, 999999), m.id
-        LIMIT ? OFFSET ?
-        `,
+  FROM matches m
+
+  LEFT JOIN match_predictions mp
+    ON mp.guild_id = m.guild_id
+    AND mp.event_id = m.event_id
+    AND mp.match_id = m.id
+    AND mp.user_id = ?
+
+  LEFT JOIN match_results mr
+    ON mr.guild_id = m.guild_id
+    AND mr.event_id = m.event_id
+    AND mr.match_id = m.id
+
+  LEFT JOIN (
+    SELECT
+      guild_id,
+      event_id,
+      match_id,
+      user_id,
+
+      SUM(
+        CASE
+          WHEN source = 'series' THEN points
+          ELSE 0
+        END
+      ) AS series_points,
+
+      SUM(
+        CASE
+          WHEN source = 'map' THEN points
+          ELSE 0
+        END
+      ) AS map_points,
+
+      SUM(points) AS total_points
+
+    FROM match_points
+
+    GROUP BY
+      guild_id,
+      event_id,
+      match_id,
+      user_id
+  ) points
+    ON points.guild_id = m.guild_id
+    AND points.event_id = m.event_id
+    AND points.match_id = m.id
+    AND points.user_id = ?
+
+  WHERE m.guild_id = ?
+    AND m.event_id = ?
+    AND m.phase = ?
+
+  ORDER BY COALESCE(m.match_no, 999999), m.id
+  LIMIT ? OFFSET ?
+  `,
         [
+          interaction.user.id,
           interaction.user.id,
           guildId,
           eventId,
