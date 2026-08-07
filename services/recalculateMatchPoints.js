@@ -1,9 +1,22 @@
-const { computeSeriesPoints, computeMapPoints } = require('../utils/matchScoring');
+const {
+  computeSeriesPoints,
+  computeMapPoints
+} = require('../utils/matchScoring');
 
-module.exports = async function recalculateMatchPoints(pool, guildId, eventId, matchId, bestOf) {
+module.exports = async function recalculateMatchPoints(
+  pool,
+  guildId,
+  eventId,
+  matchId,
+  bestOf
+) {
   const [[seriesResult]] = await pool.query(
     `
-    SELECT res_a, res_b, exact_a, exact_b
+    SELECT
+      res_a,
+      res_b,
+      exact_a,
+      exact_b
     FROM match_results
     WHERE guild_id = ?
       AND event_id = ?
@@ -15,7 +28,12 @@ module.exports = async function recalculateMatchPoints(pool, guildId, eventId, m
 
   const [seriesPredictions] = await pool.query(
     `
-    SELECT user_id, pred_a, pred_b, pred_exact_a, pred_exact_b
+    SELECT
+      user_id,
+      pred_a,
+      pred_b,
+      pred_exact_a,
+      pred_exact_b
     FROM match_predictions
     WHERE guild_id = ?
       AND event_id = ?
@@ -24,34 +42,63 @@ module.exports = async function recalculateMatchPoints(pool, guildId, eventId, m
     [guildId, eventId, matchId]
   );
 
-  const pointsByUser = new Map();
+  /*
+   * Punkty trzymamy osobno:
+   *
+   * user_id -> punkty za serię
+   * user_id -> suma punktów za mapy
+   */
+  const seriesPointsByUser = new Map();
+  const mapPointsByUser = new Map();
 
-  for (const p of seriesPredictions) {
+  /* =========================
+     SERIES
+  ========================= */
+
+  for (const prediction of seriesPredictions) {
     const seriesPoints = computeSeriesPoints({
-      predA: p.pred_a,
-      predB: p.pred_b,
+      predA: prediction.pred_a,
+      predB: prediction.pred_b,
       resA: seriesResult?.res_a ?? null,
       resB: seriesResult?.res_b ?? null
     });
 
-    let total = seriesPoints;
+    seriesPointsByUser.set(
+      prediction.user_id,
+      seriesPoints
+    );
 
+    /*
+     * BO1 przechowuje dokładny wynik mapy
+     * bezpośrednio w match_predictions /
+     * match_results.
+     */
     if (Number(bestOf) === 1) {
-      total += computeMapPoints({
-        predExactA: p.pred_exact_a,
-        predExactB: p.pred_exact_b,
+      const mapPoints = computeMapPoints({
+        predExactA: prediction.pred_exact_a,
+        predExactB: prediction.pred_exact_b,
         exactA: seriesResult?.exact_a ?? null,
         exactB: seriesResult?.exact_b ?? null
       });
-    }
 
-    pointsByUser.set(p.user_id, total);
+      mapPointsByUser.set(
+        prediction.user_id,
+        mapPoints
+      );
+    }
   }
+
+  /* =========================
+     BO3 / BO5 MAPS
+  ========================= */
 
   if (Number(bestOf) !== 1) {
     const [mapResults] = await pool.query(
       `
-      SELECT map_no, exact_a, exact_b
+      SELECT
+        map_no,
+        exact_a,
+        exact_b
       FROM match_map_results
       WHERE guild_id = ?
         AND event_id = ?
@@ -61,12 +108,19 @@ module.exports = async function recalculateMatchPoints(pool, guildId, eventId, m
     );
 
     const resultByMap = new Map(
-      mapResults.map(r => [Number(r.map_no), r])
+      mapResults.map((result) => [
+        Number(result.map_no),
+        result
+      ])
     );
 
     const [mapPredictions] = await pool.query(
       `
-      SELECT user_id, map_no, pred_exact_a, pred_exact_b
+      SELECT
+        user_id,
+        map_no,
+        pred_exact_a,
+        pred_exact_b
       FROM match_map_predictions
       WHERE guild_id = ?
         AND event_id = ?
@@ -75,22 +129,29 @@ module.exports = async function recalculateMatchPoints(pool, guildId, eventId, m
       [guildId, eventId, matchId]
     );
 
-    for (const p of mapPredictions) {
-      const result = resultByMap.get(Number(p.map_no));
+    for (const prediction of mapPredictions) {
+      const result = resultByMap.get(
+        Number(prediction.map_no)
+      );
 
       const mapPoints = computeMapPoints({
-        predExactA: p.pred_exact_a,
-        predExactB: p.pred_exact_b,
+        predExactA: prediction.pred_exact_a,
+        predExactB: prediction.pred_exact_b,
         exactA: result?.exact_a ?? null,
         exactB: result?.exact_b ?? null
       });
 
-      pointsByUser.set(
-        p.user_id,
-        (pointsByUser.get(p.user_id) || 0) + mapPoints
+      mapPointsByUser.set(
+        prediction.user_id,
+        (mapPointsByUser.get(prediction.user_id) || 0) +
+          mapPoints
       );
     }
   }
+
+  /* =========================
+     CLEAR OLD POINTS
+  ========================= */
 
   await pool.query(
     `
@@ -102,20 +163,51 @@ module.exports = async function recalculateMatchPoints(pool, guildId, eventId, m
     [guildId, eventId, matchId]
   );
 
-  if (!pointsByUser.size) return;
+  /* =========================
+     BUILD ROWS
+  ========================= */
 
-  const values = [...pointsByUser.entries()].map(([userId, points]) => [
-    guildId,
-    eventId,
-    matchId,
-    userId,
-    points
-  ]);
+  const values = [];
+
+  for (const [userId, points] of seriesPointsByUser.entries()) {
+    values.push([
+      guildId,
+      eventId,
+      matchId,
+      userId,
+      points,
+      'series'
+    ]);
+  }
+
+  for (const [userId, points] of mapPointsByUser.entries()) {
+    values.push([
+      guildId,
+      eventId,
+      matchId,
+      userId,
+      points,
+      'map'
+    ]);
+  }
+
+  if (!values.length) return;
+
+  /* =========================
+     SAVE
+  ========================= */
 
   await pool.query(
     `
     INSERT INTO match_points
-      (guild_id, event_id, match_id, user_id, points)
+      (
+        guild_id,
+        event_id,
+        match_id,
+        user_id,
+        points,
+        source
+      )
     VALUES ?
     ON DUPLICATE KEY UPDATE
       points = VALUES(points),
