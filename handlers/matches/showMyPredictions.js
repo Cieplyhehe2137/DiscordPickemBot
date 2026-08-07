@@ -65,9 +65,9 @@ function formatMatchPrediction(match, maps) {
   }
 
   if (!maps.length) {
-    lines.push('⚠️ Brak zapisanych wyników map.');
+    lines.push('⚠️ Brak zapisanych typów map.');
   } else {
-    lines.push('🗺️ Wyniki map:');
+    lines.push('🗺️ Mapy:');
 
     for (const map of maps) {
       const mapLabel = getMapLabel(
@@ -78,9 +78,22 @@ function formatMatchPrediction(match, maps) {
       );
 
       lines.push(
-        `• **${mapLabel}:** ` +
-        `${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}`
+        `• **${mapLabel}**`,
+        `  🎯 Twój typ: **${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}**`
       );
+
+      if (
+        map.res_exact_a != null &&
+        map.res_exact_b != null
+      ) {
+        lines.push(
+          `  🏁 Wynik: **${match.team_a} ${map.res_exact_a}:${map.res_exact_b} ${match.team_b}**`
+        );
+      } else {
+        lines.push(
+          '  ⏳ Wynik: oczekiwanie'
+        );
+      }
     }
   }
 
@@ -270,19 +283,28 @@ module.exports = async function showMyPredictions(interaction) {
 
         const [mapRows] = await pool.query(
           `
-          SELECT
-            match_id,
-            map_no,
-            pred_exact_a,
-            pred_exact_b
-          FROM match_map_predictions
-          WHERE guild_id = ?
-            AND user_id = ?
-            AND match_id IN (${placeholders})
-          ORDER BY match_id, map_no
-          `,
+  SELECT
+    p.match_id,
+    p.map_no,
+    p.pred_exact_a,
+    p.pred_exact_b,
+    r.exact_a AS res_exact_a,
+    r.exact_b AS res_exact_b
+  FROM match_map_predictions p
+  LEFT JOIN match_map_results r
+    ON r.guild_id = p.guild_id
+   AND r.event_id = p.event_id
+   AND r.match_id = p.match_id
+   AND r.map_no = p.map_no
+  WHERE p.guild_id = ?
+    AND p.event_id = ?
+    AND p.user_id = ?
+    AND p.match_id IN (${placeholders})
+  ORDER BY p.match_id, p.map_no
+  `,
           [
             guildId,
+            eventId,
             interaction.user.id,
             ...matchIds
           ]
