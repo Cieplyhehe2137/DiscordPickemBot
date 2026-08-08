@@ -88,4 +88,6 @@ module.exports = {
   'playoffs_mvp_page_': 'playoffsMvpSelect',
   'admin_mvp_result_select': 'adminMvpResultSelect',
   'mvp:admin:select': 'mvpAdminSelectAction',
+
+  'panel:audit:match:select': 'eventAuditMatch',
 };
