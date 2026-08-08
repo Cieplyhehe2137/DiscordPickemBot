@@ -63,6 +63,7 @@ module.exports = {
   'panel:open:teams': 'openTeamsManager',
   'panel:open:audit': 'eventAudit',
   'panel:audit:refresh': 'eventAudit',
+  'panel:audit:match': 'eventAuditMatchSelect',
 
   // ===== TEAMS MANAGER =====
   'teams:refresh': 'openTeamsManager',
