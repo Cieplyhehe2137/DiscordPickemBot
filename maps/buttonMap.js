@@ -62,6 +62,7 @@ module.exports = {
   'panel:danger:cancel': 'panelDangerCancel',
   'panel:open:teams': 'openTeamsManager',
   'panel:open:audit': 'eventAudit',
+  'panel:audit:refresh': 'eventAudit',
 
   // ===== TEAMS MANAGER =====
   'teams:refresh': 'openTeamsManager',

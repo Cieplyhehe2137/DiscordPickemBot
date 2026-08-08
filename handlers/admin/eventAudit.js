@@ -1,5 +1,8 @@
 const {
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   PermissionFlagsBits,
 } = require('discord.js');
 
@@ -13,6 +16,12 @@ function isAdmin(interaction) {
   );
 }
 
+function getMatchLabel(match) {
+  const number = match.match_no ?? match.id;
+
+  return `#${number} ${match.team_a} vs ${match.team_b}`;
+}
+
 module.exports = async function eventAudit(interaction) {
   if (!isAdmin(interaction)) {
     return interaction.reply({
@@ -21,19 +30,28 @@ module.exports = async function eventAudit(interaction) {
     });
   }
 
-  if (!interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({
-      ephemeral: true,
-    });
-  }
+  const isRefresh =
+    interaction.customId === 'panel:audit:refresh';
 
   try {
+    // Pierwsze otwarcie -> nowa ephemeral odpowiedź.
+    // Refresh -> aktualizujemy istniejący panel.
+    if (isRefresh) {
+      await interaction.deferUpdate();
+    } else {
+      await interaction.deferReply({
+        ephemeral: true,
+      });
+    }
+
     return withGuild(interaction, async ({ guildId, pool }) => {
       const eventId = await getActiveEventId(pool, guildId);
 
       if (!eventId) {
         return interaction.editReply({
           content: '❌ Nie znaleziono aktywnego eventu.',
+          embeds: [],
+          components: [],
         });
       }
 
@@ -55,12 +73,16 @@ module.exports = async function eventAudit(interaction) {
       if (!event) {
         return interaction.editReply({
           content: '❌ Nie znaleziono danych eventu.',
+          embeds: [],
+          components: [],
         });
       }
 
-      /* =========================
-         MECZE
-      ========================= */
+      /*
+       * =====================================================
+       * MECZE
+       * =====================================================
+       */
 
       const [[matchStats]] = await pool.query(
         `
@@ -99,6 +121,58 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId]
       );
 
+      /*
+       * =====================================================
+       * MECZE BEZ GODZINY
+       * =====================================================
+       */
+
+      const [matchesWithoutTime] = await pool.query(
+        `
+        SELECT
+          id,
+          match_no,
+          team_a,
+          team_b,
+          best_of
+        FROM matches
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND start_time_utc IS NULL
+        ORDER BY match_no ASC, id ASC
+        `,
+        [guildId, eventId]
+      );
+
+      /*
+       * =====================================================
+       * NIEPOPRAWNE BO
+       * =====================================================
+       */
+
+      const [invalidBestOfMatches] = await pool.query(
+        `
+        SELECT
+          id,
+          match_no,
+          team_a,
+          team_b,
+          best_of
+        FROM matches
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND best_of NOT IN (1, 3, 5)
+        ORDER BY match_no ASC, id ASC
+        `,
+        [guildId, eventId]
+      );
+
+      /*
+       * =====================================================
+       * WYNIKI MECZÓW
+       * =====================================================
+       */
+
       const [[resultStats]] = await pool.query(
         `
         SELECT COUNT(*) AS total
@@ -110,10 +184,6 @@ module.exports = async function eventAudit(interaction) {
         `,
         [guildId, eventId]
       );
-
-      /* =========================
-         NIEPOPRAWNE WYNIKI SERII
-      ========================= */
 
       const [results] = await pool.query(
         `
@@ -137,6 +207,8 @@ module.exports = async function eventAudit(interaction) {
           AND m.event_id = ?
           AND r.res_a IS NOT NULL
           AND r.res_b IS NOT NULL
+
+        ORDER BY m.match_no ASC, m.id ASC
         `,
         [guildId, eventId]
       );
@@ -173,9 +245,11 @@ module.exports = async function eventAudit(interaction) {
         }
       }
 
-      /* =========================
-         TYPY
-      ========================= */
+      /*
+       * =====================================================
+       * TYPY
+       * =====================================================
+       */
 
       const [[predictionStats]] = await pool.query(
         `
@@ -191,10 +265,11 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId]
       );
 
-      /* =========================
-         BO3 / BO5:
-         typ serii bez żadnych map
-      ========================= */
+      /*
+       * =====================================================
+       * TYP SERII BO3/BO5 BEZ ŻADNYCH MAP
+       * =====================================================
+       */
 
       const [missingMapPredictions] = await pool.query(
         `
@@ -232,13 +307,17 @@ module.exports = async function eventAudit(interaction) {
           m.best_of
 
         HAVING COUNT(mp.id) = 0
+
+        ORDER BY m.match_no ASC
         `,
         [guildId, eventId]
       );
 
-      /* =========================
-         WYNIKI MAP
-      ========================= */
+      /*
+       * =====================================================
+       * WYNIKI MAP
+       * =====================================================
+       */
 
       const [finishedBoMatches] = await pool.query(
         `
@@ -263,6 +342,8 @@ module.exports = async function eventAudit(interaction) {
           AND m.best_of IN (3, 5)
           AND r.res_a IS NOT NULL
           AND r.res_b IS NOT NULL
+
+        ORDER BY m.match_no ASC, m.id ASC
         `,
         [guildId, eventId]
       );
@@ -297,15 +378,31 @@ module.exports = async function eventAudit(interaction) {
         }
       }
 
-      /* =========================
-         PUNKTY
-      ========================= */
+      /*
+       * =====================================================
+       * PUNKTY
+       * =====================================================
+       */
 
-      const [finishedMatches] = await pool.query(
+      const [pointProblems] = await pool.query(
         `
         SELECT
           m.id,
-          m.best_of
+          m.match_no,
+          m.team_a,
+          m.team_b,
+
+          COUNT(
+            DISTINCT p.user_id
+          ) AS prediction_users,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN mp.source = 'series'
+              THEN mp.user_id
+              ELSE NULL
+            END
+          ) AS point_users
 
         FROM matches m
 
@@ -314,112 +411,159 @@ module.exports = async function eventAudit(interaction) {
          AND r.guild_id = m.guild_id
          AND r.event_id = m.event_id
 
+        LEFT JOIN match_predictions p
+          ON p.match_id = m.id
+         AND p.guild_id = m.guild_id
+         AND p.event_id = m.event_id
+
+        LEFT JOIN match_points mp
+          ON mp.match_id = m.id
+         AND mp.guild_id = m.guild_id
+         AND mp.event_id = m.event_id
+
         WHERE m.guild_id = ?
           AND m.event_id = ?
           AND r.res_a IS NOT NULL
           AND r.res_b IS NOT NULL
+
+        GROUP BY
+          m.id,
+          m.match_no,
+          m.team_a,
+          m.team_b
+
+        HAVING point_users < prediction_users
+
+        ORDER BY m.match_no ASC, m.id ASC
         `,
         [guildId, eventId]
       );
 
       let missingPointRows = 0;
 
-      for (const match of finishedMatches) {
-        const [[pred]] = await pool.query(
-          `
-          SELECT COUNT(*) AS total
-          FROM match_predictions
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND match_id = ?
-          `,
-          [guildId, eventId, match.id]
-        );
-
-        const [[points]] = await pool.query(
-          `
-          SELECT
-            COUNT(DISTINCT user_id) AS users
-          FROM match_points
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND match_id = ?
-            AND source = 'series'
-          `,
-          [guildId, eventId, match.id]
-        );
-
-        const predictionUsers = Number(pred?.total || 0);
-        const pointUsers = Number(points?.users || 0);
-
-        if (pointUsers < predictionUsers) {
-          missingPointRows += predictionUsers - pointUsers;
-        }
+      for (const match of pointProblems) {
+        missingPointRows +=
+          Number(match.prediction_users) -
+          Number(match.point_users);
       }
 
-      /* =========================
-         STATUS
-      ========================= */
+      /*
+       * =====================================================
+       * LICZENIE BŁĘDÓW
+       * =====================================================
+       */
 
       const errors =
-        Number(matchStats?.invalid_best_of || 0) +
+        invalidBestOfMatches.length +
         invalidResults.length +
         missingMapResults.length +
         missingPointRows;
 
       const warnings =
-        Number(matchStats?.without_start_time || 0) +
+        matchesWithoutTime.length +
         missingMapPredictions.length;
 
-      const color =
-        errors > 0
-          ? 0xed4245
-          : warnings > 0
-            ? 0xfee75c
-            : 0x57f287;
+      let color;
+      let status;
 
-      const status =
-        errors > 0
-          ? '❌ Wykryto problemy'
-          : warnings > 0
-            ? '⚠️ Wymaga uwagi'
-            : '✅ Wszystko wygląda poprawnie';
-
-      const lines = [];
-
-      if (invalidResults.length) {
-        for (const match of invalidResults.slice(0, 5)) {
-          lines.push(
-            `❌ #${match.match_no ?? match.id} ` +
-            `${match.team_a} vs ${match.team_b} — ` +
-            `wynik ${match.res_a}:${match.res_b} dla BO${match.best_of}`
-          );
-        }
+      if (errors > 0) {
+        color = 0xed4245;
+        status = '❌ Wykryto problemy';
+      } else if (warnings > 0) {
+        color = 0xfee75c;
+        status = '⚠️ Wymaga uwagi';
+      } else {
+        color = 0x57f287;
+        status = '✅ Wszystko wygląda poprawnie';
       }
 
-      if (missingMapResults.length) {
-        for (const match of missingMapResults.slice(0, 5)) {
-          lines.push(
-            `❌ #${match.match_no ?? match.id} ` +
-            `${match.team_a} vs ${match.team_b} — ` +
-            `mapy ${match.actualMaps}/${match.expectedMaps}`
-          );
-        }
-      }
+      /*
+       * =====================================================
+       * SZCZEGÓŁY PROBLEMÓW
+       * =====================================================
+       */
 
-      if (missingMapPredictions.length) {
-        lines.push(
-          `⚠️ ${missingMapPredictions.length} typów serii ` +
-          `BO3/BO5 nie ma żadnego typu map`
+      const problemLines = [];
+
+      for (const match of matchesWithoutTime) {
+        problemLines.push(
+          `⚠️ **${getMatchLabel(match)}**\n` +
+          `└ Brak godziny rozpoczęcia`
         );
       }
 
-      if (missingPointRows > 0) {
-        lines.push(
-          `❌ ${missingPointRows} typów zakończonych meczów ` +
-          `nie ma punktów za serię`
+      for (const match of invalidBestOfMatches) {
+        problemLines.push(
+          `❌ **${getMatchLabel(match)}**\n` +
+          `└ Niepoprawne BO: **${match.best_of}**`
         );
       }
+
+      for (const match of invalidResults) {
+        problemLines.push(
+          `❌ **${getMatchLabel(match)}**\n` +
+          `└ Wynik **${match.res_a}:${match.res_b}** ` +
+          `jest niepoprawny dla BO${match.best_of}`
+        );
+      }
+
+      for (const match of missingMapResults) {
+        problemLines.push(
+          `❌ **${getMatchLabel(match)}**\n` +
+          `└ Wyniki map: **${match.actualMaps}/${match.expectedMaps}**`
+        );
+      }
+
+      for (const row of missingMapPredictions) {
+        problemLines.push(
+          `⚠️ **${getMatchLabel(row)}**\n` +
+          `└ <@${row.user_id}> ma typ serii, ale brak typów map`
+        );
+      }
+
+      for (const match of pointProblems) {
+        const missing =
+          Number(match.prediction_users) -
+          Number(match.point_users);
+
+        problemLines.push(
+          `❌ **${getMatchLabel(match)}**\n` +
+          `└ Brakuje punktów za serię dla **${missing}** użytkownik${missing === 1 ? 'a' : 'ów'}`
+        );
+      }
+
+      /*
+       * Discord ma limit 1024 znaków na wartość pola.
+       * Pokazujemy więc tyle problemów, ile się bezpiecznie mieści.
+       */
+
+      const visibleProblems = [];
+      let usedLength = 0;
+
+      for (const line of problemLines) {
+        if (usedLength + line.length + 1 > 900) {
+          break;
+        }
+
+        visibleProblems.push(line);
+        usedLength += line.length + 1;
+      }
+
+      const hiddenProblems =
+        problemLines.length - visibleProblems.length;
+
+      let problemsText = visibleProblems.join('\n');
+
+      if (hiddenProblems > 0) {
+        problemsText +=
+          `\n\n…oraz **${hiddenProblems}** kolejnych problemów.`;
+      }
+
+      /*
+       * =====================================================
+       * EMBED
+       * =====================================================
+       */
 
       const embed = new EmbedBuilder()
         .setColor(color)
@@ -437,12 +581,13 @@ module.exports = async function eventAudit(interaction) {
               `Wszystkie: **${Number(matchStats?.total || 0)}**\n` +
               `Z wynikiem: **${Number(resultStats?.total || 0)}**\n` +
               `Zablokowane: **${Number(matchStats?.locked || 0)}**\n` +
-              `Bez godziny: **${Number(matchStats?.without_start_time || 0)}**\n` +
-              `Niepoprawne BO: **${Number(matchStats?.invalid_best_of || 0)}**\n` +
+              `Bez godziny: **${matchesWithoutTime.length}**\n` +
+              `Niepoprawne BO: **${invalidBestOfMatches.length}**\n` +
               `Niepoprawne wyniki: **${invalidResults.length}**\n` +
               `Problemy z wynikami map: **${missingMapResults.length}**`,
             inline: true,
           },
+
           {
             name: '🎯 Typy',
             value:
@@ -451,6 +596,7 @@ module.exports = async function eventAudit(interaction) {
               `Bez typów map: **${missingMapPredictions.length}**`,
             inline: true,
           },
+
           {
             name: '⭐ Punktacja',
             value:
@@ -459,20 +605,44 @@ module.exports = async function eventAudit(interaction) {
           }
         );
 
-      if (lines.length) {
+      if (problemLines.length > 0) {
         embed.addFields({
-          name: '⚠️ Wykryte problemy',
-          value: lines.slice(0, 10).join('\n').slice(0, 1024),
+          name: '⚠️ Szczegóły',
+          value: problemsText,
+        });
+      } else {
+        embed.addFields({
+          name: '✅ Kontrola',
+          value:
+            'Nie wykryto żadnych problemów ani ostrzeżeń.',
         });
       }
 
       embed.setFooter({
         text:
-          `Błędy: ${errors} • Ostrzeżenia: ${warnings} • Event ID: ${eventId}`,
+          `Błędy: ${errors} • ` +
+          `Ostrzeżenia: ${warnings} • ` +
+          `Event ID: ${eventId}`,
       });
 
+      /*
+       * =====================================================
+       * PRZYCISKI
+       * =====================================================
+       */
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('panel:audit:refresh')
+          .setLabel('Odśwież')
+          .setEmoji('🔄')
+          .setStyle(ButtonStyle.Primary)
+      );
+
       return interaction.editReply({
+        content: null,
         embeds: [embed],
+        components: [row],
       });
     });
   } catch (err) {
@@ -483,16 +653,18 @@ module.exports = async function eventAudit(interaction) {
       stack: err.stack,
     });
 
+    const payload = {
+      content: '❌ Nie udało się wykonać audytu eventu.',
+      embeds: [],
+      components: [],
+    };
+
     if (interaction.deferred || interaction.replied) {
-      return interaction.editReply({
-        content: '❌ Nie udało się wykonać audytu eventu.',
-        embeds: [],
-        components: [],
-      });
+      return interaction.editReply(payload);
     }
 
     return interaction.reply({
-      content: '❌ Nie udało się wykonać audytu eventu.',
+      ...payload,
       ephemeral: true,
     });
   }
