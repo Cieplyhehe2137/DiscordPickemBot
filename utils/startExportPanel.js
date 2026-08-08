@@ -48,7 +48,12 @@ function buildPanelComponents() {
       new ButtonBuilder()
         .setCustomId('panel:open:mvp')
         .setLabel('⭐ MVP')
-        .setStyle(ButtonStyle.Success)
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId('panel:open:audit')
+        .setLabel('🔍 Audyt eventu')
+        .setStyle(ButtonStyle.Secondary)
     )
   ];
 }
@@ -63,7 +68,8 @@ function buildPanelPayload() {
       '• Zarządzanie meczami\n' +
       '• Backup / restore bazy\n' +
       '• Reset i czyszczenie danych\n' +
-      '• Typowanie MVP\n\n' +
+      '• Typowanie MVP\n' +
+      '• Audyt i diagnostyka eventu\n\n' +
       '⚠️ **Dostęp tylko dla Administracji**'
     )
     .setFooter({ text: PANEL_MARKER });
