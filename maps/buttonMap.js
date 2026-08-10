@@ -23,6 +23,7 @@ module.exports = {
   'restore_backup': 'restoreBackupButton',
   'match_pick_back:': 'matchPickBack',
   'my_predictions:': 'showMyPredictions',
+  'my_stats:': 'showMyStats',
 
   // ===== SWISS (CZYSTA WERSJA) =====
   'start_swiss_': 'openSwissDropdown',

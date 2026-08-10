@@ -364,6 +364,13 @@ module.exports = async function showMyPredictions(interaction) {
           .setStyle(ButtonStyle.Success)
       );
 
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`my_stats:${eventId}`)
+          .setLabel('📊 Statystyki')
+          .setStyle(ButtonStyle.Secondary)
+      );
+
       if (safePage < totalPages - 1) {
         buttons.push(
           new ButtonBuilder()

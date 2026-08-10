@@ -362,6 +362,11 @@ module.exports = {
           new ButtonBuilder()
             .setCustomId(`my_predictions:${selected}:${eventId}:0`)
             .setLabel('📋 Moje typy')
+            .setStyle(ButtonStyle.Secondary),
+
+          new ButtonBuilder()
+            .setCustomId(`my_stats:${eventId}`)
+            .setLabel('📊 Moje statystyki')
             .setStyle(ButtonStyle.Secondary)
         );
 
