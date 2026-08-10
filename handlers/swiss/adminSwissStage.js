@@ -94,8 +94,13 @@ module.exports = async (interaction) => {
     new ButtonBuilder()
       .setCustomId(`my_predictions:${phase}:${eventId}:0`)
       .setLabel('📋 Moje typy')
+      .setStyle(ButtonStyle.Secondary),
+
+    new ButtonBuilder()
+      .setCustomId(`my_stats:${eventId}`)
+      .setLabel('📊 Moje statystyki')
       .setStyle(ButtonStyle.Secondary)
-  );
+    );
 
 
 
