@@ -153,6 +153,7 @@ module.exports = async (interaction) => {
           await del('DELETE FROM playoffs_scores WHERE guild_id = ?');
           await del('DELETE FROM doubleelim_scores WHERE guild_id = ?');
           await del('DELETE FROM playin_scores WHERE guild_id = ?');
+          await del('DELETE FROM matches WHERE guild_id = ?')
         });
         return respond({ content: '💣 Wykonano pełny reset.' });
       }
