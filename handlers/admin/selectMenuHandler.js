@@ -1,4 +1,5 @@
 const isAdmin = require('../../utils/isAdmin');
+
 const {
   ActionRowBuilder,
   ButtonBuilder,
@@ -31,10 +32,22 @@ module.exports = async (interaction) => {
   const [selected, rawEventId] = rawValue.split(':');
   const eventId = Number(rawEventId);
 
-  try {
-    await interaction.deferReply({ ephemeral: true });
+  if (!eventId) {
+    return interaction.reply({
+      content: '❌ Nieprawidłowe ID eventu.',
+      ephemeral: true,
+    });
+  }
 
-    // ===== SWISS =====
+  try {
+    await interaction.deferReply({
+      ephemeral: true,
+    });
+
+    // =========================================
+    // SWISS
+    // =========================================
+
     if (selected === 'swiss') {
       const embed = new EmbedBuilder()
         .setColor('Red')
@@ -52,9 +65,18 @@ module.exports = async (interaction) => {
           .setCustomId('admin_select_swiss_stage')
           .setPlaceholder('Wybierz etap Swiss...')
           .addOptions(
-            { label: 'Swiss Stage 1', value: 'swiss_stage1' },
-            { label: 'Swiss Stage 2', value: 'swiss_stage2' },
-            { label: 'Swiss Stage 3', value: 'swiss_stage3' }
+            {
+              label: 'Swiss Stage 1',
+              value: 'swiss_stage1',
+            },
+            {
+              label: 'Swiss Stage 2',
+              value: 'swiss_stage2',
+            },
+            {
+              label: 'Swiss Stage 3',
+              value: 'swiss_stage3',
+            }
           )
       );
 
@@ -64,6 +86,10 @@ module.exports = async (interaction) => {
         ephemeral: true,
       });
     }
+
+    // =========================================
+    // POZOSTAŁE FAZY
+    // =========================================
 
     const phaseConfig = {
       playoffs: {
@@ -78,6 +104,7 @@ module.exports = async (interaction) => {
         buttonId: 'open_playoffs_dropdown',
         buttonLabel: 'Typuj Playoffs',
       },
+
       doubleelim: {
         color: 'Purple',
         title: '📌 Typowanie fazy Double Elim',
@@ -90,6 +117,7 @@ module.exports = async (interaction) => {
         buttonId: 'open_doubleelim_modal',
         buttonLabel: 'Typuj Double Elim',
       },
+
       playin: {
         color: 'Blue',
         title: '📌 Typowanie fazy Play-In',
@@ -102,30 +130,62 @@ module.exports = async (interaction) => {
     };
 
     const config = phaseConfig[selected];
+
     if (!config) {
-      return interaction.followUp({
+      return interaction.editReply({
         content: `❌ Nieznana faza: ${selected}`,
-        ephemeral: true,
       });
     }
+
+    // =========================================
+    // EMBED
+    // =========================================
 
     const embed = new EmbedBuilder()
       .setColor(config.color)
       .setTitle(config.title)
-      .setDescription(config.description);
+      .setDescription(
+        config.description +
+        '\n\n━━━━━━━━━━━━━━\n' +
+        '🎯 Wyniki meczów typujesz osobno.\n' +
+        '📋 Możesz sprawdzić swoje zapisane typy.\n' +
+        '📊 Statystyki aktualizują się po rozliczeniu meczów.'
+      );
+
+    // =========================================
+    // BUTTONY
+    // =========================================
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(config.buttonId)
         .setLabel(config.buttonLabel)
         .setStyle(ButtonStyle.Primary),
+
       new ButtonBuilder()
         .setCustomId(`match_pick:${selected}`)
         .setLabel('🎯 Typuj wyniki meczów')
-        .setStyle(ButtonStyle.Success)
+        .setStyle(ButtonStyle.Success),
+
+      new ButtonBuilder()
+        .setCustomId(`my_predictions:${selected}:${eventId}:0`)
+        .setLabel('📋 Moje typy')
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId(`my_stats:${eventId}`)
+        .setLabel('📊 Moje statystyki')
+        .setStyle(ButtonStyle.Secondary)
     );
 
-    await withGuild(interaction, async ({ pool, guildId }) => {
+    // =========================================
+    // PUBLIKACJA PANELU
+    // =========================================
+
+    await withGuild(interaction, async ({
+      pool,
+      guildId,
+    }) => {
       const msg = await interaction.channel.send({
         embeds: [embed],
         components: [row],
@@ -133,26 +193,49 @@ module.exports = async (interaction) => {
 
       await pool.query(
         `
-        INSERT INTO active_panels (guild_id, phase, channel_id, message_id)
+        INSERT INTO active_panels (
+          guild_id,
+          phase,
+          channel_id,
+          message_id
+        )
         VALUES (?, ?, ?, ?)
+
         ON DUPLICATE KEY UPDATE
           channel_id = VALUES(channel_id),
           message_id = VALUES(message_id)
         `,
-        [guildId, selected, interaction.channel.id, msg.id]
+        [
+          guildId,
+          selected,
+          interaction.channel.id,
+          msg.id,
+        ]
       );
     });
 
-    await interaction.editReply({
-      content: `✅ Panel dla fazy **${selected}** został opublikowany.`,
+    return interaction.editReply({
+      content:
+        `✅ Panel dla fazy **${selected}** został opublikowany.`,
     });
 
   } catch (err) {
-    console.error('[select_pickem_phase]', err);
+    console.error(
+      '[select_pickem_phase]',
+      err
+    );
+
     if (interaction.deferred) {
-      await interaction.editReply({
-        content: '❌ Wystąpił błąd podczas publikowania panelu.',
-      });
+      return interaction.editReply({
+        content:
+          '❌ Wystąpił błąd podczas publikowania panelu.',
+      }).catch(() => {});
     }
+
+    return interaction.reply({
+      content:
+        '❌ Wystąpił błąd podczas publikowania panelu.',
+      ephemeral: true,
+    }).catch(() => {});
   }
 };

@@ -12,17 +12,9 @@ import {
   getTeams,
   createMatch,
   submitMatchResult,
-  getMvp,
-  saveMvpCandidates,
-  setMvpResult as apiSetMvpResult,
   getClassificationExportUrl,
   getPhaseClearPreview,
   clearEventPhase,
-  getGuildBackups,
-  createGuildBackup,
-  restoreGuildBackup,
-  getBackupDownloadUrl,
-  endTournament,
   describeActionError
 } from '../lib/api';
 import Breadcrumbs from '../components/layout/Breadcrumbs';
@@ -42,6 +34,9 @@ import ExactScoreModal from '../components/admin/ExactScoreModal';
 import EmptyState from '../components/ui/EmptyState';
 import { Swords, FilterX, Trophy } from 'lucide-react';
 import { translateStatus, translatePhase } from '../lib/labels';
+import TournamentOperationsPanel from '../features/event-admin/components/TournamentOperationsPanel';
+import MvpAdminPanel from '../features/event-admin/components/MvpAdminPanel';
+import useEventMvp from '../features/event-admin/hooks/useEventMvp';
 
 const MATCH_STATUS_FILTER_LABELS = {
   ALL: 'WSZYSTKIE',
@@ -78,22 +73,11 @@ export default function EventDashboard() {
   const [matchForm, setMatchForm] = useState({ phase: 'SWISS', teamA: '', teamB: '', bestOf: 3, startTimeUtc: '' });
   const [creatingMatch, setCreatingMatch] = useState(false);
   const [createMatchError, setCreateMatchError] = useState(null);
-
   const [resultModalMatch, setResultModalMatch] = useState(null);
   const [exactScoreMatch, setExactScoreMatch] = useState(null);
   const [resultForm, setResultForm] = useState({ resA: '', resB: '' });
   const [submittingResult, setSubmittingResult] = useState(false);
   const [resultError, setResultError] = useState(null);
-
-  const [mvpCandidates, setMvpCandidates] = useState([]);
-  const [mvpResult, setMvpResult] = useState(null);
-  const [mvpTextarea, setMvpTextarea] = useState('');
-  const [savingMvpCandidates, setSavingMvpCandidates] = useState(false);
-  const [mvpCandidatesError, setMvpCandidatesError] = useState(null);
-  const [selectedMvpCandidateId, setSelectedMvpCandidateId] = useState('');
-  const [savingMvpResult, setSavingMvpResult] = useState(false);
-  const [mvpResultError, setMvpResultError] = useState(null);
-
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearPhase, setClearPhase] = useState('SWISS');
   const [clearPreview, setClearPreview] = useState(null);
@@ -101,20 +85,14 @@ export default function EventDashboard() {
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState(null);
-  const [backups, setBackups] = useState([]);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [backupActionLoading, setBackupActionLoading] = useState(false);
-  const [backupError, setBackupError] = useState(null);
-  const [endingTournament, setEndingTournament] = useState(false);
-  const [archiveName, setArchiveName] = useState('');
-  const [endTournamentCleanup, setEndTournamentCleanup] = useState(false);
-  const [operationsMessage, setOperationsMessage] = useState(null);
 
   const event = data?.event;
   const stats = data?.stats;
   const matchStatus = data?.match_status;
   const nextMatch = data?.next_match;
   const phaseInfo = data?.phase_info;
+
+
 
   const sortedMatches = [...matches]
     .filter((match) => {
@@ -153,56 +131,6 @@ export default function EventDashboard() {
       return 0;
     });
 
-  useEffect(() => {
-    const guildId = event?.guild_id;
-    if (!guildId) return;
-
-    let cancelled = false;
-
-    async function loadBackups() {
-      try {
-        setBackupLoading(true);
-        setBackupError(null);
-
-        const result = await getGuildBackups(guildId);
-        if (!cancelled) setBackups(result.backups || []);
-      } catch (err) {
-        console.error(err);
-        if (!cancelled) setBackupError(describeActionError(err, 'pobrać backupy'));
-      } finally {
-        if (!cancelled) setBackupLoading(false);
-      }
-    }
-
-    loadBackups();
-
-    // Bez tego odpowiedź na porzucone żądanie (zmiana turnieju albo wyjście ze
-    // strony w trakcie ładowania) nadpisywała listę backupów już innej gildii.
-    return () => { cancelled = true; };
-  }, [event?.guild_id]);
-
-  async function handleCreateBackup() {
-    if (!event?.guild_id) return;
-
-    try {
-      setBackupActionLoading(true);
-      setBackupError(null);
-      setOperationsMessage(null);
-
-      const result = await createGuildBackup(event.guild_id);
-
-      setBackups(result.backups || []);
-      setOperationsMessage(`Backup utworzony: ${result.backup?.fileName || 'OK'}`);
-    } catch (err) {
-      console.error(err);
-      setBackupError(describeActionError(err, 'utworzyć backup'));
-    } finally {
-      setBackupActionLoading(false);
-    }
-  }
-
-  // useCallback, bo efekt z nasłuchem socketu ma to w zależnościach - bez
-  // stabilnej referencji przepinałby handlery przy każdym renderze.
   const refreshEventData = useCallback(async () => {
     const result = await getEventSummary(slug);
 
@@ -216,74 +144,12 @@ export default function EventDashboard() {
     const leaderboardResult = await getEventLeaderboard(slug);
     setLeaderboard(leaderboardResult.leaderboard || []);
 
-    const mvpData = await getMvp(slug);
-    setMvpCandidates(mvpData.candidates || []);
-    setMvpResult(mvpData.result || null);
   }, [slug, setSelectedEvent]);
 
-  async function handleRestoreBackup(fileName) {
-    if (!event?.guild_id) return;
-
-    const confirmed = window.confirm(
-      `Przywrócić backup ${fileName}?\n\nTo nadpisze dane turniejowe tego serwera danymi z backupu.`
-    );
-
-    if (!confirmed) return;
-
-    const secondConfirm = window.prompt('Dla bezpieczeństwa wpisz RESTORE');
-    if (secondConfirm !== 'RESTORE') return;
-
-    try {
-      setBackupActionLoading(true);
-      setBackupError(null);
-      setOperationsMessage(null);
-
-      await restoreGuildBackup(event.guild_id, fileName);
-      await refreshEventData();
-
-      setOperationsMessage(`Backup przywrócony: ${fileName}`);
-    } catch (err) {
-      console.error(err);
-      setBackupError(describeActionError(err, 'przywrócić backup'));
-    } finally {
-      setBackupActionLoading(false);
-    }
-  }
-
-  async function handleEndTournament() {
-    const name = archiveName.trim() || event?.slug || slug;
-
-    const confirmed = window.confirm(
-      `Zakończyć turniej "${event?.name || slug}"?\n\nZostanie utworzony plik archiwum XLSX, event zostanie oznaczony jako zakończony i przeniesiony do archiwum.` +
-      (endTournamentCleanup ? '\n\nUWAGA: włączone jest także czyszczenie danych operacyjnych eventu.' : '')
-    );
-
-    if (!confirmed) return;
-
-    if (endTournamentCleanup) {
-      const typed = window.prompt('Wpisz KONIEC, żeby potwierdzić czyszczenie danych po archiwizacji');
-      if (typed !== 'KONIEC') return;
-    }
-
-    try {
-      setEndingTournament(true);
-      setOperationsMessage(null);
-
-      const result = await endTournament(slug, {
-        archiveName: name,
-        cleanup: endTournamentCleanup
-      });
-
-      await refreshEventData();
-
-      setOperationsMessage(`Turniej zakończony. Archiwum: ${result.archive?.filename || `${name}.xlsx`}`);
-    } catch (err) {
-      console.error(err);
-      alert(describeActionError(err, 'zakończyć turniej'));
-    } finally {
-      setEndingTournament(false);
-    }
-  }
+  const mvp = useEventMvp({
+    slug,
+    onRefresh: refreshEventData
+  });
 
   useEffect(() => {
     async function load() {
@@ -302,9 +168,6 @@ export default function EventDashboard() {
         const leaderboardResult = await getEventLeaderboard(slug);
         setLeaderboard(leaderboardResult.leaderboard || []);
 
-        const mvpData = await getMvp(slug);
-        setMvpCandidates(mvpData.candidates || []);
-        setMvpResult(mvpData.result || null);
       } catch (err) {
         console.error(err);
       } finally {
@@ -316,10 +179,15 @@ export default function EventDashboard() {
   }, [slug, setSelectedEvent]);
 
   useEffect(() => {
+    mvp.loadMvp();
+  }, [mvp.loadMvp]);
+
+  useEffect(() => {
     function handleDashboardRefresh(payload) {
       if (payload?.slug !== slug) return;
 
       refreshEventData();
+      mvp.loadMvp();
     }
 
     function handleMatchUpdated(payload) {
@@ -363,7 +231,7 @@ export default function EventDashboard() {
       socket.off('event:status_updated', handleEventStatusUpdated);
       socket.off('match:updated', handleMatchUpdated);
     };
-  }, [slug, refreshEventData]);
+  }, [slug, refreshEventData, mvp.loadMvp]);
 
 
 
@@ -505,56 +373,6 @@ export default function EventDashboard() {
       setResultError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać wynik'));
     } finally {
       setSubmittingResult(false);
-    }
-  }
-
-  function parseMvpTextarea(raw) {
-    return String(raw)
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => {
-        const [nickname, teamName] = line.split('|').map((v) => v?.trim());
-        return { nickname, teamName: teamName || null };
-      })
-      .filter((e) => e.nickname);
-  }
-
-  async function handleSaveMvpCandidates() {
-    try {
-      setSavingMvpCandidates(true);
-      setMvpCandidatesError(null);
-
-      const entries = parseMvpTextarea(mvpTextarea);
-
-      if (!entries.length) {
-        setMvpCandidatesError('Wpisz przynajmniej jednego kandydata (format: nick | drużyna).');
-        return;
-      }
-
-      await saveMvpCandidates(slug, entries);
-      await refreshEventData();
-      setMvpTextarea('');
-    } catch (err) {
-      console.error(err);
-      setMvpCandidatesError(err?.status === 400 ? err.message : describeActionError(err, 'zapisać kandydatów MVP'));
-    } finally {
-      setSavingMvpCandidates(false);
-    }
-  }
-
-  async function handleSetMvpResult() {
-    try {
-      setSavingMvpResult(true);
-      setMvpResultError(null);
-
-      await apiSetMvpResult(slug, Number(selectedMvpCandidateId));
-      await refreshEventData();
-    } catch (err) {
-      console.error(err);
-      setMvpResultError(describeActionError(err, 'ustawić oficjalnego MVP'));
-    } finally {
-      setSavingMvpResult(false);
     }
   }
 
@@ -840,134 +658,11 @@ export default function EventDashboard() {
               </div>
             </div>
 
-            <div className="mt-10 rounded-[2rem] border border-amber-400/20 bg-amber-500/5 p-8">
-              <p className="text-sm uppercase tracking-[0.25em] text-amber-300">
-                Operacje turniejowe
-              </p>
-
-              <h2 className="mt-2 text-3xl font-black">
-                Backup, restore i zakończenie turnieju
-              </h2>
-
-              <p className="mt-2 text-white/50">
-                To są odpowiedniki operatorskich akcji z Discorda. Restore i cleanup mają dodatkowe potwierdzenia.
-              </p>
-
-              {operationsMessage && (
-                <div className="mt-5 rounded-2xl border border-green-400/20 bg-green-500/10 px-5 py-4 font-bold text-green-200">
-                  {operationsMessage}
-                </div>
-              )}
-
-              {backupError && (
-                <div className="mt-5 rounded-2xl border border-red-400/20 bg-red-500/10 px-5 py-4 font-bold text-red-200">
-                  {backupError}
-                </div>
-              )}
-
-              <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-black">Backup bazy</h3>
-                      <p className="mt-1 text-sm text-white/50">
-                        Tworzy SQL tylko dla danych tego serwera tam, gdzie tabela ma guild_id.
-                        Trzymanych jest 10 najnowszych — starsze kasują się same.
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={handleCreateBackup}
-                      disabled={backupActionLoading || !event?.guild_id}
-                      className="rounded-xl bg-amber-500 px-5 py-3 font-black text-black transition hover:bg-amber-400 disabled:opacity-50"
-                    >
-                      {backupActionLoading ? 'Pracuję...' : 'Utwórz backup'}
-                    </button>
-                  </div>
-
-                  <div className="mt-5 max-h-72 overflow-auto rounded-xl border border-white/10">
-                    {backupLoading && <p className="p-4 text-white/50">Ładowanie backupów...</p>}
-
-                    {!backupLoading && backups.length === 0 && (
-                      <p className="p-4 text-white/50">Brak backupów dla tego serwera.</p>
-                    )}
-
-                    {!backupLoading && backups.map((backup) => (
-                      <div
-                        key={backup.fileName}
-                        className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 p-4 last:border-b-0"
-                      >
-                        <div>
-                          <p className="break-all font-bold text-white">{backup.fileName}</p>
-                          <p className="mt-1 text-xs text-white/40">
-                            {new Date(backup.modifiedAt).toLocaleString('pl-PL')} · {(Number(backup.sizeBytes || 0) / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {/* Zwykła kotwica, nie Link: to pobranie pliku z API,
-                              a nie trasa aplikacji. */}
-                          <a
-                            href={getBackupDownloadUrl(event.guild_id, backup.fileName)}
-                            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-white/80 transition hover:bg-white/10"
-                          >
-                            Pobierz
-                          </a>
-
-                          <button
-                            onClick={() => handleRestoreBackup(backup.fileName)}
-                            disabled={backupActionLoading}
-                            className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-2 text-sm font-black text-red-200 transition hover:bg-red-500/20 disabled:opacity-50"
-                          >
-                            Przywróć
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
-                  <h3 className="text-xl font-black">Zakończ turniej</h3>
-
-                  <p className="mt-1 text-sm text-white/50">
-                    Tworzy XLSX do archiwum, zamyka aktywne panele i oznacza event jako zakończony/archiwalny.
-                  </p>
-
-                  <label className="mt-5 block text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Nazwa archiwum
-                  </label>
-
-                  <input
-                    value={archiveName}
-                    onChange={(e) => setArchiveName(e.target.value)}
-                    placeholder={event?.slug || 'nazwa_archiwum'}
-                    className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-amber-400/50"
-                  />
-
-                  <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-red-400/20 bg-red-500/5 p-4 text-sm text-white/70">
-                    <input
-                      type="checkbox"
-                      checked={endTournamentCleanup}
-                      onChange={(e) => setEndTournamentCleanup(e.target.checked)}
-                      className="mt-1"
-                    />
-
-                    <span>
-                      Po archiwizacji wyczyść dane operacyjne tego eventu. Zostaw wyłączone, jeśli chcesz tylko zamknąć i zarchiwizować event bez kasowania typów/meczów.
-                    </span>
-                  </label>
-
-                  <button
-                    onClick={handleEndTournament}
-                    disabled={endingTournament}
-                    className="mt-5 w-full rounded-xl border border-amber-400/40 bg-amber-500/20 px-5 py-4 font-black text-amber-100 transition hover:bg-amber-500/30 disabled:opacity-50"
-                  >
-                    {endingTournament ? 'Kończenie turnieju...' : 'Zakończ i zarchiwizuj'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <TournamentOperationsPanel
+              event={event}
+              slug={slug}
+              onRefresh={refreshEventData}
+            />
 
             <div className="mt-10">
               <ResultProposalsPanel slug={slug} onResultApplied={refreshEventData} />
@@ -1335,91 +1030,20 @@ export default function EventDashboard() {
               </div>
             </div>
 
-            <div className="mt-10 rounded-[2rem] border border-white/10 bg-white/5 p-8">
-              <h2 className="text-3xl font-black">
-                MVP
-              </h2>
-
-              <p className="mt-2 text-white/50">
-                Oficjalny MVP:{' '}
-                <strong className="text-white">
-                  {mvpResult
-                    ? (mvpCandidates.find((c) => c.id === mvpResult.candidate_id)?.nickname || `#${mvpResult.candidate_id}`)
-                    : 'Nie ustawiono'}
-                </strong>
-              </p>
-
-              <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                <div>
-                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Dodaj / zastąp kandydatów
-                  </p>
-
-                  <p className="mt-2 text-sm text-white/40">
-                    Jeden na linię, format: nick | drużyna (drużyna opcjonalna). Zastępuje obecną listę kandydatów.
-                  </p>
-
-                  <textarea
-                    value={mvpTextarea}
-                    onChange={(e) => setMvpTextarea(e.target.value)}
-                    rows={6}
-                    placeholder={'s1mple | Team A\nZywOo | Team B'}
-                    className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
-                  />
-
-                  {mvpCandidatesError && (
-                    <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
-                      {mvpCandidatesError}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleSaveMvpCandidates}
-                    disabled={savingMvpCandidates || !mvpTextarea.trim()}
-                    className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
-                  >
-                    {savingMvpCandidates ? 'Zapisywanie...' : 'Zapisz kandydatów'}
-                  </button>
-                </div>
-
-                <div>
-                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-white/50">
-                    Ustaw oficjalnego MVP
-                  </p>
-
-                  <p className="mt-2 text-sm text-white/40">
-                    {mvpCandidates.filter((c) => c.is_active).length} aktywnych kandydatów
-                  </p>
-
-                  <select
-                    value={selectedMvpCandidateId}
-                    onChange={(e) => setSelectedMvpCandidateId(e.target.value)}
-                    className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-5 py-4 text-white outline-none transition focus:border-violet-400/40"
-                  >
-                    <option value="">Wybierz kandydata...</option>
-                    {mvpCandidates.filter((c) => c.is_active).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nickname}{c.team_name ? ` (${c.team_name})` : ''}
-                      </option>
-                    ))}
-                  </select>
-
-                  {mvpResultError && (
-                    <div className="mt-3 rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-sm font-bold text-red-300">
-                      {mvpResultError}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleSetMvpResult}
-                    disabled={savingMvpResult || !selectedMvpCandidateId}
-                    className="mt-4 rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400 disabled:opacity-50"
-                  >
-                    {savingMvpResult ? 'Zapisywanie...' : 'Ustaw oficjalnego MVP'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <MvpAdminPanel
+              candidates={mvp.candidates}
+              result={mvp.result}
+              textarea={mvp.textarea}
+              selectedCandidateId={mvp.selectedCandidateId}
+              savingCandidates={mvp.savingCandidates}
+              savingResult={mvp.savingResult}
+              candidatesError={mvp.candidatesError}
+              resultError={mvp.resultError}
+              onTextareaChange={mvp.setTextarea}
+              onSelectedCandidateChange={mvp.setSelectedCandidateId}
+              onSaveCandidates={mvp.saveCandidates}
+              onSaveResult={mvp.saveResult}
+            />
           </>
         )}
       </main>
