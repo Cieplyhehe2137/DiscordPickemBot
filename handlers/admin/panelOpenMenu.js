@@ -32,9 +32,26 @@ function buildMenu(customId) {
         .setCustomId('panel:select:matches')
         .setPlaceholder('Wybierz: Mecze')
         .addOptions(
-          { label: 'Wyniki meczów', value: 'matches:results', emoji: '🎯' },
-          { label: 'Dodaj mecz', value: 'matches:add', emoji: '➕' },
-          { label: 'Wyczyść mecze fazy', value: 'matches:clear', emoji: '🧹' }
+          {
+            label: 'Wyniki meczów',
+            value: 'matches:results',
+            emoji: '🎯'
+          },
+          {
+            label: 'Blokada / odblokowanie meczu',
+            value: 'matches:lock',
+            emoji: '🔐'
+          },
+          {
+            label: 'Dodaj mecz',
+            value: 'matches:add',
+            emoji: '➕'
+          },
+          {
+            label: 'Wyczyść mecze fazy',
+            value: 'matches:clear',
+            emoji: '🧹'
+          }
         );
 
     case 'panel:open:db':

@@ -90,4 +90,5 @@ module.exports = {
   'mvp:admin:select': 'mvpAdminSelectAction',
 
   'panel:audit:match:select': 'eventAuditMatch',
+  'match_lock_select': 'matchLockSelect',
 };

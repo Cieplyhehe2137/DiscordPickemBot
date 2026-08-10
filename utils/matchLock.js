@@ -14,12 +14,12 @@ function getLockBeforeSec() {
 
 function startUtcFromDb(start_time_utc) {
     if (!start_time_utc) return null;
-   
+
     try {
         if (start_time_utc instanceof Date) {
             return DateTime.fromJSDate(start_time_utc).toUTC();
         }
-        
+
         const dt = DateTime.fromISO(String(start_time_utc), { zone: 'utc' });
         return dt.isValid ? dt.toUTC() : null;
     } catch {
@@ -34,10 +34,40 @@ function isMatchStarted({ start_time_utc }, nowUtc = DateTime.utc(), lockBeforeS
     return threshold >= startUtc;
 }
 
-function isMatchLocked(match, nowUtc = DateTime.utc(), lockBeforeSec = getLockBeforeSec()) {
+function isMatchLocked(
+    match,
+    nowUtc = DateTime.utc(),
+    lockBeforeSec = getLockBeforeSec()
+) {
     if (!match) return true;
-    if (match.is_locked) return true;
-    return isMatchStarted(match, nowUtc, lockBeforeSec);
+
+    // ===============================
+    // RĘCZNY OVERRIDE ADMINA
+    // ===============================
+
+    // wymuszone otwarcie
+    if (Number(match.lock_override) === 0) {
+        return false;
+    }
+
+    // wymuszona blokada
+    if (Number(match.lock_override) === 1) {
+        return true;
+    }
+
+    // ===============================
+    // TRYB AUTO
+    // ===============================
+
+    if (match.is_locked) {
+        return true;
+    }
+
+    return isMatchStarted(
+        match,
+        nowUtc,
+        lockBeforeSec
+    );
 }
 
 function formatStartLocal(start_time_utc, zone = DEFAULT_ZONE) {

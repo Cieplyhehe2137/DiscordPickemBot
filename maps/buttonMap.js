@@ -92,6 +92,8 @@ module.exports = {
   'match_add_again': 'matchAddAgain',
   'add_match': 'openAddMatch',
   'clear_matches': 'openClearMatches',
+  'match_lock_manager': 'matchLockManager',
+  'match_lock_set:': 'matchLockSet',
 
   // ===== DOUBLE ELIM MODAL =====
   'open_doubleelim_modal': 'openDoubleElimDropdown',

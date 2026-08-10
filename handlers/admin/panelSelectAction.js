@@ -14,6 +14,7 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'matches:results': 'open_results_matches',
   'matches:add': 'add_match',
   'matches:clear': 'clear_matches',
+  'matches:lock': 'match_lock_manager',
 
   'db:backup': 'backup_database',
   'db:restore': 'restore_backup',
