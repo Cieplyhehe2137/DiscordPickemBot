@@ -1,4 +1,3 @@
-const { log } = require('console');
 const fs = require('fs');
 const path = require('path');
 const { createLogger, format, transports } = require('winston');
@@ -50,7 +49,10 @@ const logger = createLogger({
     }),
 
     new transports.Console({
-      level: "info",
+      level: process.env.NODE_ENV === 'production'
+        ? 'warn'
+        : 'info',
+
       format: format.combine(
         format.colorize(),
         format.simple()
