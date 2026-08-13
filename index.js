@@ -2,8 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
-console.log('NODE VERSION:', process.version);
-
 const {
   logInfo,
   logError,
@@ -18,6 +16,11 @@ const resolvedEnvPath = path.isAbsolute(envPath)
   : path.join(process.cwd(), envPath);
 
 dotenv.config({ path: resolvedEnvPath });
+
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => { };
+  console.info = () => { };
+}
 
 process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
@@ -51,40 +54,6 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
   ],
-});
-
-client.on('debug', (msg) => {
-  console.log('[DEBUG]', msg);
-});
-
-client.on('shardError', (err, shardId) => {
-  console.error('[SHARD ERROR]', shardId, err);
-});
-
-client.on('shardReady', (id) => {
-  console.log('[SHARD READY]', id);
-});
-
-client.on('shardResume', (id) => {
-  console.log('[SHARD RESUME]', id);
-});
-
-client.on('shardDisconnect', (event, id) => {
-  console.log('[SHARD DISCONNECT]', {
-    shardId: id,
-    code: event?.code ?? event?.closeCode ?? 'unknown',
-    reason: event?.reason ?? event?.closeReason ?? 'unknown',
-    clean: event?.wasClean ?? 'unknown',
-  });
-
-  logInfo('SHARD_DISCONNECT', {
-    extra: {
-      shardId: id,
-      code: event?.code ?? event?.closeCode ?? 'unknown',
-      reason: event?.reason ?? event?.closeReason ?? 'unknown',
-      clean: event?.wasClean ?? 'unknown',
-    },
-  });
 });
 
 client.commands = new Collection();
