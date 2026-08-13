@@ -68,6 +68,7 @@ module.exports = {
 
   'panel:open:auto_start': 'autoStartOpen',
   'auto_start:cancel_open': 'autoStartCancelOpen',
+  'auto_start:channel_page:': 'autoStartChannelPage',
 
   // ===== TEAMS MANAGER =====
   'teams:refresh': 'openTeamsManager',
