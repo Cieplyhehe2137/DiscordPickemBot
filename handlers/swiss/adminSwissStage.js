@@ -100,14 +100,18 @@ module.exports = async (interaction) => {
       .setCustomId(`my_stats:${eventId}`)
       .setLabel('📊 Moje statystyki')
       .setStyle(ButtonStyle.Secondary)
-    );
+  );
 
 
 
   try {
     const sentMessage = await interaction.channel.send({
+      content: '@everyone',
       embeds: [embed],
       components: [row],
+      allowedMentions: {
+        parse: ['everyone']
+      }
     });
 
     await withGuild(guildId, async ({ pool }) => {

@@ -371,8 +371,12 @@ module.exports = {
         );
 
         const message = await interaction.channel.send({
+          content: '@everyone',
           embeds: [embed],
-          components: [row]
+          components: [row],
+          allowedMentions: {
+            parse: ['everyone']
+          }
         });
 
         await pool.query(
