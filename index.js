@@ -82,7 +82,7 @@ client.on('warn', (w) => {
   console.warn('⚠️ client warn:', w);
 });
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   if (readyTimeout) clearTimeout(readyTimeout);
 
   logInfo('BOT_READY', {
