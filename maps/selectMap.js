@@ -91,4 +91,10 @@ module.exports = {
 
   'panel:audit:match:select': 'eventAuditMatch',
   'match_lock_select': 'matchLockSelect',
+
+  // ===== AUTO-START PICK'EM =====
+  'auto_start:event_select': 'autoStartEventSelect',
+  'auto_start:phase_select:': 'autoStartPhaseSelect',
+  'auto_start:channel_select:': 'autoStartChannelSelect',
+  'auto_start:cancel_select': 'autoStartCancelSelect',
 };

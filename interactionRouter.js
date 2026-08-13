@@ -209,7 +209,13 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       let handlerName =
         modalMap?.[customId] ||
         modalMap?.[customId.split(':')[0]] ||
-        modalMap?.[customId.split(':').slice(0, 3).join(':')];
+        modalMap?.[customId.split(':').slice(0, 3).join(':')] ||
+        modalMap?.[
+        Object.keys(modalMap || {})
+          .find(key =>
+            customId.startsWith(key)
+          )
+        ];
 
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 

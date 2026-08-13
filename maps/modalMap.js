@@ -12,5 +12,9 @@ module.exports = {
 
   // MVP
   'mvp:candidates:modal': 'mvpCandidatesModalSubmit',
-  'mvp_admin_candidates_modal': 'mvpCandidatesModalSubmit'
+  'mvp_admin_candidates_modal': 'mvpCandidatesModalSubmit',
+
+  // ===== AUTO-START PICK'EM =====
+  'auto_start:new_event_modal': 'autoStartNewEventSubmit',
+  'auto_start:schedule_modal': 'autoStartScheduleSubmit'
 };

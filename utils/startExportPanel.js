@@ -53,7 +53,12 @@ function buildPanelComponents() {
       new ButtonBuilder()
         .setCustomId('panel:open:audit')
         .setLabel('🔍 Audyt eventu')
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId('panel:open:auto_start')
+        .setLabel('🕒 Auto-start')
+        .setStyle(ButtonStyle.Primary)
     )
   ];
 }
@@ -69,7 +74,8 @@ function buildPanelPayload() {
       '• Backup / restore bazy\n' +
       '• Reset i czyszczenie danych\n' +
       '• Typowanie MVP\n' +
-      '• Audyt i diagnostyka eventu\n\n' +
+      '• Audyt i diagnostyka eventu\n' +
+      '• Automatyczny start Pick’Em\n\n' +
       '⚠️ **Dostęp tylko dla Administracji**'
     )
     .setFooter({ text: PANEL_MARKER });

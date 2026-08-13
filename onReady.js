@@ -9,6 +9,10 @@ const startExportPanel = require('./utils/startExportPanel');
 const { startMatchLockWatcher } = require('./handlers/matches/matchLockWatcher');
 const { startDeadlineReminder } = require('./handlers/matches/deadlineReminder');
 
+const {
+  startPickemAutoStartWatcher
+} = require('./handlers/admin/pickemAutoStartWatcher');
+
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();
 
@@ -24,6 +28,7 @@ module.exports = async function onReady(client) {
 
         startDeadlineReminder(client, guildId);
         startMatchLockWatcher(client, guildId);
+        startPickemAutoStartWatcher(client, guildId);
       });
 
       logInfo('ready', 'Guild boot OK', { guildId });

@@ -66,6 +66,9 @@ module.exports = {
   'panel:audit:refresh': 'eventAudit',
   'panel:audit:match': 'eventAuditMatchSelect',
 
+  'panel:open:auto_start': 'autoStartOpen',
+  'auto_start:cancel_open': 'autoStartCancelOpen',
+
   // ===== TEAMS MANAGER =====
   'teams:refresh': 'openTeamsManager',
   'teams:page_prev': 'teamsPageNav',
