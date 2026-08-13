@@ -2,30 +2,44 @@ const { DateTime } = require('luxon');
 
 const ZONE = 'Europe/Warsaw';
 
-function parseAutoStartInput(rawInput) { 
-    const ds = DateTime.fromFormat(
-        String(rawInput || '').trim(),
-        'yyyy-MM-dd HH:mm',
-        {
-            zone: ZONE
-        }
-    );
+function parseAutoStartInput(rawInput) {
+  const input = String(rawInput || '').trim();
 
-    if (!dt.isValid) {
-        return {
-            ok: false,
-            error:
-                'Niepoprawny format. Użyj YYYY-MM-DD HH:mm, np. 2026-08-15 18:00.'
-        };
+  const dt = DateTime.fromFormat(
+    input,
+    'yyyy-MM-dd HH:mm',
+    {
+      zone: ZONE,
+      setZone: true
     }
+  );
 
+  if (!dt.isValid) {
     return {
-        ok: true,
-        local: dt,
-        utc: dt.toUTC(),
-        utcDate: dt.toUTC().toJSDate(),
-        utcSql: dt.toUTC().toFormat('yyyy-LL-dd HH:mm:ss')
+      ok: false,
+      error:
+        'Niepoprawny format. Użyj YYYY-MM-DD HH:mm, np. 2026-08-15 18:00.'
     };
+  }
+
+  const now = DateTime.now().setZone(ZONE);
+
+  if (dt <= now) {
+    return {
+      ok: false,
+      error: 'Termin auto-startu musi być w przyszłości.'
+    };
+  }
+
+  const utc = dt.toUTC();
+
+  return {
+    ok: true,
+    local: dt,
+    utc,
+    utcDate: utc.toJSDate(),
+    utcSql: utc.toFormat('yyyy-LL-dd HH:mm:ss')
+  };
 }
 
 function makeSlug(name) {
@@ -40,7 +54,7 @@ function makeSlug(name) {
 }
 
 module.exports = {
-    ZONE,
-    parseAutoStartInput,
-    makeSlug
+  ZONE,
+  parseAutoStartInput,
+  makeSlug
 };
