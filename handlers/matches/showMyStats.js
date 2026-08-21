@@ -1,34 +1,117 @@
-const { EmbedBuilder } = require('discord.js');
+const {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle
+} = require('discord.js');
 
 const { withGuild } = require('../../utils/guildContext');
 const { logError } = require('../../utils/logger');
 
+
+// ======================================================
+// HELPERY
+// ======================================================
+
 function pct(value, total) {
   if (!total) return '—';
-  return `${((Number(value) / Number(total)) * 100)
+
+  return `${(
+    (Number(value) / Number(total)) *
+    100
+  )
     .toFixed(1)
     .replace('.0', '')}%`;
 }
+
+
+function percentageNumber(value, total) {
+  if (!total) return 0;
+
+  return (
+    Number(value) /
+    Number(total)
+  ) * 100;
+}
+
+
+function formatDifference(value) {
+  const number = Number(value || 0);
+
+  if (Math.abs(number) < 0.05) {
+    return '**0 pp**';
+  }
+
+  const sign = number > 0
+    ? '+'
+    : '';
+
+  const emoji = number > 0
+    ? '🟢'
+    : '🔴';
+
+  return (
+    `${emoji} **${sign}${number
+      .toFixed(1)
+      .replace('.0', '')} pp**`
+  );
+}
+
+
+function formatPointsDifference(value) {
+  const number = Number(value || 0);
+
+  if (Math.abs(number) < 0.005) {
+    return '**0.00 pkt**';
+  }
+
+  const sign = number > 0
+    ? '+'
+    : '';
+
+  const emoji = number > 0
+    ? '🟢'
+    : '🔴';
+
+  return (
+    `${emoji} **${sign}${number.toFixed(2)} pkt**`
+  );
+}
+
 
 function winnerSide(a, b) {
   const left = Number(a);
   const right = Number(b);
 
-  if (!Number.isFinite(left) || !Number.isFinite(right) || left === right) {
+  if (
+    !Number.isFinite(left) ||
+    !Number.isFinite(right) ||
+    left === right
+  ) {
     return 0;
   }
 
   return left > right ? 1 : -1;
 }
 
+
 function isWinnerCorrect(row) {
-  const predicted = winnerSide(row.pred_a, row.pred_b);
-  const official = winnerSide(row.res_a, row.res_b);
+  const predicted = winnerSide(
+    row.pred_a,
+    row.pred_b
+  );
+
+  const official = winnerSide(
+    row.res_a,
+    row.res_b
+  );
 
   return predicted !== 0 && predicted === official;
 }
 
+
 function isSeriesExact(row) {
+  // BO1 ma osobne exact score
   if (Number(row.best_of) === 1) {
     return (
       row.pred_exact_a != null &&
@@ -40,6 +123,7 @@ function isSeriesExact(row) {
     );
   }
 
+  // BO3 / BO5
   return (
     row.pred_a != null &&
     row.pred_b != null &&
@@ -49,6 +133,34 @@ function isSeriesExact(row) {
     Number(row.pred_b) === Number(row.res_b)
   );
 }
+
+
+function isMapWinnerCorrect(row) {
+  const predicted = winnerSide(
+    row.pred_exact_a,
+    row.pred_exact_b
+  );
+
+  const official = winnerSide(
+    row.exact_a,
+    row.exact_b
+  );
+
+  return predicted !== 0 && predicted === official;
+}
+
+
+function isMapExact(row) {
+  return (
+    row.pred_exact_a != null &&
+    row.pred_exact_b != null &&
+    row.exact_a != null &&
+    row.exact_b != null &&
+    Number(row.pred_exact_a) === Number(row.exact_a) &&
+    Number(row.pred_exact_b) === Number(row.exact_b)
+  );
+}
+
 
 function calculateStreaks(rows) {
   let current = 0;
@@ -63,338 +175,1356 @@ function calculateStreaks(rows) {
     }
   }
 
-  return { current, best };
+  return {
+    current,
+    best
+  };
 }
 
-function formatBestMatch(row) {
-  if (!row) return '—';
 
-  const label = row.match_no ? `#${row.match_no} • ` : '';
+function calculateRecentForm(rows, amount) {
+  const recent = rows.slice(-amount);
+
+  const hits = recent.filter(
+    isWinnerCorrect
+  ).length;
+
+  return {
+    total: recent.length,
+    hits,
+    percentage: pct(hits, recent.length)
+  };
+}
+
+
+function formatBestMatch(row) {
+  if (!row) {
+    return '—';
+  }
+
+  const label = row.match_no
+    ? `#${row.match_no} • `
+    : '';
 
   return (
-    `${label}${row.team_a} vs ${row.team_b} — ` +
-    `**${Number(row.points || 0)} pkt**`
+    `${label}${row.team_a} vs ${row.team_b}\n` +
+    `⭐ **${Number(row.points || 0)} pkt**`
   );
 }
 
-module.exports = async function showMyStats(interaction) {
+
+function getBoStats(rows, bestOf) {
+  const filtered = rows.filter(
+    row => Number(row.best_of) === Number(bestOf)
+  );
+
+  const winnerHits = filtered.filter(
+    isWinnerCorrect
+  ).length;
+
+  const exactHits = filtered.filter(
+    isSeriesExact
+  ).length;
+
+  return {
+    total: filtered.length,
+    winnerHits,
+    exactHits
+  };
+}
+
+
+// ======================================================
+// BUTTONY ZAKŁADEK
+// ======================================================
+
+function buildStatsButtons(eventId, activeTab) {
+  return new ActionRowBuilder().addComponents(
+
+    new ButtonBuilder()
+      .setCustomId(
+        `my_stats_tab:${eventId}:general`
+      )
+      .setLabel('Ogólne')
+      .setEmoji('📊')
+      .setStyle(
+        activeTab === 'general'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'general'),
+
+    new ButtonBuilder()
+      .setCustomId(
+        `my_stats_tab:${eventId}:accuracy`
+      )
+      .setLabel('Skuteczność')
+      .setEmoji('🎯')
+      .setStyle(
+        activeTab === 'accuracy'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'accuracy'),
+
+    new ButtonBuilder()
+      .setCustomId(
+        `my_stats_tab:${eventId}:form`
+      )
+      .setLabel('Forma')
+      .setEmoji('🔥')
+      .setStyle(
+        activeTab === 'form'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'form'),
+
+    new ButtonBuilder()
+      .setCustomId(
+        `my_stats_tab:${eventId}:comparison`
+      )
+      .setLabel('Porównanie')
+      .setEmoji('👥')
+      .setStyle(
+        activeTab === 'comparison'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'comparison')
+  );
+}
+
+
+// ======================================================
+// EMBED: OGÓLNE
+// ======================================================
+
+function buildGeneralEmbed({
+  event,
+  totalPredictions,
+  settledMatches,
+  winnerHits,
+  seriesExacts,
+  settledMaps,
+  mapWinnerHits,
+  exactMaps,
+  totalPoints,
+  seriesPoints,
+  mapPoints,
+  averagePoints
+}) {
+  return new EmbedBuilder()
+    .setTitle(
+      `📊 Twoje statystyki — ${event.name}`
+    )
+    .setColor(0x5865F2)
+    .setDescription(
+      'Ogólne podsumowanie Twoich typów meczowych.'
+    )
+    .addFields(
+
+      {
+        name: '🎮 Mecze',
+        value:
+          `Oddane typy: **${totalPredictions}**\n` +
+          `Rozliczone: **${settledMatches}**`,
+        inline: true
+      },
+
+      {
+        name: '🏆 Zwycięzcy',
+        value:
+          `Trafione: **${winnerHits}/${settledMatches}**\n` +
+          `Skuteczność: **${pct(
+            winnerHits,
+            settledMatches
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '🎯 Exact serii',
+        value:
+          `Trafione: **${seriesExacts}/${settledMatches}**\n` +
+          `Skuteczność: **${pct(
+            seriesExacts,
+            settledMatches
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '🗺️ Mapy',
+        value:
+          `Zwycięzca: **${mapWinnerHits}/${settledMaps}**\n` +
+          `Exact: **${exactMaps}/${settledMaps}**`,
+        inline: true
+      },
+
+      {
+        name: '⭐ Punkty',
+        value:
+          `Łącznie: **${totalPoints} pkt**\n` +
+          `└ Serie: **${seriesPoints} pkt**\n` +
+          `└ Mapy: **${mapPoints} pkt**`,
+        inline: true
+      },
+
+      {
+        name: '📈 Średnia',
+        value:
+          `**${averagePoints} pkt / mecz**`,
+        inline: true
+      }
+    )
+    .setFooter({
+      text:
+        'Statystyki są widoczne tylko dla Ciebie.'
+    });
+}
+
+
+// ======================================================
+// EMBED: SKUTECZNOŚĆ
+// ======================================================
+
+function buildAccuracyEmbed({
+  event,
+  settledMatches,
+  winnerHits,
+  seriesExacts,
+  settledMaps,
+  mapWinnerHits,
+  exactMaps,
+  bo1,
+  bo3,
+  bo5
+}) {
+  const formatBo = (label, stats) => {
+    if (!stats.total) {
+      return `${label}: **brak danych**`;
+    }
+
+    return (
+      `${label}: **${stats.winnerHits}/${stats.total}** ` +
+      `(${pct(
+        stats.winnerHits,
+        stats.total
+      )})`
+    );
+  };
+
+  const formatBoExact = (label, stats) => {
+    if (!stats.total) {
+      return `${label}: **brak danych**`;
+    }
+
+    return (
+      `${label}: **${stats.exactHits}/${stats.total}** ` +
+      `(${pct(
+        stats.exactHits,
+        stats.total
+      )})`
+    );
+  };
+
+  return new EmbedBuilder()
+    .setTitle(
+      `🎯 Skuteczność — ${event.name}`
+    )
+    .setColor(0x57F287)
+    .setDescription(
+      'Dokładna analiza skuteczności Twoich typów.'
+    )
+    .addFields(
+
+      {
+        name: '🏆 Zwycięzca meczu',
+        value:
+          `Trafione: **${winnerHits}/${settledMatches}**\n` +
+          `Skuteczność: **${pct(
+            winnerHits,
+            settledMatches
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '🎯 Dokładny wynik serii',
+        value:
+          `Trafione: **${seriesExacts}/${settledMatches}**\n` +
+          `Skuteczność: **${pct(
+            seriesExacts,
+            settledMatches
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '🗺️ Zwycięzca mapy',
+        value:
+          `Trafione: **${mapWinnerHits}/${settledMaps}**\n` +
+          `Skuteczność: **${pct(
+            mapWinnerHits,
+            settledMaps
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '💯 Exact mapy',
+        value:
+          `Trafione: **${exactMaps}/${settledMaps}**\n` +
+          `Skuteczność: **${pct(
+            exactMaps,
+            settledMaps
+          )}**`,
+        inline: true
+      },
+
+      {
+        name: '🎮 Zwycięzcy według formatu',
+        value: [
+          formatBo('BO1', bo1),
+          formatBo('BO3', bo3),
+          formatBo('BO5', bo5)
+        ].join('\n'),
+        inline: false
+      },
+
+      {
+        name: '🎯 Exact według formatu',
+        value: [
+          formatBoExact('BO1', bo1),
+          formatBoExact('BO3', bo3),
+          formatBoExact('BO5', bo5)
+        ].join('\n'),
+        inline: false
+      }
+    )
+    .setFooter({
+      text:
+        'Exact BO1 oznacza dokładny wynik mapy.'
+    });
+}
+
+
+// ======================================================
+// EMBED: FORMA
+// ======================================================
+
+function buildFormEmbed({
+  event,
+  settledRows,
+  currentStreak,
+  bestStreak,
+  bestMatch
+}) {
+  const last5 = calculateRecentForm(
+    settledRows,
+    5
+  );
+
+  const last10 = calculateRecentForm(
+    settledRows,
+    10
+  );
+
+  const form = settledRows
+    .slice(-10)
+    .map(row =>
+      isWinnerCorrect(row)
+        ? '✅'
+        : '❌'
+    )
+    .join(' ');
+
+  return new EmbedBuilder()
+    .setTitle(
+      `🔥 Twoja forma — ${event.name}`
+    )
+    .setColor(0xFEE75C)
+    .setDescription(
+      'Forma liczona jest na podstawie poprawnie wytypowanych zwycięzców meczów.'
+    )
+    .addFields(
+
+      {
+        name: '📈 Ostatnie mecze',
+        value:
+          form ||
+          'Brak rozliczonych typów.',
+        inline: false
+      },
+
+      {
+        name: '⚡ Ostatnie 5',
+        value:
+          last5.total
+            ? `**${last5.hits}/${last5.total}**\n` +
+              `Skuteczność: **${last5.percentage}**`
+            : 'Brak danych.',
+        inline: true
+      },
+
+      {
+        name: '📊 Ostatnie 10',
+        value:
+          last10.total
+            ? `**${last10.hits}/${last10.total}**\n` +
+              `Skuteczność: **${last10.percentage}**`
+            : 'Brak danych.',
+        inline: true
+      },
+
+      {
+        name: '🔥 Aktualna seria',
+        value:
+          `**${currentStreak}** ` +
+          (
+            currentStreak === 1
+              ? 'trafienie'
+              : 'trafień'
+          ),
+        inline: true
+      },
+
+      {
+        name: '🏅 Rekordowa seria',
+        value:
+          `**${bestStreak}** ` +
+          (
+            bestStreak === 1
+              ? 'trafienie'
+              : 'trafień'
+          ),
+        inline: true
+      },
+
+      {
+        name: '💎 Najlepszy mecz',
+        value:
+          formatBestMatch(bestMatch),
+        inline: false
+      }
+    )
+    .setFooter({
+      text:
+        '✅ poprawny zwycięzca • ❌ błędny zwycięzca'
+    });
+}
+
+
+// ======================================================
+// EMBED: PORÓWNANIE
+// ======================================================
+
+function buildComparisonEmbed({
+  event,
+
+  rank,
+  participantCount,
+  topPercent,
+
+  winnerHits,
+  settledMatches,
+
+  communityWinnerHits,
+  communitySettledMatches,
+
+  seriesExacts,
+  communitySeriesExacts,
+
+  averagePoints,
+  communityAveragePoints,
+
+  totalPoints,
+  communityAverageTotalPoints
+}) {
+  const userWinnerAccuracy =
+    percentageNumber(
+      winnerHits,
+      settledMatches
+    );
+
+  const communityWinnerAccuracy =
+    percentageNumber(
+      communityWinnerHits,
+      communitySettledMatches
+    );
+
+  const userExactAccuracy =
+    percentageNumber(
+      seriesExacts,
+      settledMatches
+    );
+
+  const communityExactAccuracy =
+    percentageNumber(
+      communitySeriesExacts,
+      communitySettledMatches
+    );
+
+  const winnerDifference =
+    userWinnerAccuracy -
+    communityWinnerAccuracy;
+
+  const exactDifference =
+    userExactAccuracy -
+    communityExactAccuracy;
+
+  const pointsDifference =
+    Number(averagePoints) -
+    Number(communityAveragePoints);
+
+  const totalPointsDifference =
+    Number(totalPoints) -
+    Number(communityAverageTotalPoints);
+
+  let rankEmoji = '🏅';
+
+  if (rank === 1) {
+    rankEmoji = '🥇';
+  } else if (rank === 2) {
+    rankEmoji = '🥈';
+  } else if (rank === 3) {
+    rankEmoji = '🥉';
+  }
+
+  return new EmbedBuilder()
+    .setTitle(
+      `👥 Na tle graczy — ${event.name}`
+    )
+    .setColor(0xEB459E)
+    .setDescription(
+      'Zobacz, jak Twoje typowanie wypada na tle pozostałych uczestników eventu.'
+    )
+    .addFields(
+
+      {
+        name: `${rankEmoji} Ranking`,
+        value:
+          `Pozycja: **#${rank} / ${participantCount}**\n` +
+          `TOP **${topPercent}%** graczy`,
+        inline: true
+      },
+
+      {
+        name: '⭐ Punkty',
+        value:
+          `Ty: **${totalPoints} pkt**\n` +
+          `Średnia: **${communityAverageTotalPoints.toFixed(2)} pkt**\n` +
+          `Różnica: ${formatPointsDifference(
+            totalPointsDifference
+          )}`,
+        inline: true
+      },
+
+      {
+        name: '📈 Punkty / mecz',
+        value:
+          `Ty: **${Number(averagePoints).toFixed(2)}**\n` +
+          `Średnia: **${communityAveragePoints.toFixed(2)}**\n` +
+          `Różnica: ${formatPointsDifference(
+            pointsDifference
+          )}`,
+        inline: true
+      },
+
+      {
+        name: '🏆 Trafieni zwycięzcy',
+        value:
+          `Ty: **${pct(
+            winnerHits,
+            settledMatches
+          )}**\n` +
+          `Średnia eventu: **${pct(
+            communityWinnerHits,
+            communitySettledMatches
+          )}**\n` +
+          `Różnica: ${formatDifference(
+            winnerDifference
+          )}`,
+        inline: true
+      },
+
+      {
+        name: '🎯 Exact serii',
+        value:
+          `Ty: **${pct(
+            seriesExacts,
+            settledMatches
+          )}**\n` +
+          `Średnia eventu: **${pct(
+            communitySeriesExacts,
+            communitySettledMatches
+          )}**\n` +
+          `Różnica: ${formatDifference(
+            exactDifference
+          )}`,
+        inline: true
+      },
+
+      {
+        name: '👥 Próba porównawcza',
+        value:
+          `Graczy: **${participantCount}**\n` +
+          `Rozliczonych typów: **${communitySettledMatches}**`,
+        inline: true
+      }
+    )
+    .setFooter({
+      text:
+        'Średnie liczone są na podstawie rozliczonych typów w tym evencie.'
+    });
+}
+
+
+// ======================================================
+// MAIN
+// ======================================================
+
+module.exports = async function showMyStats(
+  interaction
+) {
   try {
-    const customId = String(interaction.customId || '');
-    const [action, rawEventId] = customId.split(':');
+    const customId = String(
+      interaction.customId || ''
+    );
 
-    if (action !== 'my_stats') return;
+    const parts = customId.split(':');
 
-    const eventId = Number(rawEventId);
+    const action = parts[0];
+
+    let eventId;
+    let activeTab = 'general';
+
+
+    // Pierwsze wejście:
+    // my_stats:123
+    if (action === 'my_stats') {
+      eventId = Number(parts[1]);
+      activeTab = 'general';
+    }
+
+    // Zmiana zakładki:
+    // my_stats_tab:123:accuracy
+    else if (action === 'my_stats_tab') {
+      eventId = Number(parts[1]);
+      activeTab = parts[2] || 'general';
+    }
+
+    else {
+      return;
+    }
+
 
     if (!eventId) {
-      return interaction.reply({
-        content: '❌ Brak informacji o evencie.',
-        ephemeral: true
-      });
-    }
-
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply({
-        ephemeral: true
-      });
-    }
-
-    return withGuild(interaction, async ({ pool, guildId }) => {
-      const userId = interaction.user.id;
-
-      const [[event]] = await pool.query(
-        `
-        SELECT id, name
-        FROM events
-        WHERE id = ?
-          AND guild_id = ?
-        LIMIT 1
-        `,
-        [eventId, guildId]
-      );
-
-      if (!event) {
-        return interaction.editReply({
-          content: '❌ Nie znaleziono tego eventu.',
-          embeds: [],
-          components: []
-        });
-      }
-
-      const [[predictionCount]] = await pool.query(
-        `
-        SELECT COUNT(*) AS total
-        FROM match_predictions
-        WHERE guild_id = ?
-          AND event_id = ?
-          AND user_id = ?
-        `,
-        [guildId, eventId, userId]
-      );
-
-      const totalPredictions = Number(
-        predictionCount?.total || 0
-      );
-
-      if (!totalPredictions) {
-        return interaction.editReply({
+      if (
+        !interaction.replied &&
+        !interaction.deferred
+      ) {
+        return interaction.reply({
           content:
-            `Nie masz jeszcze typów meczowych ` +
-            `w evencie **${event.name}**.`,
-          embeds: [],
-          components: []
+            '❌ Brak informacji o evencie.',
+          ephemeral: true
         });
       }
-
-      const [settledRows] = await pool.query(
-        `
-        SELECT
-          m.id AS match_id,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          m.best_of,
-          mp.pred_a,
-          mp.pred_b,
-          mp.pred_exact_a,
-          mp.pred_exact_b,
-          mr.res_a,
-          mr.res_b,
-          mr.exact_a,
-          mr.exact_b,
-          mr.finished_at
-        FROM match_predictions mp
-        INNER JOIN matches m
-          ON m.id = mp.match_id
-         AND m.guild_id = mp.guild_id
-         AND m.event_id = mp.event_id
-        INNER JOIN match_results mr
-          ON mr.match_id = mp.match_id
-         AND mr.guild_id = mp.guild_id
-         AND mr.event_id = mp.event_id
-        WHERE mp.guild_id = ?
-          AND mp.event_id = ?
-          AND mp.user_id = ?
-        ORDER BY mr.finished_at ASC, m.id ASC
-        `,
-        [guildId, eventId, userId]
-      );
-
-      const settledMatches = settledRows.length;
-
-      const winnerHits = settledRows.filter(
-        isWinnerCorrect
-      ).length;
-
-      const seriesExacts = settledRows.filter(
-        isSeriesExact
-      ).length;
-
-      const {
-        current: currentStreak,
-        best: bestStreak
-      } = calculateStreaks(settledRows);
-
-      const form = settledRows
-        .slice(-10)
-        .map((row) =>
-          isWinnerCorrect(row) ? '✅' : '❌'
-        )
-        .join(' ');
-
-      const [mapRows] = await pool.query(
-        `
-        SELECT
-          p.pred_exact_a,
-          p.pred_exact_b,
-          r.exact_a,
-          r.exact_b
-        FROM match_map_predictions p
-        INNER JOIN match_map_results r
-          ON r.guild_id = p.guild_id
-         AND r.event_id = p.event_id
-         AND r.match_id = p.match_id
-         AND r.map_no = p.map_no
-        WHERE p.guild_id = ?
-          AND p.event_id = ?
-          AND p.user_id = ?
-        `,
-        [guildId, eventId, userId]
-      );
-
-      const settledMaps = mapRows.length;
-
-      const exactMaps = mapRows.filter((row) => (
-        row.pred_exact_a != null &&
-        row.pred_exact_b != null &&
-        row.exact_a != null &&
-        row.exact_b != null &&
-        Number(row.pred_exact_a) === Number(row.exact_a) &&
-        Number(row.pred_exact_b) === Number(row.exact_b)
-      )).length;
-
-      const [[points]] = await pool.query(
-        `
-        SELECT
-          COALESCE(
-            SUM(
-              CASE
-                WHEN source = 'series'
-                THEN points
-                ELSE 0
-              END
-            ),
-            0
-          ) AS series_points,
-
-          COALESCE(
-            SUM(
-              CASE
-                WHEN source = 'map'
-                THEN points
-                ELSE 0
-              END
-            ),
-            0
-          ) AS map_points,
-
-          COALESCE(SUM(points), 0) AS total_points
-
-        FROM match_points
-        WHERE guild_id = ?
-          AND event_id = ?
-          AND user_id = ?
-        `,
-        [guildId, eventId, userId]
-      );
-
-      const totalPoints = Number(
-        points?.total_points || 0
-      );
-
-      const seriesPoints = Number(
-        points?.series_points || 0
-      );
-
-      const mapPoints = Number(
-        points?.map_points || 0
-      );
-
-      const averagePoints = settledMatches
-        ? (totalPoints / settledMatches).toFixed(2)
-        : '0.00';
-
-      const [[bestMatch]] = await pool.query(
-        `
-        SELECT
-          m.id AS match_id,
-          m.match_no,
-          m.team_a,
-          m.team_b,
-          SUM(mp.points) AS points
-        FROM match_points mp
-        INNER JOIN matches m
-          ON m.id = mp.match_id
-         AND m.guild_id = mp.guild_id
-         AND m.event_id = mp.event_id
-        WHERE mp.guild_id = ?
-          AND mp.event_id = ?
-          AND mp.user_id = ?
-        GROUP BY
-          m.id,
-          m.match_no,
-          m.team_a,
-          m.team_b
-        ORDER BY
-          points DESC,
-          m.match_no ASC,
-          m.id ASC
-        LIMIT 1
-        `,
-        [guildId, eventId, userId]
-      );
-
-      const embed = new EmbedBuilder()
-        .setTitle(
-          `📊 Twoje statystyki — ${event.name}`
-        )
-        .setColor(0x8b5cf6)
-        .setDescription(
-          `Statystyki typów meczowych w tym evencie.\n` +
-          `Forma pokazuje **10 ostatnich rozliczonych typów**.`
-        )
-        .addFields(
-          {
-            name: '🎮 Typowanie',
-            value:
-              `Zapisane typy: **${totalPredictions}**\n` +
-              `Rozliczone mecze: **${settledMatches}**`,
-            inline: true
-          },
-          {
-            name: '🏆 Zwycięzcy',
-            value:
-              `Trafione: **${winnerHits}/${settledMatches}**\n` +
-              `Skuteczność: **${pct(
-                winnerHits,
-                settledMatches
-              )}**`,
-            inline: true
-          },
-          {
-            name: '🎯 Exacty',
-            value:
-              `Serie: **${seriesExacts}/${settledMatches}**\n` +
-              `Mapy: **${exactMaps}/${settledMaps || 0}** ` +
-              `(${pct(exactMaps, settledMaps)})`,
-            inline: true
-          },
-          {
-            name: '⭐ Punkty',
-            value:
-              `Łącznie: **${totalPoints} pkt**\n` +
-              `└ Serie: **${seriesPoints} pkt**\n` +
-              `└ Mapy: **${mapPoints} pkt**\n` +
-              `Średnia: **${averagePoints} pkt/mecz**`,
-            inline: true
-          },
-          {
-            name: '🔥 Serie trafień',
-            value:
-              `Aktualna: **${currentStreak}**\n` +
-              `Najlepsza: **${bestStreak}**`,
-            inline: true
-          },
-          {
-            name: '📈 Forma',
-            value:
-              form || 'Brak rozliczonych typów.',
-            inline: false
-          },
-          {
-            name: '💎 Najlepszy mecz',
-            value: formatBestMatch(bestMatch),
-            inline: false
-          }
-        )
-        .setFooter({
-          text: 'Statystyki są widoczne tylko dla Ciebie.'
-        });
 
       return interaction.editReply({
-        content: '',
-        embeds: [embed],
+        content:
+          '❌ Brak informacji o evencie.',
+        embeds: [],
         components: []
       });
-    });
+    }
+
+
+    // ==================================================
+    // DEFER
+    // ==================================================
+
+    if (
+      !interaction.deferred &&
+      !interaction.replied
+    ) {
+      if (action === 'my_stats_tab') {
+        await interaction.deferUpdate();
+      } else {
+        await interaction.deferReply({
+          ephemeral: true
+        });
+      }
+    }
+
+
+    return withGuild(
+      interaction,
+      async ({ pool, guildId }) => {
+
+        const userId =
+          interaction.user.id;
+
+
+        // ==================================================
+        // EVENT
+        // ==================================================
+
+        const [[event]] = await pool.query(
+          `
+          SELECT
+            id,
+            name
+          FROM events
+          WHERE id = ?
+            AND guild_id = ?
+          LIMIT 1
+          `,
+          [
+            eventId,
+            guildId
+          ]
+        );
+
+
+        if (!event) {
+          return interaction.editReply({
+            content:
+              '❌ Nie znaleziono tego eventu.',
+            embeds: [],
+            components: []
+          });
+        }
+
+
+        // ==================================================
+        // LICZBA WSZYSTKICH TYPÓW
+        // ==================================================
+
+        const [[predictionCount]] =
+          await pool.query(
+            `
+            SELECT
+              COUNT(*) AS total
+            FROM match_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND user_id = ?
+            `,
+            [
+              guildId,
+              eventId,
+              userId
+            ]
+          );
+
+
+        const totalPredictions = Number(
+          predictionCount?.total || 0
+        );
+
+
+        if (!totalPredictions) {
+          return interaction.editReply({
+            content:
+              `Nie masz jeszcze typów meczowych ` +
+              `w evencie **${event.name}**.`,
+            embeds: [],
+            components: []
+          });
+        }
+
+
+        // ==================================================
+        // ROZLICZONE MECZE USERA
+        // ==================================================
+
+        const [settledRows] =
+          await pool.query(
+            `
+            SELECT
+              m.id AS match_id,
+              m.match_no,
+              m.team_a,
+              m.team_b,
+              m.best_of,
+
+              mp.pred_a,
+              mp.pred_b,
+              mp.pred_exact_a,
+              mp.pred_exact_b,
+
+              mr.res_a,
+              mr.res_b,
+              mr.exact_a,
+              mr.exact_b,
+              mr.finished_at
+
+            FROM match_predictions mp
+
+            INNER JOIN matches m
+              ON m.id = mp.match_id
+             AND m.guild_id = mp.guild_id
+             AND m.event_id = mp.event_id
+
+            INNER JOIN match_results mr
+              ON mr.match_id = mp.match_id
+             AND mr.guild_id = mp.guild_id
+             AND mr.event_id = mp.event_id
+
+            WHERE mp.guild_id = ?
+              AND mp.event_id = ?
+              AND mp.user_id = ?
+
+            ORDER BY
+              mr.finished_at ASC,
+              m.id ASC
+            `,
+            [
+              guildId,
+              eventId,
+              userId
+            ]
+          );
+
+
+        const settledMatches =
+          settledRows.length;
+
+
+        const winnerHits =
+          settledRows.filter(
+            isWinnerCorrect
+          ).length;
+
+
+        const seriesExacts =
+          settledRows.filter(
+            isSeriesExact
+          ).length;
+
+
+        // ==================================================
+        // STREAK
+        // ==================================================
+
+        const {
+          current: currentStreak,
+          best: bestStreak
+        } = calculateStreaks(
+          settledRows
+        );
+
+
+        // ==================================================
+        // BO STATS
+        // ==================================================
+
+        const bo1 = getBoStats(
+          settledRows,
+          1
+        );
+
+        const bo3 = getBoStats(
+          settledRows,
+          3
+        );
+
+        const bo5 = getBoStats(
+          settledRows,
+          5
+        );
+
+
+        // ==================================================
+        // MAPY
+        // ==================================================
+
+        const [mapRows] =
+          await pool.query(
+            `
+            SELECT
+              p.match_id,
+              p.map_no,
+
+              p.pred_exact_a,
+              p.pred_exact_b,
+
+              r.exact_a,
+              r.exact_b
+
+            FROM match_map_predictions p
+
+            INNER JOIN match_map_results r
+              ON r.guild_id = p.guild_id
+             AND r.event_id = p.event_id
+             AND r.match_id = p.match_id
+             AND r.map_no = p.map_no
+
+            WHERE p.guild_id = ?
+              AND p.event_id = ?
+              AND p.user_id = ?
+            `,
+            [
+              guildId,
+              eventId,
+              userId
+            ]
+          );
+
+
+        const settledMaps =
+          mapRows.length;
+
+
+        const mapWinnerHits =
+          mapRows.filter(
+            isMapWinnerCorrect
+          ).length;
+
+
+        const exactMaps =
+          mapRows.filter(
+            isMapExact
+          ).length;
+
+
+        // ==================================================
+        // PUNKTY USERA
+        // ==================================================
+
+        const [[points]] =
+          await pool.query(
+            `
+            SELECT
+
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN source = 'series'
+                    THEN points
+                    ELSE 0
+                  END
+                ),
+                0
+              ) AS series_points,
+
+              COALESCE(
+                SUM(
+                  CASE
+                    WHEN source = 'map'
+                    THEN points
+                    ELSE 0
+                  END
+                ),
+                0
+              ) AS map_points,
+
+              COALESCE(
+                SUM(points),
+                0
+              ) AS total_points
+
+            FROM match_points
+
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND user_id = ?
+            `,
+            [
+              guildId,
+              eventId,
+              userId
+            ]
+          );
+
+
+        const totalPoints = Number(
+          points?.total_points || 0
+        );
+
+        const seriesPoints = Number(
+          points?.series_points || 0
+        );
+
+        const mapPoints = Number(
+          points?.map_points || 0
+        );
+
+
+        const averagePoints =
+          settledMatches
+            ? (
+                totalPoints /
+                settledMatches
+              ).toFixed(2)
+            : '0.00';
+
+
+        // ==================================================
+        // PORÓWNANIE — WSZYSTKIE ROZLICZONE TYPY
+        // ==================================================
+
+        const [communityRows] =
+          await pool.query(
+            `
+            SELECT
+              mp.user_id,
+
+              m.id AS match_id,
+              m.best_of,
+
+              mp.pred_a,
+              mp.pred_b,
+              mp.pred_exact_a,
+              mp.pred_exact_b,
+
+              mr.res_a,
+              mr.res_b,
+              mr.exact_a,
+              mr.exact_b
+
+            FROM match_predictions mp
+
+            INNER JOIN matches m
+              ON m.id = mp.match_id
+             AND m.guild_id = mp.guild_id
+             AND m.event_id = mp.event_id
+
+            INNER JOIN match_results mr
+              ON mr.match_id = mp.match_id
+             AND mr.guild_id = mp.guild_id
+             AND mr.event_id = mp.event_id
+
+            WHERE mp.guild_id = ?
+              AND mp.event_id = ?
+            `,
+            [
+              guildId,
+              eventId
+            ]
+          );
+
+
+        const communitySettledMatches =
+          communityRows.length;
+
+
+        const communityWinnerHits =
+          communityRows.filter(
+            isWinnerCorrect
+          ).length;
+
+
+        const communitySeriesExacts =
+          communityRows.filter(
+            isSeriesExact
+          ).length;
+
+
+        // ==================================================
+        // UCZESTNICY
+        // ==================================================
+
+        const [participants] =
+          await pool.query(
+            `
+            SELECT DISTINCT
+              user_id
+            FROM match_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+            `,
+            [
+              guildId,
+              eventId
+            ]
+          );
+
+
+        const participantCount =
+          participants.length;
+
+
+        // ==================================================
+        // PUNKTY WSZYSTKICH GRACZY
+        // ==================================================
+
+        const [allPlayerPoints] =
+          await pool.query(
+            `
+            SELECT
+              user_id,
+
+              COALESCE(
+                SUM(points),
+                0
+              ) AS total_points
+
+            FROM match_points
+
+            WHERE guild_id = ?
+              AND event_id = ?
+
+            GROUP BY user_id
+            `,
+            [
+              guildId,
+              eventId
+            ]
+          );
+
+
+        const pointsByUser =
+          new Map();
+
+
+        for (const row of allPlayerPoints) {
+          pointsByUser.set(
+            String(row.user_id),
+            Number(row.total_points || 0)
+          );
+        }
+
+
+        const ranking = participants
+          .map(row => ({
+            userId:
+              String(row.user_id),
+
+            points:
+              pointsByUser.get(
+                String(row.user_id)
+              ) || 0
+          }))
+          .sort(
+            (a, b) =>
+              b.points - a.points
+          );
+
+
+        const rank =
+          ranking.filter(
+            player =>
+              Number(player.points) >
+              Number(totalPoints)
+          ).length + 1;
+
+
+        const topPercent =
+          participantCount
+            ? Math.max(
+                0.1,
+                (
+                  rank /
+                  participantCount *
+                  100
+                )
+              )
+                .toFixed(1)
+                .replace('.0', '')
+            : '—';
+
+
+        // ==================================================
+        // ŚREDNIE PUNKTY EVENTU
+        // ==================================================
+
+        const communityTotalPoints =
+          ranking.reduce(
+            (sum, player) =>
+              sum +
+              Number(player.points || 0),
+            0
+          );
+
+
+        const communityAverageTotalPoints =
+          participantCount
+            ? communityTotalPoints /
+              participantCount
+            : 0;
+
+
+        const communityAveragePoints =
+          communitySettledMatches
+            ? communityTotalPoints /
+              communitySettledMatches
+            : 0;
+
+
+        // ==================================================
+        // NAJLEPSZY MECZ
+        // ==================================================
+
+        const [[bestMatch]] =
+          await pool.query(
+            `
+            SELECT
+              m.id AS match_id,
+              m.match_no,
+              m.team_a,
+              m.team_b,
+
+              SUM(mp.points) AS points
+
+            FROM match_points mp
+
+            INNER JOIN matches m
+              ON m.id = mp.match_id
+             AND m.guild_id = mp.guild_id
+             AND m.event_id = mp.event_id
+
+            WHERE mp.guild_id = ?
+              AND mp.event_id = ?
+              AND mp.user_id = ?
+
+            GROUP BY
+              m.id,
+              m.match_no,
+              m.team_a,
+              m.team_b
+
+            ORDER BY
+              points DESC,
+              m.match_no ASC,
+              m.id ASC
+
+            LIMIT 1
+            `,
+            [
+              guildId,
+              eventId,
+              userId
+            ]
+          );
+
+
+        // ==================================================
+        // WYBÓR EMBEDA
+        // ==================================================
+
+        let embed;
+
+
+        if (activeTab === 'accuracy') {
+          embed = buildAccuracyEmbed({
+            event,
+
+            settledMatches,
+            winnerHits,
+            seriesExacts,
+
+            settledMaps,
+            mapWinnerHits,
+            exactMaps,
+
+            bo1,
+            bo3,
+            bo5
+          });
+        }
+
+
+        else if (activeTab === 'form') {
+          embed = buildFormEmbed({
+            event,
+            settledRows,
+            currentStreak,
+            bestStreak,
+            bestMatch
+          });
+        }
+
+
+        else if (activeTab === 'comparison') {
+          embed = buildComparisonEmbed({
+            event,
+
+            rank,
+            participantCount,
+            topPercent,
+
+            winnerHits,
+            settledMatches,
+
+            communityWinnerHits,
+            communitySettledMatches,
+
+            seriesExacts,
+            communitySeriesExacts,
+
+            averagePoints,
+            communityAveragePoints,
+
+            totalPoints,
+            communityAverageTotalPoints
+          });
+        }
+
+
+        else {
+          activeTab = 'general';
+
+          embed = buildGeneralEmbed({
+            event,
+
+            totalPredictions,
+            settledMatches,
+
+            winnerHits,
+            seriesExacts,
+
+            settledMaps,
+            mapWinnerHits,
+            exactMaps,
+
+            totalPoints,
+            seriesPoints,
+            mapPoints,
+            averagePoints
+          });
+        }
+
+
+        // ==================================================
+        // RESPONSE
+        // ==================================================
+
+        return interaction.editReply({
+          content: '',
+          embeds: [
+            embed
+          ],
+          components: [
+            buildStatsButtons(
+              eventId,
+              activeTab
+            )
+          ]
+        });
+      }
+    );
+
   } catch (err) {
-    logError('matches', 'showMyStats failed', {
-      message: err.message,
-      stack: err.stack
-    });
+
+    logError(
+      'matches',
+      'showMyStats failed',
+      {
+        message: err.message,
+        stack: err.stack
+      }
+    );
+
 
     try {
-      if (!interaction.deferred && !interaction.replied) {
+
+      if (
+        !interaction.deferred &&
+        !interaction.replied
+      ) {
         return interaction.reply({
           content:
             '❌ Nie udało się pobrać Twoich statystyk.',
@@ -402,12 +1532,14 @@ module.exports = async function showMyStats(interaction) {
         });
       }
 
+
       return interaction.editReply({
         content:
           '❌ Nie udało się pobrać Twoich statystyk.',
         embeds: [],
         components: []
       });
+
     } catch (_) {
       return null;
     }
