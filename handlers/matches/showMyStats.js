@@ -233,6 +233,210 @@ function getBoStats(rows, bestOf) {
   };
 }
 
+function getMapMarginError(row) {
+  const predA = Number(row.pred_exact_a);
+  const predB = Number(row.pred_exact_b);
+
+  const realA = Number(row.exact_a);
+  const realB = Number(row.exact_b);
+
+  if (
+    !Number.isFinite(predA) ||
+    !Number.isFinite(predB) ||
+    !Number.isFinite(realA) ||
+    !Number.isFinite(realB)
+  ) {
+    return null;
+  }
+
+  const predictedMargin =
+    predA - predB;
+
+  const realMargin =
+    realA - realB;
+
+  return Math.abs(
+    predictedMargin - realMargin
+  );
+}
+
+function calculateMapAccuracy(rows) {
+  const result = {
+    exact: 0,
+    error1: 0,
+    error2: 0,
+    error3plus: 0,
+    total: 0,
+    errorSum: 0
+  };
+
+  for (const row of rows) {
+    const error =
+      getMapMarginError(row);
+
+    if (error == null) {
+      continue;
+    }
+
+    result.total += 1;
+    result.errorSum += error;
+
+    if (error === 0) {
+      result.exact += 1;
+    }
+
+    else if (error === 1) {
+      result.error1 += 1;
+    }
+
+    else if (error === 2) {
+      result.error2 += 1;
+    }
+
+    else {
+      result.error3plus += 1;
+    }
+  }
+
+  result.averageError =
+    result.total
+      ? result.errorSum /
+      result.total
+      : 0;
+
+  return result;
+}
+
+function calculateTeamStats(rows) {
+  const teams = new Map();
+
+  function ensureTeam(name) {
+    if (!teams.has(name)) {
+      teams.set(name, {
+        name,
+        matches: 0,
+        picked: 0,
+        correct: 0
+      });
+    }
+
+    return teams.get(name);
+  }
+
+  for (const row of rows) {
+    const teamA =
+      ensureTeam(row.team_a);
+
+    const teamB =
+      ensureTeam(row.team_b);
+
+    teamA.matches += 1;
+    teamB.matches += 1;
+
+    const predictedSide =
+      winnerSide(
+        row.pred_a,
+        row.pred_b
+      );
+
+    const officialSide =
+      winnerSide(
+        row.res_a,
+        row.res_b
+      );
+
+    if (predictedSide === 1) {
+      teamA.picked += 1;
+
+      if (officialSide === 1) {
+        teamA.correct += 1;
+      }
+    }
+
+    else if (predictedSide === -1) {
+      teamB.picked += 1;
+
+      if (officialSide === -1) {
+        teamB.correct += 1;
+      }
+    }
+  }
+
+  const list =
+    [...teams.values()]
+      .filter(team =>
+        team.picked > 0
+      )
+      .map(team => ({
+        ...team,
+
+        accuracy:
+          team.picked
+            ? (
+              team.correct /
+              team.picked
+            ) * 100
+            : 0
+      }));
+
+  const mostPicked =
+    [...list]
+      .sort((a, b) =>
+        b.picked - a.picked
+      )[0] || null;
+
+  const qualified =
+    list.filter(team =>
+      team.picked >= 3
+    );
+
+  const best =
+    [...qualified]
+      .sort((a, b) => {
+
+        if (
+          b.accuracy !==
+          a.accuracy
+        ) {
+          return (
+            b.accuracy -
+            a.accuracy
+          );
+        }
+
+        return (
+          b.picked -
+          a.picked
+        );
+      })[0] || null;
+
+  const nemesis =
+    [...qualified]
+      .sort((a, b) => {
+
+        if (
+          a.accuracy !==
+          b.accuracy
+        ) {
+          return (
+            a.accuracy -
+            b.accuracy
+          );
+        }
+
+        return (
+          b.picked -
+          a.picked
+        );
+      })[0] || null;
+
+  return {
+    best,
+    nemesis,
+    mostPicked
+  };
+}
+
 
 // ======================================================
 // BUTTONY ZAKŁADEK
@@ -291,7 +495,20 @@ function buildStatsButtons(eventId, activeTab) {
           ? ButtonStyle.Primary
           : ButtonStyle.Secondary
       )
-      .setDisabled(activeTab === 'comparison')
+      .setDisabled(activeTab === 'comparison'),
+
+    new ButtonBuilder()
+      .setCustomId(
+        `my_stats_tab:${eventId}:analysis`
+      )
+      .setLabel('Analiza')
+      .setEmoji('🧠')
+      .setStyle(
+        activeTab === 'analysis'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'analysis')
   );
 }
 
@@ -563,7 +780,7 @@ function buildFormEmbed({
         value:
           last5.total
             ? `**${last5.hits}/${last5.total}**\n` +
-              `Skuteczność: **${last5.percentage}**`
+            `Skuteczność: **${last5.percentage}**`
             : 'Brak danych.',
         inline: true
       },
@@ -573,7 +790,7 @@ function buildFormEmbed({
         value:
           last10.total
             ? `**${last10.hits}/${last10.total}**\n` +
-              `Skuteczność: **${last10.percentage}**`
+            `Skuteczność: **${last10.percentage}**`
             : 'Brak danych.',
         inline: true
       },
@@ -780,6 +997,164 @@ function buildComparisonEmbed({
     });
 }
 
+
+// ======================================================
+// EMBED: ANALIZA
+// ======================================================
+
+function buildAnalysisEmbed({
+  event,
+  teamStats,
+  mapAccuracy
+}) {
+  const {
+    best,
+    nemesis,
+    mostPicked
+  } = teamStats;
+
+
+  const formatTeam =
+    (team) => {
+
+      if (!team) {
+        return (
+          'Brak wystarczającej liczby danych.'
+        );
+      }
+
+      return (
+        `**${team.name}**\n` +
+        `${team.correct}/${team.picked} trafień ` +
+        `(**${team.accuracy
+          .toFixed(1)
+          .replace('.0', '')}%**)`
+      );
+    };
+
+
+  const formatMostPicked =
+    (team) => {
+
+      if (!team) {
+        return 'Brak danych.';
+      }
+
+      return (
+        `**${team.name}**\n` +
+        `Typowana na zwycięzcę: ` +
+        `**${team.picked} razy**`
+      );
+    };
+
+
+  return new EmbedBuilder()
+
+    .setTitle(
+      `🧠 Analiza — ${event.name}`
+    )
+
+    .setColor(0x9B59B6)
+
+    .setDescription(
+      'Trochę głębsze spojrzenie na Twój styl typowania.'
+    )
+
+    .addFields(
+
+      {
+        name:
+          '🟢 Najlepiej typowana drużyna',
+
+        value:
+          formatTeam(best),
+
+        inline: true
+      },
+
+
+      {
+        name:
+          '😈 Nemesis',
+
+        value:
+          formatTeam(nemesis),
+
+        inline: true
+      },
+
+
+      {
+        name:
+          '❤️ Najczęściej wybierana',
+
+        value:
+          formatMostPicked(
+            mostPicked
+          ),
+
+        inline: true
+      },
+
+
+      {
+        name:
+          '🗺️ Dokładność wyników map',
+
+        value:
+          mapAccuracy.total
+            ? (
+              `💯 Exact: **${mapAccuracy.exact}/${mapAccuracy.total} ` +
+              `(${pct(
+                mapAccuracy.exact,
+                mapAccuracy.total
+              )})**\n` +
+
+              `🟢 Błąd 1: **${mapAccuracy.error1}/${mapAccuracy.total} ` +
+              `(${pct(
+                mapAccuracy.error1,
+                mapAccuracy.total
+              )})**\n` +
+
+              `🟡 Błąd 2: **${mapAccuracy.error2}/${mapAccuracy.total} ` +
+              `(${pct(
+                mapAccuracy.error2,
+                mapAccuracy.total
+              )})**\n` +
+
+              `🔴 Błąd 3+: **${mapAccuracy.error3plus}/${mapAccuracy.total} ` +
+              `(${pct(
+                mapAccuracy.error3plus,
+                mapAccuracy.total
+              )})**`
+            )
+            : 'Brak danych.',
+
+        inline: false
+      },
+
+
+      {
+        name:
+          '📏 Średni błąd wyniku mapy',
+
+        value:
+          mapAccuracy.total
+            ? (
+              `**${mapAccuracy.averageError
+                .toFixed(2)} rundy**`
+            )
+            : 'Brak danych.',
+
+        inline: true
+      }
+    )
+
+    .setFooter({
+      text:
+        'Statystyki drużyn wymagają minimum 3 typów na daną drużynę.'
+    });
+}
 
 // ======================================================
 // MAIN
@@ -1089,6 +1464,21 @@ module.exports = async function showMyStats(
             isMapExact
           ).length;
 
+        // ==================================================
+        // ANALIZA
+        // ==================================================
+
+        const teamStats =
+          calculateTeamStats(
+            settledRows
+          );
+
+
+        const mapAccuracy =
+          calculateMapAccuracy(
+            mapRows
+          );
+
 
         // ==================================================
         // PUNKTY USERA
@@ -1156,9 +1546,9 @@ module.exports = async function showMyStats(
         const averagePoints =
           settledMatches
             ? (
-                totalPoints /
-                settledMatches
-              ).toFixed(2)
+              totalPoints /
+              settledMatches
+            ).toFixed(2)
             : '0.00';
 
 
@@ -1315,15 +1705,15 @@ module.exports = async function showMyStats(
         const topPercent =
           participantCount
             ? Math.max(
-                0.1,
-                (
-                  rank /
-                  participantCount *
-                  100
-                )
+              0.1,
+              (
+                rank /
+                participantCount *
+                100
               )
-                .toFixed(1)
-                .replace('.0', '')
+            )
+              .toFixed(1)
+              .replace('.0', '')
             : '—';
 
 
@@ -1343,14 +1733,14 @@ module.exports = async function showMyStats(
         const communityAverageTotalPoints =
           participantCount
             ? communityTotalPoints /
-              participantCount
+            participantCount
             : 0;
 
 
         const communityAveragePoints =
           communitySettledMatches
             ? communityTotalPoints /
-              communitySettledMatches
+            communitySettledMatches
             : 0;
 
 
@@ -1463,6 +1853,15 @@ module.exports = async function showMyStats(
           });
         }
 
+        else if (activeTab === 'analysis') {
+
+          embed = buildAnalysisEmbed({
+            event,
+            teamStats,
+            mapAccuracy
+          });
+
+        }
 
         else {
           activeTab = 'general';
