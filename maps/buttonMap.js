@@ -99,6 +99,7 @@ module.exports = {
   'clear_matches': 'openClearMatches',
   'match_lock_manager': 'matchLockManager',
   'match_lock_set:': 'matchLockSet',
+  'edit_match_open': 'editMatchOpen',
 
   // ===== DOUBLE ELIM MODAL =====
   'open_doubleelim_modal': 'openDoubleElimDropdown',

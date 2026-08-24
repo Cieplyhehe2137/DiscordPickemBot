@@ -38,6 +38,11 @@ function buildMenu(customId) {
             emoji: '🎯'
           },
           {
+            label: 'Edytuj mecz',
+            value: 'matches:edit',
+            emoji: '✏️'
+          },
+          {
             label: 'Cofnij wynik meczu',
             value: 'matches:undo_result',
             emoji: '↩️'
@@ -58,7 +63,6 @@ function buildMenu(customId) {
             emoji: '🧹'
           }
         );
-
     case 'panel:open:db':
       return new StringSelectMenuBuilder()
         .setCustomId('panel:select:db')

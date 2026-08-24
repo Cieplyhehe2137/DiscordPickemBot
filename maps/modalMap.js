@@ -3,6 +3,7 @@ module.exports = {
   'match_user_exact_submit': 'matchUserExactSubmit',
   'match_admin_start_submit': 'matchAdminStartSubmit',
   'match_set_time_modal': 'submitSetMatchTime',
+  'edit_match_modal:': 'editMatchModal',
 
   // ===== TEAMS MANAGER =====
   'teams:add_modal': 'teamsAddSubmit',
