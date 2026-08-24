@@ -1922,6 +1922,56 @@ module.exports = async function showMyStats(
             ]
           );
 
+        // ==================================================
+        // BO1 = JEDNA MAPA
+        // ==================================================
+        //
+        // W BO1 dokładny wynik zapisujemy bezpośrednio
+        // w match_predictions / match_results.
+        // Dlatego dokładamy BO1 do statystyk map,
+        // jeśli nie istnieje już wpis w tabelach mapowych.
+
+        const existingMapKeys = new Set(
+          mapRows.map(row =>
+            `${row.match_id}:${row.map_no}`
+          )
+        );
+
+        for (const row of settledRows) {
+          if (Number(row.best_of) !== 1) {
+            continue;
+          }
+
+          const key = `${row.match_id}:1`;
+
+          // zabezpieczenie przed podwójnym policzeniem
+          if (existingMapKeys.has(key)) {
+            continue;
+          }
+
+          if (
+            row.pred_exact_a == null ||
+            row.pred_exact_b == null ||
+            row.exact_a == null ||
+            row.exact_b == null
+          ) {
+            continue;
+          }
+
+          mapRows.push({
+            match_id: row.match_id,
+            map_no: 1,
+
+            pred_exact_a: row.pred_exact_a,
+            pred_exact_b: row.pred_exact_b,
+
+            exact_a: row.exact_a,
+            exact_b: row.exact_b
+          });
+
+          existingMapKeys.add(key);
+        }
+
 
         const settledMaps =
           mapRows.length;
