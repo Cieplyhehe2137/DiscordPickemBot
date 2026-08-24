@@ -1,8 +1,8 @@
 const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    ActionRowBuilder
 } = require('discord.js');
 
 const isAdmin = require('../../utils/isAdmin');
@@ -11,61 +11,87 @@ const { logError } = require('../../utils/logger');
 
 
 function formatDateForInput(value) {
-  if (!value) return '';
+    if (!value) {
+        return '';
+    }
 
-  const date = new Date(value);
+    const utcDate =
+        new Date(
+            String(value)
+                .replace(' ', 'T') + 'Z'
+        );
 
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
+    if (
+        Number.isNaN(
+            utcDate.getTime()
+        )
+    ) {
+        return '';
+    }
 
-  return date
-    .toISOString()
-    .slice(0, 16)
-    .replace('T', ' ');
+    const formatter =
+        new Intl.DateTimeFormat(
+            'sv-SE',
+            {
+                timeZone: 'Europe/Warsaw',
+
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+
+                hour: '2-digit',
+                minute: '2-digit',
+
+                hourCycle: 'h23'
+            }
+        );
+
+    return formatter
+        .format(utcDate)
+        .replace(',', '');
 }
 
 
 module.exports = async function editMatchSelect(
-  interaction
+    interaction
 ) {
-  try {
-    if (!interaction.isStringSelectMenu()) {
-      return;
-    }
+    try {
+        if (!interaction.isStringSelectMenu()) {
+            return;
+        }
 
-    if (
-      interaction.customId !==
-      'edit_match_select'
-    ) {
-      return;
-    }
+        if (
+            interaction.customId !==
+            'edit_match_select'
+        ) {
+            return;
+        }
 
-    if (!isAdmin(interaction)) {
-      return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
-      });
-    }
+        if (!isAdmin(interaction)) {
+            return interaction.reply({
+                content: '❌ Brak uprawnień.',
+                ephemeral: true
+            });
+        }
 
-    const matchId =
-      Number(interaction.values?.[0]);
+        const matchId =
+            Number(interaction.values?.[0]);
 
-    if (!matchId) {
-      return interaction.reply({
-        content:
-          '❌ Nieprawidłowe ID meczu.',
-        ephemeral: true
-      });
-    }
+        if (!matchId) {
+            return interaction.reply({
+                content:
+                    '❌ Nieprawidłowe ID meczu.',
+                ephemeral: true
+            });
+        }
 
-    return withGuild(
-      interaction,
-      async ({ pool, guildId }) => {
+        return withGuild(
+            interaction,
+            async ({ pool, guildId }) => {
 
-        const [[match]] =
-          await pool.query(
-            `
+                const [[match]] =
+                    await pool.query(
+                        `
             SELECT
               m.id,
               m.event_id,
@@ -93,155 +119,155 @@ module.exports = async function editMatchSelect(
 
             LIMIT 1
             `,
-            [
-              guildId,
-              matchId
-            ]
-          );
+                        [
+                            guildId,
+                            matchId
+                        ]
+                    );
 
-        if (!match) {
-          return interaction.reply({
-            content:
-              '❌ Nie znaleziono meczu.',
-            ephemeral: true
-          });
-        }
+                if (!match) {
+                    return interaction.reply({
+                        content:
+                            '❌ Nie znaleziono meczu.',
+                        ephemeral: true
+                    });
+                }
 
-        const lockedFields =
-          Number(match.has_result) === 1;
+                const lockedFields =
+                    Number(match.has_result) === 1;
 
-        const modal =
-          new ModalBuilder()
-            .setCustomId(
-              `edit_match_modal:${match.id}`
-            )
-            .setTitle(
-              lockedFields
-                ? 'Edytuj rozliczony mecz'
-                : 'Edytuj mecz'
-            );
-
-
-        const teamA =
-          new TextInputBuilder()
-            .setCustomId('team_a')
-            .setLabel('Drużyna A')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setValue(
-              String(match.team_a || '')
-            );
+                const modal =
+                    new ModalBuilder()
+                        .setCustomId(
+                            `edit_match_modal:${match.id}`
+                        )
+                        .setTitle(
+                            lockedFields
+                                ? 'Edytuj rozliczony mecz'
+                                : 'Edytuj mecz'
+                        );
 
 
-        const teamB =
-          new TextInputBuilder()
-            .setCustomId('team_b')
-            .setLabel('Drużyna B')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setValue(
-              String(match.team_b || '')
-            );
+                const teamA =
+                    new TextInputBuilder()
+                        .setCustomId('team_a')
+                        .setLabel('Drużyna A')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setValue(
+                            String(match.team_a || '')
+                        );
 
 
-        const bestOf =
-          new TextInputBuilder()
-            .setCustomId('best_of')
-            .setLabel('BO (1 / 3 / 5)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true)
-            .setValue(
-              String(match.best_of || 3)
-            );
+                const teamB =
+                    new TextInputBuilder()
+                        .setCustomId('team_b')
+                        .setLabel('Drużyna B')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setValue(
+                            String(match.team_b || '')
+                        );
 
 
-        const matchNo =
-          new TextInputBuilder()
-            .setCustomId('match_no')
-            .setLabel('Numer meczu')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-            .setValue(
-              match.match_no == null
-                ? ''
-                : String(match.match_no)
-            );
+                const bestOf =
+                    new TextInputBuilder()
+                        .setCustomId('best_of')
+                        .setLabel('BO (1 / 3 / 5)')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(true)
+                        .setValue(
+                            String(match.best_of || 3)
+                        );
 
 
-        const startTime =
-          new TextInputBuilder()
-            .setCustomId('start_time')
-            .setLabel(
-              'Start UTC: YYYY-MM-DD HH:mm'
-            )
-            .setStyle(TextInputStyle.Short)
-            .setRequired(false)
-            .setValue(
-              formatDateForInput(
-                match.start_time_utc
-              )
-            );
+                const matchNo =
+                    new TextInputBuilder()
+                        .setCustomId('match_no')
+                        .setLabel('Numer meczu')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setValue(
+                            match.match_no == null
+                                ? ''
+                                : String(match.match_no)
+                        );
 
 
-        if (lockedFields) {
-          teamA.setPlaceholder(
-            'Rozliczony mecz — zmiana zablokowana'
-          );
+                const startTime =
+                    new TextInputBuilder()
+                        .setCustomId('start_time')
+                        .setLabel(
+                            'Start UTC: YYYY-MM-DD HH:mm'
+                        )
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setValue(
+                            formatDateForInput(
+                                match.start_time_utc
+                            )
+                        );
 
-          teamB.setPlaceholder(
-            'Rozliczony mecz — zmiana zablokowana'
-          );
 
-          bestOf.setPlaceholder(
-            'Rozliczony mecz — zmiana zablokowana'
-          );
-        }
+                if (lockedFields) {
+                    teamA.setPlaceholder(
+                        'Rozliczony mecz — zmiana zablokowana'
+                    );
+
+                    teamB.setPlaceholder(
+                        'Rozliczony mecz — zmiana zablokowana'
+                    );
+
+                    bestOf.setPlaceholder(
+                        'Rozliczony mecz — zmiana zablokowana'
+                    );
+                }
 
 
-        modal.addComponents(
-          new ActionRowBuilder()
-            .addComponents(teamA),
+                modal.addComponents(
+                    new ActionRowBuilder()
+                        .addComponents(teamA),
 
-          new ActionRowBuilder()
-            .addComponents(teamB),
+                    new ActionRowBuilder()
+                        .addComponents(teamB),
 
-          new ActionRowBuilder()
-            .addComponents(bestOf),
+                    new ActionRowBuilder()
+                        .addComponents(bestOf),
 
-          new ActionRowBuilder()
-            .addComponents(matchNo),
+                    new ActionRowBuilder()
+                        .addComponents(matchNo),
 
-          new ActionRowBuilder()
-            .addComponents(startTime)
+                    new ActionRowBuilder()
+                        .addComponents(startTime)
+                );
+
+
+                return interaction.showModal(
+                    modal
+                );
+            }
         );
 
+    } catch (err) {
 
-        return interaction.showModal(
-          modal
+        logError(
+            'matches',
+            'editMatchSelect failed',
+            {
+                message: err.message,
+                stack: err.stack
+            }
         );
-      }
-    );
 
-  } catch (err) {
-
-    logError(
-      'matches',
-      'editMatchSelect failed',
-      {
-        message: err.message,
-        stack: err.stack
-      }
-    );
-
-    if (
-      !interaction.replied &&
-      !interaction.deferred
-    ) {
-      return interaction.reply({
-        content:
-          '❌ Nie udało się otworzyć edycji meczu.',
-        ephemeral: true
-      }).catch(() => {});
+        if (
+            !interaction.replied &&
+            !interaction.deferred
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ Nie udało się otworzyć edycji meczu.',
+                ephemeral: true
+            }).catch(() => { });
+        }
     }
-  }
 };

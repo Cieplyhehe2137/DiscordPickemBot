@@ -1,189 +1,265 @@
 const isAdmin = require('../../utils/isAdmin');
 
 const {
-  withGuild
+    withGuild
 } = require('../../utils/guildContext');
 
 const {
-  logInfo,
-  logError
+    logInfo,
+    logError
 } = require('../../utils/logger');
 
 
-function parseStartTime(value) {
-  const raw =
-    String(value || '').trim();
+function parsePolishTimeToUtc(value) {
+    const raw = String(value || '').trim();
 
-  if (!raw) {
-    return null;
-  }
+    if (!raw) {
+        return null;
+    }
 
-  const normalized =
-    raw.replace(' ', 'T');
+    const match = raw.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/
+    );
 
-  const date =
-    new Date(`${normalized}:00Z`);
+    if (!match) {
+        return undefined;
+    }
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
-    return undefined;
-  }
+    const [
+        ,
+        yearRaw,
+        monthRaw,
+        dayRaw,
+        hourRaw,
+        minuteRaw
+    ] = match;
 
-  return date
-    .toISOString()
-    .slice(0, 19)
-    .replace('T', ' ');
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    const day = Number(dayRaw);
+    const hour = Number(hourRaw);
+    const minute = Number(minuteRaw);
+
+    if (
+        month < 1 ||
+        month > 12 ||
+        day < 1 ||
+        day > 31 ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59
+    ) {
+        return undefined;
+    }
+
+    // Startujemy od "naiwnej" daty
+    const naiveUtc = new Date(
+        Date.UTC(
+            year,
+            month - 1,
+            day,
+            hour,
+            minute,
+            0
+        )
+    );
+
+    // Sprawdzamy jaki offset obowiązuje w Warszawie
+    // dla tej konkretnej daty (CET / CEST).
+    const formatter = new Intl.DateTimeFormat(
+        'en-GB',
+        {
+            timeZone: 'Europe/Warsaw',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+        }
+    );
+
+    const parts = formatter.formatToParts(naiveUtc);
+
+    const get = type =>
+        Number(
+            parts.find(
+                part => part.type === type
+            )?.value
+        );
+
+    const warsawAsUtc = Date.UTC(
+        get('year'),
+        get('month') - 1,
+        get('day'),
+        get('hour'),
+        get('minute'),
+        get('second')
+    );
+
+    const offsetMs =
+        warsawAsUtc -
+        naiveUtc.getTime();
+
+    const actualUtc =
+        new Date(
+            naiveUtc.getTime() -
+            offsetMs
+        );
+
+    return actualUtc
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
 }
 
 
 module.exports = async function editMatchModal(
-  interaction
+    interaction
 ) {
-  try {
-    if (!interaction.isModalSubmit()) {
-      return;
-    }
+    try {
+        if (!interaction.isModalSubmit()) {
+            return;
+        }
 
-    if (
-      !String(
-        interaction.customId || ''
-      ).startsWith(
-        'edit_match_modal:'
-      )
-    ) {
-      return;
-    }
-
-
-    if (!isAdmin(interaction)) {
-      return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
-      });
-    }
+        if (
+            !String(
+                interaction.customId || ''
+            ).startsWith(
+                'edit_match_modal:'
+            )
+        ) {
+            return;
+        }
 
 
-    const matchId = Number(
-      String(interaction.customId)
-        .split(':')[1]
-    );
+        if (!isAdmin(interaction)) {
+            return interaction.reply({
+                content: '❌ Brak uprawnień.',
+                ephemeral: true
+            });
+        }
 
 
-    if (!matchId) {
-      return interaction.reply({
-        content:
-          '❌ Nieprawidłowe ID meczu.',
-        ephemeral: true
-      });
-    }
+        const matchId = Number(
+            String(interaction.customId)
+                .split(':')[1]
+        );
 
 
-    const teamA =
-      interaction.fields
-        .getTextInputValue('team_a')
-        .trim();
+        if (!matchId) {
+            return interaction.reply({
+                content:
+                    '❌ Nieprawidłowe ID meczu.',
+                ephemeral: true
+            });
+        }
 
 
-    const teamB =
-      interaction.fields
-        .getTextInputValue('team_b')
-        .trim();
+        const teamA =
+            interaction.fields
+                .getTextInputValue('team_a')
+                .trim();
 
 
-    const bestOf =
-      Number(
-        interaction.fields
-          .getTextInputValue('best_of')
-      );
+        const teamB =
+            interaction.fields
+                .getTextInputValue('team_b')
+                .trim();
 
 
-    const matchNoRaw =
-      interaction.fields
-        .getTextInputValue('match_no')
-        .trim();
+        const bestOf =
+            Number(
+                interaction.fields
+                    .getTextInputValue('best_of')
+            );
 
 
-    const startRaw =
-      interaction.fields
-        .getTextInputValue('start_time')
-        .trim();
+        const matchNoRaw =
+            interaction.fields
+                .getTextInputValue('match_no')
+                .trim();
 
 
-    if (
-      !teamA ||
-      !teamB
-    ) {
-      return interaction.reply({
-        content:
-          '❌ Nazwy obu drużyn są wymagane.',
-        ephemeral: true
-      });
-    }
+        const startRaw =
+            interaction.fields
+                .getTextInputValue('start_time')
+                .trim();
 
 
-    if (
-      ![1, 3, 5].includes(bestOf)
-    ) {
-      return interaction.reply({
-        content:
-          '❌ BO musi wynosić 1, 3 albo 5.',
-        ephemeral: true
-      });
-    }
+        if (
+            !teamA ||
+            !teamB
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ Nazwy obu drużyn są wymagane.',
+                ephemeral: true
+            });
+        }
 
 
-    const matchNo =
-      matchNoRaw
-        ? Number(matchNoRaw)
-        : null;
+        if (
+            ![1, 3, 5].includes(bestOf)
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ BO musi wynosić 1, 3 albo 5.',
+                ephemeral: true
+            });
+        }
 
 
-    if (
-      matchNoRaw &&
-      (
-        !Number.isInteger(matchNo) ||
-        matchNo <= 0
-      )
-    ) {
-      return interaction.reply({
-        content:
-          '❌ Numer meczu musi być dodatnią liczbą całkowitą.',
-        ephemeral: true
-      });
-    }
+        const matchNo =
+            matchNoRaw
+                ? Number(matchNoRaw)
+                : null;
 
 
-    const startTime =
-      parseStartTime(startRaw);
+        if (
+            matchNoRaw &&
+            (
+                !Number.isInteger(matchNo) ||
+                matchNo <= 0
+            )
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ Numer meczu musi być dodatnią liczbą całkowitą.',
+                ephemeral: true
+            });
+        }
 
 
-    if (
-      startRaw &&
-      startTime === undefined
-    ) {
-      return interaction.reply({
-        content:
-          '❌ Nieprawidłowa data. Użyj formatu: `YYYY-MM-DD HH:mm`.',
-        ephemeral: true
-      });
-    }
+        const startTime =
+            parsePolishTimeToUtc(startRaw);
 
 
-    await interaction.deferReply({
-      ephemeral: true
-    });
+        if (
+            startRaw &&
+            startTime === undefined
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ Nieprawidłowa data. Użyj czasu polskiego w formacie: `YYYY-MM-DD HH:mm`.',
+                ephemeral: true
+            });
+        }
+
+        await interaction.deferReply({
+            ephemeral: true
+        });
 
 
-    return withGuild(
-      interaction,
-      async ({ pool, guildId }) => {
+        return withGuild(
+            interaction,
+            async ({ pool, guildId }) => {
 
-        const [[match]] =
-          await pool.query(
-            `
+                const [[match]] =
+                    await pool.query(
+                        `
             SELECT
               m.id,
               m.event_id,
@@ -211,59 +287,59 @@ module.exports = async function editMatchModal(
 
             LIMIT 1
             `,
-            [
-              guildId,
-              matchId
-            ]
-          );
+                        [
+                            guildId,
+                            matchId
+                        ]
+                    );
 
 
-        if (!match) {
-          return interaction.editReply({
-            content:
-              '❌ Nie znaleziono meczu.'
-          });
-        }
+                if (!match) {
+                    return interaction.editReply({
+                        content:
+                            '❌ Nie znaleziono meczu.'
+                    });
+                }
 
 
-        const hasResult =
-          Number(match.has_result) === 1;
+                const hasResult =
+                    Number(match.has_result) === 1;
 
 
-        // =========================================
-        // ROZLICZONY MECZ
-        // =========================================
+                // =========================================
+                // ROZLICZONY MECZ
+                // =========================================
 
-        if (hasResult) {
-          const changedTeams =
-            teamA !== String(match.team_a) ||
-            teamB !== String(match.team_b);
+                if (hasResult) {
+                    const changedTeams =
+                        teamA !== String(match.team_a) ||
+                        teamB !== String(match.team_b);
 
-          const changedBo =
-            bestOf !==
-            Number(match.best_of);
-
-
-          if (
-            changedTeams ||
-            changedBo
-          ) {
-            return interaction.editReply({
-              content:
-                '❌ **Ten mecz jest już rozliczony.**\n\n' +
-                'Nie możesz zmienić drużyn ani BO.\n' +
-                'Najpierw użyj **↩️ Cofnij wynik**, a potem edytuj mecz.'
-            });
-          }
-        }
+                    const changedBo =
+                        bestOf !==
+                        Number(match.best_of);
 
 
-        // =========================================
-        // UPDATE
-        // =========================================
+                    if (
+                        changedTeams ||
+                        changedBo
+                    ) {
+                        return interaction.editReply({
+                            content:
+                                '❌ **Ten mecz jest już rozliczony.**\n\n' +
+                                'Nie możesz zmienić drużyn ani BO.\n' +
+                                'Najpierw użyj **↩️ Cofnij wynik**, a potem edytuj mecz.'
+                        });
+                    }
+                }
 
-        await pool.query(
-          `
+
+                // =========================================
+                // UPDATE
+                // =========================================
+
+                await pool.query(
+                    `
           UPDATE matches
           SET
             team_a = ?,
@@ -277,98 +353,98 @@ module.exports = async function editMatchModal(
 
           LIMIT 1
           `,
-          [
-            teamA,
-            teamB,
-            bestOf,
-            matchNo,
-            startTime,
-            guildId,
-            matchId
-          ]
-        );
+                    [
+                        teamA,
+                        teamB,
+                        bestOf,
+                        matchNo,
+                        startTime,
+                        guildId,
+                        matchId
+                    ]
+                );
 
 
-        logInfo(
-          'matches',
-          'Match edited',
-          {
-            guildId,
-            eventId:
-              match.event_id,
+                logInfo(
+                    'matches',
+                    'Match edited',
+                    {
+                        guildId,
+                        eventId:
+                            match.event_id,
 
-            matchId,
+                        matchId,
 
-            userId:
-              interaction.user.id,
+                        userId:
+                            interaction.user.id,
 
-            before: {
-              teamA:
-                match.team_a,
+                        before: {
+                            teamA:
+                                match.team_a,
 
-              teamB:
-                match.team_b,
+                            teamB:
+                                match.team_b,
 
-              bestOf:
-                match.best_of,
+                            bestOf:
+                                match.best_of,
 
-              matchNo:
-                match.match_no,
+                            matchNo:
+                                match.match_no,
 
-              startTime:
-                match.start_time_utc
-            },
+                            startTime:
+                                match.start_time_utc
+                        },
 
-            after: {
-              teamA,
-              teamB,
-              bestOf,
-              matchNo,
-              startTime
+                        after: {
+                            teamA,
+                            teamB,
+                            bestOf,
+                            matchNo,
+                            startTime
+                        }
+                    }
+                );
+
+
+                return interaction.editReply({
+                    content:
+                        `✅ **Mecz zaktualizowany**\n\n` +
+                        `🎮 **${teamA} vs ${teamB}**\n` +
+                        `📋 BO: **${bestOf}**\n` +
+                        `🔢 Numer: **${matchNo ?? 'brak'}**\n` +
+                        `🕒 Start UTC: **${startTime || 'brak'}**`
+                });
             }
-          }
         );
 
 
-        return interaction.editReply({
-          content:
-            `✅ **Mecz zaktualizowany**\n\n` +
-            `🎮 **${teamA} vs ${teamB}**\n` +
-            `📋 BO: **${bestOf}**\n` +
-            `🔢 Numer: **${matchNo ?? 'brak'}**\n` +
-            `🕒 Start UTC: **${startTime || 'brak'}**`
-        });
-      }
-    );
+    } catch (err) {
+
+        logError(
+            'matches',
+            'editMatchModal failed',
+            {
+                message: err.message,
+                stack: err.stack
+            }
+        );
 
 
-  } catch (err) {
+        if (
+            interaction.deferred ||
+            interaction.replied
+        ) {
+            return interaction.editReply({
+                content:
+                    '❌ Nie udało się zapisać zmian meczu.'
+            }).catch(() => { });
+        }
 
-    logError(
-      'matches',
-      'editMatchModal failed',
-      {
-        message: err.message,
-        stack: err.stack
-      }
-    );
 
-
-    if (
-      interaction.deferred ||
-      interaction.replied
-    ) {
-      return interaction.editReply({
-        content:
-          '❌ Nie udało się zapisać zmian meczu.'
-      }).catch(() => {});
+        return interaction.reply({
+            content:
+                '❌ Nie udało się zapisać zmian meczu.',
+            ephemeral: true
+        }).catch(() => { });
     }
-
-
-    return interaction.reply({
-      content:
-        '❌ Nie udało się zapisać zmian meczu.',
-      ephemeral: true
-    }).catch(() => {});
-  }
 };
