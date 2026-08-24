@@ -24,6 +24,7 @@ const VALUE_TO_TARGET_CUSTOM_ID = {
   'danger:fullReset': 'clear_db_with_results',
   'danger:clearMatches': 'clear_matches',
   'matches:undo_result': 'undo_match_result_open',
+  'matches:edit': 'edit_match_open',
 };
 
 function proxyCustomId(interaction, forcedCustomId) {
