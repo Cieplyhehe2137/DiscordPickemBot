@@ -126,4 +126,10 @@ module.exports = {
 
   'undo_match_result_cancel':
     'undoMatchResultCancel',
+
+  'edit_match_confirm:':
+    'editMatchConfirm',
+
+  'edit_match_cancel:':
+    'editMatchCancel',
 };

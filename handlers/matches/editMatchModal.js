@@ -9,6 +9,13 @@ const {
     logError
 } = require('../../utils/logger');
 
+const {
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
+} = require('discord.js');
+
 
 function parsePolishTimeToUtc(value) {
     const raw = String(value || '').trim();
@@ -335,34 +342,61 @@ module.exports = async function editMatchModal(
 
 
                 // =========================================
-                // UPDATE
+                // USUWAMY STARY PENDING EDIT USERA
                 // =========================================
 
                 await pool.query(
                     `
-          UPDATE matches
-          SET
-            team_a = ?,
-            team_b = ?,
-            best_of = ?,
-            match_no = ?,
-            start_time_utc = ?
-
-          WHERE guild_id = ?
-            AND id = ?
-
-          LIMIT 1
-          `,
+  DELETE FROM pending_match_edits
+  WHERE guild_id = ?
+    AND user_id = ?
+  `,
                     [
-                        teamA,
-                        teamB,
-                        bestOf,
-                        matchNo,
-                        startTime,
                         guildId,
-                        matchId
+                        interaction.user.id
                     ]
                 );
+
+
+                // =========================================
+                // ZAPISUJEMY PENDING EDIT
+                // =========================================
+
+                const [insertResult] =
+                    await pool.query(
+                        `
+    INSERT INTO pending_match_edits (
+      guild_id,
+      user_id,
+      match_id,
+
+      team_a,
+      team_b,
+
+      best_of,
+      match_no,
+      start_time_utc
+    )
+
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+                        [
+                            guildId,
+                            interaction.user.id,
+                            matchId,
+
+                            teamA,
+                            teamB,
+
+                            bestOf,
+                            matchNo,
+                            startTime
+                        ]
+                    );
+
+
+                const editId =
+                    insertResult.insertId;
 
 
                 logInfo(
@@ -406,13 +440,133 @@ module.exports = async function editMatchModal(
                 );
 
 
+                function display(value) {
+                    if (
+                        value === null ||
+                        value === undefined ||
+                        value === ''
+                    ) {
+                        return '—';
+                    }
+
+                    return String(value);
+                }
+
+
+                function changeLine(
+                    label,
+                    before,
+                    after
+                ) {
+                    const oldValue =
+                        display(before);
+
+                    const newValue =
+                        display(after);
+
+                    if (oldValue === newValue) {
+                        return (
+                            `${label}: **${newValue}**`
+                        );
+                    }
+
+                    return (
+                        `${label}:\n` +
+                        `~~${oldValue}~~ ➜ **${newValue}**`
+                    );
+                }
+
+
+                const previewEmbed =
+                    new EmbedBuilder()
+
+                        .setColor(0xFEE75C)
+
+                        .setTitle(
+                            '✏️ Podgląd zmian meczu'
+                        )
+
+                        .setDescription(
+                            `### ${teamA} vs ${teamB}\n\n` +
+
+                            changeLine(
+                                '🔵 Drużyna A',
+                                match.team_a,
+                                teamA
+                            ) +
+
+                            '\n\n' +
+
+                            changeLine(
+                                '🔴 Drużyna B',
+                                match.team_b,
+                                teamB
+                            ) +
+
+                            '\n\n' +
+
+                            changeLine(
+                                '🎮 Format',
+                                `BO${match.best_of}`,
+                                `BO${bestOf}`
+                            ) +
+
+                            '\n\n' +
+
+                            changeLine(
+                                '🔢 Numer meczu',
+                                match.match_no,
+                                matchNo
+                            ) +
+
+                            '\n\n' +
+
+                            changeLine(
+                                '🕒 Start',
+                                match.start_time_utc,
+                                startTime
+                            ) +
+
+                            '\n\n' +
+
+                            '⚠️ **Zmiany nie zostały jeszcze zapisane.**'
+                        );
+
+
+                const buttons =
+                    new ActionRowBuilder()
+                        .addComponents(
+
+                            new ButtonBuilder()
+                                .setCustomId(
+                                    `edit_match_confirm:${editId}`
+                                )
+                                .setLabel(
+                                    'Zapisz zmiany'
+                                )
+                                .setEmoji('✅')
+                                .setStyle(
+                                    ButtonStyle.Success
+                                ),
+
+                            new ButtonBuilder()
+                                .setCustomId(
+                                    `edit_match_cancel:${editId}`
+                                )
+                                .setLabel(
+                                    'Anuluj'
+                                )
+                                .setEmoji('❌')
+                                .setStyle(
+                                    ButtonStyle.Secondary
+                                )
+                        );
+
+
                 return interaction.editReply({
-                    content:
-                        `✅ **Mecz zaktualizowany**\n\n` +
-                        `🎮 **${teamA} vs ${teamB}**\n` +
-                        `📋 BO: **${bestOf}**\n` +
-                        `🔢 Numer: **${matchNo ?? 'brak'}**\n` +
-                        `🕒 Start UTC: **${startTime || 'brak'}**`
+                    content: '',
+                    embeds: [previewEmbed],
+                    components: [buttons]
                 });
             }
         );
