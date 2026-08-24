@@ -313,6 +313,172 @@ function calculateTeamStats(rows) {
   };
 }
 
+function formatPercentTrend(value) {
+  const number = Number(value || 0);
+
+  if (Math.abs(number) < 0.05) {
+    return "➡️ **0 pp**";
+  }
+
+  if (number > 0) {
+    return `📈 **+${number.toFixed(1).replace(".0", "")} pp**`;
+  }
+
+  return `📉 **${number.toFixed(1).replace(".0", "")} pp**`;
+}
+
+function formatPointsTrend(value) {
+  const number = Number(value || 0);
+
+  if (Math.abs(number) < 0.005) {
+    return "➡️ **0.00 pkt**";
+  }
+
+  if (number > 0) {
+    return `📈 **+${number.toFixed(2)} pkt**`;
+  }
+
+  return `📉 **${number.toFixed(2)} pkt**`;
+}
+
+function calculateTrendStats({ settledRows, mapRows, pointsByMatch }) {
+  if (settledRows.length < 4) {
+    return {
+      enoughData: false,
+      totalMatches: settledRows.length,
+    };
+  }
+
+  const splitIndex = Math.floor(settledRows.length / 2);
+
+  const firstHalf = settledRows.slice(0, splitIndex);
+  const secondHalf = settledRows.slice(splitIndex);
+
+  const firstIds = new Set(firstHalf.map((row) => String(row.match_id)));
+
+  const secondIds = new Set(secondHalf.map((row) => String(row.match_id)));
+
+  const firstMaps = mapRows.filter((row) => firstIds.has(String(row.match_id)));
+
+  const secondMaps = mapRows.filter((row) =>
+    secondIds.has(String(row.match_id)),
+  );
+
+  function buildHalfStats(rows, maps) {
+    const matchCount = rows.length;
+
+    const winnerHits = rows.filter(isWinnerCorrect).length;
+    const seriesExacts = rows.filter(isSeriesExact).length;
+
+    const mapExacts = maps.filter(isMapExact).length;
+
+    const totalPoints = rows.reduce(
+      (sum, row) => sum + Number(pointsByMatch.get(String(row.match_id)) || 0),
+      0,
+    );
+
+    return {
+      matches: matchCount,
+
+      winnerHits,
+      winnerAccuracy: percentageNumber(winnerHits, matchCount),
+
+      seriesExacts,
+      seriesExactAccuracy: percentageNumber(seriesExacts, matchCount),
+
+      maps: maps.length,
+      mapExacts,
+      mapExactAccuracy: percentageNumber(mapExacts, maps.length),
+
+      totalPoints,
+
+      averagePoints: matchCount ? totalPoints / matchCount : 0,
+    };
+  }
+
+  const first = buildHalfStats(firstHalf, firstMaps);
+
+  const second = buildHalfStats(secondHalf, secondMaps);
+
+  const winnerDelta = second.winnerAccuracy - first.winnerAccuracy;
+
+  const seriesDelta = second.seriesExactAccuracy - first.seriesExactAccuracy;
+
+  const mapDelta = second.mapExactAccuracy - first.mapExactAccuracy;
+
+  const pointsDelta = second.averagePoints - first.averagePoints;
+
+  const percentageDeltas = [
+    {
+      name: "Skuteczność zwycięzców",
+      value: winnerDelta,
+    },
+    {
+      name: "Exacty serii",
+      value: seriesDelta,
+    },
+  ];
+
+  if (first.maps > 0 && second.maps > 0) {
+    percentageDeltas.push({
+      name: "Exacty map",
+      value: mapDelta,
+    });
+  }
+
+  const averageTrend = percentageDeltas.length
+    ? percentageDeltas.reduce((sum, item) => sum + item.value, 0) /
+      percentageDeltas.length
+    : 0;
+
+  let direction = {
+    emoji: "➡️",
+    name: "Stabilna forma",
+    description: "Twoje wyniki pozostają na podobnym poziomie.",
+  };
+
+  if (averageTrend >= 3) {
+    direction = {
+      emoji: "🔥",
+      name: "Forma rośnie",
+      description: "Druga część eventu wygląda lepiej niż początek.",
+    };
+  } else if (averageTrend <= -3) {
+    direction = {
+      emoji: "📉",
+      name: "Forma spada",
+      description: "W drugiej części eventu Twoja skuteczność jest niższa.",
+    };
+  }
+
+  const sortedImprovements = [...percentageDeltas].sort(
+    (a, b) => b.value - a.value,
+  );
+
+  const bestImprovement = sortedImprovements[0] || null;
+
+  const worstChange =
+    [...percentageDeltas].sort((a, b) => a.value - b.value)[0] || null;
+
+  return {
+    enoughData: true,
+
+    first,
+    second,
+
+    winnerDelta,
+    seriesDelta,
+    mapDelta,
+    pointsDelta,
+
+    averageTrend,
+
+    direction,
+    bestImprovement,
+    worstChange,
+  };
+}
+
 function calculatePlayerStyle({
   settledMatches,
   winnerHits,
@@ -520,6 +686,15 @@ function buildStatsButtons(eventId, activeTab) {
         activeTab === "style" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
       .setDisabled(activeTab === "style"),
+
+    new ButtonBuilder()
+      .setCustomId(`my_stats_tab:${eventId}:trends`)
+      .setLabel("Trendy")
+      .setEmoji("📈")
+      .setStyle(
+        activeTab === "trends" ? ButtonStyle.Primary : ButtonStyle.Secondary,
+      )
+      .setDisabled(activeTab === "trends"),
   );
 
   return [row1, row2];
@@ -1188,6 +1363,138 @@ function buildStyleEmbed({ event, style, contrarianStats, settledMatches }) {
 }
 
 // ======================================================
+// EMBED: TRENDY
+// ======================================================
+
+function buildTrendsEmbed({ event, trends }) {
+  if (!trends.enoughData) {
+    return new EmbedBuilder()
+      .setTitle(`📈 Trendy — ${event.name}`)
+      .setColor(0x3498db)
+      .setDescription(
+        "Potrzeba trochę więcej danych, żeby sensownie porównać początek i późniejszą część eventu.",
+      )
+      .addFields({
+        name: "📊 Aktualnie",
+        value:
+          `Rozliczone mecze: **${trends.totalMatches}**\n` +
+          "Minimum do analizy trendów: **4 mecze**",
+        inline: false,
+      })
+      .setFooter({
+        text: "Trendy pojawią się automatycznie po rozegraniu większej liczby meczów.",
+      });
+  }
+
+  const {
+    first,
+    second,
+    winnerDelta,
+    seriesDelta,
+    mapDelta,
+    pointsDelta,
+    direction,
+    bestImprovement,
+    worstChange,
+  } = trends;
+
+  const firstMapText = first.maps > 0 ? pct(first.mapExacts, first.maps) : "—";
+
+  const secondMapText =
+    second.maps > 0 ? pct(second.mapExacts, second.maps) : "—";
+
+  let improvementText = "Brak wyraźnej poprawy.";
+
+  if (bestImprovement && bestImprovement.value > 0) {
+    improvementText =
+      `**${bestImprovement.name}**\n` +
+      formatPercentTrend(bestImprovement.value);
+  }
+
+  let declineText = "Brak wyraźnego spadku.";
+
+  if (worstChange && worstChange.value < 0) {
+    declineText =
+      `**${worstChange.name}**\n` + formatPercentTrend(worstChange.value);
+  }
+
+  return new EmbedBuilder()
+    .setTitle(`📈 Trendy — ${event.name}`)
+    .setColor(
+      direction.name === "Forma rośnie"
+        ? 0x57f287
+        : direction.name === "Forma spada"
+          ? 0xed4245
+          : 0x3498db,
+    )
+    .setDescription(
+      `${direction.emoji} **${direction.name}**\n\n` + direction.description,
+    )
+    .addFields(
+      {
+        name: "🏆 Skuteczność zwycięzców",
+        value:
+          `Początek: **${pct(first.winnerHits, first.matches)}**\n` +
+          `Druga część: **${pct(second.winnerHits, second.matches)}**\n` +
+          `Zmiana: ${formatPercentTrend(winnerDelta)}`,
+        inline: true,
+      },
+
+      {
+        name: "🎯 Exacty serii",
+        value:
+          `Początek: **${pct(first.seriesExacts, first.matches)}**\n` +
+          `Druga część: **${pct(second.seriesExacts, second.matches)}**\n` +
+          `Zmiana: ${formatPercentTrend(seriesDelta)}`,
+        inline: true,
+      },
+
+      {
+        name: "⭐ Punkty / mecz",
+        value:
+          `Początek: **${first.averagePoints.toFixed(2)}**\n` +
+          `Druga część: **${second.averagePoints.toFixed(2)}**\n` +
+          `Zmiana: ${formatPointsTrend(pointsDelta)}`,
+        inline: true,
+      },
+
+      {
+        name: "🗺️ Exacty map",
+        value:
+          `Początek: **${firstMapText}**\n` +
+          `Druga część: **${secondMapText}**\n` +
+          (first.maps > 0 && second.maps > 0
+            ? `Zmiana: ${formatPercentTrend(mapDelta)}`
+            : "Zmiana: **—**"),
+        inline: true,
+      },
+
+      {
+        name: "🚀 Największa poprawa",
+        value: improvementText,
+        inline: true,
+      },
+
+      {
+        name: "⚠️ Największy spadek",
+        value: declineText,
+        inline: true,
+      },
+
+      {
+        name: "📊 Podział danych",
+        value:
+          `Pierwsza część: **${first.matches} meczów**\n` +
+          `Druga część: **${second.matches} meczów**`,
+        inline: false,
+      },
+    )
+    .setFooter({
+      text: "Trendy porównują pierwszą i drugą połowę Twoich rozliczonych meczów.",
+    });
+}
+
+// ======================================================
 // MAIN
 // ======================================================
 
@@ -1521,6 +1828,43 @@ module.exports = async function showMyStats(interaction) {
         : "0.00";
 
       // ==================================================
+      // PUNKTY PER MECZ — TRENDY
+      // ==================================================
+
+      const [pointsPerMatchRows] = await pool.query(
+        `
+    SELECT
+      match_id,
+      COALESCE(
+        SUM(points),
+        0
+      ) AS total_points
+
+    FROM match_points
+
+    WHERE guild_id = ?
+      AND event_id = ?
+      AND user_id = ?
+
+    GROUP BY match_id
+    `,
+        [guildId, eventId, userId],
+      );
+
+      const pointsByMatch = new Map(
+        pointsPerMatchRows.map((row) => [
+          String(row.match_id),
+          Number(row.total_points || 0),
+        ]),
+      );
+
+      const trends = calculateTrendStats({
+        settledRows,
+        mapRows,
+        pointsByMatch,
+      });
+
+      // ==================================================
       // PORÓWNANIE — WSZYSTKIE ROZLICZONE TYPY
       // ==================================================
 
@@ -1781,6 +2125,11 @@ module.exports = async function showMyStats(interaction) {
           style,
           contrarianStats,
           settledMatches,
+        });
+      } else if (activeTab === "trends") {
+        embed = buildTrendsEmbed({
+          event,
+          trends,
         });
       } else {
         activeTab = "general";
