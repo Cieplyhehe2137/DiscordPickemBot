@@ -118,7 +118,7 @@ module.exports = {
 
   // ===== COFANIE WYNIKU MECZU =====
 
-  'undo_match_result': 'undoMatchResult',
+  'undo_match_result_open': 'undoMatchResult',
 
   'undo_match_result_confirm:':
     'undoMatchResultConfirm',
