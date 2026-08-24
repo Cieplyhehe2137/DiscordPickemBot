@@ -115,4 +115,14 @@ module.exports = {
   'mvp:admin:list': 'showMvpCandidates',
   'mvp:admin:show_result': 'showOfficialMvp',
   'mvp:set_result': 'openMvpAdminPanel',
+
+  // ===== COFANIE WYNIKU MECZU =====
+
+  'undo_match_result': 'undoMatchResult',
+
+  'undo_match_result_confirm:':
+    'undoMatchResultConfirm',
+
+  'undo_match_result_cancel':
+    'undoMatchResultCancel',
 };

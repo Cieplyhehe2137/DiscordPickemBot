@@ -38,6 +38,11 @@ function buildMenu(customId) {
             emoji: '🎯'
           },
           {
+            label: 'Cofnij wynik meczu',
+            value: 'matches:undo_result',
+            emoji: '↩️'
+          },
+          {
             label: 'Blokada / odblokowanie meczu',
             value: 'matches:lock',
             emoji: '🔐'

@@ -97,4 +97,7 @@ module.exports = {
   'auto_start:phase_select:': 'autoStartPhaseSelect',
   'auto_start:channel_select:': 'autoStartChannelSelect',
   'auto_start:cancel_select': 'autoStartCancelSelect',
+
+  'undo_match_result_select':
+  'undoMatchResultSelect',
 };
