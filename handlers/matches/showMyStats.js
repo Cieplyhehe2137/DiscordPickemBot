@@ -437,18 +437,222 @@ function calculateTeamStats(rows) {
   };
 }
 
+function calculatePlayerStyle({
+  settledMatches,
+  winnerHits,
+  seriesExacts,
+
+  settledMaps,
+  mapWinnerHits,
+  exactMaps,
+
+  contrarianPicks,
+  contrarianHits,
+
+  majorityPicks,
+  majorityHits
+}) {
+  if (settledMatches < 5) {
+    return {
+      emoji: '🌱',
+      name: 'Debiutant',
+      description:
+        'Potrzeba minimum 5 rozliczonych meczów, żeby określić Twój styl typowania.'
+    };
+  }
+
+
+  const winnerAccuracy =
+    percentageNumber(
+      winnerHits,
+      settledMatches
+    );
+
+
+  const exactAccuracy =
+    percentageNumber(
+      seriesExacts,
+      settledMatches
+    );
+
+
+  const mapAccuracy =
+    percentageNumber(
+      mapWinnerHits,
+      settledMaps
+    );
+
+
+  const mapExactAccuracy =
+    percentageNumber(
+      exactMaps,
+      settledMaps
+    );
+
+
+  const contrarianRate =
+    percentageNumber(
+      contrarianPicks,
+      settledMatches
+    );
+
+
+  const contrarianAccuracy =
+    percentageNumber(
+      contrarianHits,
+      contrarianPicks
+    );
+
+
+  const majorityRate =
+    percentageNumber(
+      majorityPicks,
+      settledMatches
+    );
+
+
+  const majorityAccuracy =
+    percentageNumber(
+      majorityHits,
+      majorityPicks
+    );
+
+
+  // =========================================
+  // UNDERDOG HUNTER
+  // =========================================
+
+  if (
+    contrarianPicks >= 3 &&
+    contrarianRate >= 30 &&
+    contrarianAccuracy >= 50
+  ) {
+    return {
+      emoji: '💎',
+      name: 'Underdog Hunter',
+      description:
+        'Często idziesz przeciwko większości i potrafisz trafiać takie wybory.'
+    };
+  }
+
+
+  // =========================================
+  // MAP EXPERT
+  // =========================================
+
+  if (
+    settledMaps >= 5 &&
+    mapAccuracy >= 75
+  ) {
+    return {
+      emoji: '🗺️',
+      name: 'Map Expert',
+      description:
+        'Największą przewagę budujesz na typowaniu wyników map.'
+    };
+  }
+
+
+  // =========================================
+  // SNIPER
+  // =========================================
+
+  if (
+    settledMatches >= 5 &&
+    exactAccuracy >= 30
+  ) {
+    return {
+      emoji: '🎯',
+      name: 'Snajper',
+      description:
+        'Masz wyjątkowo dobre oko do dokładnych wyników serii.'
+    };
+  }
+
+
+  // =========================================
+  // SAFE PLAYER
+  // =========================================
+
+  if (
+    majorityRate >= 70 &&
+    majorityAccuracy >= 60
+  ) {
+    return {
+      emoji: '🛡️',
+      name: 'Bezpieczny gracz',
+      description:
+        'Najczęściej wybierasz stronę popieraną przez większość społeczności.'
+    };
+  }
+
+
+  // =========================================
+  // CONSISTENT
+  // =========================================
+
+  if (winnerAccuracy >= 70) {
+    return {
+      emoji: '📈',
+      name: 'Regularny',
+      description:
+        'Nie kombinujesz bez potrzeby — po prostu regularnie trafiasz zwycięzców.'
+    };
+  }
+
+
+  // =========================================
+  // MAP SNIPER
+  // =========================================
+
+  if (
+    settledMaps >= 5 &&
+    mapExactAccuracy >= 25
+  ) {
+    return {
+      emoji: '💯',
+      name: 'Map Sniper',
+      description:
+        'Masz dobre wyczucie dokładnych wyników poszczególnych map.'
+    };
+  }
+
+
+  // =========================================
+  // RISK TAKER
+  // =========================================
+
+  if (contrarianRate >= 30) {
+    return {
+      emoji: '🎲',
+      name: 'Ryzykant',
+      description:
+        'Lubisz iść własną drogą, nawet gdy większość typuje przeciwnie.'
+    };
+  }
+
+
+  // =========================================
+  // BALANCED
+  // =========================================
+
+  return {
+    emoji: '⚖️',
+    name: 'Zbalansowany',
+    description:
+      'Łączysz bezpieczne wybory z własnym wyczuciem i nie trzymasz się jednego schematu.'
+  };
+}
+
 
 // ======================================================
 // BUTTONY ZAKŁADEK
 // ======================================================
 
 function buildStatsButtons(eventId, activeTab) {
-  return new ActionRowBuilder().addComponents(
-
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(
-        `my_stats_tab:${eventId}:general`
-      )
+      .setCustomId(`my_stats_tab:${eventId}:general`)
       .setLabel('Ogólne')
       .setEmoji('📊')
       .setStyle(
@@ -459,9 +663,7 @@ function buildStatsButtons(eventId, activeTab) {
       .setDisabled(activeTab === 'general'),
 
     new ButtonBuilder()
-      .setCustomId(
-        `my_stats_tab:${eventId}:accuracy`
-      )
+      .setCustomId(`my_stats_tab:${eventId}:accuracy`)
       .setLabel('Skuteczność')
       .setEmoji('🎯')
       .setStyle(
@@ -472,9 +674,7 @@ function buildStatsButtons(eventId, activeTab) {
       .setDisabled(activeTab === 'accuracy'),
 
     new ButtonBuilder()
-      .setCustomId(
-        `my_stats_tab:${eventId}:form`
-      )
+      .setCustomId(`my_stats_tab:${eventId}:form`)
       .setLabel('Forma')
       .setEmoji('🔥')
       .setStyle(
@@ -485,9 +685,7 @@ function buildStatsButtons(eventId, activeTab) {
       .setDisabled(activeTab === 'form'),
 
     new ButtonBuilder()
-      .setCustomId(
-        `my_stats_tab:${eventId}:comparison`
-      )
+      .setCustomId(`my_stats_tab:${eventId}:comparison`)
       .setLabel('Porównanie')
       .setEmoji('👥')
       .setStyle(
@@ -498,9 +696,7 @@ function buildStatsButtons(eventId, activeTab) {
       .setDisabled(activeTab === 'comparison'),
 
     new ButtonBuilder()
-      .setCustomId(
-        `my_stats_tab:${eventId}:analysis`
-      )
+      .setCustomId(`my_stats_tab:${eventId}:analysis`)
       .setLabel('Analiza')
       .setEmoji('🧠')
       .setStyle(
@@ -510,6 +706,172 @@ function buildStatsButtons(eventId, activeTab) {
       )
       .setDisabled(activeTab === 'analysis')
   );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`my_stats_tab:${eventId}:style`)
+      .setLabel('Styl gracza')
+      .setEmoji('🎭')
+      .setStyle(
+        activeTab === 'style'
+          ? ButtonStyle.Primary
+          : ButtonStyle.Secondary
+      )
+      .setDisabled(activeTab === 'style')
+  );
+
+  return [row1, row2];
+}
+
+function calculateContrarianStats(
+  userRows,
+  communityRows
+) {
+  const communityByMatch = new Map();
+
+  // =========================================
+  // LICZYMY PICKI SPOŁECZNOŚCI PER MECZ
+  // =========================================
+
+  for (const row of communityRows) {
+    const matchId = String(row.match_id);
+
+    if (!communityByMatch.has(matchId)) {
+      communityByMatch.set(matchId, {
+        teamA: 0,
+        teamB: 0,
+        total: 0
+      });
+    }
+
+    const stats =
+      communityByMatch.get(matchId);
+
+    const side = winnerSide(
+      row.pred_a,
+      row.pred_b
+    );
+
+    if (side === 1) {
+      stats.teamA += 1;
+      stats.total += 1;
+    }
+
+    else if (side === -1) {
+      stats.teamB += 1;
+      stats.total += 1;
+    }
+  }
+
+
+  let contrarianPicks = 0;
+  let contrarianHits = 0;
+
+  let majorityPicks = 0;
+  let majorityHits = 0;
+
+  let rarestHit = null;
+
+
+  // =========================================
+  // ANALIZA USERA
+  // =========================================
+
+  for (const row of userRows) {
+    const stats =
+      communityByMatch.get(
+        String(row.match_id)
+      );
+
+    if (!stats || !stats.total) {
+      continue;
+    }
+
+    const predictedSide =
+      winnerSide(
+        row.pred_a,
+        row.pred_b
+      );
+
+    if (!predictedSide) {
+      continue;
+    }
+
+    const pickedCount =
+      predictedSide === 1
+        ? stats.teamA
+        : stats.teamB;
+
+    const pickedPercent =
+      (
+        pickedCount /
+        stats.total
+      ) * 100;
+
+    const correct =
+      isWinnerCorrect(row);
+
+
+    // =====================================
+    // PICK MNIEJSZOŚCIOWY
+    // =====================================
+
+    if (pickedPercent < 50) {
+      contrarianPicks += 1;
+
+      if (correct) {
+        contrarianHits += 1;
+
+        if (
+          !rarestHit ||
+          pickedPercent <
+          rarestHit.percent
+        ) {
+          rarestHit = {
+            team:
+              predictedSide === 1
+                ? row.team_a
+                : row.team_b,
+
+            opponent:
+              predictedSide === 1
+                ? row.team_b
+                : row.team_a,
+
+            percent:
+              pickedPercent,
+
+            matchNo:
+              row.match_no
+          };
+        }
+      }
+    }
+
+
+    // =====================================
+    // PICK WIĘKSZOŚCIOWY
+    // =====================================
+
+    else if (pickedPercent > 50) {
+      majorityPicks += 1;
+
+      if (correct) {
+        majorityHits += 1;
+      }
+    }
+  }
+
+
+  return {
+    contrarianPicks,
+    contrarianHits,
+
+    majorityPicks,
+    majorityHits,
+
+    rarestHit
+  };
 }
 
 
@@ -1156,6 +1518,118 @@ function buildAnalysisEmbed({
     });
 }
 
+function buildStyleEmbed({
+  event,
+  style,
+  contrarianStats,
+  settledMatches
+}) {
+  const {
+    contrarianPicks,
+    contrarianHits,
+
+    majorityPicks,
+    majorityHits,
+
+    rarestHit
+  } = contrarianStats;
+
+
+  const contrarianRate =
+    pct(
+      contrarianPicks,
+      settledMatches
+    );
+
+
+  const contrarianAccuracy =
+    pct(
+      contrarianHits,
+      contrarianPicks
+    );
+
+
+  const majorityRate =
+    pct(
+      majorityPicks,
+      settledMatches
+    );
+
+
+  const majorityAccuracy =
+    pct(
+      majorityHits,
+      majorityPicks
+    );
+
+
+  let rarestHitText =
+    'Brak trafionego picku przeciwko większości.';
+
+
+  if (rarestHit) {
+    const matchLabel =
+      rarestHit.matchNo
+        ? `#${rarestHit.matchNo} • `
+        : '';
+
+    rarestHitText =
+      `${matchLabel}**${rarestHit.team}** vs ${rarestHit.opponent}\n` +
+      `Tylko **${rarestHit.percent
+        .toFixed(1)
+        .replace('.0', '')}%** graczy wybrało tę drużynę.`;
+  }
+
+
+  return new EmbedBuilder()
+
+    .setTitle(
+      `🎭 Styl gracza — ${event.name}`
+    )
+
+    .setColor(0xE67E22)
+
+    .setDescription(
+      `${style.emoji} Twój profil: **${style.name}**\n\n` +
+      style.description
+    )
+
+    .addFields(
+
+      {
+        name: '💎 Przeciwko większości',
+        value:
+          `Picki: **${contrarianPicks}/${settledMatches}** ` +
+          `(${contrarianRate})\n` +
+          `Trafione: **${contrarianHits}/${contrarianPicks}** ` +
+          `(${contrarianAccuracy})`,
+        inline: true
+      },
+
+      {
+        name: '👥 Z większością',
+        value:
+          `Picki: **${majorityPicks}/${settledMatches}** ` +
+          `(${majorityRate})\n` +
+          `Trafione: **${majorityHits}/${majorityPicks}** ` +
+          `(${majorityAccuracy})`,
+        inline: true
+      },
+
+      {
+        name: '💠 Najrzadszy trafiony pick',
+        value:
+          rarestHitText,
+        inline: false
+      }
+    )
+
+    .setFooter({
+      text:
+        'Pick przeciwko większości = drużyna wybrana przez mniej niż 50% typujących.'
+    });
+}
+
 // ======================================================
 // MAIN
 // ======================================================
@@ -1612,6 +2086,40 @@ module.exports = async function showMyStats(
             isSeriesExact
           ).length;
 
+        // ==================================================
+        // STYL GRACZA / CONTRARIAN PICKS
+        // ==================================================
+
+        const contrarianStats =
+          calculateContrarianStats(
+            settledRows,
+            communityRows
+          );
+
+
+        const style =
+          calculatePlayerStyle({
+            settledMatches,
+            winnerHits,
+            seriesExacts,
+
+            settledMaps,
+            mapWinnerHits,
+            exactMaps,
+
+            contrarianPicks:
+              contrarianStats.contrarianPicks,
+
+            contrarianHits:
+              contrarianStats.contrarianHits,
+
+            majorityPicks:
+              contrarianStats.majorityPicks,
+
+            majorityHits:
+              contrarianStats.majorityHits
+          });
+
 
         // ==================================================
         // UCZESTNICY
@@ -1863,6 +2371,15 @@ module.exports = async function showMyStats(
 
         }
 
+        else if (activeTab === 'style') {
+          embed = buildStyleEmbed({
+            event,
+            style,
+            contrarianStats,
+            settledMatches
+          });
+        }
+
         else {
           activeTab = 'general';
 
@@ -1887,6 +2404,8 @@ module.exports = async function showMyStats(
         }
 
 
+
+
         // ==================================================
         // RESPONSE
         // ==================================================
@@ -1896,12 +2415,10 @@ module.exports = async function showMyStats(
           embeds: [
             embed
           ],
-          components: [
-            buildStatsButtons(
-              eventId,
-              activeTab
-            )
-          ]
+          components: buildStatsButtons(
+            eventId,
+            activeTab
+          )
         });
       }
     );
