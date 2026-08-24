@@ -24,6 +24,7 @@ module.exports = {
   'match_pick_back:': 'matchPickBack',
   'my_predictions:': 'showMyPredictions',
   'my_stats:': 'showMyStats',
+  'my_stats_tab:': 'showMyStats',
 
   // ===== SWISS (CZYSTA WERSJA) =====
   'start_swiss_': 'openSwissDropdown',
