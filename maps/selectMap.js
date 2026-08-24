@@ -102,4 +102,6 @@ module.exports = {
   'undoMatchResultSelect',
   'edit_match_select':
   'editMatchSelect',
+  'edit_match_phase:':
+  'editMatchPhase',
 };

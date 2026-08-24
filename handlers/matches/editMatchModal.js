@@ -122,6 +122,34 @@ function parsePolishTimeToUtc(value) {
         .replace('T', ' ');
 }
 
+function formatUtcToPolish(value) {
+    if (!value) {
+        return '—';
+    }
+
+    const date = new Date(
+        String(value)
+            .replace(' ', 'T') + 'Z'
+    );
+
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return new Intl.DateTimeFormat(
+        'pl-PL',
+        {
+            timeZone: 'Europe/Warsaw',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23'
+        }
+    ).format(date);
+}
+
 
 module.exports = async function editMatchModal(
     interaction
@@ -150,10 +178,42 @@ module.exports = async function editMatchModal(
         }
 
 
-        const matchId = Number(
-            String(interaction.customId)
-                .split(':')[1]
-        );
+        const customParts =
+            String(
+                interaction.customId
+            ).split(':');
+
+
+        const matchId =
+            Number(customParts[1]);
+
+
+        const phase =
+            String(
+                customParts[2] || ''
+            );
+
+        const allowedPhases =
+            new Set([
+                'playin',
+                'swiss_stage1',
+                'swiss_stage2',
+                'swiss_stage3',
+                'playoffs',
+                'doubleelim'
+            ]);
+
+
+        if (
+            !matchId ||
+            !allowedPhases.has(phase)
+        ) {
+            return interaction.reply({
+                content:
+                    '❌ Nieprawidłowa faza meczu.',
+                ephemeral: true
+            });
+        }
 
 
         if (!matchId) {
@@ -366,28 +426,26 @@ module.exports = async function editMatchModal(
                     await pool.query(
                         `
     INSERT INTO pending_match_edits (
-      guild_id,
-      user_id,
-      match_id,
+  guild_id,
+  user_id,
+  match_id,
+  phase,
+  team_a,
+  team_b,
+  best_of,
+  match_no,
+  start_time_utc
+)
 
-      team_a,
-      team_b,
-
-      best_of,
-      match_no,
-      start_time_utc
-    )
-
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
                         [
                             guildId,
                             interaction.user.id,
                             matchId,
-
+                            phase,
                             teamA,
                             teamB,
-
                             bestOf,
                             matchNo,
                             startTime
@@ -522,9 +580,13 @@ module.exports = async function editMatchModal(
                             '\n\n' +
 
                             changeLine(
-                                '🕒 Start',
-                                match.start_time_utc,
-                                startTime
+                                '🕒 Start 🇵🇱',
+                                formatUtcToPolish(
+                                    match.start_time_utc
+                                ),
+                                formatUtcToPolish(
+                                    startTime
+                                )
                             ) +
 
                             '\n\n' +

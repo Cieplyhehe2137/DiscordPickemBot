@@ -2,7 +2,9 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ActionRowBuilder
+    ActionRowBuilder,
+    StringSelectMenuBuilder,
+    EmbedBuilder
 } = require('discord.js');
 
 const isAdmin = require('../../utils/isAdmin');
@@ -242,9 +244,73 @@ module.exports = async function editMatchSelect(
                 );
 
 
-                return interaction.showModal(
-                    modal
-                );
+                const phaseSelect =
+                    new StringSelectMenuBuilder()
+                        .setCustomId(
+                            `edit_match_phase:${match.id}`
+                        )
+                        .setPlaceholder(
+                            'Wybierz fazę meczu'
+                        )
+                        .addOptions(
+                            {
+                                label: 'Play-In',
+                                value: 'playin',
+                                default:
+                                    match.phase === 'playin'
+                            },
+                            {
+                                label: 'Swiss Stage 1',
+                                value: 'swiss_stage1',
+                                default:
+                                    match.phase === 'swiss_stage1'
+                            },
+                            {
+                                label: 'Swiss Stage 2',
+                                value: 'swiss_stage2',
+                                default:
+                                    match.phase === 'swiss_stage2'
+                            },
+                            {
+                                label: 'Swiss Stage 3',
+                                value: 'swiss_stage3',
+                                default:
+                                    match.phase === 'swiss_stage3'
+                            },
+                            {
+                                label: 'Playoffs',
+                                value: 'playoffs',
+                                default:
+                                    match.phase === 'playoffs'
+                            },
+                            {
+                                label: 'Double Elim',
+                                value: 'doubleelim',
+                                default:
+                                    match.phase === 'doubleelim'
+                            }
+                        );
+
+
+                const embed =
+                    new EmbedBuilder()
+                        .setColor(0x5865F2)
+                        .setTitle('✏️ Edycja meczu')
+                        .setDescription(
+                            `**${match.team_a} vs ${match.team_b}**\n\n` +
+                            `Aktualna faza: **${match.phase}**\n\n` +
+                            'Najpierw wybierz fazę meczu.'
+                        );
+
+
+                return interaction.update({
+                    content: '',
+                    embeds: [embed],
+                    components: [
+                        new ActionRowBuilder()
+                            .addComponents(phaseSelect)
+                    ]
+                });
             }
         );
 

@@ -1,78 +1,78 @@
 const isAdmin =
-  require('../../utils/isAdmin');
+    require('../../utils/isAdmin');
 
 const {
-  withGuild
+    withGuild
 } = require('../../utils/guildContext');
 
 const {
-  logInfo,
-  logError
+    logInfo,
+    logError
 } = require('../../utils/logger');
 
 
 module.exports =
-async function editMatchConfirm(
-  interaction
-) {
+    async function editMatchConfirm(
+        interaction
+    ) {
 
-  if (
-    !String(
-      interaction.customId || ''
-    ).startsWith(
-      'edit_match_confirm:'
-    )
-  ) {
-    return;
-  }
-
-
-  if (!isAdmin(interaction)) {
-    return interaction.reply({
-      content:
-        '❌ Brak uprawnień.',
-      ephemeral: true
-    });
-  }
+        if (
+            !String(
+                interaction.customId || ''
+            ).startsWith(
+                'edit_match_confirm:'
+            )
+        ) {
+            return;
+        }
 
 
-  const editId =
-    Number(
-      interaction.customId
-        .split(':')[1]
-    );
+        if (!isAdmin(interaction)) {
+            return interaction.reply({
+                content:
+                    '❌ Brak uprawnień.',
+                ephemeral: true
+            });
+        }
 
 
-  if (!editId) {
-    return interaction.reply({
-      content:
-        '❌ Nieprawidłowa edycja.',
-      ephemeral: true
-    });
-  }
+        const editId =
+            Number(
+                interaction.customId
+                    .split(':')[1]
+            );
 
 
-  try {
-
-    await interaction.deferUpdate();
-
-
-    return withGuild(
-      interaction,
-
-      async ({
-        pool,
-        guildId
-      }) => {
+        if (!editId) {
+            return interaction.reply({
+                content:
+                    '❌ Nieprawidłowa edycja.',
+                ephemeral: true
+            });
+        }
 
 
-        // =========================================
-        // PENDING EDIT
-        // =========================================
+        try {
 
-        const [[edit]] =
-          await pool.query(
-            `
+            await interaction.deferUpdate();
+
+
+            return withGuild(
+                interaction,
+
+                async ({
+                    pool,
+                    guildId
+                }) => {
+
+
+                    // =========================================
+                    // PENDING EDIT
+                    // =========================================
+
+                    const [[edit]] =
+                        await pool.query(
+                            `
             SELECT *
             FROM pending_match_edits
 
@@ -82,31 +82,31 @@ async function editMatchConfirm(
 
             LIMIT 1
             `,
-            [
-              editId,
-              guildId,
-              interaction.user.id
-            ]
-          );
+                            [
+                                editId,
+                                guildId,
+                                interaction.user.id
+                            ]
+                        );
 
 
-        if (!edit) {
-          return interaction.editReply({
-            content:
-              '❌ Ta edycja wygasła albo została już wykorzystana.',
-            embeds: [],
-            components: []
-          });
-        }
+                    if (!edit) {
+                        return interaction.editReply({
+                            content:
+                                '❌ Ta edycja wygasła albo została już wykorzystana.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
 
 
-        // =========================================
-        // MECZ NADAL ISTNIEJE?
-        // =========================================
+                    // =========================================
+                    // MECZ NADAL ISTNIEJE?
+                    // =========================================
 
-        const [[match]] =
-          await pool.query(
-            `
+                    const [[match]] =
+                        await pool.query(
+                            `
             SELECT
               id,
               event_id,
@@ -123,164 +123,164 @@ async function editMatchConfirm(
 
             LIMIT 1
             `,
-            [
-              guildId,
-              edit.match_id
-            ]
-          );
+                            [
+                                guildId,
+                                edit.match_id
+                            ]
+                        );
 
 
-        if (!match) {
-          return interaction.editReply({
-            content:
-              '❌ Mecz już nie istnieje.',
-            embeds: [],
-            components: []
-          });
-        }
+                    if (!match) {
+                        return interaction.editReply({
+                            content:
+                                '❌ Mecz już nie istnieje.',
+                            embeds: [],
+                            components: []
+                        });
+                    }
 
 
-        // =========================================
-        // UPDATE
-        // =========================================
+                    // =========================================
+                    // UPDATE
+                    // =========================================
 
-        await pool.query(
-          `
-          UPDATE matches
+                    await pool.query(
+                        `
+         UPDATE matches
+SET
+  phase = ?,
+  team_a = ?,
+  team_b = ?,
+  best_of = ?,
+  match_no = ?,
+  start_time_utc = ?
 
-          SET
-            team_a = ?,
-            team_b = ?,
-            best_of = ?,
-            match_no = ?,
-            start_time_utc = ?
+WHERE guild_id = ?
+  AND id = ?
 
-          WHERE guild_id = ?
-            AND id = ?
-
-          LIMIT 1
+LIMIT 1
           `,
-          [
-            edit.team_a,
-            edit.team_b,
-            edit.best_of,
-            edit.match_no,
-            edit.start_time_utc,
+                        [
+                            edit.phase,
+                            edit.team_a,
+                            edit.team_b,
+                            edit.best_of,
+                            edit.match_no,
+                            edit.start_time_utc,
+                            guildId,
+                            edit.match_id
+                        ]
+                    );
 
-            guildId,
-            edit.match_id
-          ]
-        );
 
+                    // =========================================
+                    // USUWAMY PENDING
+                    // =========================================
 
-        // =========================================
-        // USUWAMY PENDING
-        // =========================================
-
-        await pool.query(
-          `
+                    await pool.query(
+                        `
           DELETE FROM pending_match_edits
           WHERE id = ?
           `,
-          [editId]
-        );
+                        [editId]
+                    );
 
 
-        logInfo(
-          'matches',
-          'Match edit confirmed',
-          {
-            guildId,
+                    logInfo(
+                        'matches',
+                        'Match edit confirmed',
+                        {
+                            guildId,
 
-            eventId:
-              match.event_id,
+                            eventId:
+                                match.event_id,
 
-            matchId:
-              match.id,
+                            matchId:
+                                match.id,
 
-            userId:
-              interaction.user.id,
+                            userId:
+                                interaction.user.id,
 
-            before: {
-              teamA:
-                match.team_a,
+                            before: {
+                                teamA:
+                                    match.team_a,
 
-              teamB:
-                match.team_b,
+                                teamB:
+                                    match.team_b,
 
-              bestOf:
-                match.best_of,
+                                bestOf:
+                                    match.best_of,
 
-              matchNo:
-                match.match_no,
+                                matchNo:
+                                    match.match_no,
 
-              startTime:
-                match.start_time_utc
-            },
+                                startTime:
+                                    match.start_time_utc
+                            },
 
-            after: {
-              teamA:
-                edit.team_a,
+                            after: {
+                                teamA:
+                                    edit.team_a,
 
-              teamB:
-                edit.team_b,
+                                teamB:
+                                    edit.team_b,
 
-              bestOf:
-                edit.best_of,
+                                bestOf:
+                                    edit.best_of,
 
-              matchNo:
-                edit.match_no,
+                                matchNo:
+                                    edit.match_no,
 
-              startTime:
-                edit.start_time_utc
+                                startTime:
+                                    edit.start_time_utc
+                            }
+                        }
+                    );
+
+
+                    return interaction.editReply({
+                        content:
+                            `✅ **Zmiany zostały zapisane.**\n\n` +
+
+                            `🎮 **${edit.team_a} vs ${edit.team_b}**\n` +
+                            `📋 BO: **${edit.best_of}**\n` +
+                            `🔢 Numer: **${edit.match_no ?? 'brak'}**\n` +
+                            `🕒 Start: **${edit.start_time_utc || 'brak'} UTC**`,
+
+                        embeds: [],
+                        components: []
+                    });
+                }
+            );
+
+
+        } catch (err) {
+
+            logError(
+                'matches',
+                'editMatchConfirm failed',
+                {
+                    message:
+                        err.message,
+
+                    stack:
+                        err.stack,
+
+                    editId
+                }
+            );
+
+
+            if (
+                interaction.deferred ||
+                interaction.replied
+            ) {
+                return interaction.editReply({
+                    content:
+                        '❌ Nie udało się zapisać zmian.',
+                    embeds: [],
+                    components: []
+                }).catch(() => { });
             }
-          }
-        );
-
-
-        return interaction.editReply({
-          content:
-            `✅ **Zmiany zostały zapisane.**\n\n` +
-
-            `🎮 **${edit.team_a} vs ${edit.team_b}**\n` +
-            `📋 BO: **${edit.best_of}**\n` +
-            `🔢 Numer: **${edit.match_no ?? 'brak'}**\n` +
-            `🕒 Start: **${edit.start_time_utc || 'brak'} UTC**`,
-
-          embeds: [],
-          components: []
-        });
-      }
-    );
-
-
-  } catch (err) {
-
-    logError(
-      'matches',
-      'editMatchConfirm failed',
-      {
-        message:
-          err.message,
-
-        stack:
-          err.stack,
-
-        editId
-      }
-    );
-
-
-    if (
-      interaction.deferred ||
-      interaction.replied
-    ) {
-      return interaction.editReply({
-        content:
-          '❌ Nie udało się zapisać zmian.',
-        embeds: [],
-        components: []
-      }).catch(() => {});
-    }
-  }
-};
+        }
+    };
