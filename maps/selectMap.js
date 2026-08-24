@@ -100,4 +100,6 @@ module.exports = {
 
   'undo_match_result_select':
   'undoMatchResultSelect',
+  'edit_match_select':
+  'editMatchSelect',
 };
