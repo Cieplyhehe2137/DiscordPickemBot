@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { createLogger, format, transports } = require('winston');
+const fs = require("fs");
+const path = require("path");
+const { createLogger, format, transports } = require("winston");
 
 const logsDir = path.join(process.cwd(), "logs");
 
@@ -30,7 +30,7 @@ const logger = createLogger({
   format: format.combine(
     format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
     format.errors({ stack: true }),
-    jsonFormat
+    jsonFormat,
   ),
   transports: [
     new transports.File({
@@ -49,14 +49,9 @@ const logger = createLogger({
     }),
 
     new transports.Console({
-      level: process.env.NODE_ENV === 'production'
-        ? 'warn'
-        : 'info',
+      level: process.env.NODE_ENV === "production" ? "warn" : "info",
 
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      ),
+      format: format.combine(format.colorize(), format.simple()),
     }),
   ],
 });

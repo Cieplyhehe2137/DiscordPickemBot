@@ -1,13 +1,17 @@
 // handlers/submitPlayinDropdown.js
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError, logger } = require('../../utils/logger');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftCache');
-const { loadActiveTeams } = require('../../utils/loadActiveTeams');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError, logger } = require("../../utils/logger");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  getDraft,
+  setDraft,
+  clearDraft,
+} = require("../../utils/predictionDraftCache");
+const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
 
-const NAMESPACE = 'playin';
+const NAMESPACE = "playin";
 const getCache = (key) => getDraft(NAMESPACE, key);
 const setCache = (key, teams) => setDraft(NAMESPACE, key, teams);
 
@@ -18,8 +22,8 @@ module.exports = async (interaction) => {
   // ===== guards =====
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta akcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
@@ -32,34 +36,37 @@ module.exports = async (interaction) => {
   /* ===============================
      SELECT MENU – wybór drużyn
      =============================== */
-  if (interaction.isStringSelectMenu() && interaction.customId === 'playin_select') {
+  if (
+    interaction.isStringSelectMenu() &&
+    interaction.customId === "playin_select"
+  ) {
     const values = (interaction.values || []).map(String);
 
     if (values.length !== 8) {
       return interaction.reply({
-        content: '❌ Musisz wybrać **dokładnie 8 drużyn**.',
-        ephemeral: true
+        content: "❌ Musisz wybrać **dokładnie 8 drużyn**.",
+        ephemeral: true,
       });
     }
 
     if (new Set(values).size !== 8) {
       return interaction.reply({
-        content: '❌ Drużyny nie mogą się powtarzać.',
-        ephemeral: true
+        content: "❌ Drużyny nie mogą się powtarzać.",
+        ephemeral: true,
       });
     }
 
     setCache(cacheKey, values);
 
-    logger.debug('submit', 'Play-In dropdown updated', {
+    logger.debug("submit", "Play-In dropdown updated", {
       guildId,
       userId,
       count: values.length,
-      teams: values
+      teams: values,
     });
 
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate().catch(() => { });
+      await interaction.deferUpdate().catch(() => {});
     }
     return;
   }
@@ -67,7 +74,8 @@ module.exports = async (interaction) => {
   /* ===============================
      CONFIRM BUTTON
      =============================== */
-  if (!interaction.isButton() || interaction.customId !== 'confirm_playin') return;
+  if (!interaction.isButton() || interaction.customId !== "confirm_playin")
+    return;
 
   if (!interaction.deferred && !interaction.replied) {
     await interaction.deferReply({ ephemeral: true });
@@ -79,21 +87,19 @@ module.exports = async (interaction) => {
        =============================== */
     const gate = await assertPredictionsAllowed({
       guildId,
-      kind: 'PLAYIN'
+      kind: "PLAYIN",
     });
 
     if (!gate.allowed) {
       return interaction.editReply(
-        gate.message || '❌ Typowanie jest aktualnie zamknięte.'
+        gate.message || "❌ Typowanie jest aktualnie zamknięte.",
       );
     }
 
     const picked = getCache(cacheKey);
 
     if (!Array.isArray(picked) || picked.length !== 8) {
-      return interaction.editReply(
-        '❌ Musisz wybrać **dokładnie 8 drużyn**.'
-      );
+      return interaction.editReply("❌ Musisz wybrać **dokładnie 8 drużyn**.");
     }
 
     /* ===============================
@@ -101,11 +107,11 @@ module.exports = async (interaction) => {
        =============================== */
     const teamNames = await loadActiveTeams(pool, guildId);
     const allowed = new Set(teamNames);
-    const invalid = picked.filter(t => !allowed.has(t));
+    const invalid = picked.filter((t) => !allowed.has(t));
 
     if (invalid.length) {
       return interaction.editReply(
-        `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(', ')}**`
+        `❌ Nieznane lub nieaktywne drużyny: **${invalid.join(", ")}**`,
       );
     }
 
@@ -116,12 +122,10 @@ module.exports = async (interaction) => {
     const eventId = await getOpenEventId(pool, guildId);
 
     if (!eventId) {
-      return interaction.editReply(
-        '❌ Nie znaleziono aktywnego eventu.'
-      );
+      return interaction.editReply("❌ Nie znaleziono aktywnego eventu.");
     }
 
-    const teamsString = picked.join(', ');
+    const teamsString = picked.join(", ");
 
     await pool.query(
       `
@@ -135,26 +139,17 @@ module.exports = async (interaction) => {
     active        = 1,
     submitted_at  = CURRENT_TIMESTAMP
   `,
-      [
-        guildId,
-        eventId,
-        userId,
-        username,
-        displayName,
-        teamsString
-      ]
+      [guildId, eventId, userId, username, displayName, teamsString],
     );
 
     clearDraft(NAMESPACE, cacheKey);
 
-    logInfo('submit', 'Play-In predictions saved', {
+    logInfo("submit", "Play-In predictions saved", {
       guildId,
       userId,
-      teams: teamsString
+      teams: teamsString,
     });
 
-    return interaction.editReply(
-      '✅ Twoje typy Play-In zostały zapisane!'
-    );
+    return interaction.editReply("✅ Twoje typy Play-In zostały zapisane!");
   });
 };

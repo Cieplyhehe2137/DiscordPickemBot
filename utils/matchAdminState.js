@@ -7,10 +7,10 @@ const adminMatchState = new Map();
 
 function makeKey(guildId, adminUserId) {
   if (!guildId) {
-    throw new Error('matchAdminState: missing guildId');
+    throw new Error("matchAdminState: missing guildId");
   }
   if (!adminUserId) {
-    throw new Error('matchAdminState: missing adminUserId');
+    throw new Error("matchAdminState: missing adminUserId");
   }
 
   return `${String(guildId)}:${String(adminUserId)}`;
@@ -18,7 +18,7 @@ function makeKey(guildId, adminUserId) {
 
 function set(guildId, adminUserId, data) {
   if (!data) {
-    throw new Error('matchAdminState.set: missing data');
+    throw new Error("matchAdminState.set: missing data");
   }
 
   const key = makeKey(guildId, adminUserId);

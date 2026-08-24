@@ -1,20 +1,20 @@
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const adminState = require('../../utils/matchAdminState');
-const { DateTime } = require('luxon');
-const { withGuild } = require('../../utils/guildContext');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const adminState = require("../../utils/matchAdminState");
+const { DateTime } = require("luxon");
+const { withGuild } = require("../../utils/guildContext");
 const {
   DEFAULT_ZONE,
   parseStartInputToUtc,
-  isMatchStarted
-} = require('../../utils/matchLock');
-const { getMatchById } = require('../../utils/matchesStore');
+  isMatchStarted,
+} = require("../../utils/matchLock");
+const { getMatchById } = require("../../utils/matchesStore");
 
 module.exports = async function matchAdminStartSubmit(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu serwera.',
-        ephemeral: true
+        content: "❌ Brak kontekstu serwera.",
+        ephemeral: true,
       });
     }
 
@@ -22,18 +22,18 @@ module.exports = async function matchAdminStartSubmit(interaction) {
       const ctx = adminState.get(guildId, interaction.user.id);
       if (!ctx?.matchId) {
         return interaction.reply({
-          content: '❌ Brak wybranego meczu. Wybierz mecz ponownie.',
-          ephemeral: true
+          content: "❌ Brak wybranego meczu. Wybierz mecz ponownie.",
+          ephemeral: true,
         });
       }
 
-      const input = interaction.fields.getTextInputValue('start_time');
+      const input = interaction.fields.getTextInputValue("start_time");
       const parsed = parseStartInputToUtc(input, DEFAULT_ZONE);
 
       if (!parsed.ok) {
         return interaction.reply({
           content: `❌ ${parsed.reason}`,
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
@@ -42,8 +42,8 @@ module.exports = async function matchAdminStartSubmit(interaction) {
       if (!match) {
         adminState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '❌ Mecz nie istnieje już w bazie dla tego serwera.',
-          ephemeral: true
+          content: "❌ Mecz nie istnieje już w bazie dla tego serwera.",
+          ephemeral: true,
         });
       }
 
@@ -55,16 +55,16 @@ module.exports = async function matchAdminStartSubmit(interaction) {
           SET start_time_utc = NULL
           WHERE id = ? AND guild_id = ?
           `,
-          [match.id, guildId]
+          [match.id, guildId],
         );
 
         return interaction.reply({
           content: `✅ Usunięto start meczu **${match.team_a} vs ${match.team_b}**`,
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
-      const utcDt = parsed.utc;       // luxon DateTime (UTC)
+      const utcDt = parsed.utc; // luxon DateTime (UTC)
       const utcJs = utcDt.toJSDate(); // JS Date
 
       await pool.query(
@@ -73,7 +73,7 @@ module.exports = async function matchAdminStartSubmit(interaction) {
         SET start_time_utc = ?
         WHERE id = ? AND guild_id = ?
         `,
-        [utcJs, match.id, guildId]
+        [utcJs, match.id, guildId],
       );
 
       const nowUtc = DateTime.utc();
@@ -89,22 +89,22 @@ module.exports = async function matchAdminStartSubmit(interaction) {
             AND guild_id = ?
             AND is_locked = 0
           `,
-          [match.id, guildId]
+          [match.id, guildId],
         );
 
         lockedNow = res.affectedRows > 0;
       }
 
-      const localStr = utcDt.setZone(DEFAULT_ZONE).toFormat('yyyy-LL-dd HH:mm');
+      const localStr = utcDt.setZone(DEFAULT_ZONE).toFormat("yyyy-LL-dd HH:mm");
       const utcStr = utcDt.toFormat("yyyy-LL-dd HH:mm 'UTC'");
 
-      logInfo('matches', 'Match start_time_utc updated', {
+      logInfo("matches", "Match start_time_utc updated", {
         guild_id: guildId,
         matchId: match.id,
         local: localStr,
         utc: utcStr,
         lockedNow,
-        by: interaction.user?.id
+        by: interaction.user?.id,
       });
 
       return interaction.reply({
@@ -114,21 +114,22 @@ module.exports = async function matchAdminStartSubmit(interaction) {
           `🌍 UTC: **${utcStr}**` +
           (lockedNow
             ? `\n🔒 Mecz był już po starcie — został automatycznie zablokowany.`
-            : ''),
-        ephemeral: true
+            : ""),
+        ephemeral: true,
       });
     });
-
   } catch (err) {
-    logError('matches', 'matchAdminStartSubmit failed', {
+    logError("matches", "matchAdminStartSubmit failed", {
       guild_id: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się zapisać startu meczu.',
-      ephemeral: true
-    }).catch(() => {});
+    return interaction
+      .reply({
+        content: "❌ Nie udało się zapisać startu meczu.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

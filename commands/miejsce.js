@@ -1,16 +1,18 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { withGuild } = require('../utils/guildContext');
-const calculateScores = require('../handlers/matches/calculateScores');
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { withGuild } = require("../utils/guildContext");
+const calculateScores = require("../handlers/matches/calculateScores");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('miejsce')
-    .setDescription('Sprawdź miejsce i punkty danego użytkownika w rankingu Pick\'Em')
-    .addUserOption(option =>
+    .setName("miejsce")
+    .setDescription(
+      "Sprawdź miejsce i punkty danego użytkownika w rankingu Pick'Em",
+    )
+    .addUserOption((option) =>
       option
-        .setName('użytkownik')
-        .setDescription('Wybierz użytkownika Discord')
-        .setRequired(true)
+        .setName("użytkownik")
+        .setDescription("Wybierz użytkownika Discord")
+        .setRequired(true),
     ),
 
   async execute(interaction) {
@@ -18,7 +20,7 @@ module.exports = {
 
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Ta komenda działa tylko na serwerze.',
+        content: "❌ Ta komenda działa tylko na serwerze.",
         ephemeral: true,
       });
     }
@@ -27,8 +29,10 @@ module.exports = {
 
     return withGuild(guildId, async ({ pool }) => {
       try {
-        const user = interaction.options.getUser('użytkownik');
-        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+        const user = interaction.options.getUser("użytkownik");
+        const member = await interaction.guild.members
+          .fetch(user.id)
+          .catch(() => null);
 
         const displayName = member?.displayName || user.username;
         const userId = user.id;
@@ -42,14 +46,14 @@ module.exports = {
           ORDER BY id DESC
           LIMIT 1
           `,
-          [guildId]
+          [guildId],
         );
 
         const eventId = activeEvent?.id;
 
         if (!eventId) {
           return interaction.editReply({
-            content: '❌ Nie znaleziono otwartego eventu.',
+            content: "❌ Nie znaleziono otwartego eventu.",
           });
         }
 
@@ -153,70 +157,86 @@ module.exports = {
           ) maps ON maps.user_id = u.user_id
           `,
           [
-            guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
 
-            guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
 
-            guildId, eventId,
-            guildId, eventId,
-            guildId, eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+            guildId,
+            eventId,
 
-            guildId, eventId,
-            guildId, eventId,
-          ]
+            guildId,
+            eventId,
+            guildId,
+            eventId,
+          ],
         );
 
         const ranking = rows
-          .filter(r => Number(r.total) > 0)
+          .filter((r) => Number(r.total) > 0)
           .sort((a, b) => Number(b.total) - Number(a.total));
 
-        const place = ranking.findIndex(r => String(r.user_id) === String(userId)) + 1;
-        const me = rows.find(r => String(r.user_id) === String(userId));
+        const place =
+          ranking.findIndex((r) => String(r.user_id) === String(userId)) + 1;
+        const me = rows.find((r) => String(r.user_id) === String(userId));
 
         const embed = new EmbedBuilder()
           .setColor(0x3498db)
           .setTitle(`📊 Ranking Pick'Em — ${displayName}`);
 
         if (!me || Number(me.total) === 0 || place <= 0) {
-          embed.setDescription('Ten gracz nie zdobył jeszcze żadnych punktów.');
+          embed.setDescription("Ten gracz nie zdobył jeszcze żadnych punktów.");
         } else {
           embed.setDescription(
             `🏅 **Miejsce:** **${place}**\n` +
-            `⭐ **Suma punktów:** **${Number(me.total)}**\n\n` +
-            `📦 **Rozbicie:**\n` +
-            `• Swiss 1: **${Number(me.swiss1)}**\n` +
-            `• Swiss 2: **${Number(me.swiss2)}**\n` +
-            `• Swiss 3: **${Number(me.swiss3)}**\n` +
-            `• Playoffs: **${Number(me.playoffs)}**\n` +
-            `• Double Elim: **${Number(me.doubleelim)}**\n` +
-            `• Play-In: **${Number(me.playin)}**\n` +
-            `• Mecze: **${Number(me.matches)}**\n` +
-            `• Mapy: **${Number(me.maps)}**`
+              `⭐ **Suma punktów:** **${Number(me.total)}**\n\n` +
+              `📦 **Rozbicie:**\n` +
+              `• Swiss 1: **${Number(me.swiss1)}**\n` +
+              `• Swiss 2: **${Number(me.swiss2)}**\n` +
+              `• Swiss 3: **${Number(me.swiss3)}**\n` +
+              `• Playoffs: **${Number(me.playoffs)}**\n` +
+              `• Double Elim: **${Number(me.doubleelim)}**\n` +
+              `• Play-In: **${Number(me.playin)}**\n` +
+              `• Mecze: **${Number(me.matches)}**\n` +
+              `• Mapy: **${Number(me.maps)}**`,
           );
         }
 
         return interaction.editReply({ embeds: [embed] });
       } catch (err) {
-        console.error('[miejsce] error', err);
+        console.error("[miejsce] error", err);
 
         const payload = {
-          content: '❌ Wystąpił błąd przy obliczaniu miejsca.',
+          content: "❌ Wystąpił błąd przy obliczaniu miejsca.",
         };
 
         if (interaction.deferred || interaction.replied) {
           return interaction.editReply(payload).catch(() => null);
         }
 
-        return interaction.reply({
-          ...payload,
-          ephemeral: true,
-        }).catch(() => null);
+        return interaction
+          .reply({
+            ...payload,
+            ephemeral: true,
+          })
+          .catch(() => null);
       }
     });
   },

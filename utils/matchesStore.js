@@ -14,7 +14,7 @@ async function getMatchById(pool, guildId, matchId) {
       AND guild_id = ?
     LIMIT 1
     `,
-    [matchId, guildId]
+    [matchId, guildId],
   );
 
   return match || null;
@@ -28,7 +28,7 @@ async function setMatchLock(pool, guildId, matchId, locked) {
     WHERE id = ?
       AND guild_id = ?
     `,
-    [locked ? 1 : 0, matchId, guildId]
+    [locked ? 1 : 0, matchId, guildId],
   );
 
   return result.affectedRows > 0;

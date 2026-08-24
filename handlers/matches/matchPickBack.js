@@ -1,18 +1,18 @@
-const { sendMatchList } = require('./openMatchPick');
-const { logError } = require('../../utils/logger');
+const { sendMatchList } = require("./openMatchPick");
+const { logError } = require("../../utils/logger");
 
 module.exports = async function matchPickBack(interaction) {
   try {
-    const customId = interaction.customId || '';
+    const customId = interaction.customId || "";
 
     // Format:
     // match_pick_back:phaseKey:page
-    const [, phaseKey, rawPage] = customId.split(':');
+    const [, phaseKey, rawPage] = customId.split(":");
 
     if (!phaseKey) {
       return interaction.update({
-        content: '❌ Brak informacji o fazie.',
-        components: []
+        content: "❌ Brak informacji o fazie.",
+        components: [],
       });
     }
 
@@ -21,19 +21,21 @@ module.exports = async function matchPickBack(interaction) {
     return sendMatchList({
       interaction,
       phaseKey,
-      mode: 'pred',
+      mode: "pred",
       page,
-      isUpdate: true
+      isUpdate: true,
     });
   } catch (err) {
-    logError('matches', 'matchPickBack failed', {
+    logError("matches", "matchPickBack failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.update({
-      content: '❌ Nie udało się wrócić do listy meczów.',
-      components: []
-    }).catch(() => {});
+    return interaction
+      .update({
+        content: "❌ Nie udało się wrócić do listy meczów.",
+        components: [],
+      })
+      .catch(() => {});
   }
 };

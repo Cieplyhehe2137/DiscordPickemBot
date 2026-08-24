@@ -1,17 +1,24 @@
 // handlers/submitPlayoffsDropdown.js
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const sendPredictionEmbed = require('../../utils/sendPredictionEmbeds');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftCache');
-const { loadActiveTeams } = require('../../utils/loadActiveTeams');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const sendPredictionEmbed = require("../../utils/sendPredictionEmbeds");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  getDraft,
+  setDraft,
+  clearDraft,
+} = require("../../utils/predictionDraftCache");
+const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
 
-const NAMESPACE = 'playoffs';
-const getCache = (guildId, userId) => getDraft(NAMESPACE, `${guildId}:${userId}`);
-const setCache = (guildId, userId, data) => setDraft(NAMESPACE, `${guildId}:${userId}`, data);
-const clearCache = (guildId, userId) => clearDraft(NAMESPACE, `${guildId}:${userId}`);
+const NAMESPACE = "playoffs";
+const getCache = (guildId, userId) =>
+  getDraft(NAMESPACE, `${guildId}:${userId}`);
+const setCache = (guildId, userId, data) =>
+  setDraft(NAMESPACE, `${guildId}:${userId}`, data);
+const clearCache = (guildId, userId) =>
+  clearDraft(NAMESPACE, `${guildId}:${userId}`);
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
@@ -30,41 +37,41 @@ module.exports = async (interaction) => {
      SELECT MENUS
      =============================== */
   if (interaction.isStringSelectMenu()) {
-    if (!customId.startsWith('playoffs_')) return;
+    if (!customId.startsWith("playoffs_")) return;
 
     const values = Array.isArray(interaction.values)
       ? interaction.values.map(String)
       : [];
 
-    let type = customId.slice('playoffs_'.length);
-    if (type === 'third_place') type = 'third';
+    let type = customId.slice("playoffs_".length);
+    if (type === "third_place") type = "third";
 
     cache[type] = values;
 
     setCache(guildId, userId, cache);
 
-    logInfo('PLAYOFFS_DROPDOWN_UPDATED', {
+    logInfo("PLAYOFFS_DROPDOWN_UPDATED", {
       guildId,
       userId,
       type,
-      values
+      values,
     });
 
-    await interaction.deferUpdate().catch(() => { });
+    await interaction.deferUpdate().catch(() => {});
     return;
   }
 
   /* ===============================
      CONFIRM BUTTON
      =============================== */
-  if (!interaction.isButton() || customId !== 'confirm_playoffs') return;
+  if (!interaction.isButton() || customId !== "confirm_playoffs") return;
 
   await interaction.deferReply({ ephemeral: true });
 
   await withGuild(interaction, async ({ pool, guildId }) => {
-    const gate = await assertPredictionsAllowed({ guildId, kind: 'PLAYOFFS' });
+    const gate = await assertPredictionsAllowed({ guildId, kind: "PLAYOFFS" });
     if (!gate.allowed) {
-      return interaction.editReply(gate.message || '❌ Typowanie zamknięte.');
+      return interaction.editReply(gate.message || "❌ Typowanie zamknięte.");
     }
 
     const picks = getCache(guildId, userId) || {};
@@ -79,7 +86,7 @@ module.exports = async (interaction) => {
       !Array.isArray(picks.winner)
     ) {
       return interaction.editReply(
-        '❌ Wybierz półfinalistów, finalistów oraz zwycięzcę.'
+        "❌ Wybierz półfinalistów, finalistów oraz zwycięzcę.",
       );
     }
 
@@ -90,7 +97,7 @@ module.exports = async (interaction) => {
       thirdPick.length > 1
     ) {
       return interaction.editReply(
-        '⚠️ Nieprawidłowa liczba drużyn w jednym z etapów.'
+        "⚠️ Nieprawidłowa liczba drużyn w jednym z etapów.",
       );
     }
 
@@ -101,21 +108,21 @@ module.exports = async (interaction) => {
 
     if (!picks.finalists.includes(winner)) {
       return interaction.editReply(
-        '⚠️ Zwycięzca musi być jednym z finalistów.'
+        "⚠️ Zwycięzca musi być jednym z finalistów.",
       );
     }
 
     for (const f of picks.finalists) {
       if (!picks.semifinalists.includes(f)) {
         return interaction.editReply(
-          '⚠️ Finaliści muszą pochodzić z półfinalistów.'
+          "⚠️ Finaliści muszą pochodzić z półfinalistów.",
         );
       }
     }
 
     if (thirdPick[0] && [winner, ...picks.finalists].includes(thirdPick[0])) {
       return interaction.editReply(
-        '⚠️ 3. miejsce nie może być finalistą ani zwycięzcą.'
+        "⚠️ 3. miejsce nie może być finalistą ani zwycięzcą.",
       );
     }
 
@@ -129,22 +136,20 @@ module.exports = async (interaction) => {
       ...picks.semifinalists,
       ...picks.finalists,
       winner,
-      ...(thirdPick[0] ? [thirdPick[0]] : [])
+      ...(thirdPick[0] ? [thirdPick[0]] : []),
     ];
 
-    const invalid = all.filter(t => !allowed.has(t));
+    const invalid = all.filter((t) => !allowed.has(t));
     if (invalid.length) {
       return interaction.editReply(
-        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(', ')}`
+        `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(", ")}`,
       );
     }
 
     const eventId = await getOpenEventId(pool, guildId);
 
     if (!eventId) {
-      return interaction.editReply(
-        '❌ Nie znaleziono aktywnego eventu.'
-      );
+      return interaction.editReply("❌ Nie znaleziono aktywnego eventu.");
     }
 
     /* ===============================
@@ -172,30 +177,27 @@ module.exports = async (interaction) => {
         userId,
         username,
         displayName,
-        picks.semifinalists.join(', '),
-        picks.finalists.join(', '),
+        picks.semifinalists.join(", "),
+        picks.finalists.join(", "),
         winner,
-        thirdPick[0] || null
-      ]
+        thirdPick[0] || null,
+      ],
     );
 
     clearCache(guildId, userId);
 
-    logInfo('submit', 'Playoffs predictions saved', {
+    logInfo("submit", "Playoffs predictions saved", {
       guildId,
-      userId
+      userId,
     });
 
-
-    await sendPredictionEmbed(interaction.client, guildId, 'playoffs', userId, {
+    await sendPredictionEmbed(interaction.client, guildId, "playoffs", userId, {
       semifinalists: picks.semifinalists,
       finalists: picks.finalists,
       winner,
-      third_place_winner: thirdPick[0] || null
+      third_place_winner: thirdPick[0] || null,
     });
 
-    return interaction.editReply(
-      '✅ Twoje typy Playoffs zostały zapisane!'
-    );
+    return interaction.editReply("✅ Twoje typy Playoffs zostały zapisane!");
   });
 };

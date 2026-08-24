@@ -1,11 +1,11 @@
-const db = require('../db');
-const { logError } = require('./logger');
-const { ensureTournamentAuditLog } = require('./ensureTournamentTables');
+const db = require("../db");
+const { logError } = require("./logger");
+const { ensureTournamentAuditLog } = require("./ensureTournamentTables");
 
 function normalize(val) {
   if (val === undefined || val === null) return null;
 
-  if (typeof val === 'object') {
+  if (typeof val === "object") {
     try {
       return JSON.stringify(val);
     } catch {
@@ -37,17 +37,11 @@ async function logTournamentAction({
         (guild_id, actor_discord_id, action, old_value, new_value)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [
-        guildId,
-        actorId,
-        action,
-        normalize(oldValue),
-        normalize(newValue),
-      ]
+      [guildId, actorId, action, normalize(oldValue), normalize(newValue)],
     );
   } catch (err) {
     // audit log nigdy nie może wywalić głównej operacji
-    logError('audit', 'logTournamentAction failed', {
+    logError("audit", "logTournamentAction failed", {
       guildId,
       actorId,
       action,

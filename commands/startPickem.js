@@ -5,96 +5,96 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { withGuild } = require('../utils/guildContext');
+const { withGuild } = require("../utils/guildContext");
 
 function makeSlug(name) {
-  return String(name || '')
+  return String(name || "")
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ł/g, 'l')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ł/g, "l")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 }
 
 const phasesConfig = {
   swiss: {
-    title: 'Typowanie fazy Swiss',
+    title: "Typowanie fazy Swiss",
     description:
-      'Typujesz drużyny w fazie Swiss:\n\n' +
-      '🆙 2 drużyny na 3-0\n' +
-      '🆘 2 drużyny na 0-3\n' +
-      '🏅 6 drużyn awansujących\n' +
-      '\n━━━━━━━━━━━━━━\n' +
-      '⏰ Deadline typowania drużyn ustawiany jest osobno.\n' +
-      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
-    buttonLabel: 'Typuj drużyny Swiss',
-    buttonId: 'open_swiss_modal',
-    color: 'Blue'
+      "Typujesz drużyny w fazie Swiss:\n\n" +
+      "🆙 2 drużyny na 3-0\n" +
+      "🆘 2 drużyny na 0-3\n" +
+      "🏅 6 drużyn awansujących\n" +
+      "\n━━━━━━━━━━━━━━\n" +
+      "⏰ Deadline typowania drużyn ustawiany jest osobno.\n" +
+      "🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.",
+    buttonLabel: "Typuj drużyny Swiss",
+    buttonId: "open_swiss_modal",
+    color: "Blue",
   },
 
   playoffs: {
-    title: 'Typowanie fazy Playoffs',
+    title: "Typowanie fazy Playoffs",
     description:
-      'Typujesz:\n\n' +
-      '🏆 4 półfinalistów\n' +
-      '🥈 2 finalistów\n' +
-      '👑 Zwycięzcę turnieju\n' +
-      '🥉 3. miejsce (opcjonalnie)\n' +
-      '\n━━━━━━━━━━━━━━\n' +
-      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
-      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
-    buttonLabel: 'Typuj Playoffs',
-    buttonId: 'open_playoffs_modal',
-    color: 'Green'
+      "Typujesz:\n\n" +
+      "🏆 4 półfinalistów\n" +
+      "🥈 2 finalistów\n" +
+      "👑 Zwycięzcę turnieju\n" +
+      "🥉 3. miejsce (opcjonalnie)\n" +
+      "\n━━━━━━━━━━━━━━\n" +
+      "⏰ Deadline typowania fazy ustawiany jest osobno.\n" +
+      "🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.",
+    buttonLabel: "Typuj Playoffs",
+    buttonId: "open_playoffs_modal",
+    color: "Green",
   },
 
   doubleelim: {
-    title: 'Typowanie fazy Double Elimination',
+    title: "Typowanie fazy Double Elimination",
     description:
-      'Typujesz:\n\n' +
-      '🔵 2 drużyny z Upper Final A\n' +
-      '🔴 2 drużyny z Lower Final A\n' +
-      '🟢 2 drużyny z Upper Final B\n' +
-      '🟣 2 drużyny z Lower Final B\n' +
-      '\n━━━━━━━━━━━━━━\n' +
-      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
-      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
-    buttonLabel: 'Typuj Double Elim',
-    buttonId: 'open_doubleelim_dropdown',
-    color: 'Purple'
+      "Typujesz:\n\n" +
+      "🔵 2 drużyny z Upper Final A\n" +
+      "🔴 2 drużyny z Lower Final A\n" +
+      "🟢 2 drużyny z Upper Final B\n" +
+      "🟣 2 drużyny z Lower Final B\n" +
+      "\n━━━━━━━━━━━━━━\n" +
+      "⏰ Deadline typowania fazy ustawiany jest osobno.\n" +
+      "🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.",
+    buttonLabel: "Typuj Double Elim",
+    buttonId: "open_doubleelim_dropdown",
+    color: "Purple",
   },
 
   playin: {
-    title: 'Typowanie fazy Play-In',
+    title: "Typowanie fazy Play-In",
     description:
-      'Typujesz:\n\n' +
-      '🎯 8 drużyn awansujących z Play-In\n' +
-      '\n━━━━━━━━━━━━━━\n' +
-      '⏰ Deadline typowania fazy ustawiany jest osobno.\n' +
-      '🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.',
-    buttonLabel: 'Typuj Play-In',
-    buttonId: 'open_playin_modal',
-    color: 'DarkBlue'
-  }
+      "Typujesz:\n\n" +
+      "🎯 8 drużyn awansujących z Play-In\n" +
+      "\n━━━━━━━━━━━━━━\n" +
+      "⏰ Deadline typowania fazy ustawiany jest osobno.\n" +
+      "🎯 Wyniki meczów typujesz osobno — deadline zależy od startu meczu.",
+    buttonLabel: "Typuj Play-In",
+    buttonId: "open_playin_modal",
+    color: "DarkBlue",
+  },
 };
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('start_pickem')
-    .setDescription('Tworzy event Pick’Em i rozpoczyna wybór fazy turnieju')
-    .addStringOption(option =>
+    .setName("start_pickem")
+    .setDescription("Tworzy event Pick’Em i rozpoczyna wybór fazy turnieju")
+    .addStringOption((option) =>
       option
-        .setName('event')
-        .setDescription('Nazwa eventu, np. IEM Cologne 2026')
-        .setRequired(true)
+        .setName("event")
+        .setDescription("Nazwa eventu, np. IEM Cologne 2026")
+        .setRequired(true),
     )
     .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator
+      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
     ),
 
   async execute(interaction) {
@@ -104,8 +104,8 @@ module.exports = {
         !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
       ) {
         return interaction.reply({
-          content: '🚫 Nie masz uprawnień do użycia tej komendy.',
-          ephemeral: true
+          content: "🚫 Nie masz uprawnień do użycia tej komendy.",
+          ephemeral: true,
         });
       }
 
@@ -113,17 +113,17 @@ module.exports = {
 
       if (!guildId) {
         return interaction.reply({
-          content: '❌ Ta funkcja działa tylko na serwerze.',
-          ephemeral: true
+          content: "❌ Ta funkcja działa tylko na serwerze.",
+          ephemeral: true,
         });
       }
 
-      const eventName = interaction.options.getString('event', true).trim();
+      const eventName = interaction.options.getString("event", true).trim();
 
       if (!eventName) {
         return interaction.reply({
-          content: '❌ Podaj poprawną nazwę eventu.',
-          ephemeral: true
+          content: "❌ Podaj poprawną nazwę eventu.",
+          ephemeral: true,
         });
       }
 
@@ -140,7 +140,7 @@ module.exports = {
             AND slug = ?
           LIMIT 1
           `,
-          [guildId, slug]
+          [guildId, slug],
         );
 
         let eventId;
@@ -161,7 +161,7 @@ module.exports = {
             WHERE id = ?
               AND guild_id = ?
             `,
-            [eventId, guildId]
+            [eventId, guildId],
           );
         } else {
           const [result] = await pool.query(
@@ -175,59 +175,53 @@ module.exports = {
             )
             VALUES (?, ?, ?, ?, ?)
             `,
-            [
-              guildId,
-              slug,
-              eventName,
-              'NOT_STARTED',
-              'OPEN'
-            ]
+            [guildId, slug, eventName, "NOT_STARTED", "OPEN"],
           );
 
           eventId = result.insertId;
         }
 
         const embed = new EmbedBuilder()
-          .setTitle('📌 Wybierz fazę turnieju, którą chcesz rozpocząć:')
+          .setTitle("📌 Wybierz fazę turnieju, którą chcesz rozpocząć:")
           .setDescription(
             `Event: **${finalEventName}**\n` +
-            `Slug: \`${slug}\`\n` +
-            `ID eventu: \`${eventId}\`\n` +
-            `${wasExistingEvent ? '♻️ Używam istniejącego eventu.' : '🆕 Utworzono nowy event.'}`
+              `Slug: \`${slug}\`\n` +
+              `ID eventu: \`${eventId}\`\n` +
+              `${wasExistingEvent ? "♻️ Używam istniejącego eventu." : "🆕 Utworzono nowy event."}`,
           )
-          .setColor('Orange');
+          .setColor("Orange");
 
         const selectMenu = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId('select_pickem_phase')
-            .setPlaceholder('Wybierz fazę turnieju')
+            .setCustomId("select_pickem_phase")
+            .setPlaceholder("Wybierz fazę turnieju")
             .addOptions(
-              { label: 'Swiss', value: `swiss:${eventId}` },
-              { label: 'Playoffs', value: `playoffs:${eventId}` },
-              { label: 'Double Elimination', value: `doubleelim:${eventId}` },
-              { label: 'Play-In', value: `playin:${eventId}` }
-            )
+              { label: "Swiss", value: `swiss:${eventId}` },
+              { label: "Playoffs", value: `playoffs:${eventId}` },
+              { label: "Double Elimination", value: `doubleelim:${eventId}` },
+              { label: "Play-In", value: `playin:${eventId}` },
+            ),
         );
 
         return interaction.editReply({
           embeds: [embed],
-          components: [selectMenu]
+          components: [selectMenu],
         });
       });
     } catch (err) {
-      console.error('[PICKEM] execute error', err);
+      console.error("[PICKEM] execute error", err);
 
       try {
         if (!interaction.deferred && !interaction.replied) {
           return interaction.reply({
-            content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
-            ephemeral: true
+            content: "❌ Błąd przy tworzeniu eventu Pick’Em.",
+            ephemeral: true,
           });
         }
 
         return interaction.editReply({
-          content: '❌ Błąd przy tworzeniu eventu Pick’Em.',
-          components: []
+          content: "❌ Błąd przy tworzeniu eventu Pick’Em.",
+          components: [],
         });
       } catch (_) {
         return null;
@@ -238,11 +232,11 @@ module.exports = {
   async handlePhaseSelect(interaction) {
     try {
       if (!interaction.isStringSelectMenu()) return;
-      if (interaction.customId !== 'select_pickem_phase') return;
+      if (interaction.customId !== "select_pickem_phase") return;
 
-      console.log('[PICKEM] handlePhaseSelect fired', {
+      console.log("[PICKEM] handlePhaseSelect fired", {
         customId: interaction.customId,
-        values: interaction.values
+        values: interaction.values,
       });
 
       if (
@@ -250,8 +244,8 @@ module.exports = {
         !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
       ) {
         return interaction.reply({
-          content: '🚫 Nie masz uprawnień do tej akcji.',
-          ephemeral: true
+          content: "🚫 Nie masz uprawnień do tej akcji.",
+          ephemeral: true,
         });
       }
 
@@ -259,13 +253,13 @@ module.exports = {
 
       if (!guildId) {
         return interaction.reply({
-          content: '❌ Ta funkcja działa tylko na serwerze.',
-          ephemeral: true
+          content: "❌ Ta funkcja działa tylko na serwerze.",
+          ephemeral: true,
         });
       }
 
-      const rawValue = String(interaction.values?.[0] || '');
-      const [selected, rawEventId] = rawValue.split(':');
+      const rawValue = String(interaction.values?.[0] || "");
+      const [selected, rawEventId] = rawValue.split(":");
       let eventId = Number(rawEventId);
 
       await interaction.deferReply({ ephemeral: true });
@@ -275,7 +269,7 @@ module.exports = {
 
         if (!config) {
           return interaction.editReply({
-            content: `❌ Nieznana faza: ${rawValue}`
+            content: `❌ Nieznana faza: ${rawValue}`,
           });
         }
 
@@ -289,7 +283,7 @@ module.exports = {
             ORDER BY id DESC
             LIMIT 1
             `,
-            [guildId]
+            [guildId],
           );
 
           eventId = Number(latestEvents?.[0]?.id);
@@ -297,7 +291,8 @@ module.exports = {
 
         if (!eventId) {
           return interaction.editReply({
-            content: '❌ Brak aktywnego eventu. Uruchom `/start_pickem event:nazwa` jeszcze raz.'
+            content:
+              "❌ Brak aktywnego eventu. Uruchom `/start_pickem event:nazwa` jeszcze raz.",
           });
         }
 
@@ -309,12 +304,12 @@ module.exports = {
             AND guild_id = ?
           LIMIT 1
           `,
-          [eventId, guildId]
+          [eventId, guildId],
         );
 
         if (!events.length) {
           return interaction.editReply({
-            content: '❌ Nie znaleziono eventu dla tego panelu.'
+            content: "❌ Nie znaleziono eventu dla tego panelu.",
           });
         }
 
@@ -327,7 +322,7 @@ module.exports = {
           WHERE id = ?
             AND guild_id = ?
           `,
-          [selected, eventId, guildId]
+          [selected, eventId, guildId],
         );
 
         await pool.query(
@@ -337,14 +332,13 @@ module.exports = {
           WHERE guild_id = ?
             AND phase = ?
           `,
-          [guildId, selected]
+          [guildId, selected],
         );
 
         const embed = new EmbedBuilder()
           .setTitle(config.title)
           .setDescription(
-            `🏆 Event: **${event.name}**\n\n` +
-            config.description
+            `🏆 Event: **${event.name}**\n\n` + config.description,
           )
           .setColor(config.color);
 
@@ -356,27 +350,27 @@ module.exports = {
 
           new ButtonBuilder()
             .setCustomId(`match_pick:${selected}`)
-            .setLabel('🎯 Typuj wyniki meczów')
+            .setLabel("🎯 Typuj wyniki meczów")
             .setStyle(ButtonStyle.Success),
 
           new ButtonBuilder()
             .setCustomId(`my_predictions:${selected}:${eventId}:0`)
-            .setLabel('📋 Moje typy')
+            .setLabel("📋 Moje typy")
             .setStyle(ButtonStyle.Secondary),
 
           new ButtonBuilder()
             .setCustomId(`my_stats:${eventId}`)
-            .setLabel('📊 Moje statystyki')
-            .setStyle(ButtonStyle.Secondary)
+            .setLabel("📊 Moje statystyki")
+            .setStyle(ButtonStyle.Secondary),
         );
 
         const message = await interaction.channel.send({
-          content: '@everyone',
+          content: "@everyone",
           embeds: [embed],
           components: [row],
           allowedMentions: {
-            parse: ['everyone']
-          }
+            parse: ["everyone"],
+          },
         });
 
         await pool.query(
@@ -398,33 +392,33 @@ module.exports = {
             reminded = 0,
             deadline = NULL
           `,
-          [guildId, selected, interaction.channel.id, message.id]
+          [guildId, selected, interaction.channel.id, message.id],
         );
 
         return interaction.editReply({
           content:
             `✅ Utworzono panel dla fazy **${config.title}**\n` +
-            `🏆 Event: **${event.name}**`
+            `🏆 Event: **${event.name}**`,
         });
       });
     } catch (err) {
-      console.error('[PICKEM] handlePhaseSelect error', err);
+      console.error("[PICKEM] handlePhaseSelect error", err);
 
       try {
         if (!interaction.deferred && !interaction.replied) {
           return interaction.reply({
-            content: '❌ Błąd przy wyborze fazy.',
-            ephemeral: true
+            content: "❌ Błąd przy wyborze fazy.",
+            ephemeral: true,
           });
         }
 
         return interaction.editReply({
-          content: '❌ Błąd przy wyborze fazy.',
-          components: []
+          content: "❌ Błąd przy wyborze fazy.",
+          components: [],
         });
       } catch (_) {
         return null;
       }
     }
-  }
+  },
 };

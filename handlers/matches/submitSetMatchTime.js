@@ -1,24 +1,27 @@
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { parseStartInputToUtc, formatStartLocal } = require('../../utils/matchLock');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const {
+  parseStartInputToUtc,
+  formatStartLocal,
+} = require("../../utils/matchLock");
 
 module.exports = async function submitSetMatchTime(interaction) {
-  const [, matchId] = interaction.customId.split(':');
+  const [, matchId] = interaction.customId.split(":");
 
   if (!matchId) {
     return interaction.reply({
-      content: '❌ Brak ID meczu.',
-      ephemeral: true
+      content: "❌ Brak ID meczu.",
+      ephemeral: true,
     });
   }
 
-  const timeRaw = interaction.fields.getTextInputValue('match_time');
+  const timeRaw = interaction.fields.getTextInputValue("match_time");
 
   const { ok, utc, cleared, reason } = parseStartInputToUtc(timeRaw);
   if (!ok) {
     return interaction.reply({
       content: `❌ ${reason}`,
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
@@ -29,25 +32,20 @@ module.exports = async function submitSetMatchTime(interaction) {
   SET start_time_utc = ?
   WHERE id = ? AND guild_id = ?
   `,
-      [
-        utc ? utc.toFormat('yyyy-MM-dd HH:mm:ss') : null,
-        matchId,
-        guildId
-      ]
+      [utc ? utc.toFormat("yyyy-MM-dd HH:mm:ss") : null, matchId, guildId],
     );
-
   });
 
-  logInfo('matches', 'start_time_utc updated', {
+  logInfo("matches", "start_time_utc updated", {
     guildId: interaction.guildId,
     matchId,
-    start_time_utc: utc ? utc.toISO() : null
+    start_time_utc: utc ? utc.toISO() : null,
   });
 
   return interaction.reply({
     content: cleared
-      ? '🕒 Godzina meczu wyczyszczona.'
+      ? "🕒 Godzina meczu wyczyszczona."
       : `🕒 Godzina meczu ustawiona na **${formatStartLocal(utc)} (PL)**`,
-    ephemeral: true
+    ephemeral: true,
   });
 };

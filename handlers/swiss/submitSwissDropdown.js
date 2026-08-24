@@ -1,10 +1,14 @@
-const { withGuild } = require('../../utils/guildContext');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { getDraft, setDraft, clearDraft } = require('../../utils/predictionDraftCache');
-const { loadActiveTeams } = require('../../utils/loadActiveTeams');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { withGuild } = require("../../utils/guildContext");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  getDraft,
+  setDraft,
+  clearDraft,
+} = require("../../utils/predictionDraftCache");
+const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
 
-const NAMESPACE = 'swiss';
+const NAMESPACE = "swiss";
 const getCache = (key) => getDraft(NAMESPACE, key);
 const setCache = (key, data) => setDraft(NAMESPACE, key, data);
 
@@ -22,7 +26,7 @@ module.exports = async (interaction) => {
   =============================== */
 
   const dropdownMatch = customId.match(
-    /^swiss_(3_0|0_3|advancing):(stage[123])$/
+    /^swiss_(3_0|0_3|advancing):(stage[123])$/,
   );
 
   if (dropdownMatch) {
@@ -30,11 +34,7 @@ module.exports = async (interaction) => {
     const stage = dropdownMatch[2];
 
     const type =
-      typeRaw === '3_0'
-        ? '3'
-        : typeRaw === '0_3'
-          ? '0'
-          : 'advancing';
+      typeRaw === "3_0" ? "3" : typeRaw === "0_3" ? "0" : "advancing";
 
     const cacheKey = `${guildId}:${userId}:${stage}`;
     const local = getCache(cacheKey) || {};
@@ -60,9 +60,7 @@ module.exports = async (interaction) => {
      CONFIRM
   =============================== */
 
-  const confirmMatch = customId.match(
-    /^confirm_swiss:(stage[123])$/
-  );
+  const confirmMatch = customId.match(/^confirm_swiss:(stage[123])$/);
 
   if (!interaction.isButton() || !confirmMatch) return;
 
@@ -73,55 +71,52 @@ module.exports = async (interaction) => {
   await interaction.deferReply({ ephemeral: true });
 
   await withGuild(interaction, async ({ pool }) => {
-
     // GATE
     const gate = await assertPredictionsAllowed({
       guildId,
-      kind: 'SWISS',
-      stage
+      kind: "SWISS",
+      stage,
     });
 
     if (!gate.allowed) {
       return interaction.editReply(
-        gate.message || '❌ Typowanie jest zamknięte.'
+        gate.message || "❌ Typowanie jest zamknięte.",
       );
     }
 
     const data = getCache(cacheKey) || {};
 
     // Sprawdzenie czy wszystko wybrane
-    if (!data['3'] || !data['0'] || !data['advancing']) {
+    if (!data["3"] || !data["0"] || !data["advancing"]) {
       return interaction.editReply(
-        '❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.'
+        "❌ Najpierw wybierz drużyny dla **3-0**, **0-3** i **awansujących**.",
       );
     }
 
     // Walidacja ilości
     if (
-      data['3'].length !== 2 ||
-      data['0'].length !== 2 ||
-      data['advancing'].length !== 6
+      data["3"].length !== 2 ||
+      data["0"].length !== 2 ||
+      data["advancing"].length !== 6
     ) {
-      return interaction.editReply(
-        '⚠️ Nieprawidłowa liczba drużyn.'
-      );
+      return interaction.editReply("⚠️ Nieprawidłowa liczba drużyn.");
     }
 
     // Unikalność globalna
-    const all = [...data['3'], ...data['0'], ...data['advancing']];
+    const all = [...data["3"], ...data["0"], ...data["advancing"]];
     if (new Set(all).size !== all.length) {
       return interaction.editReply(
-        '⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.'
+        "⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.",
       );
     }
 
     // Walidacja z DB
     const validTeams = await loadActiveTeams(pool, guildId);
-    const invalid = all.filter(t => !validTeams.includes(t));
+    const invalid = all.filter((t) => !validTeams.includes(t));
 
     if (invalid.length) {
       return interaction.editReply(
-        `⚠️ Nieznane drużyny: ${invalid.join(', ')}`
+        `⚠️ Nieznane drużyny: ${invalid.join(", ")}`,
       );
     }
 
@@ -130,7 +125,7 @@ module.exports = async (interaction) => {
 
     if (!eventId) {
       return interaction.editReply(
-        '❌ Nie znaleziono aktywnego turnieju dla tego serwera.'
+        "❌ Nie znaleziono aktywnego turnieju dla tego serwera.",
       );
     }
 
@@ -157,16 +152,14 @@ module.exports = async (interaction) => {
         username,
         displayName,
         stage,
-        data['3'].join(', '),
-        data['0'].join(', '),
-        data['advancing'].join(', ')
-      ]
+        data["3"].join(", "),
+        data["0"].join(", "),
+        data["advancing"].join(", "),
+      ],
     );
 
     clearDraft(NAMESPACE, cacheKey);
 
-    return interaction.editReply(
-      '✅ Twoje typy zostały zapisane!'
-    );
+    return interaction.editReply("✅ Twoje typy zostały zapisane!");
   });
 };

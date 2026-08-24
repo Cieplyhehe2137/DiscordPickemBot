@@ -1,15 +1,15 @@
 // handlers/teamsPageNav.js
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const teamsState = require('../../utils/teamsState');
-const openTeamsManager = require('./openTeamsManager');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const teamsState = require("../../utils/teamsState");
+const openTeamsManager = require("./openTeamsManager");
 
 module.exports = async function teamsPageNav(interaction) {
   try {
     // guard: tylko serwer
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
@@ -20,9 +20,9 @@ module.exports = async function teamsPageNav(interaction) {
     const st = teamsState.getState(guildId, userId) || { page: 0 };
     const page = Number(st.page) || 0;
 
-    if (customId === 'teams:page_prev') {
+    if (customId === "teams:page_prev") {
       st.page = Math.max(0, page - 1);
-    } else if (customId === 'teams:page_next') {
+    } else if (customId === "teams:page_next") {
       st.page = page + 1;
     } else {
       // safety – ktoś kliknął nie ten przycisk
@@ -38,19 +38,18 @@ module.exports = async function teamsPageNav(interaction) {
 
     // openTeamsManager sam decyduje update vs reply
     return openTeamsManager(interaction);
-
   } catch (err) {
-    logError('teams', 'teamsPageNav failed', {
+    logError("teams", "teamsPageNav failed", {
       guildId: interaction.guildId,
       userId: interaction.user?.id,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Nie udało się zmienić strony.',
-        ephemeral: true
+        content: "❌ Nie udało się zmienić strony.",
+        ephemeral: true,
       });
     }
   }

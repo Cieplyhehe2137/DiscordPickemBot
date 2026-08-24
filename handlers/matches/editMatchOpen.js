@@ -1,37 +1,31 @@
 const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
-  EmbedBuilder
-} = require('discord.js');
+  EmbedBuilder,
+} = require("discord.js");
 
-const isAdmin = require('../../utils/isAdmin');
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
+const isAdmin = require("../../utils/isAdmin");
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
 
 module.exports = async function editMatchOpen(interaction) {
   try {
     if (!isAdmin(interaction)) {
       return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
+        content: "❌ Brak uprawnień.",
+        ephemeral: true,
       });
     }
 
-    if (
-      !interaction.deferred &&
-      !interaction.replied
-    ) {
+    if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({
-        ephemeral: true
+        ephemeral: true,
       });
     }
 
-    return withGuild(
-      interaction,
-      async ({ pool, guildId }) => {
-
-        const [matches] = await pool.query(
-          `
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      const [matches] = await pool.query(
+        `
           SELECT
             m.id,
             m.event_id,
@@ -64,88 +58,69 @@ module.exports = async function editMatchOpen(interaction) {
 
           LIMIT 25
           `,
-          [guildId]
+        [guildId],
+      );
+
+      if (!matches.length) {
+        return interaction.editReply({
+          content: "ℹ️ Nie ma żadnych meczów do edycji.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      const options = matches.map((match) => {
+        const number = match.match_no ? `#${match.match_no}` : `ID ${match.id}`;
+
+        const resultInfo =
+          Number(match.has_result) === 1 ? " • ROZLICZONY" : "";
+
+        return {
+          label: `${match.team_a} vs ${match.team_b}`.slice(0, 100),
+
+          description:
+            `${number} • ${match.phase} • BO${match.best_of}${resultInfo}`.slice(
+              0,
+              100,
+            ),
+
+          value: String(match.id),
+
+          emoji: Number(match.has_result) === 1 ? "🔒" : "✏️",
+        };
+      });
+
+      const select = new StringSelectMenuBuilder()
+        .setCustomId("edit_match_select")
+        .setPlaceholder("Wybierz mecz do edycji")
+        .addOptions(options);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865f2)
+        .setTitle("✏️ Edycja meczu")
+        .setDescription(
+          "Wybierz mecz, który chcesz zmienić.\n\n" +
+            "⚠️ W rozliczonym meczu nie będzie można zmienić drużyn ani BO.",
         );
 
-        if (!matches.length) {
-          return interaction.editReply({
-            content:
-              'ℹ️ Nie ma żadnych meczów do edycji.',
-            embeds: [],
-            components: []
-          });
-        }
-
-        const options = matches.map(match => {
-          const number = match.match_no
-            ? `#${match.match_no}`
-            : `ID ${match.id}`;
-
-          const resultInfo =
-            Number(match.has_result) === 1
-              ? ' • ROZLICZONY'
-              : '';
-
-          return {
-            label:
-              `${match.team_a} vs ${match.team_b}`
-                .slice(0, 100),
-
-            description:
-              `${number} • ${match.phase} • BO${match.best_of}${resultInfo}`
-                .slice(0, 100),
-
-            value:
-              String(match.id),
-
-            emoji:
-              Number(match.has_result) === 1
-                ? '🔒'
-                : '✏️'
-          };
-        });
-
-        const select =
-          new StringSelectMenuBuilder()
-            .setCustomId('edit_match_select')
-            .setPlaceholder('Wybierz mecz do edycji')
-            .addOptions(options);
-
-        const embed =
-          new EmbedBuilder()
-            .setColor(0x5865F2)
-            .setTitle('✏️ Edycja meczu')
-            .setDescription(
-              'Wybierz mecz, który chcesz zmienić.\n\n' +
-              '⚠️ W rozliczonym meczu nie będzie można zmienić drużyn ani BO.'
-            );
-
-        return interaction.editReply({
-          content: '',
-          embeds: [embed],
-          components: [
-            new ActionRowBuilder()
-              .addComponents(select)
-          ]
-        });
-      }
-    );
-
+      return interaction.editReply({
+        content: "",
+        embeds: [embed],
+        components: [new ActionRowBuilder().addComponents(select)],
+      });
+    });
   } catch (err) {
-    logError(
-      'matches',
-      'editMatchOpen failed',
-      {
-        message: err.message,
-        stack: err.stack
-      }
-    );
+    logError("matches", "editMatchOpen failed", {
+      message: err.message,
+      stack: err.stack,
+    });
 
-    return interaction.editReply({
-      content:
-        '❌ Nie udało się pobrać listy meczów.',
-      embeds: [],
-      components: []
-    }).catch(() => {});
+    return interaction
+      .editReply({
+        content: "❌ Nie udało się pobrać listy meczów.",
+        embeds: [],
+        components: [],
+      })
+      .catch(() => {});
   }
 };

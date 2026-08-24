@@ -24,7 +24,7 @@ function getGuildConfig(guildId) {
   }
 
   throw new Error(
-    "guildRegistry does not expose getGuildConfig / getAllGuildConfigs / getAllGuildConfig"
+    "guildRegistry does not expose getGuildConfig / getAllGuildConfigs / getAllGuildConfig",
   );
 }
 
@@ -58,7 +58,7 @@ function getPoolForGuild(guildId) {
 
     if (!host || !user || !database) {
       throw new Error(
-        `Incomplete DB config for guildId=${guildId} (host/user/database missing)`
+        `Incomplete DB config for guildId=${guildId} (host/user/database missing)`,
       );
     }
 
@@ -73,7 +73,7 @@ function getPoolForGuild(guildId) {
         waitForConnections: true,
         connectionLimit: 10,
         namedPlaceholders: true,
-      })
+      }),
     );
   }
 

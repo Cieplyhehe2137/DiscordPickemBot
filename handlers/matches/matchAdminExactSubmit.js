@@ -5,15 +5,15 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { logError } = require('../../utils/logger');
-const adminState = require('../../utils/matchAdminState');
-const { withGuild } = require('../../utils/guildContext');
-const recalculateMatchPoints = require('../../services/recalculateMatchPoints');
-const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logError } = require("../../utils/logger");
+const adminState = require("../../utils/matchAdminState");
+const { withGuild } = require("../../utils/guildContext");
+const recalculateMatchPoints = require("../../services/recalculateMatchPoints");
+const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 /* ======================
    GUARDS
@@ -21,10 +21,12 @@ const { getMatchById } = require('../../utils/matchesStore');
 
 function requireGuild(interaction) {
   if (!interaction.guildId) {
-    interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
-    }).catch(() => { });
+    interaction
+      .reply({
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
+      })
+      .catch(() => {});
     return false;
   }
   return true;
@@ -32,8 +34,10 @@ function requireGuild(interaction) {
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
-  return perms?.has(PermissionFlagsBits.Administrator) ||
-    perms?.has(PermissionFlagsBits.ManageGuild);
+  return (
+    perms?.has(PermissionFlagsBits.Administrator) ||
+    perms?.has(PermissionFlagsBits.ManageGuild)
+  );
 }
 
 /* ======================
@@ -52,10 +56,10 @@ async function getDefaults(pool, guildId, eventId, matchId, maxMaps, mapNo) {
           AND match_id = ?
         LIMIT 1
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
-      return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+      return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
     }
 
     const [[r]] = await pool.query(
@@ -68,43 +72,43 @@ async function getDefaults(pool, guildId, eventId, matchId, maxMaps, mapNo) {
         AND map_no = ?
       LIMIT 1
       `,
-      [guildId, eventId, matchId, mapNo]
+      [guildId, eventId, matchId, mapNo],
     );
 
-    return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+    return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
   } catch {
-    return { a: '', b: '' };
+    return { a: "", b: "" };
   }
 }
 
 function buildModal(match, maxMaps, mapNo, defaults) {
   const modal = new ModalBuilder()
-    .setCustomId('match_admin_exact_submit')
+    .setCustomId("match_admin_exact_submit")
     .setTitle(
       maxMaps === 1
-        ? 'Oficjalny dokładny wynik'
-        : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
+        ? "Oficjalny dokładny wynik"
+        : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`,
     );
 
   const inA = new TextInputBuilder()
-    .setCustomId('exact_a')
+    .setCustomId("exact_a")
     .setLabel(`${match.team_a} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder('np. 13')
-    .setValue(defaults.a === '' ? '' : String(defaults.a));
+    .setPlaceholder("np. 13")
+    .setValue(defaults.a === "" ? "" : String(defaults.a));
 
   const inB = new TextInputBuilder()
-    .setCustomId('exact_b')
+    .setCustomId("exact_b")
     .setLabel(`${match.team_b} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder('np. 8')
-    .setValue(defaults.b === '' ? '' : String(defaults.b));
+    .setPlaceholder("np. 8")
+    .setValue(defaults.b === "" ? "" : String(defaults.b));
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(inA),
-    new ActionRowBuilder().addComponents(inB)
+    new ActionRowBuilder().addComponents(inB),
   );
 
   return modal;
@@ -123,13 +127,13 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
       if (!ctx?.matchId) {
         return interaction.reply({
-          content: '❌ Brak kontekstu meczu.',
-          ephemeral: true
+          content: "❌ Brak kontekstu meczu.",
+          ephemeral: true,
         });
       }
 
-      const exactA = Number(interaction.fields.getTextInputValue('exact_a'));
-      const exactB = Number(interaction.fields.getTextInputValue('exact_b'));
+      const exactA = Number(interaction.fields.getTextInputValue("exact_a"));
+      const exactB = Number(interaction.fields.getTextInputValue("exact_b"));
 
       if (
         !Number.isFinite(exactA) ||
@@ -140,8 +144,8 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         exactB > 99
       ) {
         return interaction.reply({
-          content: '❌ Wynik musi być liczbą z zakresu 0–99.',
-          ephemeral: true
+          content: "❌ Wynik musi być liczbą z zakresu 0–99.",
+          ephemeral: true,
         });
       }
 
@@ -151,8 +155,8 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         adminState.clear(guildId, interaction.user.id);
 
         return interaction.reply({
-          content: '❌ Mecz nie istnieje lub nie należy do tego serwera.',
-          ephemeral: true
+          content: "❌ Mecz nie istnieje lub nie należy do tego serwera.",
+          ephemeral: true,
         });
       }
 
@@ -160,8 +164,8 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         adminState.clear(guildId, interaction.user.id);
 
         return interaction.reply({
-          content: '❌ Ten mecz nie ma przypisanego event_id.',
-          ephemeral: true
+          content: "❌ Ten mecz nie ma przypisanego event_id.",
+          ephemeral: true,
         });
       }
 
@@ -185,7 +189,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
             exact_a = VALUES(exact_a),
             exact_b = VALUES(exact_b)
           `,
-          [guildId, match.event_id, match.id, exactA, exactB]
+          [guildId, match.event_id, match.id, exactA, exactB],
         );
       } else {
         await pool.query(
@@ -200,7 +204,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
             exact_b = VALUES(exact_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, match.event_id, match.id, mapNo, exactA, exactB]
+          [guildId, match.event_id, match.id, mapNo, exactA, exactB],
         );
       }
 
@@ -209,7 +213,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         guildId,
         match.event_id,
         match.id,
-        match.best_of
+        match.best_of,
       );
 
       if (maxMaps > 1 && mapNo < maxMaps) {
@@ -217,7 +221,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
 
         adminState.set(guildId, interaction.user.id, {
           ...ctx,
-          mapNo: nextMapNo
+          mapNo: nextMapNo,
         });
 
         const defaults = await getDefaults(
@@ -226,7 +230,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
           match.event_id,
           match.id,
           maxMaps,
-          nextMapNo
+          nextMapNo,
         );
 
         const modal = buildModal(match, maxMaps, nextMapNo, defaults);
@@ -240,11 +244,11 @@ module.exports = async function matchAdminExactSubmit(interaction) {
             components: [
               new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                  .setCustomId('match_admin_exact_open')
+                  .setCustomId("match_admin_exact_open")
                   .setLabel(`➡️ ${getMapLabel(nextMapNo, match.best_of)}`)
-                  .setStyle(ButtonStyle.Primary)
-              )
-            ]
+                  .setStyle(ButtonStyle.Primary),
+              ),
+            ],
           });
         }
       }
@@ -256,18 +260,20 @@ module.exports = async function matchAdminExactSubmit(interaction) {
           maxMaps === 1
             ? `✅ Zapisano oficjalny dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`
             : `✅ Zapisano oficjalne dokładne wyniki dla BO${match.best_of} (mapy 1–${maxMaps}).`,
-        ephemeral: true
+        ephemeral: true,
       });
     });
   } catch (err) {
-    logError('matches', 'matchAdminExactSubmit failed', {
+    logError("matches", "matchAdminExactSubmit failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się zapisać wyników.',
-      ephemeral: true
-    }).catch(() => { });
+    return interaction
+      .reply({
+        content: "❌ Nie udało się zapisać wyników.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

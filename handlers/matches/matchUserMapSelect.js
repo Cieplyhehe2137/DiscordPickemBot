@@ -1,15 +1,15 @@
-const userState = require('../../utils/matchUserState');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { withGuild } = require('../../utils/guildContext');
-const { getMatchById } = require('../../utils/matchesStore');
-const { maxMapsFromBo } = require('../../utils/mapLabels');
+const userState = require("../../utils/matchUserState");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { withGuild } = require("../../utils/guildContext");
+const { getMatchById } = require("../../utils/matchesStore");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
 
 module.exports = async function matchUserMapSelect(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
@@ -20,8 +20,8 @@ module.exports = async function matchUserMapSelect(interaction) {
       const ctx = userState.get(guildId, interaction.user.id);
       if (!ctx?.matchId) {
         return interaction.update({
-          content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
-          components: []
+          content: "❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.",
+          components: [],
         });
       }
 
@@ -30,16 +30,16 @@ module.exports = async function matchUserMapSelect(interaction) {
       if (!m) {
         userState.clear(guildId, interaction.user.id);
         return interaction.update({
-          content: '❌ Mecz nie istnieje.',
-          components: []
+          content: "❌ Mecz nie istnieje.",
+          components: [],
         });
       }
 
       if (m.is_locked) {
         userState.clear(guildId, interaction.user.id);
         return interaction.update({
-          content: '🔒 Ten mecz jest zablokowany.',
-          components: []
+          content: "🔒 Ten mecz jest zablokowany.",
+          components: [],
         });
       }
 
@@ -47,42 +47,43 @@ module.exports = async function matchUserMapSelect(interaction) {
 
       if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
         return interaction.update({
-          content: '❌ Nieprawidłowa mapa.',
-          components: []
+          content: "❌ Nieprawidłowa mapa.",
+          components: [],
         });
       }
 
       // ✅ zapisz wybraną mapę
       userState.set(guildId, interaction.user.id, {
         ...ctx,
-        mapNo
+        mapNo,
       });
 
-      logInfo('matches', 'User selected map', {
+      logInfo("matches", "User selected map", {
         guild_id: guildId,
         matchId: m.id,
         mapNo,
-        userId: interaction.user.id
+        userId: interaction.user.id,
       });
 
       return interaction.update({
         content:
           `✅ Wybrano mapę **#${mapNo}**.\n` +
           `Kliknij ponownie **🧮 Wpisz dokładny wynik**, aby wpisać liczby.`,
-        components: []
+        components: [],
       });
     });
-
   } catch (err) {
-    logError('matches', 'matchUserMapSelect failed', {
+    logError("matches", "matchUserMapSelect failed", {
       guild_id: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.update({
-      content: '❌ Wystąpił błąd przy wyborze mapy.',
-      components: []
-    }).catch(() => {});
+    return interaction
+      .update({
+        content: "❌ Wystąpił błąd przy wyborze mapy.",
+        components: [],
+      })
+      .catch(() => {});
   }
 };

@@ -1,16 +1,18 @@
 // handlers/teamsToggle.js
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const teamsState = require('../../utils/teamsState');
-const { toggleTeamActive } = require('../../utils/teamsStore');
-const openTeamsManager = require('./openTeamsManager');
-const { PermissionFlagsBits } = require('discord.js');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const teamsState = require("../../utils/teamsState");
+const { toggleTeamActive } = require("../../utils/teamsStore");
+const openTeamsManager = require("./openTeamsManager");
+const { PermissionFlagsBits } = require("discord.js");
 
 module.exports = async function teamsToggle(interaction) {
   try {
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
       return interaction.reply({
-        content: '⛔ Tylko administracja.',
-        ephemeral: true
+        content: "⛔ Tylko administracja.",
+        ephemeral: true,
       });
     }
 
@@ -19,8 +21,8 @@ module.exports = async function teamsToggle(interaction) {
 
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze (nie w DM).',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze (nie w DM).",
+        ephemeral: true,
       });
     }
 
@@ -29,8 +31,8 @@ module.exports = async function teamsToggle(interaction) {
 
     if (!Number.isFinite(teamId) || teamId <= 0) {
       return interaction.reply({
-        content: '⚠️ Najpierw wybierz **jedną** drużynę z listy.',
-        ephemeral: true
+        content: "⚠️ Najpierw wybierz **jedną** drużynę z listy.",
+        ephemeral: true,
       });
     }
 
@@ -40,23 +42,22 @@ module.exports = async function teamsToggle(interaction) {
     teamsState.setState(guildId, userId, {
       ...st,
       selectedTeamIds: [],
-      selectedTeamId: null
+      selectedTeamId: null,
     });
 
     return openTeamsManager(interaction);
-
   } catch (err) {
-    logError('teams', 'teamsToggle failed', {
+    logError("teams", "teamsToggle failed", {
       message: err.message,
       stack: err.stack,
       guildId: interaction.guildId,
-      userId: interaction.user?.id
+      userId: interaction.user?.id,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Nie udało się zmienić statusu drużyny.',
-        ephemeral: true
+        content: "❌ Nie udało się zmienić statusu drużyny.",
+        ephemeral: true,
       });
     }
   }

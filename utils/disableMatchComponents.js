@@ -2,14 +2,14 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ComponentType,
-} = require('discord.js');
+} = require("discord.js");
 
-function isMatchPick(customId = '') {
-  return customId.startsWith('match_pick:');
+function isMatchPick(customId = "") {
+  return customId.startsWith("match_pick:");
 }
 
-function isResultsButton(customId = '') {
-  return customId === 'open_results_matches';
+function isResultsButton(customId = "") {
+  return customId === "open_results_matches";
 }
 
 async function disableMatchComponents(message) {
@@ -50,9 +50,7 @@ async function disableMatchComponents(message) {
       ) {
         // console.log('  │  ↳ DISABLING MATCH PICK');
 
-        newRow.addComponents(
-          ButtonBuilder.from(comp).setDisabled(true)
-        );
+        newRow.addComponents(ButtonBuilder.from(comp).setDisabled(true));
         return;
       }
 
@@ -64,9 +62,7 @@ async function disableMatchComponents(message) {
       ) {
         // console.log('  │  ↳ DISABLING RESULTS BUTTON');
 
-        newRow.addComponents(
-          ButtonBuilder.from(comp).setDisabled(true)
-        );
+        newRow.addComponents(ButtonBuilder.from(comp).setDisabled(true));
         return;
       }
 
@@ -92,7 +88,7 @@ async function disableMatchComponents(message) {
     await message.edit({ components: newRows });
     // console.log('[DISABLE][MATCH] MESSAGE EDITED OK');
   } catch (err) {
-    console.error('[DISABLE][MATCH] MESSAGE EDIT FAILED:', err);
+    console.error("[DISABLE][MATCH] MESSAGE EDIT FAILED:", err);
   }
 }
 

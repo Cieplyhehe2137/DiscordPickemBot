@@ -4,13 +4,13 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-} = require('discord.js');
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { withGuild } = require('../../utils/guildContext');
-const userState = require('../../utils/matchUserState');
-const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { withGuild } = require("../../utils/guildContext");
+const userState = require("../../utils/matchUserState");
+const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 /* ===============================
    HELPERS
@@ -27,11 +27,10 @@ async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
         AND user_id = ?
       LIMIT 1
       `,
-      [guildId, matchId, userId]
+      [guildId, matchId, userId],
     );
 
-
-    return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+    return { a: p?.pred_exact_a ?? "", b: p?.pred_exact_b ?? "" };
   }
 
   const [[p]] = await pool.query(
@@ -44,46 +43,45 @@ async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
     AND map_no = ?
   LIMIT 1
   `,
-    [guildId, matchId, userId, mapNo]
+    [guildId, matchId, userId, mapNo],
   );
 
-
-  return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+  return { a: p?.pred_exact_a ?? "", b: p?.pred_exact_b ?? "" };
 }
 
 function buildModal({ match, maxMaps, mapNo, defaults }) {
   const modal = new ModalBuilder()
-    .setCustomId('match_user_exact_submit')
+    .setCustomId("match_user_exact_submit")
     .setTitle(
       maxMaps === 1
         ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
         : `Dokładny wynik — ${getMapLabel(
-          mapNo,
-          match.best_of,
-          match.team_a,
-          match.team_b
-        )}`
-    )
+            mapNo,
+            match.best_of,
+            match.team_a,
+            match.team_b,
+          )}`,
+    );
 
   const inA = new TextInputBuilder()
-    .setCustomId('exact_a')
+    .setCustomId("exact_a")
     .setLabel(`${match.team_a} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder('np. 13')
-    .setValue(defaults.a === '' ? '' : String(defaults.a));
+    .setPlaceholder("np. 13")
+    .setValue(defaults.a === "" ? "" : String(defaults.a));
 
   const inB = new TextInputBuilder()
-    .setCustomId('exact_b')
+    .setCustomId("exact_b")
     .setLabel(`${match.team_b} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder('np. 8')
-    .setValue(defaults.b === '' ? '' : String(defaults.b));
+    .setPlaceholder("np. 8")
+    .setValue(defaults.b === "" ? "" : String(defaults.b));
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(inA),
-    new ActionRowBuilder().addComponents(inB)
+    new ActionRowBuilder().addComponents(inB),
   );
 
   return modal;
@@ -98,7 +96,7 @@ module.exports = async function matchUserExactOpen(interaction) {
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
+        content: "❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.",
         ephemeral: true,
       });
     }
@@ -109,22 +107,25 @@ module.exports = async function matchUserExactOpen(interaction) {
       if (!match) {
         userState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '❌ Mecz nie istnieje.',
-          ephemeral: true
+          content: "❌ Mecz nie istnieje.",
+          ephemeral: true,
         });
       }
 
       if (match.is_locked) {
         return interaction.reply({
-          content: '🔒 Ten mecz jest zablokowany.',
-          ephemeral: true
+          content: "🔒 Ten mecz jest zablokowany.",
+          ephemeral: true,
         });
       }
 
       const maxMaps = maxMapsFromBo(match.best_of);
 
       let mapNo = Number(ctx.mapNo || 0);
-      if (maxMaps > 1 && (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)) {
+      if (
+        maxMaps > 1 &&
+        (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps)
+      ) {
         mapNo = 1;
         userState.set(guildId, interaction.user.id, { ...ctx, mapNo });
       }
@@ -134,7 +135,7 @@ module.exports = async function matchUserExactOpen(interaction) {
       if (maxMaps > 1 && effectiveMapNo === 1 && !ctx?.requiredMaps) {
         return interaction.reply({
           content:
-            '🎯 Najpierw wybierz wynik serii w dropdownie **„Wybierz swój typ…”**.',
+            "🎯 Najpierw wybierz wynik serii w dropdownie **„Wybierz swój typ…”**.",
           ephemeral: true,
         });
       }
@@ -155,30 +156,29 @@ module.exports = async function matchUserExactOpen(interaction) {
         match.id,
         interaction.user.id,
         maxMaps,
-        effectiveMapNo
+        effectiveMapNo,
       );
-
 
       const modal = buildModal({
         match,
         maxMaps,
         mapNo: effectiveMapNo,
-        defaults
+        defaults,
       });
 
       return interaction.showModal(modal);
     });
   } catch (err) {
-    logError('matches', 'matchUserExactOpen failed', {
+    logError("matches", "matchUserExactOpen failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     return interaction
       .reply({
-        content: '❌ Nie udało się otworzyć modala.',
-        ephemeral: true
+        content: "❌ Nie udało się otworzyć modala.",
+        ephemeral: true,
       })
-      .catch(() => { });
+      .catch(() => {});
   }
 };

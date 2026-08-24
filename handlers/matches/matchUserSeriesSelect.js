@@ -2,15 +2,15 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder
-} = require('discord.js');
+  ActionRowBuilder,
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const userState = require('../../utils/matchUserState');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { withGuild } = require('../../utils/guildContext');
-const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const userState = require("../../utils/matchUserState");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const { withGuild } = require("../../utils/guildContext");
+const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
   if (maxMaps === 1) {
@@ -21,9 +21,9 @@ async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
       WHERE guild_id = ? AND match_id = ? AND user_id = ?
       LIMIT 1
       `,
-      [guildId, matchId, userId]
+      [guildId, matchId, userId],
     );
-    return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+    return { a: p?.pred_exact_a ?? "", b: p?.pred_exact_b ?? "" };
   }
 
   const [[p]] = await pool.query(
@@ -33,39 +33,39 @@ async function getUserDefaults(pool, guildId, matchId, userId, maxMaps, mapNo) {
     WHERE guild_id = ? AND match_id = ? AND user_id = ? AND map_no = ?
     LIMIT 1
     `,
-    [guildId, matchId, userId, mapNo]
+    [guildId, matchId, userId, mapNo],
   );
-  return { a: p?.pred_exact_a ?? '', b: p?.pred_exact_b ?? '' };
+  return { a: p?.pred_exact_a ?? "", b: p?.pred_exact_b ?? "" };
 }
 
 function buildModal({ match, maxMaps, mapNo, defaults }) {
   const modal = new ModalBuilder()
-    .setCustomId('match_user_exact_submit')
+    .setCustomId("match_user_exact_submit")
     .setTitle(
       maxMaps === 1
         ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-        : `Dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
+        : `Dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`,
     );
 
   const inA = new TextInputBuilder()
-    .setCustomId('exact_a')
+    .setCustomId("exact_a")
     .setLabel(`${match.team_a} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
-  if (defaults.a !== '') inA.setValue(String(defaults.a));
+  if (defaults.a !== "") inA.setValue(String(defaults.a));
 
   const inB = new TextInputBuilder()
-    .setCustomId('exact_b')
+    .setCustomId("exact_b")
     .setLabel(`${match.team_b} — wynik`)
     .setStyle(TextInputStyle.Short)
     .setRequired(true);
 
-  if (defaults.b !== '') inB.setValue(String(defaults.b));
+  if (defaults.b !== "") inB.setValue(String(defaults.b));
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(inA),
-    new ActionRowBuilder().addComponents(inB)
+    new ActionRowBuilder().addComponents(inB),
   );
 
   return modal;
@@ -75,28 +75,28 @@ module.exports = async function matchUserSeriesSelect(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
     const ctx = userState.get(interaction.guildId, interaction.user.id);
     if (!ctx?.matchId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu meczu.',
-        ephemeral: true
+        content: "❌ Brak kontekstu meczu.",
+        ephemeral: true,
       });
     }
 
     const gate = await assertPredictionsAllowed({
       guildId: interaction.guildId,
-      kind: 'MATCHES'
+      kind: "MATCHES",
     });
 
     if (!gate.allowed) {
       return interaction.reply({
-        content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
-        ephemeral: true
+        content: gate.message || "❌ Typowanie jest aktualnie zamknięte.",
+        ephemeral: true,
       });
     }
 
@@ -106,8 +106,8 @@ module.exports = async function matchUserSeriesSelect(interaction) {
       if (!match || match.is_locked) {
         userState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '🔒 Mecz jest zablokowany.',
-          ephemeral: true
+          content: "🔒 Mecz jest zablokowany.",
+          ephemeral: true,
         });
       }
 
@@ -115,18 +115,18 @@ module.exports = async function matchUserSeriesSelect(interaction) {
       const raw = interaction.values?.[0];
       if (!raw) {
         return interaction.reply({
-          content: '❌ Nie wybrano wyniku serii.',
-          ephemeral: true
+          content: "❌ Nie wybrano wyniku serii.",
+          ephemeral: true,
         });
       }
 
-      const [, , score] = raw.split('|');
-      const [winA, winB] = score.split(':').map(Number);
+      const [, , score] = raw.split("|");
+      const [winA, winB] = score.split(":").map(Number);
 
       if (!Number.isInteger(winA) || !Number.isInteger(winB)) {
         return interaction.reply({
-          content: '❌ Niepoprawny wynik serii.',
-          ephemeral: true
+          content: "❌ Niepoprawny wynik serii.",
+          ephemeral: true,
         });
       }
 
@@ -141,7 +141,7 @@ module.exports = async function matchUserSeriesSelect(interaction) {
         targetWinsA: winA,
         targetWinsB: winB,
         mapWinsA: 0,
-        mapWinsB: 0
+        mapWinsB: 0,
       });
 
       const defaults = await getUserDefaults(
@@ -150,28 +150,29 @@ module.exports = async function matchUserSeriesSelect(interaction) {
         match.id,
         interaction.user.id,
         maxMaps,
-        1
+        1,
       );
 
       const modal = buildModal({
         match,
         maxMaps,
         mapNo: 1,
-        defaults
+        defaults,
       });
 
       return interaction.showModal(modal);
     });
-
   } catch (err) {
-    logError('matches', 'matchUserSeriesSelect failed', {
+    logError("matches", "matchUserSeriesSelect failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się ustawić wyniku serii.',
-      ephemeral: true
-    }).catch(() => {});
+    return interaction
+      .reply({
+        content: "❌ Nie udało się ustawić wyniku serii.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

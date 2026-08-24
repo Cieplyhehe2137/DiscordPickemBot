@@ -2,30 +2,30 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const { logInfo, logError } = require('../../utils/logger');
-const { withGuild } = require('../../utils/guildContext');
-const { scoreOptionsForBo } = require('../../utils/scoreOptions');
-const { sendMatchList } = require('./openMatchPick');
-const userState = require('../../utils/matchUserState');
-const { isMatchLocked } = require('../../utils/matchLock');
-const { getMapLabel } = require('../../utils/mapLabels');
+const { logInfo, logError } = require("../../utils/logger");
+const { withGuild } = require("../../utils/guildContext");
+const { scoreOptionsForBo } = require("../../utils/scoreOptions");
+const { sendMatchList } = require("./openMatchPick");
+const userState = require("../../utils/matchUserState");
+const { isMatchLocked } = require("../../utils/matchLock");
+const { getMapLabel } = require("../../utils/mapLabels");
 
 function formatSavedPrediction(match, prediction, mapPredictions) {
   if (!prediction) {
     return [
-      '📋 **Twój zapisany typ**',
-      '',
-      '🎮 Ten mecz nie został jeszcze wytypowany.'
-    ].join('\n');
+      "📋 **Twój zapisany typ**",
+      "",
+      "🎮 Ten mecz nie został jeszcze wytypowany.",
+    ].join("\n");
   }
 
   const lines = [
-    '📋 **Twój zapisany typ**',
-    '',
-    `🏆 **${match.team_a} ${prediction.pred_a}:${prediction.pred_b} ${match.team_b}**`
+    "📋 **Twój zapisany typ**",
+    "",
+    `🏆 **${match.team_a} ${prediction.pred_a}:${prediction.pred_b} ${match.team_b}**`,
   ];
 
   if (
@@ -34,39 +34,36 @@ function formatSavedPrediction(match, prediction, mapPredictions) {
     prediction.pred_exact_b != null
   ) {
     lines.push(
-      '',
+      "",
       `🗺️ **Dokładny wynik:** ${match.team_a} ` +
         `**${prediction.pred_exact_a}:${prediction.pred_exact_b}** ` +
-        `${match.team_b}`
+        `${match.team_b}`,
     );
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   if (mapPredictions.length > 0) {
-    lines.push('', '🗺️ **Wyniki map:**');
+    lines.push("", "🗺️ **Wyniki map:**");
 
     for (const map of mapPredictions) {
       const mapLabel = getMapLabel(
         map.map_no,
         match.best_of,
         match.team_a,
-        match.team_b
+        match.team_b,
       );
 
       lines.push(
         `• **${mapLabel}:** ` +
-          `${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}`
+          `${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}`,
       );
     }
   } else {
-    lines.push(
-      '',
-      '⚠️ Nie zapisano jeszcze dokładnych wyników map.'
-    );
+    lines.push("", "⚠️ Nie zapisano jeszcze dokładnych wyników map.");
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 module.exports = async function matchPickSelect(interaction) {
@@ -74,27 +71,25 @@ module.exports = async function matchPickSelect(interaction) {
     if (!interaction.isStringSelectMenu()) return;
 
     const mode =
-      interaction.customId === 'match_pick_select_res'
-        ? 'res'
-        : 'pred';
+      interaction.customId === "match_pick_select_res" ? "res" : "pred";
 
     const picked = interaction.values?.[0];
 
     if (!picked) {
       return interaction.update({
-        content: '❌ Nie wybrano opcji.',
-        components: []
+        content: "❌ Nie wybrano opcji.",
+        components: [],
       });
     }
 
-    logInfo('matches', 'matchPickSelect value', {
+    logInfo("matches", "matchPickSelect value", {
       customId: interaction.customId,
-      picked
+      picked,
     });
 
-    const [type, phaseKey, third] = picked.split('|');
+    const [type, phaseKey, third] = picked.split("|");
 
-    if (type === 'NEXT' || type === 'PREV') {
+    if (type === "NEXT" || type === "PREV") {
       const targetPage = Math.max(0, Number(third) || 0);
 
       return sendMatchList({
@@ -102,14 +97,14 @@ module.exports = async function matchPickSelect(interaction) {
         phaseKey,
         mode,
         page: targetPage,
-        isUpdate: true
+        isUpdate: true,
       });
     }
 
-    if (type !== 'MATCH') {
+    if (type !== "MATCH") {
       return interaction.update({
-        content: '❌ Nieznana opcja.',
-        components: []
+        content: "❌ Nieznana opcja.",
+        components: [],
       });
     }
 
@@ -117,8 +112,8 @@ module.exports = async function matchPickSelect(interaction) {
 
     if (!matchId) {
       return interaction.update({
-        content: '❌ Nieprawidłowy mecz.',
-        components: []
+        content: "❌ Nieprawidłowy mecz.",
+        components: [],
       });
     }
 
@@ -140,13 +135,13 @@ module.exports = async function matchPickSelect(interaction) {
           AND phase = ?
         LIMIT 1
         `,
-        [guildId, matchId, phaseKey]
+        [guildId, matchId, phaseKey],
       );
 
       if (!match) {
         return interaction.update({
-          content: '❌ Nie znaleziono meczu.',
-          components: []
+          content: "❌ Nie znaleziono meczu.",
+          components: [],
         });
       }
 
@@ -155,7 +150,7 @@ module.exports = async function matchPickSelect(interaction) {
       let prediction = null;
       let mapPredictions = [];
 
-      if (mode === 'pred') {
+      if (mode === "pred") {
         const [[savedPrediction]] = await pool.query(
           `
           SELECT
@@ -170,11 +165,7 @@ module.exports = async function matchPickSelect(interaction) {
             AND user_id = ?
           LIMIT 1
           `,
-          [
-            guildId,
-            match.id,
-            interaction.user.id
-          ]
+          [guildId, match.id, interaction.user.id],
         );
 
         prediction = savedPrediction || null;
@@ -191,11 +182,7 @@ module.exports = async function matchPickSelect(interaction) {
             AND user_id = ?
           ORDER BY map_no ASC
           `,
-          [
-            guildId,
-            match.id,
-            interaction.user.id
-          ]
+          [guildId, match.id, interaction.user.id],
         );
 
         mapPredictions = savedMaps || [];
@@ -204,13 +191,13 @@ module.exports = async function matchPickSelect(interaction) {
       const options = scoreOptionsForBo(
         match.best_of,
         match.team_a,
-        match.team_b
+        match.team_b,
       );
 
       if (!options.length) {
         return interaction.update({
-          content: '❌ Nieobsługiwany format BO w tym meczu.',
-          components: []
+          content: "❌ Nieobsługiwany format BO w tym meczu.",
+          components: [],
         });
       }
 
@@ -218,41 +205,39 @@ module.exports = async function matchPickSelect(interaction) {
         label: option.label,
         value: `${guildId}|${match.id}|${option.value}`,
         default:
-          mode === 'pred' &&
+          mode === "pred" &&
           prediction != null &&
-          `${prediction.pred_a}:${prediction.pred_b}` === option.value
+          `${prediction.pred_a}:${prediction.pred_b}` === option.value,
       }));
 
       const scoreCustomId =
-        mode === 'res'
-          ? 'match_score_select_res'
-          : 'match_score_select_pred';
+        mode === "res" ? "match_score_select_res" : "match_score_select_pred";
 
       const rows = [];
 
-      if (mode === 'res') {
+      if (mode === "res") {
         rows.push(
           new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
               .setCustomId(scoreCustomId)
-              .setPlaceholder('Wybierz oficjalny wynik...')
-              .addOptions(scoreOptions)
-          )
+              .setPlaceholder("Wybierz oficjalny wynik...")
+              .addOptions(scoreOptions),
+          ),
         );
       }
 
-      if (mode === 'pred' && !locked) {
+      if (mode === "pred" && !locked) {
         rows.push(
           new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
               .setCustomId(scoreCustomId)
               .setPlaceholder(
                 prediction
-                  ? 'Zmień swój wynik serii...'
-                  : 'Wybierz swój typ...'
+                  ? "Zmień swój wynik serii..."
+                  : "Wybierz swój typ...",
               )
-              .addOptions(scoreOptions)
-          )
+              .addOptions(scoreOptions),
+          ),
         );
 
         userState.set(guildId, interaction.user.id, {
@@ -260,63 +245,62 @@ module.exports = async function matchPickSelect(interaction) {
           teamA: match.team_a,
           teamB: match.team_b,
           bestOf: match.best_of,
-          phase: phaseKey
+          phase: phaseKey,
         });
 
         rows.push(
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-              .setCustomId('match_user_exact_open')
+              .setCustomId("match_user_exact_open")
               .setLabel(
                 prediction
-                  ? '✏️ Edytuj wyniki map'
-                  : '🧮 Wpisz dokładne wyniki map'
+                  ? "✏️ Edytuj wyniki map"
+                  : "🧮 Wpisz dokładne wyniki map",
               )
-              .setStyle(ButtonStyle.Secondary)
-          )
+              .setStyle(ButtonStyle.Secondary),
+          ),
         );
       }
 
       // Przycisk powrotu pokazujemy również przy zablokowanym meczu.
-      if (mode === 'pred') {
+      if (mode === "pred") {
         rows.push(
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setCustomId(`match_pick_back:${phaseKey}:0`)
-              .setLabel('⬅️ Wróć do listy')
-              .setStyle(ButtonStyle.Secondary)
-          )
+              .setLabel("⬅️ Wróć do listy")
+              .setStyle(ButtonStyle.Secondary),
+          ),
         );
       }
 
-      if (mode === 'res') {
+      if (mode === "res") {
         return interaction.update({
           content:
             `🧾 Ustaw oficjalny wynik: ` +
             `**${match.team_a} vs ${match.team_b}** ` +
             `(Bo${match.best_of})`,
-          components: rows
+          components: rows,
         });
       }
 
       const predictionPreview = formatSavedPrediction(
         match,
         prediction,
-        mapPredictions
+        mapPredictions,
       );
 
       let lockInfo;
 
       if (locked) {
         lockInfo =
-          '\n\n🔒 Ten mecz jest już zablokowany. ' +
-          'Typ można sprawdzić, ale nie można go edytować.';
+          "\n\n🔒 Ten mecz jest już zablokowany. " +
+          "Typ można sprawdzić, ale nie można go edytować.";
       } else if (prediction) {
-        lockInfo =
-          '\n\n✏️ Możesz zmienić wynik serii lub wyniki map poniżej.';
+        lockInfo = "\n\n✏️ Możesz zmienić wynik serii lub wyniki map poniżej.";
       } else {
         lockInfo =
-          '\n\n👇 Wybierz wynik serii, a następnie wpisz dokładne wyniki map.';
+          "\n\n👇 Wybierz wynik serii, a następnie wpisz dokładne wyniki map.";
       }
 
       return interaction.update({
@@ -325,19 +309,19 @@ module.exports = async function matchPickSelect(interaction) {
           `(Bo${match.best_of})\n\n` +
           predictionPreview +
           lockInfo,
-        components: rows
+        components: rows,
       });
     });
   } catch (err) {
-    logError('matches', 'matchPickSelect failed', {
+    logError("matches", "matchPickSelect failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     try {
       return await interaction.update({
-        content: '❌ Błąd w wyborze meczu.',
-        components: []
+        content: "❌ Błąd w wyborze meczu.",
+        components: [],
       });
     } catch (_) {
       return null;

@@ -1,32 +1,44 @@
 // handlers/matchAdminLockToggle.js
 
-const { PermissionFlagsBits } = require('discord.js');
-const { withGuild } = require('../../utils/guildContext');
-const { getMatchById, setMatchLock } = require('../../utils/matchesStore');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { isMatchStarted } = require('../../utils/matchLock');
-const { DateTime } = require('luxon');
+const { PermissionFlagsBits } = require("discord.js");
+const { withGuild } = require("../../utils/guildContext");
+const { getMatchById, setMatchLock } = require("../../utils/matchesStore");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { isMatchStarted } = require("../../utils/matchLock");
+const { DateTime } = require("luxon");
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
-  return perms?.has(PermissionFlagsBits.Administrator) || perms?.has(PermissionFlagsBits.ManageGuild);
+  return (
+    perms?.has(PermissionFlagsBits.Administrator) ||
+    perms?.has(PermissionFlagsBits.ManageGuild)
+  );
 }
 
 module.exports = async function matchAdminLockToggle(interaction) {
   try {
     if (!hasAdminPerms(interaction)) {
-      return interaction.reply({ content: '❌ Brak uprawnień', ephemeral: true });
+      return interaction.reply({
+        content: "❌ Brak uprawnień",
+        ephemeral: true,
+      });
     }
 
     const guildId = interaction.guildId;
     if (!guildId) {
-      return interaction.reply({ content: '❌ Brak kontekstu serwera', ephemeral: true });
+      return interaction.reply({
+        content: "❌ Brak kontekstu serwera",
+        ephemeral: true,
+      });
     }
 
-    const raw = String(interaction.customId || '');
-    const matchId = Number(raw.split(':')[1]);
+    const raw = String(interaction.customId || "");
+    const matchId = Number(raw.split(":")[1]);
     if (!Number.isFinite(matchId) || matchId <= 0) {
-      return interaction.reply({ content: '❌ Niepoprawny matchId', ephemeral: true });
+      return interaction.reply({
+        content: "❌ Niepoprawny matchId",
+        ephemeral: true,
+      });
     }
 
     return withGuild(interaction, async ({ pool, guildId }) => {
@@ -34,7 +46,7 @@ module.exports = async function matchAdminLockToggle(interaction) {
 
       if (!match) {
         return interaction.reply({
-          content: '❌ Nie znaleziono meczu dla tego serwera',
+          content: "❌ Nie znaleziono meczu dla tego serwera",
           ephemeral: true,
         });
       }
@@ -53,7 +65,7 @@ module.exports = async function matchAdminLockToggle(interaction) {
 
       await setMatchLock(pool, guildId, match.id, newVal);
 
-      logInfo('matches', 'Admin toggled match lock', {
+      logInfo("matches", "Admin toggled match lock", {
         guild_id: guildId,
         matchId: match.id,
         from: !!match.is_locked,
@@ -62,19 +74,18 @@ module.exports = async function matchAdminLockToggle(interaction) {
       });
 
       return interaction.reply({
-        content: `${newVal ? '🔒 Zablokowano' : '🔓 Odblokowano'} mecz **${match.team_a} vs ${match.team_b}**.`,
+        content: `${newVal ? "🔒 Zablokowano" : "🔓 Odblokowano"} mecz **${match.team_a} vs ${match.team_b}**.`,
         ephemeral: true,
       });
     });
-
   } catch (err) {
-    logError('matches', 'matchAdminLockToggle failed', {
+    logError("matches", "matchAdminLockToggle failed", {
       message: err.message,
       stack: err.stack,
     });
 
     return interaction
-      .reply({ content: '❌ Nie udało się zmienić blokady', ephemeral: true })
+      .reply({ content: "❌ Nie udało się zmienić blokady", ephemeral: true })
       .catch(() => {});
   }
 };

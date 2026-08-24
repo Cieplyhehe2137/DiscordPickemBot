@@ -1,10 +1,10 @@
 // handlers/submitArchiveDropdown.js
-const path = require('path');
-const fs = require('fs');
-const { logError } = require('../../utils/logger.js');
-const isAdmin = require('../../utils/isAdmin');
+const path = require("path");
+const fs = require("fs");
+const { logError } = require("../../utils/logger.js");
+const isAdmin = require("../../utils/isAdmin");
 
-const BASE_ARCHIVE_DIR = path.join(__dirname, '..', 'archiwum');
+const BASE_ARCHIVE_DIR = path.join(__dirname, "..", "archiwum");
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -17,7 +17,7 @@ module.exports = async (interaction) => {
   const guildId = interaction.guildId;
 
   // martwy / pusty select
-  if (!selected || selected === '__none__') {
+  if (!selected || selected === "__none__") {
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferUpdate().catch(() => {});
     }
@@ -26,15 +26,15 @@ module.exports = async (interaction) => {
 
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta funkcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta funkcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
-      ephemeral: true
+      content: "⛔ Tylko administracja.",
+      ephemeral: true,
     });
   }
 
@@ -42,8 +42,8 @@ module.exports = async (interaction) => {
   const safeName = path.basename(String(selected));
   if (safeName !== selected) {
     return interaction.reply({
-      content: '❌ Nieprawidłowa nazwa pliku.',
-      ephemeral: true
+      content: "❌ Nieprawidłowa nazwa pliku.",
+      ephemeral: true,
     });
   }
 
@@ -62,34 +62,37 @@ module.exports = async (interaction) => {
 
     if (!fs.existsSync(archivePath)) {
       return interaction.editReply({
-        content: `❌ Plik \`${safeName}\` nie istnieje w archiwum tego serwera.`
+        content: `❌ Plik \`${safeName}\` nie istnieje w archiwum tego serwera.`,
       });
     }
 
     return interaction.editReply({
       content: `📥 Oto plik archiwum: **${safeName}**`,
-      files: [{ attachment: archivePath, name: safeName }]
+      files: [{ attachment: archivePath, name: safeName }],
     });
-
   } catch (err) {
-    logError('archive', 'Send archive file failed', {
+    logError("archive", "Send archive file failed", {
       guildId,
       userId: interaction.user?.id,
       username: interaction.user?.username,
       selected: safeName,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({
-        content: '❌ Wystąpił błąd podczas wysyłania pliku.'
-      }).catch(() => {});
+      await interaction
+        .editReply({
+          content: "❌ Wystąpił błąd podczas wysyłania pliku.",
+        })
+        .catch(() => {});
     } else {
-      await interaction.reply({
-        content: '❌ Wystąpił błąd podczas wysyłania pliku.',
-        ephemeral: true
-      }).catch(() => {});
+      await interaction
+        .reply({
+          content: "❌ Wystąpił błąd podczas wysyłania pliku.",
+          ephemeral: true,
+        })
+        .catch(() => {});
     }
   }
 };

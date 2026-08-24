@@ -1,31 +1,33 @@
-const { getTournamentState } = require('./tournamentState');
+const { getTournamentState } = require("./tournamentState");
 
 /* =========================
    NORMALIZACJE
    ========================= */
 
 function normalizePhase(phase) {
-  return String(phase || '')
+  return String(phase || "")
     .trim()
     .toUpperCase()
-    .replace('-', '_');
+    .replace("-", "_");
 }
 
 function normalizeStage(stage) {
-  const s = String(stage || '').toLowerCase().trim();
+  const s = String(stage || "")
+    .toLowerCase()
+    .trim();
 
-  if (['1', 'stage1', 'swiss1', 'swiss_1'].includes(s)) return 'STAGE1';
-  if (['2', 'stage2', 'swiss2', 'swiss_2'].includes(s)) return 'STAGE2';
-  if (['3', 'stage3', 'swiss3', 'swiss_3'].includes(s)) return 'STAGE3';
+  if (["1", "stage1", "swiss1", "swiss_1"].includes(s)) return "STAGE1";
+  if (["2", "stage2", "swiss2", "swiss_2"].includes(s)) return "STAGE2";
+  if (["3", "stage3", "swiss3", "swiss_3"].includes(s)) return "STAGE3";
 
   return null;
 }
 
 function swissStageToPhase(stage) {
   const st = normalizeStage(stage);
-  if (st === 'STAGE1') return 'SWISS_STAGE_1';
-  if (st === 'STAGE2') return 'SWISS_STAGE_2';
-  if (st === 'STAGE3') return 'SWISS_STAGE_3';
+  if (st === "STAGE1") return "SWISS_STAGE_1";
+  if (st === "STAGE2") return "SWISS_STAGE_2";
+  if (st === "STAGE3") return "SWISS_STAGE_3";
   return null;
 }
 
@@ -50,17 +52,17 @@ async function assertPredictionsAllowed({ kind, stage }) {
     return {
       allowed: false,
       state: { ...state, phase },
-      message: '❌ Typowanie jest aktualnie **zamknięte**.',
+      message: "❌ Typowanie jest aktualnie **zamknięte**.",
     };
   }
 
   const k = normalizePhase(kind);
 
   /* ===== SWISS ===== */
-  if (k === 'SWISS') {
+  if (k === "SWISS") {
     const expected = swissStageToPhase(stage);
 
-    if (!phase.startsWith('SWISS_STAGE_')) {
+    if (!phase.startsWith("SWISS_STAGE_")) {
       return {
         allowed: false,
         state: { ...state, phase },
@@ -80,8 +82,8 @@ async function assertPredictionsAllowed({ kind, stage }) {
   }
 
   /* ===== PLAYOFFS ===== */
-  if (k === 'PLAYOFFS') {
-    if (phase !== 'PLAYOFFS') {
+  if (k === "PLAYOFFS") {
+    if (phase !== "PLAYOFFS") {
       return {
         allowed: false,
         state: { ...state, phase },
@@ -92,8 +94,8 @@ async function assertPredictionsAllowed({ kind, stage }) {
   }
 
   /* ===== PLAY-IN ===== */
-  if (k === 'PLAYIN') {
-    if (phase !== 'PLAYIN') {
+  if (k === "PLAYIN") {
+    if (phase !== "PLAYIN") {
       return {
         allowed: false,
         state: { ...state, phase },
@@ -104,8 +106,8 @@ async function assertPredictionsAllowed({ kind, stage }) {
   }
 
   /* ===== DOUBLE ELIM ===== */
-  if (['DOUBLE', 'DOUBLEELIM', 'DOUBLE_ELIM'].includes(k)) {
-    if (phase !== 'DOUBLE_ELIM') {
+  if (["DOUBLE", "DOUBLEELIM", "DOUBLE_ELIM"].includes(k)) {
+    if (phase !== "DOUBLE_ELIM") {
       return {
         allowed: false,
         state: { ...state, phase },

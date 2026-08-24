@@ -4,34 +4,34 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require('discord.js');
+} = require("discord.js");
 
-const { withGuild } = require('../utils/guildContext');
+const { withGuild } = require("../utils/guildContext");
 
 const PHASES = [
-  { value: 'global', label: 'Łączny (Global)' },
-  { value: 'swiss_all', label: 'Swiss – suma 3 etapów' },
-  { value: 'swiss_stage_1', label: 'Swiss – Etap 1' },
-  { value: 'swiss_stage_2', label: 'Swiss – Etap 2' },
-  { value: 'swiss_stage_3', label: 'Swiss – Etap 3' },
-  { value: 'playoffs', label: 'Playoffs' },
-  { value: 'doubleelim', label: 'Double Elimination' },
-  { value: 'playin', label: 'Play-In' },
-  { value: 'matches', label: 'Mecze' },
-  { value: 'mvp', label: 'MVP' },
+  { value: "global", label: "Łączny (Global)" },
+  { value: "swiss_all", label: "Swiss – suma 3 etapów" },
+  { value: "swiss_stage_1", label: "Swiss – Etap 1" },
+  { value: "swiss_stage_2", label: "Swiss – Etap 2" },
+  { value: "swiss_stage_3", label: "Swiss – Etap 3" },
+  { value: "playoffs", label: "Playoffs" },
+  { value: "doubleelim", label: "Double Elimination" },
+  { value: "playin", label: "Play-In" },
+  { value: "matches", label: "Mecze" },
+  { value: "mvp", label: "MVP" },
 ];
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 25;
 
 const SWISS_STAGE_MAP = {
-  swiss_stage_1: 'stage1',
-  swiss_stage_2: 'stage2',
-  swiss_stage_3: 'stage3',
+  swiss_stage_1: "stage1",
+  swiss_stage_2: "stage2",
+  swiss_stage_3: "stage3",
 };
 
 const phaseLabel = (phase) =>
-  PHASES.find(p => p.value === phase)?.label || 'Łączny (Global)';
+  PHASES.find((p) => p.value === phase)?.label || "Łączny (Global)";
 
 const clampInt = (n, min, max) =>
   Math.min(max, Math.max(min, parseInt(n, 10) || min));
@@ -40,15 +40,15 @@ function buildButtons(phase, page, totalPages, pageSize, eventId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`ranking:${phase}:${page - 1}:${pageSize}:${eventId}`)
-      .setLabel('◀')
+      .setLabel("◀")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page <= 1),
 
     new ButtonBuilder()
       .setCustomId(`ranking:${phase}:${page + 1}:${pageSize}:${eventId}`)
-      .setLabel('▶')
+      .setLabel("▶")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(page >= totalPages)
+      .setDisabled(page >= totalPages),
   );
 }
 
@@ -56,14 +56,17 @@ function buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize) {
   return new EmbedBuilder()
     .setTitle(`Ranking Pick’Em — ${phaseLabel(phase)}`)
     .setDescription(
-      rows.map((r, i) =>
-        `#${((page - 1) * pageSize) + i + 1} <@${r.user_id}> — \`${r.points} pkt\``
-      ).join('\n') || 'Brak danych.'
+      rows
+        .map(
+          (r, i) =>
+            `#${(page - 1) * pageSize + i + 1} <@${r.user_id}> — \`${r.points} pkt\``,
+        )
+        .join("\n") || "Brak danych.",
     )
     .setFooter({
       text: `Event ID: ${eventId} • Strona ${page}/${totalPages} • Uczestników: ${total}`,
     })
-    .setColor(0x5865F2);
+    .setColor(0x5865f2);
 }
 
 async function getCurrentEventId(pool, guildId) {
@@ -77,7 +80,7 @@ async function getCurrentEventId(pool, guildId) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId]
+    [guildId],
   );
 
   if (active[0]?.id) return active[0].id;
@@ -90,14 +93,14 @@ async function getCurrentEventId(pool, guildId) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId]
+    [guildId],
   );
 
   return latest[0]?.id || null;
 }
 
 function totalsSqlForPhase(phase) {
-  if (phase === 'global') {
+  if (phase === "global") {
     return `
       SELECT user_id, MAX(displayname) AS displayname, SUM(points) AS total_points
       FROM (
@@ -157,7 +160,7 @@ function totalsSqlForPhase(phase) {
     `;
   }
 
-  if (phase === 'swiss_all') {
+  if (phase === "swiss_all") {
     return `
       SELECT
         CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
@@ -169,7 +172,7 @@ function totalsSqlForPhase(phase) {
     `;
   }
 
-  if (phase.startsWith('swiss_stage_')) {
+  if (phase.startsWith("swiss_stage_")) {
     return `
       SELECT
         CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
@@ -181,7 +184,7 @@ function totalsSqlForPhase(phase) {
     `;
   }
 
-  if (phase === 'matches') {
+  if (phase === "matches") {
     return `
       SELECT
         CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
@@ -193,7 +196,7 @@ function totalsSqlForPhase(phase) {
     `;
   }
 
-  if (phase === 'mvp') {
+  if (phase === "mvp") {
     return `
       SELECT
         CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
@@ -216,19 +219,31 @@ function totalsSqlForPhase(phase) {
   `;
 }
 
-function getParamsForPhase(guildId, eventId, phase, pageSize = null, offset = null) {
+function getParamsForPhase(
+  guildId,
+  eventId,
+  phase,
+  pageSize = null,
+  offset = null,
+) {
   let params;
 
-  if (phase === 'global') {
+  if (phase === "global") {
     params = [
-      guildId, eventId,
-      guildId, eventId,
-      guildId, eventId,
-      guildId, eventId,
-      guildId, eventId,
-      guildId, eventId,
+      guildId,
+      eventId,
+      guildId,
+      eventId,
+      guildId,
+      eventId,
+      guildId,
+      eventId,
+      guildId,
+      eventId,
+      guildId,
+      eventId,
     ];
-  } else if (phase.startsWith('swiss_stage_')) {
+  } else if (phase.startsWith("swiss_stage_")) {
     params = [guildId, eventId, SWISS_STAGE_MAP[phase]];
   } else {
     params = [guildId, eventId];
@@ -250,7 +265,7 @@ async function countParticipants(pool, guildId, eventId, phase) {
     SELECT COUNT(*) AS cnt
     FROM (${sql}) t
     `,
-    params
+    params,
   );
 
   return Number(rows[0]?.cnt || 0);
@@ -268,10 +283,10 @@ async function getPage(pool, guildId, eventId, phase, page, pageSize) {
     ORDER BY total_points DESC, displayname ASC
     LIMIT ? OFFSET ?
     `,
-    params
+    params,
   );
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     user_id: r.user_id,
     displayname: r.displayname || r.user_id,
     points: Number(r.total_points || 0),
@@ -280,18 +295,20 @@ async function getPage(pool, guildId, eventId, phase, page, pageSize) {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('ranking')
-    .setDescription('Pokaż ranking Pick’Em z wyborem fazy')
-    .addStringOption(opt =>
-      opt.setName('faza')
-        .setDescription('Wybierz fazę rankingu')
-        .addChoices(...PHASES.map(p => ({ name: p.label, value: p.value })))
+    .setName("ranking")
+    .setDescription("Pokaż ranking Pick’Em z wyborem fazy")
+    .addStringOption((opt) =>
+      opt
+        .setName("faza")
+        .setDescription("Wybierz fazę rankingu")
+        .addChoices(...PHASES.map((p) => ({ name: p.label, value: p.value }))),
     )
-    .addIntegerOption(opt =>
-      opt.setName('rozmiar_strony')
+    .addIntegerOption((opt) =>
+      opt
+        .setName("rozmiar_strony")
         .setDescription(`Ile osób na stronę (1–${MAX_PAGE_SIZE})`)
         .setMinValue(1)
-        .setMaxValue(MAX_PAGE_SIZE)
+        .setMaxValue(MAX_PAGE_SIZE),
     ),
 
   async execute(interaction) {
@@ -299,7 +316,7 @@ module.exports = {
 
     if (!guildId) {
       return interaction.reply({
-        content: 'Ta komenda działa tylko na serwerze.',
+        content: "Ta komenda działa tylko na serwerze.",
         ephemeral: true,
       });
     }
@@ -307,12 +324,12 @@ module.exports = {
     await interaction.deferReply();
 
     return withGuild(guildId, async ({ pool }) => {
-      const phase = interaction.options.getString('faza') || 'global';
+      const phase = interaction.options.getString("faza") || "global";
 
       const pageSize = clampInt(
-        interaction.options.getInteger('rozmiar_strony') || DEFAULT_PAGE_SIZE,
+        interaction.options.getInteger("rozmiar_strony") || DEFAULT_PAGE_SIZE,
         1,
-        MAX_PAGE_SIZE
+        MAX_PAGE_SIZE,
       );
 
       const eventId = await getCurrentEventId(pool, guildId);
@@ -321,9 +338,11 @@ module.exports = {
         return interaction.editReply({
           embeds: [
             new EmbedBuilder()
-              .setTitle('Ranking Pick’Em')
-              .setDescription('Brak aktywnego lub istniejącego eventu dla tego serwera.')
-              .setColor(0x5865F2),
+              .setTitle("Ranking Pick’Em")
+              .setDescription(
+                "Brak aktywnego lub istniejącego eventu dla tego serwera.",
+              )
+              .setColor(0x5865f2),
           ],
           components: [],
         });
@@ -336,8 +355,10 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setTitle(`Ranking Pick’Em — ${phaseLabel(phase)}`)
-              .setDescription(`Brak danych dla tej fazy w evencie ID: \`${eventId}\`.`)
-              .setColor(0x5865F2),
+              .setDescription(
+                `Brak danych dla tej fazy w evencie ID: \`${eventId}\`.`,
+              )
+              .setColor(0x5865f2),
           ],
           components: [],
         });
@@ -351,9 +372,10 @@ module.exports = {
         embeds: [
           buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize),
         ],
-        components: totalPages > 1
-          ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
-          : [],
+        components:
+          totalPages > 1
+            ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
+            : [],
       });
     });
   },
@@ -363,20 +385,22 @@ module.exports = {
 
     if (!guildId) {
       return interaction.reply({
-        content: 'Ta akcja działa tylko na serwerze.',
+        content: "Ta akcja działa tylko na serwerze.",
         ephemeral: true,
       });
     }
 
-    const [prefix, phase, rawPage, rawPageSize, rawEventId] = String(interaction.customId).split(':');
+    const [prefix, phase, rawPage, rawPageSize, rawEventId] = String(
+      interaction.customId,
+    ).split(":");
 
-    if (prefix !== 'ranking') {
-      return interaction.deferUpdate().catch(() => { });
+    if (prefix !== "ranking") {
+      return interaction.deferUpdate().catch(() => {});
     }
 
-    if (!PHASES.some(p => p.value === phase)) {
+    if (!PHASES.some((p) => p.value === phase)) {
       return interaction.reply({
-        content: 'Nieznana faza rankingu.',
+        content: "Nieznana faza rankingu.",
         ephemeral: true,
       });
     }
@@ -387,7 +411,7 @@ module.exports = {
 
       if (!eventId || Number.isNaN(eventId)) {
         return interaction.reply({
-          content: 'Nieprawidłowy event rankingu.',
+          content: "Nieprawidłowy event rankingu.",
           ephemeral: true,
         });
       }
@@ -399,8 +423,10 @@ module.exports = {
           embeds: [
             new EmbedBuilder()
               .setTitle(`Ranking Pick’Em — ${phaseLabel(phase)}`)
-              .setDescription(`Brak danych dla tej fazy w evencie ID: \`${eventId}\`.`)
-              .setColor(0x5865F2),
+              .setDescription(
+                `Brak danych dla tej fazy w evencie ID: \`${eventId}\`.`,
+              )
+              .setColor(0x5865f2),
           ],
           components: [],
         });
@@ -414,9 +440,10 @@ module.exports = {
         embeds: [
           buildEmbed(rows, phase, page, totalPages, total, eventId, pageSize),
         ],
-        components: totalPages > 1
-          ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
-          : [],
+        components:
+          totalPages > 1
+            ? [buildButtons(phase, page, totalPages, pageSize, eventId)]
+            : [],
       });
     });
   },

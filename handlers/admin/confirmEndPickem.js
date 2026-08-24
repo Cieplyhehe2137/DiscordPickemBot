@@ -1,7 +1,7 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { withGuild } = require('../../utils/guildContext');
-const isAdmin = require('../../utils/isAdmin');
-const logger = require('../../utils/logger.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { withGuild } = require("../../utils/guildContext");
+const isAdmin = require("../../utils/isAdmin");
+const logger = require("../../utils/logger.js");
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
@@ -9,30 +9,33 @@ module.exports = async (interaction) => {
   const guildId = interaction.guildId;
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
+      content: "❌ Ta akcja działa tylko na serwerze.",
       ephemeral: true,
     });
   }
 
   // 🔒 ADMIN ONLY
   if (!isAdmin(interaction)) {
-    logWarn('endPickem', 'Unauthorized confirmEndPickem attempt', {
+    logWarn("endPickem", "Unauthorized confirmEndPickem attempt", {
       guildId,
       userId: interaction.user.id,
       customId: interaction.customId,
     });
 
     return interaction.reply({
-      content: '❌ Brak uprawnień do tej operacji.',
+      content: "❌ Brak uprawnień do tej operacji.",
       ephemeral: true,
     });
   }
 
   let phase;
-  if (interaction.customId === 'confirm_end_pickem_swiss') phase = 'swiss';
-  else if (interaction.customId === 'confirm_end_pickem_playoffs') phase = 'playoffs';
-  else if (interaction.customId === 'confirm_end_pickem_doubleelim') phase = 'doubleelim';
-  else if (interaction.customId === 'confirm_end_pickem_playin') phase = 'playin';
+  if (interaction.customId === "confirm_end_pickem_swiss") phase = "swiss";
+  else if (interaction.customId === "confirm_end_pickem_playoffs")
+    phase = "playoffs";
+  else if (interaction.customId === "confirm_end_pickem_doubleelim")
+    phase = "doubleelim";
+  else if (interaction.customId === "confirm_end_pickem_playin")
+    phase = "playin";
   else return;
 
   const userMeta = {
@@ -42,7 +45,7 @@ module.exports = async (interaction) => {
     username: interaction.user.tag,
   };
 
-  logInfo('endPickem', 'Confirm end pickem requested', userMeta);
+  logInfo("endPickem", "Confirm end pickem requested", userMeta);
 
   try {
     await interaction.deferReply({ ephemeral: true });
@@ -59,7 +62,7 @@ module.exports = async (interaction) => {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId, phase]
+        [guildId, phase],
       );
 
       if (!rows.length) {
@@ -71,17 +74,19 @@ module.exports = async (interaction) => {
 
       const { id, channel_id, message_id } = rows[0];
 
-      const channel = await interaction.client.channels.fetch(channel_id).catch(() => null);
+      const channel = await interaction.client.channels
+        .fetch(channel_id)
+        .catch(() => null);
       if (!channel || !channel.isTextBased?.()) {
-        logWarn('endPickem', 'Channel not found, cleaning DB', userMeta);
+        logWarn("endPickem", "Channel not found, cleaning DB", userMeta);
 
         await pool.query(
           `UPDATE active_panels SET active = 0, closed = 1 WHERE id = ? AND guild_id = ?`,
-          [id, guildId]
+          [id, guildId],
         );
 
         return interaction.followUp({
-          content: '⚠️ Panel już nie istnieje. Wpis został wyczyszczony.',
+          content: "⚠️ Panel już nie istnieje. Wpis został wyczyszczony.",
           ephemeral: true,
         });
       }
@@ -98,10 +103,10 @@ module.exports = async (interaction) => {
 
         const disabledRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId('disabled_button')
-            .setLabel('Typowanie zamknięte')
+            .setCustomId("disabled_button")
+            .setLabel("Typowanie zamknięte")
             .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true)
+            .setDisabled(true),
         );
 
         await message.edit({
@@ -112,19 +117,18 @@ module.exports = async (interaction) => {
 
       await pool.query(
         `UPDATE active_panels SET active = 0, closed = 1 WHERE id = ? AND guild_id = ?`,
-        [id, guildId]
+        [id, guildId],
       );
 
-      logInfo('endPickem', 'Pickem closed', userMeta);
+      logInfo("endPickem", "Pickem closed", userMeta);
 
       return interaction.followUp({
         content: `✅ Typowanie dla fazy **${phase}** zostało zakończone.`,
         ephemeral: true,
       });
     });
-
   } catch (err) {
-    logError('endPickem', 'confirmEndPickem failed', {
+    logError("endPickem", "confirmEndPickem failed", {
       ...userMeta,
       message: err.message,
       stack: err.stack,
@@ -133,7 +137,7 @@ module.exports = async (interaction) => {
     try {
       if (!interaction.replied) {
         await interaction.reply({
-          content: '❌ Wystąpił błąd podczas zamykania typowania.',
+          content: "❌ Wystąpił błąd podczas zamykania typowania.",
           ephemeral: true,
         });
       }

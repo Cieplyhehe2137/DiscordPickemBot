@@ -1,17 +1,17 @@
-const { logError } = require('../../utils/logger');
-const userState = require('../../utils/matchUserState');
-const { isMatchLocked } = require('../../utils/matchLock');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { withGuild } = require('../../utils/guildContext');
-const { maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logError } = require("../../utils/logger");
+const userState = require("../../utils/matchUserState");
+const { isMatchLocked } = require("../../utils/matchLock");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const { withGuild } = require("../../utils/guildContext");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 module.exports = async function matchScoreSelectPred(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.update({
-        content: '❌ Brak kontekstu serwera.',
-        components: []
+        content: "❌ Brak kontekstu serwera.",
+        components: [],
       });
     }
 
@@ -20,22 +20,22 @@ module.exports = async function matchScoreSelectPred(interaction) {
 
       if (!picked) {
         return interaction.update({
-          content: '❌ Nie wybrano typu.',
-          components: []
+          content: "❌ Nie wybrano typu.",
+          components: [],
         });
       }
 
-      const [guildIdFromValue, matchIdRaw, scoreRaw] = picked.split('|');
+      const [guildIdFromValue, matchIdRaw, scoreRaw] = picked.split("|");
 
       if (guildIdFromValue !== guildId) {
         return interaction.update({
-          content: '❌ Błędny kontekst serwera.',
-          components: []
+          content: "❌ Błędny kontekst serwera.",
+          components: [],
         });
       }
 
       const matchId = Number(matchIdRaw);
-      const [winAraw, winBraw] = String(scoreRaw || '').split(':');
+      const [winAraw, winBraw] = String(scoreRaw || "").split(":");
       const winA = Number(winAraw);
       const winB = Number(winBraw);
 
@@ -49,8 +49,8 @@ module.exports = async function matchScoreSelectPred(interaction) {
         winA === winB
       ) {
         return interaction.update({
-          content: '❌ Niepoprawna wartość typu.',
-          components: []
+          content: "❌ Niepoprawna wartość typu.",
+          components: [],
         });
       }
 
@@ -58,34 +58,34 @@ module.exports = async function matchScoreSelectPred(interaction) {
 
       if (!match) {
         return interaction.update({
-          content: '❌ Nie znaleziono meczu.',
-          components: []
+          content: "❌ Nie znaleziono meczu.",
+          components: [],
         });
       }
 
       if (!match.event_id) {
         return interaction.update({
-          content: '❌ Ten mecz nie ma przypisanego eventu.',
-          components: []
+          content: "❌ Ten mecz nie ma przypisanego eventu.",
+          components: [],
         });
       }
 
       if (isMatchLocked(match)) {
         return interaction.update({
-          content: '🔒 Ten mecz jest zablokowany (nie można już typować).',
-          components: []
+          content: "🔒 Ten mecz jest zablokowany (nie można już typować).",
+          components: [],
         });
       }
 
       const gate = await assertPredictionsAllowed({
         guildId,
-        kind: 'MATCHES'
+        kind: "MATCHES",
       });
 
       if (!gate.allowed) {
         return interaction.update({
-          content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
-          components: []
+          content: gate.message || "❌ Typowanie jest aktualnie zamknięte.",
+          components: [],
         });
       }
 
@@ -94,8 +94,8 @@ module.exports = async function matchScoreSelectPred(interaction) {
 
       if (requiredMaps <= 0) {
         return interaction.update({
-          content: '❌ Niepoprawna liczba map.',
-          components: []
+          content: "❌ Niepoprawna liczba map.",
+          components: [],
         });
       }
 
@@ -110,26 +110,28 @@ module.exports = async function matchScoreSelectPred(interaction) {
         targetWinsA: winA,
         targetWinsB: winB,
         mapWinsA: 0,
-        mapWinsB: 0
+        mapWinsB: 0,
       });
 
       return interaction.update({
         content:
           `🎯 Typujesz: **${match.team_a} ${winA}:${winB} ${match.team_b}** (BO${match.best_of})\n` +
           `📋 Teraz musisz kliknąć **🧮 Wpisz dokładny wynik** — bez tego typ nie zostanie zapisany.`,
-        components: interaction.message.components
+        components: interaction.message.components,
       });
     });
   } catch (err) {
-    logError('matches', 'matchScoreSelectPred failed', {
+    logError("matches", "matchScoreSelectPred failed", {
       guild_id: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.update({
-      content: '❌ Błąd przy wyborze typu.',
-      components: []
-    }).catch(() => {});
+    return interaction
+      .update({
+        content: "❌ Błąd przy wyborze typu.",
+        components: [],
+      })
+      .catch(() => {});
   }
 };

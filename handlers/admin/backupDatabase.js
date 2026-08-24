@@ -1,19 +1,19 @@
-const mysqldump = require('mysqldump');
-const path = require('path');
-const mysql = require('mysql2/promise');
+const mysqldump = require("mysqldump");
+const path = require("path");
+const mysql = require("mysql2/promise");
 
 const {
   getGuildConfig,
   getGuildPaths,
-  ensureGuildDirs
-} = require('../../utils/guildRegistry');
+  ensureGuildDirs,
+} = require("../../utils/guildRegistry");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logError } = require('../../utils/logger');
-const isAdmin = require('../../utils/isAdmin');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logError } = require("../../utils/logger");
+const isAdmin = require("../../utils/isAdmin");
 
 function sqlEscape(value) {
-  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 async function getDatabaseTablesAndColumns(cfg) {
@@ -33,7 +33,7 @@ async function getDatabaseTablesAndColumns(cfg) {
       WHERE TABLE_SCHEMA = ?
       ORDER BY TABLE_NAME, ORDINAL_POSITION
       `,
-      [cfg.DB_NAME]
+      [cfg.DB_NAME],
     );
 
     const map = new Map();
@@ -57,15 +57,15 @@ module.exports = async function backupDatabase(interaction) {
 
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta funkcja działa tylko na serwerze (nie w DM).',
-      ephemeral: true
+      content: "❌ Ta funkcja działa tylko na serwerze (nie w DM).",
+      ephemeral: true,
     });
   }
 
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
-      ephemeral: true
+      content: "⛔ Tylko administracja.",
+      ephemeral: true,
     });
   }
 
@@ -76,14 +76,14 @@ module.exports = async function backupDatabase(interaction) {
   return withGuild(guildId, async () => {
     try {
       await interaction.editReply({
-        content: '💽 **Tworzę backup danych tego serwera...**'
+        content: "💽 **Tworzę backup danych tego serwera...**",
       });
 
       const cfg = getGuildConfig(guildId);
 
       if (!cfg) {
         return interaction.editReply({
-          content: '❌ Brak konfiguracji bazy danych dla tego serwera.'
+          content: "❌ Brak konfiguracji bazy danych dla tego serwera.",
         });
       }
 
@@ -91,7 +91,7 @@ module.exports = async function backupDatabase(interaction) {
 
       const { backupDir } = getGuildPaths(guildId);
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const fileName = `backup_${guildId}_${timestamp}.sql`;
       const filePath = path.join(backupDir, fileName);
 
@@ -108,7 +108,7 @@ module.exports = async function backupDatabase(interaction) {
       const skippedTables = [];
 
       for (const [table, columns] of tablesMap.entries()) {
-        if (columns.has('guild_id')) {
+        if (columns.has("guild_id")) {
           where[table] = `guild_id = '${escapedGuildId}'`;
         } else {
           skippedTables.push(table);
@@ -136,7 +136,7 @@ module.exports = async function backupDatabase(interaction) {
         dumpToFile: filePath,
       });
 
-      logInfo('backup', 'Guild backup created', {
+      logInfo("backup", "Guild backup created", {
         guildId,
         fileName,
         filePath,
@@ -149,18 +149,17 @@ module.exports = async function backupDatabase(interaction) {
           `✅ Backup ukończony!\n` +
           `📦 Zapisano **${tables.length}** tabel — wyłącznie dane tego serwera.\n` +
           `🔒 Pominięto **${skippedTables.length}** tabel bez \`guild_id\` (globalne, m.in. sesje logowania).\n` +
-          `🗂️ Plik: \`${fileName}\``
+          `🗂️ Plik: \`${fileName}\``,
       });
-
     } catch (error) {
-      logError('backup', 'Backup failed', {
+      logError("backup", "Backup failed", {
         guildId,
         message: error.message,
         stack: error.stack,
       });
 
       await interaction.editReply({
-        content: '❌ Backup nie powiódł się. Sprawdź logi.'
+        content: "❌ Backup nie powiódł się. Sprawdź logi.",
       });
     }
   });

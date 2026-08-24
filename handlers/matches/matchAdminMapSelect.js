@@ -1,14 +1,14 @@
-const adminState = require('../../utils/matchAdminState');
-const { withGuild } = require('../../utils/guildContext');
-const { getMatchById } = require('../../utils/matchesStore');
-const { maxMapsFromBo } = require('../../utils/mapLabels');
+const adminState = require("../../utils/matchAdminState");
+const { withGuild } = require("../../utils/guildContext");
+const { getMatchById } = require("../../utils/matchesStore");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
 
 module.exports = async function matchAdminMapSelect(interaction) {
   const guildId = interaction.guildId;
   if (!guildId) {
     return interaction.update({
-      content: '❌ Brak kontekstu serwera.',
-      components: []
+      content: "❌ Brak kontekstu serwera.",
+      components: [],
     });
   }
 
@@ -17,8 +17,8 @@ module.exports = async function matchAdminMapSelect(interaction) {
 
   if (!ctx?.matchId) {
     return interaction.update({
-      content: '❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.',
-      components: []
+      content: "❌ Brak kontekstu meczu. Wybierz mecz jeszcze raz.",
+      components: [],
     });
   }
 
@@ -27,8 +27,8 @@ module.exports = async function matchAdminMapSelect(interaction) {
 
     if (!m) {
       return interaction.update({
-        content: '❌ Mecz nie istnieje dla tego serwera.',
-        components: []
+        content: "❌ Mecz nie istnieje dla tego serwera.",
+        components: [],
       });
     }
 
@@ -36,21 +36,21 @@ module.exports = async function matchAdminMapSelect(interaction) {
 
     if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
       return interaction.update({
-        content: '❌ Nieprawidłowa mapa.',
-        components: []
+        content: "❌ Nieprawidłowa mapa.",
+        components: [],
       });
     }
 
     adminState.set(guildId, interaction.user.id, {
       ...ctx,
-      mapNo
+      mapNo,
     });
 
     return interaction.update({
       content:
         `✅ Wybrano mapę **#${mapNo}**.\n` +
         `Kliknij ponownie **✍️ Wpisz dokładny wynik**, żeby wpisać liczby.`,
-      components: []
+      components: [],
     });
   });
 };

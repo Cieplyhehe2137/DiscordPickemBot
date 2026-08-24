@@ -5,13 +5,13 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ChannelType,
-} = require('discord.js');
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('./logger');
-const { getGuildConfig } = require('./guildRegistry');
+const { logInfo, logWarn, logError } = require("./logger");
+const { getGuildConfig } = require("./guildRegistry");
 
 const PANEL_TITLE = "📊 Panel eksportowy Pick'Em";
-const PANEL_MARKER = 'export-panel-v3';
+const PANEL_MARKER = "export-panel-v3";
 
 // ====== UI BUILDER ======
 
@@ -19,47 +19,47 @@ function buildPanelComponents() {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('panel:open:results')
-        .setLabel('📥 Wyniki / Eksport')
+        .setCustomId("panel:open:results")
+        .setLabel("📥 Wyniki / Eksport")
         .setStyle(ButtonStyle.Primary),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:matches')
-        .setLabel('🎮 Mecze')
+        .setCustomId("panel:open:matches")
+        .setLabel("🎮 Mecze")
         .setStyle(ButtonStyle.Primary),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:db')
-        .setLabel('💾 Baza danych')
+        .setCustomId("panel:open:db")
+        .setLabel("💾 Baza danych")
         .setStyle(ButtonStyle.Secondary),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:danger')
-        .setLabel('🧨 Czyszczenie / Reset')
+        .setCustomId("panel:open:danger")
+        .setLabel("🧨 Czyszczenie / Reset")
         .setStyle(ButtonStyle.Danger),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:teams')
-        .setLabel('👥 Drużyny')
-        .setStyle(ButtonStyle.Secondary)
+        .setCustomId("panel:open:teams")
+        .setLabel("👥 Drużyny")
+        .setStyle(ButtonStyle.Secondary),
     ),
 
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('panel:open:mvp')
-        .setLabel('⭐ MVP')
+        .setCustomId("panel:open:mvp")
+        .setLabel("⭐ MVP")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:audit')
-        .setLabel('🔍 Audyt eventu')
+        .setCustomId("panel:open:audit")
+        .setLabel("🔍 Audyt eventu")
         .setStyle(ButtonStyle.Secondary),
 
       new ButtonBuilder()
-        .setCustomId('panel:open:auto_start')
-        .setLabel('🕒 Auto-start')
-        .setStyle(ButtonStyle.Primary)
-    )
+        .setCustomId("panel:open:auto_start")
+        .setLabel("🕒 Auto-start")
+        .setStyle(ButtonStyle.Primary),
+    ),
   ];
 }
 
@@ -68,21 +68,21 @@ function buildPanelPayload() {
     .setColor(0x2f3136)
     .setTitle(PANEL_TITLE)
     .setDescription(
-      '➔ Panel administracyjny Pick’Em\n\n' +
-      '• Wyniki i eksport\n' +
-      '• Zarządzanie meczami\n' +
-      '• Backup / restore bazy\n' +
-      '• Reset i czyszczenie danych\n' +
-      '• Typowanie MVP\n' +
-      '• Audyt i diagnostyka eventu\n' +
-      '• Automatyczny start Pick’Em\n\n' +
-      '⚠️ **Dostęp tylko dla Administracji**'
+      "➔ Panel administracyjny Pick’Em\n\n" +
+        "• Wyniki i eksport\n" +
+        "• Zarządzanie meczami\n" +
+        "• Backup / restore bazy\n" +
+        "• Reset i czyszczenie danych\n" +
+        "• Typowanie MVP\n" +
+        "• Audyt i diagnostyka eventu\n" +
+        "• Automatyczny start Pick’Em\n\n" +
+        "⚠️ **Dostęp tylko dla Administracji**",
     )
     .setFooter({ text: PANEL_MARKER });
 
   return {
     embeds: [embed],
-    components: buildPanelComponents()
+    components: buildPanelComponents(),
   };
 }
 
@@ -90,11 +90,14 @@ function buildPanelPayload() {
 
 async function findExistingPanelMessage(channel, clientUserId) {
   const messages = await channel.messages.fetch({ limit: 25 });
-  return messages.find(m =>
-    m.author?.id === clientUserId &&
-    m.embeds?.[0]?.title === PANEL_TITLE &&
-    m.embeds?.[0]?.footer?.text === PANEL_MARKER
-  ) || null;
+  return (
+    messages.find(
+      (m) =>
+        m.author?.id === clientUserId &&
+        m.embeds?.[0]?.title === PANEL_TITLE &&
+        m.embeds?.[0]?.footer?.text === PANEL_MARKER,
+    ) || null
+  );
 }
 
 // ====== MAIN ======
@@ -112,17 +115,16 @@ module.exports = async function startExportPanel(client, guildId) {
 
     if (existing) {
       await existing.edit(payload);
-      logInfo('panel', 'Export panel refreshed', { guildId });
+      logInfo("panel", "Export panel refreshed", { guildId });
       return;
     }
 
     await channel.send(payload);
-    logInfo('panel', 'Export panel sent', { guildId });
-
+    logInfo("panel", "Export panel sent", { guildId });
   } catch (err) {
-    logError('panel', 'startExportPanel failed', {
+    logError("panel", "startExportPanel failed", {
       guildId,
-      message: err.message
+      message: err.message,
     });
   }
 };

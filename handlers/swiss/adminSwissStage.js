@@ -3,9 +3,9 @@ const {
   ButtonBuilder,
   ButtonStyle,
   EmbedBuilder,
-  PermissionFlagsBits
-} = require('discord.js');
-const { withGuild } = require('../../utils/guildContext');
+  PermissionFlagsBits,
+} = require("discord.js");
+const { withGuild } = require("../../utils/guildContext");
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
@@ -13,8 +13,8 @@ module.exports = async (interaction) => {
   const guildId = interaction.guildId;
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta akcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
@@ -28,14 +28,14 @@ module.exports = async (interaction) => {
     !perms?.has(PermissionFlagsBits.Administrator)
   ) {
     return interaction.editReply({
-      content: '🚫 Nie masz uprawnień do utworzenia panelu.'
+      content: "🚫 Nie masz uprawnień do utworzenia panelu.",
     });
   }
 
   const raw = interaction.values?.[0]; // np. swiss_stage_1
   if (!raw) {
     return interaction.editReply({
-      content: '❌ Nie wybrano etapu.'
+      content: "❌ Nie wybrano etapu.",
     });
   }
 
@@ -43,7 +43,7 @@ module.exports = async (interaction) => {
 
   if (!stageNumber) {
     return interaction.editReply({
-      content: '❌ Nie udało się rozpoznać numeru etapu Swiss.'
+      content: "❌ Nie udało się rozpoznać numeru etapu Swiss.",
     });
   }
 
@@ -62,7 +62,7 @@ module.exports = async (interaction) => {
     ORDER BY id DESC
     LIMIT 1
     `,
-      [guildId]
+      [guildId],
     );
 
     eventId = Number(events?.[0]?.id || 0);
@@ -70,15 +70,15 @@ module.exports = async (interaction) => {
 
   if (!eventId) {
     return interaction.editReply({
-      content: '❌ Nie znaleziono aktywnego eventu.'
+      content: "❌ Nie znaleziono aktywnego eventu.",
     });
   }
 
   const embed = new EmbedBuilder()
     .setTitle(`🟠 Etap Swiss (STAGE ${stageNumber})`)
-    .setDescription('Kliknij przycisk poniżej, aby rozpocząć typowanie:')
-    .setColor('#ff9900')
-    .setFooter({ text: '⏰ Typowanie otwarte – brak deadline.' });
+    .setDescription("Kliknij przycisk poniżej, aby rozpocząć typowanie:")
+    .setColor("#ff9900")
+    .setFooter({ text: "⏰ Typowanie otwarte – brak deadline." });
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -88,30 +88,28 @@ module.exports = async (interaction) => {
 
     new ButtonBuilder()
       .setCustomId(`match_pick:${phase}`)
-      .setLabel('🎯 Typuj wyniki meczów')
+      .setLabel("🎯 Typuj wyniki meczów")
       .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
       .setCustomId(`my_predictions:${phase}:${eventId}:0`)
-      .setLabel('📋 Moje typy')
+      .setLabel("📋 Moje typy")
       .setStyle(ButtonStyle.Secondary),
 
     new ButtonBuilder()
       .setCustomId(`my_stats:${eventId}`)
-      .setLabel('📊 Moje statystyki')
-      .setStyle(ButtonStyle.Secondary)
+      .setLabel("📊 Moje statystyki")
+      .setStyle(ButtonStyle.Secondary),
   );
-
-
 
   try {
     const sentMessage = await interaction.channel.send({
-      content: '@everyone',
+      content: "@everyone",
       embeds: [embed],
       components: [row],
       allowedMentions: {
-        parse: ['everyone']
-      }
+        parse: ["everyone"],
+      },
     });
 
     await withGuild(guildId, async ({ pool }) => {
@@ -129,18 +127,18 @@ module.exports = async (interaction) => {
           active = 1,
           deadline = NULL
         `,
-        [guildId, phase, stage, sentMessage.id, sentMessage.channel.id]
+        [guildId, phase, stage, sentMessage.id, sentMessage.channel.id],
       );
     });
 
     await interaction.editReply({
-      content: `✅ Wysłano panel Swiss (STAGE ${stageNumber}).`
+      content: `✅ Wysłano panel Swiss (STAGE ${stageNumber}).`,
     });
   } catch (err) {
-    console.error('Błąd wysyłania panelu Swiss:', err);
+    console.error("Błąd wysyłania panelu Swiss:", err);
 
     await interaction.editReply({
-      content: '❌ Nie udało się wysłać panelu.'
+      content: "❌ Nie udało się wysłać panelu.",
     });
   }
 };

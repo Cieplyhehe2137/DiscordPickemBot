@@ -14,7 +14,7 @@ async function getOpenEventId(pool, guildId) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId]
+    [guildId],
   );
 
   return eventRow?.id || null;
@@ -36,7 +36,7 @@ async function getActiveEventId(pool, guildId) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId]
+    [guildId],
   );
 
   return eventRow?.id || null;

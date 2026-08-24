@@ -1,13 +1,15 @@
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { getLockBeforeSec } = require('../../utils/matchLock');
-const { withGuild } = require('../../utils/guildContext');
-const { disableMatchComponents } = require('../../utils/disableMatchComponents');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { getLockBeforeSec } = require("../../utils/matchLock");
+const { withGuild } = require("../../utils/guildContext");
+const {
+  disableMatchComponents,
+} = require("../../utils/disableMatchComponents");
 
 const _startedWatchers = new Set();
 
 function startMatchLockWatcher(client, guildId) {
   if (!guildId) {
-    logError('matches', 'startMatchLockWatcher called without guildId');
+    logError("matches", "startMatchLockWatcher called without guildId");
     return;
   }
 
@@ -18,7 +20,7 @@ function startMatchLockWatcher(client, guildId) {
 
   const intervalMs = Math.max(
     10_000,
-    Number(process.env.MATCH_LOCK_CHECK_MS || 30_000)
+    Number(process.env.MATCH_LOCK_CHECK_MS || 30_000),
   );
 
   let running = false;
@@ -39,10 +41,7 @@ function startMatchLockWatcher(client, guildId) {
             ? `start_time_utc <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? SECOND)`
             : `start_time_utc <= UTC_TIMESTAMP()`;
 
-        const params =
-          lockBeforeSec > 0
-            ? [guildId, lockBeforeSec]
-            : [guildId];
+        const params = lockBeforeSec > 0 ? [guildId, lockBeforeSec] : [guildId];
 
         // 1️⃣ Kandydaci do locka (guild-safe)
         const [rows] = await pool.query(
@@ -56,7 +55,7 @@ function startMatchLockWatcher(client, guildId) {
           ORDER BY start_time_utc ASC
           LIMIT 50
           `,
-          params
+          params,
         );
 
         if (!rows.length) return;
@@ -71,12 +70,12 @@ function startMatchLockWatcher(client, guildId) {
               AND guild_id = ?
               AND is_locked = 0
             `,
-            [m.id, guildId]
+            [m.id, guildId],
           );
 
           if (!res.affectedRows) continue;
 
-          logInfo('matches', 'Auto-locked match', {
+          logInfo("matches", "Auto-locked match", {
             guildId,
             matchId: m.id,
             lockBeforeSec,
@@ -96,17 +95,16 @@ function startMatchLockWatcher(client, guildId) {
               .catch(() => null);
             if (!msg) continue;
 
-            
             await disableMatchComponents(msg);
 
-            logInfo('matches', 'Disabled match panel components', {
+            logInfo("matches", "Disabled match panel components", {
               guildId,
               matchId: m.id,
               channelId: m.panel_channel_id,
               messageId: m.panel_message_id,
             });
           } catch (err) {
-            logWarn('matches', 'Failed to disable match panel UI', {
+            logWarn("matches", "Failed to disable match panel UI", {
               guildId,
               matchId: m.id,
               channelId: m.panel_channel_id,
@@ -123,11 +121,11 @@ function startMatchLockWatcher(client, guildId) {
       consecutiveDbFails += 1;
 
       const backoff = Math.min(
-        intervalMs * (2 ** Math.min(consecutiveDbFails, 5)),
-        5 * 60_000
+        intervalMs * 2 ** Math.min(consecutiveDbFails, 5),
+        5 * 60_000,
       );
 
-      logWarn('matches', 'matchLockWatcher failed', {
+      logWarn("matches", "matchLockWatcher failed", {
         guildId,
         message: err.message,
         consecutiveDbFails,

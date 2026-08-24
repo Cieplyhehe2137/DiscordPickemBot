@@ -2,12 +2,12 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
-const { getActiveMvpCandidates } = require('../../utils/mvpRepository');
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
+const { getActiveMvpCandidates } = require("../../utils/mvpRepository");
 
 const MVP_PAGE_SIZE = 25;
 
@@ -16,64 +16,58 @@ module.exports = async function playoffsMvpPagination(interaction) {
     if (!interaction.isButton()) return;
 
     if (
-      !interaction.customId.startsWith('playoffs_mvp_prev_') &&
-      !interaction.customId.startsWith('playoffs_mvp_next_')
+      !interaction.customId.startsWith("playoffs_mvp_prev_") &&
+      !interaction.customId.startsWith("playoffs_mvp_next_")
     ) {
       return;
     }
 
-    const isPrev = interaction.customId.startsWith('playoffs_mvp_prev_');
+    const isPrev = interaction.customId.startsWith("playoffs_mvp_prev_");
 
-    const currentPage = Number(
-      interaction.customId.split('_').pop()
-    );
+    const currentPage = Number(interaction.customId.split("_").pop());
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const rows = await getActiveMvpCandidates(pool, guildId);
 
       const totalPages = Math.ceil(rows.length / MVP_PAGE_SIZE);
 
-      let page = isPrev
-        ? currentPage - 1
-        : currentPage + 1;
+      let page = isPrev ? currentPage - 1 : currentPage + 1;
 
       page = Math.max(0, Math.min(page, totalPages - 1));
 
       const pageCandidates = rows.slice(
         page * MVP_PAGE_SIZE,
-        (page + 1) * MVP_PAGE_SIZE
+        (page + 1) * MVP_PAGE_SIZE,
       );
 
       const menuRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId(`playoffs_mvp_page_${page}`)
-          .setPlaceholder(
-            `⭐ Wybierz MVP turnieju (${page + 1}/${totalPages})`
-          )
+          .setPlaceholder(`⭐ Wybierz MVP turnieju (${page + 1}/${totalPages})`)
           .setMinValues(1)
           .setMaxValues(1)
           .addOptions(
-            pageCandidates.map(c => ({
+            pageCandidates.map((c) => ({
               label: c.team_name
                 ? `${c.nickname} (${c.team_name})`
                 : c.nickname,
-              value: String(c.id)
-            }))
-          )
+              value: String(c.id),
+            })),
+          ),
       );
 
       const buttonsRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`playoffs_mvp_prev_${page}`)
-          .setLabel('◀ MVP')
+          .setLabel("◀ MVP")
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page === 0),
 
         new ButtonBuilder()
           .setCustomId(`playoffs_mvp_next_${page}`)
-          .setLabel('MVP ▶')
+          .setLabel("MVP ▶")
           .setStyle(ButtonStyle.Secondary)
-          .setDisabled(page >= totalPages - 1)
+          .setDisabled(page >= totalPages - 1),
       );
 
       const oldComponents = interaction.message.components;
@@ -82,18 +76,14 @@ module.exports = async function playoffsMvpPagination(interaction) {
 
       for (const row of oldComponents) {
         const hasMvpMenu = row.components.some(
-          c =>
-            c.customId &&
-            c.customId.startsWith('playoffs_mvp_page_')
+          (c) => c.customId && c.customId.startsWith("playoffs_mvp_page_"),
         );
 
         const hasMvpButtons = row.components.some(
-          c =>
+          (c) =>
             c.customId &&
-            (
-              c.customId.startsWith('playoffs_mvp_prev_') ||
-              c.customId.startsWith('playoffs_mvp_next_')
-            )
+            (c.customId.startsWith("playoffs_mvp_prev_") ||
+              c.customId.startsWith("playoffs_mvp_next_")),
         );
 
         if (!hasMvpMenu && !hasMvpButtons) {
@@ -108,14 +98,14 @@ module.exports = async function playoffsMvpPagination(interaction) {
       }
 
       await interaction.update({
-        components: newComponents
+        components: newComponents,
       });
     });
   } catch (err) {
-    logError('mvp', 'playoffsMvpPagination failed', {
+    logError("mvp", "playoffsMvpPagination failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     return interaction.deferUpdate().catch(() => {});

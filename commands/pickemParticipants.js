@@ -1,38 +1,42 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
-const { withGuild } = require('../utils/guildContext');
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
+} = require("discord.js");
+const { withGuild } = require("../utils/guildContext");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('pickem_participants')
-    .setDescription('📊 Pokazuje liczbę uczestników Pick’Em (wybrana faza)')
-    .addStringOption(opt =>
+    .setName("pickem_participants")
+    .setDescription("📊 Pokazuje liczbę uczestników Pick’Em (wybrana faza)")
+    .addStringOption((opt) =>
       opt
-        .setName('phase')
-        .setDescription('Wybierz fazę Pick’Em')
+        .setName("phase")
+        .setDescription("Wybierz fazę Pick’Em")
         .setRequired(true)
         .addChoices(
-          { name: 'Wszystkie fazy', value: 'all' },
-          { name: 'Swiss', value: 'swiss' },
-          { name: 'Play-In', value: 'playin' },
-          { name: 'Playoffs', value: 'playoffs' },
-          { name: 'Double Elimination', value: 'doubleelim' }
-        )
+          { name: "Wszystkie fazy", value: "all" },
+          { name: "Swiss", value: "swiss" },
+          { name: "Play-In", value: "playin" },
+          { name: "Playoffs", value: "playoffs" },
+          { name: "Double Elimination", value: "doubleelim" },
+        ),
     )
     .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator
+      PermissionFlagsBits.ManageGuild | PermissionFlagsBits.Administrator,
     ),
 
   async execute(interaction) {
-    const phase = interaction.options.getString('phase');
+    const phase = interaction.options.getString("phase");
 
     await interaction.deferReply({ ephemeral: true });
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      let sql = '';
+      let sql = "";
       let params = [];
 
       switch (phase) {
-        case 'swiss':
+        case "swiss":
           sql = `
             SELECT COUNT(DISTINCT user_id) AS participants
             FROM swiss_predictions
@@ -41,7 +45,7 @@ module.exports = {
           params = [guildId];
           break;
 
-        case 'playin':
+        case "playin":
           sql = `
             SELECT COUNT(DISTINCT user_id) AS participants
             FROM playin_predictions
@@ -50,7 +54,7 @@ module.exports = {
           params = [guildId];
           break;
 
-        case 'playoffs':
+        case "playoffs":
           sql = `
             SELECT COUNT(DISTINCT user_id) AS participants
             FROM playoffs_predictions
@@ -59,7 +63,7 @@ module.exports = {
           params = [guildId];
           break;
 
-        case 'doubleelim':
+        case "doubleelim":
           sql = `
             SELECT COUNT(DISTINCT user_id) AS participants
             FROM doubleelim_predictions
@@ -68,7 +72,7 @@ module.exports = {
           params = [guildId];
           break;
 
-        case 'all':
+        case "all":
         default:
           sql = `
             SELECT COUNT(DISTINCT user_id) AS participants
@@ -89,33 +93,33 @@ module.exports = {
       const [[row]] = await pool.query(sql, params);
 
       const PHASE_LABELS = {
-        all: 'Wszystkie fazy',
-        swiss: 'Swiss',
-        playin: 'Play-In',
-        playoffs: 'Playoffs',
-        doubleelim: 'Double Elimination'
+        all: "Wszystkie fazy",
+        swiss: "Swiss",
+        playin: "Play-In",
+        playoffs: "Playoffs",
+        doubleelim: "Double Elimination",
       };
 
       const embed = new EmbedBuilder()
-        .setTitle('📊 Pick’Em – liczba uczestników')
-        .setColor('#4caf50')
+        .setTitle("📊 Pick’Em – liczba uczestników")
+        .setColor("#4caf50")
         .addFields(
           {
-            name: '👥 Uczestnicy',
+            name: "👥 Uczestnicy",
             value: `**${row?.participants || 0}**`,
-            inline: true
+            inline: true,
           },
           {
-            name: '📍 Faza',
+            name: "📍 Faza",
             value: PHASE_LABELS[phase],
-            inline: true
-          }
+            inline: true,
+          },
         )
         .setFooter({
-          text: 'Liczeni są użytkownicy, którzy oddali co najmniej jeden typ w wybranej fazie'
+          text: "Liczeni są użytkownicy, którzy oddali co najmniej jeden typ w wybranej fazie",
         });
 
       await interaction.editReply({ embeds: [embed] });
     });
-  }
+  },
 };

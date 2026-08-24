@@ -1,22 +1,29 @@
 // onReady.js
-const { logInfo, logError } = require('./utils/logger');
-const { getAllGuildIds, ensureGuildDirs } = require('./utils/guildRegistry');
-const { withGuild } = require('./utils/guildContext');
+const { logInfo, logError } = require("./utils/logger");
+const { getAllGuildIds, ensureGuildDirs } = require("./utils/guildRegistry");
+const { withGuild } = require("./utils/guildContext");
 
-const sendArchivePanel = require('./utils/sendArchivePanel');
-const startExportPanel = require('./utils/startExportPanel');
-
-const { startMatchLockWatcher } = require('./handlers/matches/matchLockWatcher');
-const { startDeadlineReminder } = require('./handlers/matches/deadlineReminder');
+const sendArchivePanel = require("./utils/sendArchivePanel");
+const startExportPanel = require("./utils/startExportPanel");
 
 const {
-  startPickemAutoStartWatcher
-} = require('./handlers/admin/pickemAutoStartWatcher');
+  startMatchLockWatcher,
+} = require("./handlers/matches/matchLockWatcher");
+const {
+  startDeadlineReminder,
+} = require("./handlers/matches/deadlineReminder");
+
+const {
+  startPickemAutoStartWatcher,
+} = require("./handlers/admin/pickemAutoStartWatcher");
 
 module.exports = async function onReady(client) {
   const guildIds = getAllGuildIds();
 
-  logInfo('ready', 'Booting multi-guild', { guildCount: guildIds.length, guildIds });
+  logInfo("ready", "Booting multi-guild", {
+    guildCount: guildIds.length,
+    guildIds,
+  });
 
   for (const guildId of guildIds) {
     try {
@@ -31,9 +38,9 @@ module.exports = async function onReady(client) {
         startPickemAutoStartWatcher(client, guildId);
       });
 
-      logInfo('ready', 'Guild boot OK', { guildId });
+      logInfo("ready", "Guild boot OK", { guildId });
     } catch (err) {
-      logError('ready', 'Guild boot FAILED', {
+      logError("ready", "Guild boot FAILED", {
         guildId,
         message: err?.message,
         stack: err?.stack,
@@ -41,5 +48,5 @@ module.exports = async function onReady(client) {
     }
   }
 
-  logInfo('ready', `✅ Logged in as ${client.user.tag}`);
+  logInfo("ready", `✅ Logged in as ${client.user.tag}`);
 };

@@ -3,11 +3,11 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
-} = require('discord.js');
+  EmbedBuilder,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
 
 async function loadTeamsWithFlags(pool, guildId) {
   const [rows] = await pool.query(
@@ -18,12 +18,12 @@ async function loadTeamsWithFlags(pool, guildId) {
       AND active = 1
     ORDER BY sort_order ASC, name ASC
     `,
-    [guildId]
+    [guildId],
   );
 
-  return rows.map(r => ({
+  return rows.map((r) => ({
     name: r.name,
-    label: `${r.flag || ''} ${r.name}`.trim()
+    label: `${r.flag || ""} ${r.name}`.trim(),
   }));
 }
 
@@ -31,8 +31,8 @@ module.exports = async (interaction) => {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
@@ -40,8 +40,8 @@ module.exports = async (interaction) => {
     const stage = match?.[1];
     if (!stage) {
       return interaction.reply({
-        content: '❌ Brak stage w customId.',
-        ephemeral: true
+        content: "❌ Brak stage w customId.",
+        ephemeral: true,
       });
     }
 
@@ -54,7 +54,7 @@ module.exports = async (interaction) => {
 
       if (!teams.length) {
         return interaction.editReply({
-          content: '❌ Brak aktywnych drużyn w bazie.'
+          content: "❌ Brak aktywnych drużyn w bazie.",
         });
       }
 
@@ -62,74 +62,75 @@ module.exports = async (interaction) => {
         return interaction.editReply({
           content:
             `⚠️ Jest **${teams.length} drużyn**, a Discord pozwala max **25 opcji** w dropdownie.\n` +
-            `➡️ Dodaj stronicowanie (jak w meczach).`
+            `➡️ Dodaj stronicowanie (jak w meczach).`,
         });
       }
 
-      const teamList = teams.map(t => t.label).join('\n');
+      const teamList = teams.map((t) => t.label).join("\n");
 
       const embed = new EmbedBuilder()
         .setTitle(`📋 Typowanie – SWISS (${stage.toUpperCase()})`)
-        .setDescription('Wybierz swoje typy i kliknij **Zatwierdź typy**.')
+        .setDescription("Wybierz swoje typy i kliknij **Zatwierdź typy**.")
         .addFields({
-          name: '📌 Dostępne drużyny:',
-          value: teamList
+          name: "📌 Dostępne drużyny:",
+          value: teamList,
         })
-        .setColor('#0099ff');
+        .setColor("#0099ff");
 
-      const options = teams.map(t => ({
+      const options = teams.map((t) => ({
         label: t.label,
-        value: t.name
+        value: t.name,
       }));
 
       const rows = [
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_3_0:${stage}`)
-            .setPlaceholder('🔥 Wybierz 2 drużyny 3-0')
+            .setPlaceholder("🔥 Wybierz 2 drużyny 3-0")
             .setMinValues(2)
             .setMaxValues(2)
-            .addOptions(options)
+            .addOptions(options),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_0_3:${stage}`)
-            .setPlaceholder('💀 Wybierz 2 drużyny 0-3')
+            .setPlaceholder("💀 Wybierz 2 drużyny 0-3")
             .setMinValues(2)
             .setMaxValues(2)
-            .addOptions(options)
+            .addOptions(options),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_advancing:${stage}`)
-            .setPlaceholder('🚀 Wybierz 6 drużyn 3-1 / 3-2')
+            .setPlaceholder("🚀 Wybierz 6 drużyn 3-1 / 3-2")
             .setMinValues(6)
             .setMaxValues(6)
-            .addOptions(options)
+            .addOptions(options),
         ),
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`confirm_swiss:${stage}`)
-            .setLabel('✅ Zatwierdź typy')
-            .setStyle(ButtonStyle.Success)
-        )
+            .setLabel("✅ Zatwierdź typy")
+            .setStyle(ButtonStyle.Success),
+        ),
       ];
 
       return interaction.editReply({
         embeds: [embed],
-        components: rows
+        components: rows,
       });
     });
-
   } catch (err) {
-    logError('swiss', 'openSwissDropdown failed', {
+    logError("swiss", "openSwissDropdown failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.editReply({
-      content: '❌ Wystąpił błąd podczas generowania Swiss.'
-    }).catch(() => {});
+    return interaction
+      .editReply({
+        content: "❌ Wystąpił błąd podczas generowania Swiss.",
+      })
+      .catch(() => {});
   }
 };

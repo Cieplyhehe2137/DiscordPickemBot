@@ -1,13 +1,13 @@
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
 
 module.exports = async function adminMvpResultSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) return;
 
     if (
-      interaction.customId !== 'admin_mvp_result_select' &&
-      interaction.customId !== 'mvp_result_select'
+      interaction.customId !== "admin_mvp_result_select" &&
+      interaction.customId !== "mvp_result_select"
     ) {
       return;
     }
@@ -16,10 +16,12 @@ module.exports = async function adminMvpResultSelect(interaction) {
     const candidateId = Number(interaction.values?.[0]);
 
     if (!guildId || !Number.isInteger(candidateId) || candidateId <= 0) {
-      return interaction.reply({
-        content: '❌ Nieprawidłowy kandydat MVP.',
-        ephemeral: true
-      }).catch(() => { });
+      return interaction
+        .reply({
+          content: "❌ Nieprawidłowy kandydat MVP.",
+          ephemeral: true,
+        })
+        .catch(() => {});
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
@@ -33,11 +35,11 @@ module.exports = async function adminMvpResultSelect(interaction) {
   ORDER BY id DESC
   LIMIT 1
   `,
-        [guildId]
+        [guildId],
       );
 
       if (!event?.id) {
-        throw new Error('No active event found for MVP result');
+        throw new Error("No active event found for MVP result");
       }
 
       await pool.query(
@@ -54,32 +56,36 @@ module.exports = async function adminMvpResultSelect(interaction) {
           active = 1,
           updated_at = CURRENT_TIMESTAMP
         `,
-        [guildId, event.id, candidateId]
+        [guildId, event.id, candidateId],
       );
     });
 
     return interaction.update({
-      content: '✅ Oficjalny MVP został zapisany.',
+      content: "✅ Oficjalny MVP został zapisany.",
       embeds: [],
-      components: []
+      components: [],
     });
   } catch (err) {
-    logError('mvp', 'adminMvpResultSelect failed', {
+    logError("mvp", "adminMvpResultSelect failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (interaction.replied || interaction.deferred) {
-      return interaction.followUp({
-        content: '❌ Nie udało się zapisać oficjalnego MVP.',
-        ephemeral: true
-      }).catch(() => { });
+      return interaction
+        .followUp({
+          content: "❌ Nie udało się zapisać oficjalnego MVP.",
+          ephemeral: true,
+        })
+        .catch(() => {});
     }
 
-    return interaction.reply({
-      content: '❌ Nie udało się zapisać oficjalnego MVP.',
-      ephemeral: true
-    }).catch(() => { });
+    return interaction
+      .reply({
+        content: "❌ Nie udało się zapisać oficjalnego MVP.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

@@ -9,7 +9,12 @@
 // utils/doubleelimRepository.js.
 
 function toArr(s) {
-  return !s ? [] : String(s).split(',').map(v => v.trim()).filter(Boolean);
+  return !s
+    ? []
+    : String(s)
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
 }
 
 async function getCurrentPlayinResults(pool, guildId, eventId) {
@@ -21,7 +26,7 @@ async function getCurrentPlayinResults(pool, guildId, eventId) {
        AND active = 1
      ORDER BY id DESC
      LIMIT 1`,
-    [guildId, eventId]
+    [guildId, eventId],
   );
 
   if (!rows.length) {

@@ -14,7 +14,7 @@ function normalizeId(id, name) {
 }
 
 function ensureGuild(guildId) {
-  const gid = normalizeId(guildId, 'guildId');
+  const gid = normalizeId(guildId, "guildId");
   if (!state.has(gid)) state.set(gid, {});
   return state.get(gid);
 }
@@ -23,8 +23,8 @@ function ensureGuild(guildId) {
  * Stan usera w danej guildii
  */
 function getState(guildId, userId) {
-  const gid = normalizeId(guildId, 'guildId');
-  const uid = normalizeId(userId, 'userId');
+  const gid = normalizeId(guildId, "guildId");
+  const uid = normalizeId(userId, "userId");
 
   const guildState = ensureGuild(gid);
 
@@ -58,7 +58,7 @@ function clearSelection(guildId, userId) {
  * Unieważnia cache drużyn (jeśli gdzieś cachujesz listę)
  */
 function invalidateTeams(guildId) {
-  const gid = normalizeId(guildId, 'guildId');
+  const gid = normalizeId(guildId, "guildId");
   const guildState = state.get(gid);
   if (!guildState) return;
 
@@ -72,7 +72,7 @@ function invalidateTeams(guildId) {
  * Czyści cały stan danej guildii
  */
 function resetGuild(guildId) {
-  const gid = normalizeId(guildId, 'guildId');
+  const gid = normalizeId(guildId, "guildId");
   state.delete(gid);
 }
 

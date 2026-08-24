@@ -2,22 +2,20 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   PermissionFlagsBits,
-} = require('discord.js');
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { getActiveEventId } = require('../../utils/getOpenEventId');
-const { logError } = require('../../utils/logger');
+const { withGuild } = require("../../utils/guildContext");
+const { getActiveEventId } = require("../../utils/getOpenEventId");
+const { logError } = require("../../utils/logger");
 
 function isAdmin(interaction) {
-  return interaction.memberPermissions?.has(
-    PermissionFlagsBits.Administrator
-  );
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 }
 
 module.exports = async function eventAuditMatchSelect(interaction) {
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
+      content: "⛔ Tylko administracja.",
       ephemeral: true,
     });
   }
@@ -32,7 +30,7 @@ module.exports = async function eventAuditMatchSelect(interaction) {
 
       if (!eventId) {
         return interaction.editReply({
-          content: '❌ Nie znaleziono aktywnego eventu.',
+          content: "❌ Nie znaleziono aktywnego eventu.",
         });
       }
 
@@ -57,42 +55,41 @@ module.exports = async function eventAuditMatchSelect(interaction) {
 
         LIMIT 25
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!matches.length) {
         return interaction.editReply({
-          content: '❌ Ten event nie ma żadnych meczów.',
+          content: "❌ Ten event nie ma żadnych meczów.",
         });
       }
 
       const select = new StringSelectMenuBuilder()
-        .setCustomId('panel:audit:match:select')
-        .setPlaceholder('Wybierz mecz do diagnostyki')
+        .setCustomId("panel:audit:match:select")
+        .setPlaceholder("Wybierz mecz do diagnostyki")
         .addOptions(
-          matches.map(match => ({
+          matches.map((match) => ({
             label:
               `#${match.match_no ?? match.id} ` +
               `${match.team_a} vs ${match.team_b}`,
 
             description:
               `BO${match.best_of} • ` +
-              `${Number(match.is_locked) ? 'Zablokowany' : 'Otwarty'}`,
+              `${Number(match.is_locked) ? "Zablokowany" : "Otwarty"}`,
 
             value: String(match.id),
-          }))
+          })),
         );
 
-      const row = new ActionRowBuilder()
-        .addComponents(select);
+      const row = new ActionRowBuilder().addComponents(select);
 
       return interaction.editReply({
-        content: '🎮 **Wybierz mecz do diagnostyki:**',
+        content: "🎮 **Wybierz mecz do diagnostyki:**",
         components: [row],
       });
     });
   } catch (err) {
-    logError('audit', 'eventAuditMatchSelect failed', {
+    logError("audit", "eventAuditMatchSelect failed", {
       guildId: interaction.guildId,
       userId: interaction.user?.id || null,
       message: err.message,
@@ -100,7 +97,7 @@ module.exports = async function eventAuditMatchSelect(interaction) {
     });
 
     return interaction.editReply({
-      content: '❌ Nie udało się pobrać listy meczów.',
+      content: "❌ Nie udało się pobrać listy meczów.",
       components: [],
     });
   }

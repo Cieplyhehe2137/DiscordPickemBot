@@ -9,7 +9,7 @@ async function getActiveMvpCandidates(pool, guildId) {
       AND is_active = 1
     ORDER BY nickname ASC
     `,
-    [guildId]
+    [guildId],
   );
 
   return rows;

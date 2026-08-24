@@ -1,14 +1,14 @@
 const {
   computeSeriesPoints,
-  computeMapPoints
-} = require('../utils/matchScoring');
+  computeMapPoints,
+} = require("../utils/matchScoring");
 
 module.exports = async function recalculateMatchPoints(
   pool,
   guildId,
   eventId,
   matchId,
-  bestOf
+  bestOf,
 ) {
   const [[seriesResult]] = await pool.query(
     `
@@ -23,7 +23,7 @@ module.exports = async function recalculateMatchPoints(
       AND match_id = ?
     LIMIT 1
     `,
-    [guildId, eventId, matchId]
+    [guildId, eventId, matchId],
   );
 
   const [seriesPredictions] = await pool.query(
@@ -39,7 +39,7 @@ module.exports = async function recalculateMatchPoints(
       AND event_id = ?
       AND match_id = ?
     `,
-    [guildId, eventId, matchId]
+    [guildId, eventId, matchId],
   );
 
   /*
@@ -60,13 +60,10 @@ module.exports = async function recalculateMatchPoints(
       predA: prediction.pred_a,
       predB: prediction.pred_b,
       resA: seriesResult?.res_a ?? null,
-      resB: seriesResult?.res_b ?? null
+      resB: seriesResult?.res_b ?? null,
     });
 
-    seriesPointsByUser.set(
-      prediction.user_id,
-      seriesPoints
-    );
+    seriesPointsByUser.set(prediction.user_id, seriesPoints);
 
     /*
      * BO1 przechowuje dokładny wynik mapy
@@ -78,13 +75,10 @@ module.exports = async function recalculateMatchPoints(
         predExactA: prediction.pred_exact_a,
         predExactB: prediction.pred_exact_b,
         exactA: seriesResult?.exact_a ?? null,
-        exactB: seriesResult?.exact_b ?? null
+        exactB: seriesResult?.exact_b ?? null,
       });
 
-      mapPointsByUser.set(
-        prediction.user_id,
-        mapPoints
-      );
+      mapPointsByUser.set(prediction.user_id, mapPoints);
     }
   }
 
@@ -104,14 +98,11 @@ module.exports = async function recalculateMatchPoints(
         AND event_id = ?
         AND match_id = ?
       `,
-      [guildId, eventId, matchId]
+      [guildId, eventId, matchId],
     );
 
     const resultByMap = new Map(
-      mapResults.map((result) => [
-        Number(result.map_no),
-        result
-      ])
+      mapResults.map((result) => [Number(result.map_no), result]),
     );
 
     const [mapPredictions] = await pool.query(
@@ -126,25 +117,22 @@ module.exports = async function recalculateMatchPoints(
         AND event_id = ?
         AND match_id = ?
       `,
-      [guildId, eventId, matchId]
+      [guildId, eventId, matchId],
     );
 
     for (const prediction of mapPredictions) {
-      const result = resultByMap.get(
-        Number(prediction.map_no)
-      );
+      const result = resultByMap.get(Number(prediction.map_no));
 
       const mapPoints = computeMapPoints({
         predExactA: prediction.pred_exact_a,
         predExactB: prediction.pred_exact_b,
         exactA: result?.exact_a ?? null,
-        exactB: result?.exact_b ?? null
+        exactB: result?.exact_b ?? null,
       });
 
       mapPointsByUser.set(
         prediction.user_id,
-        (mapPointsByUser.get(prediction.user_id) || 0) +
-          mapPoints
+        (mapPointsByUser.get(prediction.user_id) || 0) + mapPoints,
       );
     }
   }
@@ -160,7 +148,7 @@ module.exports = async function recalculateMatchPoints(
       AND event_id = ?
       AND match_id = ?
     `,
-    [guildId, eventId, matchId]
+    [guildId, eventId, matchId],
   );
 
   /* =========================
@@ -170,25 +158,11 @@ module.exports = async function recalculateMatchPoints(
   const values = [];
 
   for (const [userId, points] of seriesPointsByUser.entries()) {
-    values.push([
-      guildId,
-      eventId,
-      matchId,
-      userId,
-      points,
-      'series'
-    ]);
+    values.push([guildId, eventId, matchId, userId, points, "series"]);
   }
 
   for (const [userId, points] of mapPointsByUser.entries()) {
-    values.push([
-      guildId,
-      eventId,
-      matchId,
-      userId,
-      points,
-      'map'
-    ]);
+    values.push([guildId, eventId, matchId, userId, points, "map"]);
   }
 
   if (!values.length) return;
@@ -213,6 +187,6 @@ module.exports = async function recalculateMatchPoints(
       points = VALUES(points),
       computed_at = CURRENT_TIMESTAMP
     `,
-    [values]
+    [values],
   );
 };

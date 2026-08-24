@@ -3,20 +3,20 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
-} = require('discord.js');
+  EmbedBuilder,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { loadActiveTeamsBySortOrder } = require('../../utils/loadActiveTeams');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
 
 module.exports = async (interaction) => {
-  if (interaction.customId !== 'open_results_playoffs') return;
+  if (interaction.customId !== "open_results_playoffs") return;
 
   if (!interaction.guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta akcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
@@ -30,7 +30,7 @@ module.exports = async (interaction) => {
 
       if (!teams.length) {
         return interaction.editReply({
-          content: '❌ Brak aktywnych drużyn w bazie.'
+          content: "❌ Brak aktywnych drużyn w bazie.",
         });
       }
 
@@ -38,76 +38,77 @@ module.exports = async (interaction) => {
         return interaction.editReply({
           content:
             `⚠️ Jest **${teams.length} drużyn**, a Discord pozwala max **25 opcji** w dropdownie.\n` +
-            `➡️ Dodaj stronicowanie (jak w meczach).`
+            `➡️ Dodaj stronicowanie (jak w meczach).`,
         });
       }
 
       const embed = new EmbedBuilder()
-        .setTitle('🏆 Ustaw wyniki Playoffs')
+        .setTitle("🏆 Ustaw wyniki Playoffs")
         .setDescription(
-          'Możesz **dodawać drużyny partiami** – dokładnie jak w Swiss.\n' +
-          'Dropdowny zapisują stan w bazie.'
+          "Możesz **dodawać drużyny partiami** – dokładnie jak w Swiss.\n" +
+            "Dropdowny zapisują stan w bazie.",
         )
-        .setColor('#ffcc00');
+        .setColor("#ffcc00");
 
-      const makeOptions = () => teams.map(t => ({ label: t, value: t }));
+      const makeOptions = () => teams.map((t) => ({ label: t, value: t }));
 
       const rows = [
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId('results_playoffs_semifinalists')
-            .setPlaceholder('Półfinaliści (max 4)')
+            .setCustomId("results_playoffs_semifinalists")
+            .setPlaceholder("Półfinaliści (max 4)")
             .setMinValues(0)
             .setMaxValues(4)
-            .addOptions(makeOptions())
+            .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId('results_playoffs_finalists')
-            .setPlaceholder('Finaliści (max 2)')
+            .setCustomId("results_playoffs_finalists")
+            .setPlaceholder("Finaliści (max 2)")
             .setMinValues(0)
             .setMaxValues(2)
-            .addOptions(makeOptions())
+            .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId('results_playoffs_winner')
-            .setPlaceholder('Zwycięzca')
+            .setCustomId("results_playoffs_winner")
+            .setPlaceholder("Zwycięzca")
             .setMinValues(0)
             .setMaxValues(1)
-            .addOptions(makeOptions())
+            .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
-            .setCustomId('results_playoffs_third_place_winner')
-            .setPlaceholder('3. miejsce (opcjonalnie)')
+            .setCustomId("results_playoffs_third_place_winner")
+            .setPlaceholder("3. miejsce (opcjonalnie)")
             .setMinValues(0)
             .setMaxValues(1)
-            .addOptions(makeOptions())
+            .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setCustomId('confirm_playoffs_results')
-            .setLabel('✅ Zatwierdź')
-            .setStyle(ButtonStyle.Success)
-        )
+            .setCustomId("confirm_playoffs_results")
+            .setLabel("✅ Zatwierdź")
+            .setStyle(ButtonStyle.Success),
+        ),
       ];
 
       return interaction.editReply({
         embeds: [embed],
-        components: rows
+        components: rows,
       });
     });
-
   } catch (err) {
-    logError('playoffs', 'open_results_playoffs failed', {
+    logError("playoffs", "open_results_playoffs failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.editReply({
-      content: '❌ Błąd podczas otwierania wyników Playoffs.'
-    }).catch(() => {});
+    return interaction
+      .editReply({
+        content: "❌ Błąd podczas otwierania wyników Playoffs.",
+      })
+      .catch(() => {});
   }
 };

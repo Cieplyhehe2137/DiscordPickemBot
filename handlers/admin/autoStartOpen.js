@@ -3,32 +3,26 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const {
-  withGuild
-} = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 
 function isAdmin(interaction) {
-  return interaction.memberPermissions?.has(
-    PermissionFlagsBits.Administrator
-  );
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 }
 
 module.exports = async function autoStartOpen(interaction) {
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
-      ephemeral: true
+      content: "⛔ Tylko administracja.",
+      ephemeral: true,
     });
   }
 
-  return withGuild(
-    interaction.guildId,
-    async ({ pool, guildId }) => {
-      const [events] = await pool.query(
-        `
+  return withGuild(interaction.guildId, async ({ pool, guildId }) => {
+    const [events] = await pool.query(
+      `
         SELECT
           id,
           name,
@@ -42,47 +36,36 @@ module.exports = async function autoStartOpen(interaction) {
         ORDER BY id DESC
         LIMIT 24
         `,
-        [guildId]
-      );
+      [guildId],
+    );
 
-      const options = [
-        {
-          label: '➕ Nowy event',
-          description:
-            'Utwórz event i zaplanuj jego automatyczny start',
-          value: 'new'
-        },
+    const options = [
+      {
+        label: "➕ Nowy event",
+        description: "Utwórz event i zaplanuj jego automatyczny start",
+        value: "new",
+      },
 
-        ...events.map(event => ({
-          label: String(event.name).slice(0, 100),
+      ...events.map((event) => ({
+        label: String(event.name).slice(0, 100),
 
-          description:
-            event.auto_start_at
-              ? `Zaplanowany: ${event.auto_start_phase || '?'} — wybierz, aby zmienić`
-              : `Status: ${event.status}`,
+        description: event.auto_start_at
+          ? `Zaplanowany: ${event.auto_start_phase || "?"} — wybierz, aby zmienić`
+          : `Status: ${event.status}`,
 
-          value: String(event.id)
-        }))
-      ];
+        value: String(event.id),
+      })),
+    ];
 
-      const select =
-        new StringSelectMenuBuilder()
-          .setCustomId(
-            'auto_start:event_select'
-          )
-          .setPlaceholder(
-            'Wybierz event'
-          )
-          .addOptions(options);
+    const select = new StringSelectMenuBuilder()
+      .setCustomId("auto_start:event_select")
+      .setPlaceholder("Wybierz event")
+      .addOptions(options);
 
-      const components = [
-        new ActionRowBuilder()
-          .addComponents(select)
-      ];
+    const components = [new ActionRowBuilder().addComponents(select)];
 
-      const [scheduled] =
-        await pool.query(
-          `
+    const [scheduled] = await pool.query(
+      `
           SELECT id
           FROM events
           WHERE guild_id = ?
@@ -91,34 +74,26 @@ module.exports = async function autoStartOpen(interaction) {
             AND status <> 'FINISHED'
           LIMIT 1
           `,
-          [guildId]
-        );
+      [guildId],
+    );
 
-      if (scheduled.length) {
-        components.push(
-          new ActionRowBuilder()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId(
-                  'auto_start:cancel_open'
-                )
-                .setLabel(
-                  '🗑️ Anuluj zaplanowany start'
-                )
-                .setStyle(
-                  ButtonStyle.Danger
-                )
-            )
-        );
-      }
-
-      return interaction.reply({
-        content:
-          '🕒 **Auto-start Pick’Em**\n' +
-          'Wybierz istniejący event albo utwórz nowy.',
-        components,
-        ephemeral: true
-      });
+    if (scheduled.length) {
+      components.push(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId("auto_start:cancel_open")
+            .setLabel("🗑️ Anuluj zaplanowany start")
+            .setStyle(ButtonStyle.Danger),
+        ),
+      );
     }
-  );
+
+    return interaction.reply({
+      content:
+        "🕒 **Auto-start Pick’Em**\n" +
+        "Wybierz istniejący event albo utwórz nowy.",
+      components,
+      ephemeral: true,
+    });
+  });
 };

@@ -1,24 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   createGuildBackup,
   describeActionError,
   endTournament,
   getGuildBackups,
-  restoreGuildBackup
-} from '../../../lib/api';
+  restoreGuildBackup,
+} from "../../../lib/api";
 
-export default function useTournamentOperations({
-  event,
-  slug,
-  onRefresh
-}) {
+export default function useTournamentOperations({ event, slug, onRefresh }) {
   const [backups, setBackups] = useState([]);
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupActionLoading, setBackupActionLoading] = useState(false);
   const [backupError, setBackupError] = useState(null);
 
   const [endingTournament, setEndingTournament] = useState(false);
-  const [archiveName, setArchiveName] = useState('');
+  const [archiveName, setArchiveName] = useState("");
   const [cleanupAfterArchive, setCleanupAfterArchive] = useState(false);
 
   const [message, setMessage] = useState(null);
@@ -47,9 +43,7 @@ export default function useTournamentOperations({
         console.error(error);
 
         if (!cancelled) {
-          setBackupError(
-            describeActionError(error, 'pobrać backupy')
-          );
+          setBackupError(describeActionError(error, "pobrać backupy"));
         }
       } finally {
         if (!cancelled) {
@@ -77,15 +71,11 @@ export default function useTournamentOperations({
 
       setBackups(result.backups || []);
 
-      setMessage(
-        `Backup utworzony: ${result.backup?.fileName || 'OK'}`
-      );
+      setMessage(`Backup utworzony: ${result.backup?.fileName || "OK"}`);
     } catch (error) {
       console.error(error);
 
-      setBackupError(
-        describeActionError(error, 'utworzyć backup')
-      );
+      setBackupError(describeActionError(error, "utworzyć backup"));
     } finally {
       setBackupActionLoading(false);
     }
@@ -96,26 +86,21 @@ export default function useTournamentOperations({
 
     const confirmed = window.confirm(
       `Przywrócić backup ${fileName}?\n\n` +
-      'To nadpisze dane turniejowe tego serwera danymi z backupu.'
+        "To nadpisze dane turniejowe tego serwera danymi z backupu.",
     );
 
     if (!confirmed) return;
 
-    const secondConfirm = window.prompt(
-      'Dla bezpieczeństwa wpisz RESTORE'
-    );
+    const secondConfirm = window.prompt("Dla bezpieczeństwa wpisz RESTORE");
 
-    if (secondConfirm !== 'RESTORE') return;
+    if (secondConfirm !== "RESTORE") return;
 
     try {
       setBackupActionLoading(true);
       setBackupError(null);
       setMessage(null);
 
-      await restoreGuildBackup(
-        event.guild_id,
-        fileName
-      );
+      await restoreGuildBackup(event.guild_id, fileName);
 
       await onRefresh?.();
 
@@ -123,39 +108,32 @@ export default function useTournamentOperations({
     } catch (error) {
       console.error(error);
 
-      setBackupError(
-        describeActionError(error, 'przywrócić backup')
-      );
+      setBackupError(describeActionError(error, "przywrócić backup"));
     } finally {
       setBackupActionLoading(false);
     }
   }
 
   async function finishTournament() {
-    const name =
-      archiveName.trim() ||
-      event?.slug ||
-      slug;
+    const name = archiveName.trim() || event?.slug || slug;
 
     const confirmed = window.confirm(
       `Zakończyć turniej "${event?.name || slug}"?\n\n` +
-      'Zostanie utworzony plik archiwum XLSX, event zostanie ' +
-      'oznaczony jako zakończony i przeniesiony do archiwum.' +
-      (
-        cleanupAfterArchive
-          ? '\n\nUWAGA: włączone jest także czyszczenie danych operacyjnych eventu.'
-          : ''
-      )
+        "Zostanie utworzony plik archiwum XLSX, event zostanie " +
+        "oznaczony jako zakończony i przeniesiony do archiwum." +
+        (cleanupAfterArchive
+          ? "\n\nUWAGA: włączone jest także czyszczenie danych operacyjnych eventu."
+          : ""),
     );
 
     if (!confirmed) return;
 
     if (cleanupAfterArchive) {
       const typed = window.prompt(
-        'Wpisz KONIEC, żeby potwierdzić czyszczenie danych po archiwizacji'
+        "Wpisz KONIEC, żeby potwierdzić czyszczenie danych po archiwizacji",
       );
 
-      if (typed !== 'KONIEC') return;
+      if (typed !== "KONIEC") return;
     }
 
     try {
@@ -164,7 +142,7 @@ export default function useTournamentOperations({
 
       const result = await endTournament(slug, {
         archiveName: name,
-        cleanup: cleanupAfterArchive
+        cleanup: cleanupAfterArchive,
       });
 
       await onRefresh?.();
@@ -172,14 +150,12 @@ export default function useTournamentOperations({
       setMessage(
         `Turniej zakończony. Archiwum: ${
           result.archive?.filename || `${name}.xlsx`
-        }`
+        }`,
       );
     } catch (error) {
       console.error(error);
 
-      window.alert(
-        describeActionError(error, 'zakończyć turniej')
-      );
+      window.alert(describeActionError(error, "zakończyć turniej"));
     } finally {
       setEndingTournament(false);
     }
@@ -198,6 +174,6 @@ export default function useTournamentOperations({
     message,
     restoreBackup,
     setArchiveName,
-    setCleanupAfterArchive
+    setCleanupAfterArchive,
   };
 }

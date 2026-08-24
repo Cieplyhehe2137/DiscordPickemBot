@@ -11,50 +11,59 @@
 // match-deadlines are therefore not stage-specific in the current bot. This
 // asymmetry is replicated as-is, not "fixed", to stay 1:1 with Discord.
 
-const { DateTime } = require('luxon');
+const { DateTime } = require("luxon");
 
-const VALID_PHASES = ['swiss', 'playoffs', 'doubleelim', 'playin'];
+const VALID_PHASES = ["swiss", "playoffs", "doubleelim", "playin"];
 
 function parseDeadlineInput(rawInput) {
-  const dt = DateTime.fromFormat(String(rawInput || ''), 'yyyy-MM-dd HH:mm', { zone: 'Europe/Warsaw' });
+  const dt = DateTime.fromFormat(String(rawInput || ""), "yyyy-MM-dd HH:mm", {
+    zone: "Europe/Warsaw",
+  });
 
   if (!dt.isValid) {
-    return { ok: false, error: 'Invalid date format. Use YYYY-MM-DD HH:mm.' };
+    return { ok: false, error: "Invalid date format. Use YYYY-MM-DD HH:mm." };
   }
 
   if (dt <= DateTime.now()) {
-    return { ok: false, error: 'Deadline must be in the future.' };
+    return { ok: false, error: "Deadline must be in the future." };
   }
 
   return { ok: true, utcDate: dt.toUTC().toJSDate() };
 }
 
 function resolveSwissStage(inputStage) {
-  const stageNumber = String(inputStage || '').match(/\d+/)?.[0];
+  const stageNumber = String(inputStage || "").match(/\d+/)?.[0];
   if (!stageNumber) return null;
-  return { dbPhase: `swiss_stage${stageNumber}`, dbStageKey: `stage${stageNumber}` };
+  return {
+    dbPhase: `swiss_stage${stageNumber}`,
+    dbStageKey: `stage${stageNumber}`,
+  };
 }
 
 // Pick/prediction deadline lookup (mirrors commands/setDeadline.js).
 async function findPanelForDeadline(pool, guildId, phase, stage) {
-  if (phase === 'swiss') {
+  if (phase === "swiss") {
     const resolved = resolveSwissStage(stage);
 
     if (!resolved) {
-      return { error: 'Invalid Swiss stage. Use 1, 2, or 3.' };
+      return { error: "Invalid Swiss stage. Use 1, 2, or 3." };
     }
 
     const [rows] = await pool.query(
       `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND stage_key = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
-      [guildId, resolved.dbPhase, resolved.dbStageKey]
+      [guildId, resolved.dbPhase, resolved.dbStageKey],
     );
 
-    return { row: rows[0] || null, lookupPhase: resolved.dbPhase, lookupStageKey: resolved.dbStageKey };
+    return {
+      row: rows[0] || null,
+      lookupPhase: resolved.dbPhase,
+      lookupStageKey: resolved.dbStageKey,
+    };
   }
 
   const [rows] = await pool.query(
     `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
-    [guildId, phase]
+    [guildId, phase],
   );
 
   return { row: rows[0] || null, lookupPhase: phase, lookupStageKey: null };
@@ -65,7 +74,7 @@ async function findPanelForDeadline(pool, guildId, phase, stage) {
 async function findPanelForMatchDeadline(pool, guildId, phase) {
   const [rows] = await pool.query(
     `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
-    [guildId, phase]
+    [guildId, phase],
   );
 
   return { row: rows[0] || null, lookupPhase: phase };
@@ -82,7 +91,7 @@ async function findPanelForMatchDeadline(pool, guildId, phase) {
 async function isPickDeadlinePassed(pool, guildId, phase, stage) {
   let rows;
 
-  if (phase === 'swiss') {
+  if (phase === "swiss") {
     const resolved = resolveSwissStage(stage);
     if (!resolved) return { passed: false, deadline: null };
 
@@ -91,7 +100,7 @@ async function isPickDeadlinePassed(pool, guildId, phase, stage) {
        FROM active_panels
        WHERE guild_id = ? AND phase = ? AND stage_key = ?
        ORDER BY id DESC LIMIT 1`,
-      [guildId, resolved.dbPhase, resolved.dbStageKey]
+      [guildId, resolved.dbPhase, resolved.dbStageKey],
     );
   } else {
     [rows] = await pool.query(
@@ -99,7 +108,7 @@ async function isPickDeadlinePassed(pool, guildId, phase, stage) {
        FROM active_panels
        WHERE guild_id = ? AND phase = ?
        ORDER BY id DESC LIMIT 1`,
-      [guildId, phase]
+      [guildId, phase],
     );
   }
 
@@ -113,11 +122,14 @@ async function isMatchDeadlinePassed(pool, guildId, phase) {
      FROM active_panels
      WHERE guild_id = ? AND phase = ?
      ORDER BY id DESC LIMIT 1`,
-    [guildId, phase]
+    [guildId, phase],
   );
 
   const row = rows[0];
-  return { passed: Boolean(row?.passed), deadline: row?.match_deadline ?? null };
+  return {
+    passed: Boolean(row?.passed),
+    deadline: row?.match_deadline ?? null,
+  };
 }
 
 module.exports = {
@@ -126,5 +138,5 @@ module.exports = {
   findPanelForDeadline,
   findPanelForMatchDeadline,
   isPickDeadlinePassed,
-  isMatchDeadlinePassed
+  isMatchDeadlinePassed,
 };

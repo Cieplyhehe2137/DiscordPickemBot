@@ -4,10 +4,10 @@ const state = new Map();
 
 function makeKey(guildId, userId) {
   if (!guildId) {
-    throw new Error('matchUserState: missing guildId');
+    throw new Error("matchUserState: missing guildId");
   }
   if (!userId) {
-    throw new Error('matchUserState: missing userId');
+    throw new Error("matchUserState: missing userId");
   }
 
   return `${String(guildId)}:${String(userId)}`;
@@ -16,7 +16,7 @@ function makeKey(guildId, userId) {
 module.exports = {
   set(guildId, userId, ctx) {
     if (!ctx) {
-      throw new Error('matchUserState.set: missing ctx');
+      throw new Error("matchUserState.set: missing ctx");
     }
 
     const key = makeKey(guildId, userId);

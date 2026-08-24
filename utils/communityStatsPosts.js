@@ -1,4 +1,4 @@
-const { logError } = require('./logger');
+const { logError } = require("./logger");
 
 async function wasStatsPosted(pool, guildId, matchId, statsType) {
   try {
@@ -11,16 +11,16 @@ async function wasStatsPosted(pool, guildId, matchId, statsType) {
         AND stats_type = ?
       LIMIT 1
       `,
-      [guildId, matchId, statsType]
+      [guildId, matchId, statsType],
     );
 
     return !!rows?.length;
   } catch (err) {
-    logError('stats', 'wasStatsPosted failed', {
+    logError("stats", "wasStatsPosted failed", {
       guildId,
       matchId,
       statsType,
-      message: err.message
+      message: err.message,
     });
 
     return false;
@@ -35,19 +35,19 @@ async function markStatsPosted(pool, guildId, matchId, statsType) {
         (guild_id, match_id, stats_type)
       VALUES (?, ?, ?)
       `,
-      [guildId, matchId, statsType]
+      [guildId, matchId, statsType],
     );
   } catch (err) {
-    logError('stats', 'markStatsPosted failed', {
+    logError("stats", "markStatsPosted failed", {
       guildId,
       matchId,
       statsType,
-      message: err.message
+      message: err.message,
     });
   }
 }
 
 module.exports = {
   wasStatsPosted,
-  markStatsPosted
+  markStatsPosted,
 };

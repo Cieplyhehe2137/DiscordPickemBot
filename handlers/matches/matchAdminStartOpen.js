@@ -3,14 +3,14 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const adminState = require('../../utils/matchAdminState');
-const { withGuild } = require('../../utils/guildContext');
-const { DEFAULT_ZONE, formatStartLocal } = require('../../utils/matchLock');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const adminState = require("../../utils/matchAdminState");
+const { withGuild } = require("../../utils/guildContext");
+const { DEFAULT_ZONE, formatStartLocal } = require("../../utils/matchLock");
+const { getMatchById } = require("../../utils/matchesStore");
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -24,25 +24,25 @@ module.exports = async function matchAdminStartOpen(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
     if (!hasAdminPerms(interaction)) {
       return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
+        content: "❌ Brak uprawnień.",
+        ephemeral: true,
       });
     }
 
-    const raw = String(interaction.customId || '');
-    const matchId = Number(raw.split(':')[1]);
+    const raw = String(interaction.customId || "");
+    const matchId = Number(raw.split(":")[1]);
 
     if (!Number.isInteger(matchId) || matchId <= 0) {
       return interaction.reply({
-        content: '❌ Niepoprawny matchId.',
-        ephemeral: true
+        content: "❌ Niepoprawny matchId.",
+        ephemeral: true,
       });
     }
 
@@ -51,8 +51,8 @@ module.exports = async function matchAdminStartOpen(interaction) {
 
       if (!match) {
         return interaction.reply({
-          content: '❌ Nie znaleziono meczu dla tego serwera.',
-          ephemeral: true
+          content: "❌ Nie znaleziono meczu dla tego serwera.",
+          ephemeral: true,
         });
       }
 
@@ -63,44 +63,43 @@ module.exports = async function matchAdminStartOpen(interaction) {
         matchId: Number(match.id),
         teamA: match.team_a,
         teamB: match.team_b,
-        bestOf: Number(match.best_of)
+        bestOf: Number(match.best_of),
       });
 
       const currentLocal =
-        formatStartLocal(match.start_time_utc, DEFAULT_ZONE) || '';
+        formatStartLocal(match.start_time_utc, DEFAULT_ZONE) || "";
 
       const modal = new ModalBuilder()
-        .setCustomId('match_admin_start_submit')
-        .setTitle('Ustaw start meczu');
+        .setCustomId("match_admin_start_submit")
+        .setTitle("Ustaw start meczu");
 
       const input = new TextInputBuilder()
-        .setCustomId('start_time')
-        .setLabel('Start (czas PL) — np. 2025-12-27 21:30')
+        .setCustomId("start_time")
+        .setLabel("Start (czas PL) — np. 2025-12-27 21:30")
         .setStyle(TextInputStyle.Short)
         .setRequired(false)
-        .setPlaceholder('YYYY-MM-DD HH:mm (albo: clear)');
+        .setPlaceholder("YYYY-MM-DD HH:mm (albo: clear)");
 
-      if (typeof currentLocal === 'string' && currentLocal.length > 0) {
+      if (typeof currentLocal === "string" && currentLocal.length > 0) {
         input.setValue(currentLocal);
       }
 
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(input)
-      );
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
 
       return interaction.showModal(modal);
     });
-
   } catch (err) {
-    logError('matches', 'matchAdminStartOpen failed', {
+    logError("matches", "matchAdminStartOpen failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się otworzyć modala.',
-      ephemeral: true
-    }).catch(() => {});
+    return interaction
+      .reply({
+        content: "❌ Nie udało się otworzyć modala.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

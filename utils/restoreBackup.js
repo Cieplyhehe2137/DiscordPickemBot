@@ -1,8 +1,8 @@
-const fs = require('fs');
-const mysql = require('mysql2/promise');
+const fs = require("fs");
+const mysql = require("mysql2/promise");
 
-const { loadGuildConfigsOnce, getGuildConfig } = require('./guildRegistry');
-const { getCurrentGuildId } = require('./guildContext');
+const { loadGuildConfigsOnce, getGuildConfig } = require("./guildRegistry");
+const { getCurrentGuildId } = require("./guildContext");
 
 // =====================================================
 // HELPERS – SQL PARSING (ZOSTAWIONE)
@@ -10,21 +10,21 @@ const { getCurrentGuildId } = require('./guildContext');
 
 function isEscaped(sql, i) {
   let cnt = 0;
-  for (let j = i - 1; j >= 0 && sql[j] === '\\'; j--) cnt++;
-  return (cnt % 2) === 1;
+  for (let j = i - 1; j >= 0 && sql[j] === "\\"; j--) cnt++;
+  return cnt % 2 === 1;
 }
 
 function splitSqlStatements(sqlText) {
-  const sql = String(sqlText || '').replace(/\r\n/g, '\n');
+  const sql = String(sqlText || "").replace(/\r\n/g, "\n");
   const out = [];
-  let stmt = '';
+  let stmt = "";
   let inSingle = false;
   let inDouble = false;
   let inBacktick = false;
 
   for (let i = 0; i < sql.length; i++) {
     const ch = sql[i];
-    const next = sql[i + 1] || '';
+    const next = sql[i + 1] || "";
 
     if (!inDouble && !inBacktick && ch === "'") {
       if (inSingle) {
@@ -47,15 +47,15 @@ function splitSqlStatements(sqlText) {
       continue;
     }
 
-    if (!inSingle && !inDouble && ch === '`') {
+    if (!inSingle && !inDouble && ch === "`") {
       inBacktick = !inBacktick;
       stmt += ch;
       continue;
     }
 
-    if (!inSingle && !inDouble && !inBacktick && ch === ';') {
+    if (!inSingle && !inDouble && !inBacktick && ch === ";") {
       if (stmt.trim()) out.push(stmt.trim());
-      stmt = '';
+      stmt = "";
       continue;
     }
 
@@ -73,7 +73,7 @@ function splitSqlStatements(sqlText) {
 // Tabele celowo pomijane MIMO tego, że mają guild_id: to stan runtime
 // (aktywne panele z przyciskami na Discordzie), a nie dane turniejowe.
 // Odtwarzanie ich wskazywałoby na nieistniejące już wiadomości.
-const VOLATILE_TABLES = new Set(['active_panels']);
+const VOLATILE_TABLES = new Set(["active_panels"]);
 
 function shouldSkipStatement(stmt) {
   const s = stmt.trim();
@@ -95,15 +95,16 @@ function shouldSkipStatement(stmt) {
 // jest czyszczona przed wstawieniem, a CREATE TABLE trafia do środka
 // transakcji (w MySQL każde DDL robi niejawny COMMIT).
 function stripLeadingComments(stmt) {
-  const lines = String(stmt).split('\n');
+  const lines = String(stmt).split("\n");
   let i = 0;
 
   while (
     i < lines.length &&
-    (lines[i].trim() === '' || /^\s*(#|--\s)/.test(lines[i]))
-  ) i++;
+    (lines[i].trim() === "" || /^\s*(#|--\s)/.test(lines[i]))
+  )
+    i++;
 
-  return lines.slice(i).join('\n').trim();
+  return lines.slice(i).join("\n").trim();
 }
 
 // Nazwa tabeli z `INSERT INTO`. mysqldump łamie te instrukcje na wiele linii
@@ -124,10 +125,10 @@ async function getGuildScopedTables(connection, dbName) {
     `SELECT TABLE_NAME
        FROM INFORMATION_SCHEMA.COLUMNS
       WHERE TABLE_SCHEMA = ? AND COLUMN_NAME = 'guild_id'`,
-    [dbName]
+    [dbName],
   );
 
-  return new Set(rows.map(r => r.TABLE_NAME));
+  return new Set(rows.map((r) => r.TABLE_NAME));
 }
 
 // =====================================================
@@ -135,7 +136,7 @@ async function getGuildScopedTables(connection, dbName) {
 // =====================================================
 
 function getDbConfig(guildId) {
-  if (!guildId) throw new Error('restoreBackup: guildId wymagane');
+  if (!guildId) throw new Error("restoreBackup: guildId wymagane");
 
   loadGuildConfigsOnce();
   const cfg = getGuildConfig(String(guildId));
@@ -166,10 +167,9 @@ function getDbConfig(guildId) {
 // skasował pozostałe tabele. Efektem netto była utrata danych.
 async function clearGuildData(connection, guildId, tables) {
   for (const table of tables) {
-    await connection.query(
-      `DELETE FROM \`${table}\` WHERE guild_id = ?`,
-      [guildId]
-    );
+    await connection.query(`DELETE FROM \`${table}\` WHERE guild_id = ?`, [
+      guildId,
+    ]);
   }
 }
 
@@ -186,7 +186,7 @@ async function execStatement(connection, stmt) {
 function classifyDump(dumpText) {
   const statements = splitSqlStatements(dumpText)
     .map(stripLeadingComments)
-    .filter(s => s && !shouldSkipStatement(s));
+    .filter((s) => s && !shouldSkipStatement(s));
 
   const inserts = [];
   const ddl = [];
@@ -207,43 +207,42 @@ function classifyDump(dumpText) {
 // =====================================================
 
 module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
-  const ctxGuildId = typeof getCurrentGuildId === 'function'
-    ? getCurrentGuildId()
-    : null;
+  const ctxGuildId =
+    typeof getCurrentGuildId === "function" ? getCurrentGuildId() : null;
 
   const guildId = opts.guildId || ctxGuildId;
-  if (!guildId) throw new Error('restoreBackup: brak guildId');
+  if (!guildId) throw new Error("restoreBackup: brak guildId");
 
   if (!fs.existsSync(sqlFilePath)) {
-    throw new Error('Plik backupu nie istnieje');
+    throw new Error("Plik backupu nie istnieje");
   }
 
-  const dump = fs.readFileSync(sqlFilePath, 'utf8');
-  if (!dump.trim()) throw new Error('Plik backupu jest pusty');
+  const dump = fs.readFileSync(sqlFilePath, "utf8");
+  if (!dump.trim()) throw new Error("Plik backupu jest pusty");
 
   const dbCfg = getDbConfig(guildId);
 
   const connection = await mysql.createConnection({
     ...dbCfg,
     multipleStatements: true,
-    charset: 'utf8mb4',
+    charset: "utf8mb4",
   });
 
   try {
-    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query("SET FOREIGN_KEY_CHECKS = 0");
 
     const guildScoped = await getGuildScopedTables(connection, dbCfg.database);
 
     const statements = splitSqlStatements(dump)
       .map(stripLeadingComments)
-      .filter(s => s && !shouldSkipStatement(s));
+      .filter((s) => s && !shouldSkipStatement(s));
 
     // W transakcji ląduje WYŁĄCZNIE DELETE + INSERT. Cała reszta z dumpa
     // (`/*!40101 SET ... */` oraz `CREATE TABLE IF NOT EXISTS`) idzie przed
     // nią: w MySQL każde DDL robi niejawny COMMIT, więc wykonane w środku
     // rozbiłoby atomowość odtwarzania danych. Na istniejącej bazie te
     // CREATE TABLE i tak są operacjami pustymi.
-    const preamble = statements.filter(s => !parseInsertTable(s));
+    const preamble = statements.filter((s) => !parseInsertTable(s));
 
     for (const stmt of preamble) {
       await execStatement(connection, stmt);
@@ -268,9 +267,9 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       applied.push({ stmt, table });
     }
 
-    const tablesToClear = [...new Set(
-      applied.map(a => a.table).filter(Boolean)
-    )];
+    const tablesToClear = [
+      ...new Set(applied.map((a) => a.table).filter(Boolean)),
+    ];
 
     await connection.beginTransaction();
 
@@ -285,7 +284,9 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
     } catch (err) {
       // Bez tego rollbacku porażka w połowie zostawiała bazę z wyczyszczonymi
       // tabelami i tylko częściowo wstawionymi danymi.
-      try { await connection.rollback(); } catch (_) {}
+      try {
+        await connection.rollback();
+      } catch (_) {}
       throw err;
     }
 
@@ -295,11 +296,15 @@ module.exports = async function restoreBackup(sqlFilePath, opts = {}) {
       skippedTables: [...skipped],
     };
   } catch (err) {
-    console.error('[RESTORE] FAIL', err);
+    console.error("[RESTORE] FAIL", err);
     throw err;
   } finally {
-    try { await connection.query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
-    try { await connection.end(); } catch (_) {}
+    try {
+      await connection.query("SET FOREIGN_KEY_CHECKS = 1");
+    } catch (_) {}
+    try {
+      await connection.end();
+    } catch (_) {}
   }
 };
 

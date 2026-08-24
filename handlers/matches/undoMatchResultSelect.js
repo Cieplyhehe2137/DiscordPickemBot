@@ -2,53 +2,43 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const isAdmin = require('../../utils/isAdmin');
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
+const isAdmin = require("../../utils/isAdmin");
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
 
-module.exports = async function undoMatchResultSelect(
-  interaction
-) {
+module.exports = async function undoMatchResultSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) {
       return;
     }
 
-    if (
-      interaction.customId !==
-      'undo_match_result_select'
-    ) {
+    if (interaction.customId !== "undo_match_result_select") {
       return;
     }
 
     if (!isAdmin(interaction)) {
       return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
+        content: "❌ Brak uprawnień.",
+        ephemeral: true,
       });
     }
 
-    const matchId =
-      Number(interaction.values?.[0]);
+    const matchId = Number(interaction.values?.[0]);
 
     if (!matchId) {
       return interaction.update({
-        content:
-          '❌ Nieprawidłowy mecz.',
+        content: "❌ Nieprawidłowy mecz.",
         embeds: [],
-        components: []
+        components: [],
       });
     }
 
-    return withGuild(
-      interaction,
-      async ({ pool, guildId }) => {
-
-        const [[match]] = await pool.query(
-          `
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      const [[match]] = await pool.query(
+        `
           SELECT
             m.id,
             m.event_id,
@@ -74,24 +64,19 @@ module.exports = async function undoMatchResultSelect(
 
           LIMIT 1
           `,
-          [
-            guildId,
-            matchId
-          ]
-        );
+        [guildId, matchId],
+      );
 
-        if (!match) {
-          return interaction.update({
-            content:
-              '❌ Ten mecz nie posiada już wyniku.',
-            embeds: [],
-            components: []
-          });
-        }
+      if (!match) {
+        return interaction.update({
+          content: "❌ Ten mecz nie posiada już wyniku.",
+          embeds: [],
+          components: [],
+        });
+      }
 
-        const [[mapCount]] =
-          await pool.query(
-            `
+      const [[mapCount]] = await pool.query(
+        `
             SELECT
               COUNT(*) AS total
             FROM match_map_results
@@ -99,17 +84,11 @@ module.exports = async function undoMatchResultSelect(
               AND event_id = ?
               AND match_id = ?
             `,
-            [
-              guildId,
-              match.event_id,
-              match.id
-            ]
-          );
+        [guildId, match.event_id, match.id],
+      );
 
-
-        const [[points]] =
-          await pool.query(
-            `
+      const [[points]] = await pool.query(
+        `
             SELECT
               COUNT(*) AS rows_count,
               COALESCE(
@@ -123,83 +102,49 @@ module.exports = async function undoMatchResultSelect(
               AND event_id = ?
               AND match_id = ?
             `,
-            [
-              guildId,
-              match.event_id,
-              match.id
-            ]
-          );
+        [guildId, match.event_id, match.id],
+      );
 
+      const embed = new EmbedBuilder()
+        .setColor(0xed4245)
+        .setTitle("⚠️ Potwierdź cofnięcie wyniku")
+        .setDescription(
+          `### ${match.team_a} **${match.res_a}:${match.res_b}** ${match.team_b}\n\n` +
+            `🎮 Mecz: **#${match.match_no || match.id}**\n` +
+            `📋 Faza: **${match.phase}**\n` +
+            `🗺️ Wyniki map do usunięcia: **${Number(mapCount?.total || 0)}**\n` +
+            `⭐ Punktów do usunięcia: **${Number(points?.total_points || 0)}**\n\n` +
+            "### Zostanie usunięte:\n" +
+            "• wynik serii\n" +
+            "• oficjalne wyniki map\n" +
+            "• wszystkie punkty za ten mecz\n\n" +
+            "✅ **Typy użytkowników NIE zostaną usunięte.**",
+        );
 
-        const embed =
-          new EmbedBuilder()
-            .setColor(0xED4245)
-            .setTitle(
-              '⚠️ Potwierdź cofnięcie wyniku'
-            )
-            .setDescription(
-              `### ${match.team_a} **${match.res_a}:${match.res_b}** ${match.team_b}\n\n` +
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`undo_match_result_confirm:${match.id}`)
+          .setLabel("Cofnij wynik")
+          .setEmoji("↩️")
+          .setStyle(ButtonStyle.Danger),
 
-              `🎮 Mecz: **#${match.match_no || match.id}**\n` +
-              `📋 Faza: **${match.phase}**\n` +
-              `🗺️ Wyniki map do usunięcia: **${Number(mapCount?.total || 0)}**\n` +
-              `⭐ Punktów do usunięcia: **${Number(points?.total_points || 0)}**\n\n` +
+        new ButtonBuilder()
+          .setCustomId("undo_match_result_cancel")
+          .setLabel("Anuluj")
+          .setEmoji("❌")
+          .setStyle(ButtonStyle.Secondary),
+      );
 
-              '### Zostanie usunięte:\n' +
-              '• wynik serii\n' +
-              '• oficjalne wyniki map\n' +
-              '• wszystkie punkty za ten mecz\n\n' +
-
-              '✅ **Typy użytkowników NIE zostaną usunięte.**'
-            );
-
-
-        const row =
-          new ActionRowBuilder()
-            .addComponents(
-
-              new ButtonBuilder()
-                .setCustomId(
-                  `undo_match_result_confirm:${match.id}`
-                )
-                .setLabel(
-                  'Cofnij wynik'
-                )
-                .setEmoji('↩️')
-                .setStyle(
-                  ButtonStyle.Danger
-                ),
-
-              new ButtonBuilder()
-                .setCustomId(
-                  'undo_match_result_cancel'
-                )
-                .setLabel(
-                  'Anuluj'
-                )
-                .setEmoji('❌')
-                .setStyle(
-                  ButtonStyle.Secondary
-                )
-            );
-
-
-        return interaction.update({
-          content: '',
-          embeds: [embed],
-          components: [row]
-        });
-      }
-    );
-
+      return interaction.update({
+        content: "",
+        embeds: [embed],
+        components: [row],
+      });
+    });
   } catch (err) {
-    logError(
-      'matches',
-      'undoMatchResultSelect failed',
-      {
-        message: err.message,
-        stack: err.stack
-      }
-    );
+    logError("matches", "undoMatchResultSelect failed", {
+      message: err.message,
+      stack: err.stack,
+    });
   }
 };

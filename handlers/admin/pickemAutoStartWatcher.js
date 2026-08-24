@@ -1,21 +1,14 @@
-const {
-  withGuild
-} = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 
-const {
-  publishPickemPanel
-} = require('../../utils/pickemPanelPublisher');
+const { publishPickemPanel } = require("../../utils/pickemPanelPublisher");
 
-const {
-  logInfo,
-  logError
-} = require('../../utils/logger');
+const { logInfo, logError } = require("../../utils/logger");
 
 const startedGuilds = new Set();
 const runningGuilds = new Set();
 
 function startPickemAutoStartWatcher(client, guildId) {
-  const key = String(guildId || '');
+  const key = String(guildId || "");
 
   if (!key || startedGuilds.has(key)) {
     return;
@@ -23,10 +16,7 @@ function startPickemAutoStartWatcher(client, guildId) {
 
   startedGuilds.add(key);
 
-  logInfo(
-    'PickEm auto-start watcher started',
-    { guildId }
-  );
+  logInfo("PickEm auto-start watcher started", { guildId });
 
   const tick = async () => {
     if (runningGuilds.has(key)) {
@@ -36,11 +26,9 @@ function startPickemAutoStartWatcher(client, guildId) {
     runningGuilds.add(key);
 
     try {
-      await withGuild(
-        guildId,
-        async ({ pool }) => {
-          const [rows] = await pool.query(
-            `
+      await withGuild(guildId, async ({ pool }) => {
+        const [rows] = await pool.query(
+          `
             SELECT
               id,
               name,
@@ -57,69 +45,49 @@ function startPickemAutoStartWatcher(client, guildId) {
               AND status <> 'FINISHED'
             ORDER BY auto_start_at ASC, id ASC
             `,
-            [guildId]
-          );
+          [guildId],
+        );
 
-          for (const event of rows) {
-            try {
-              await publishPickemPanel({
-                client,
-                pool,
-                guildId,
-                eventId: event.id,
-                phase:
-                  event.auto_start_phase,
-                channelId:
-                  event.auto_start_channel_id
-              });
+        for (const event of rows) {
+          try {
+            await publishPickemPanel({
+              client,
+              pool,
+              guildId,
+              eventId: event.id,
+              phase: event.auto_start_phase,
+              channelId: event.auto_start_channel_id,
+            });
 
-              await pool.query(
-                `
+            await pool.query(
+              `
                 UPDATE events
                 SET auto_started_at = UTC_TIMESTAMP()
                 WHERE id = ?
                   AND guild_id = ?
                   AND auto_started_at IS NULL
                 `,
-                [
-                  event.id,
-                  guildId
-                ]
-              );
+              [event.id, guildId],
+            );
 
-              logInfo(
-                'PickEm started automatically',
-                {
-                  guildId,
-                  eventId: event.id,
-                  eventName: event.name,
-                  phase:
-                    event.auto_start_phase,
-                  channelId:
-                    event.auto_start_channel_id
-                }
-              );
-            } catch (err) {
-              logError(
-                'PickEm automatic start failed',
-                err,
-                {
-                  guildId,
-                  eventId: event.id,
-                  phase:
-                    event.auto_start_phase
-                }
-              );
-            }
+            logInfo("PickEm started automatically", {
+              guildId,
+              eventId: event.id,
+              eventName: event.name,
+              phase: event.auto_start_phase,
+              channelId: event.auto_start_channel_id,
+            });
+          } catch (err) {
+            logError("PickEm automatic start failed", err, {
+              guildId,
+              eventId: event.id,
+              phase: event.auto_start_phase,
+            });
           }
         }
-      );
+      });
     } catch (err) {
-      logError(
-        'PickEm auto-start watcher tick failed',
-        err,
-        { guildId }
-      );
+      logError("PickEm auto-start watcher tick failed", err, { guildId });
     } finally {
       runningGuilds.delete(key);
     }
@@ -133,5 +101,5 @@ function startPickemAutoStartWatcher(client, guildId) {
 }
 
 module.exports = {
-  startPickemAutoStartWatcher
+  startPickemAutoStartWatcher,
 };

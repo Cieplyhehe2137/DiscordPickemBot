@@ -1,23 +1,23 @@
 const {
   logInfo: baseLogInfo,
   logWarn: baseLogWarn,
-  logError: baseLogError
-} = require('../../utils/logger');
+  logError: baseLogError,
+} = require("../../utils/logger");
 
-const { withGuild } = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 const {
   computeSeriesPoints,
-  computeMapPoints
-} = require('../../utils/matchScoring');
-const { getActiveEventId } = require('../../utils/getOpenEventId');
+  computeMapPoints,
+} = require("../../utils/matchScoring");
+const { getActiveEventId } = require("../../utils/getOpenEventId");
 
 function logInfo(scope, message, meta = {}) {
   baseLogInfo(message, {
     ...meta,
     extra: {
       ...(meta.extra || {}),
-      scope
-    }
+      scope,
+    },
   });
 }
 
@@ -26,8 +26,8 @@ function logWarn(scope, message, meta = {}) {
     ...meta,
     extra: {
       ...(meta.extra || {}),
-      scope
-    }
+      scope,
+    },
   });
 }
 
@@ -43,8 +43,8 @@ function logError(scope, message, meta = {}) {
     extra: {
       ...(meta.extra || {}),
       scope,
-      errorMessage: meta.message || null
-    }
+      errorMessage: meta.message || null,
+    },
   });
 }
 
@@ -53,12 +53,12 @@ const cleanList = (val) => {
   try {
     const parsed = JSON.parse(val);
     if (Array.isArray(parsed)) return parsed;
-  } catch (_) { }
+  } catch (_) {}
 
   return String(val)
-    .replace(/[\[\]"]+/g, '')
+    .replace(/[\[\]"]+/g, "")
     .split(/[;,]+/)
-    .map(t => t.trim())
+    .map((t) => t.trim())
     .filter(Boolean);
 };
 
@@ -77,7 +77,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId]
+    [guildId],
   );
 
   return matchRows?.[0]?.event_id || null;
@@ -85,7 +85,7 @@ async function resolveEventId(pool, guildId, preferredEventId) {
 
 module.exports = async function calculateScores(guildId, eventId) {
   if (!guildId) {
-    throw new Error('calculateScores requires guildId');
+    throw new Error("calculateScores requires guildId");
   }
 
   // Zwracamy wynik z withGuild, żeby wywołujący mógł sprawdzić, czy
@@ -94,10 +94,14 @@ module.exports = async function calculateScores(guildId, eventId) {
     eventId = await resolveEventId(pool, guildId, eventId).catch(() => null);
 
     if (!eventId) {
-      logWarn('scores', 'No eventId resolved, score calculation aborted to prevent mixed event data', {
-        guildId,
-        eventId: null
-      });
+      logWarn(
+        "scores",
+        "No eventId resolved, score calculation aborted to prevent mixed event data",
+        {
+          guildId,
+          eventId: null,
+        },
+      );
       return;
     }
 
@@ -113,8 +117,8 @@ module.exports = async function calculateScores(guildId, eventId) {
     // ORAZ komenda /miejsce, której używają zwykli gracze. Zabezpieczenie
     // wyłącznie endpointu chroniłoby jedną z czterech.
     const [[archiwalny]] = await pool.query(
-      'SELECT is_archived, name FROM events WHERE id = ? AND guild_id = ? LIMIT 1',
-      [eventId, guildId]
+      "SELECT is_archived, name FROM events WHERE id = ? AND guild_id = ? LIMIT 1",
+      [eventId, guildId],
     );
 
     // Pomijamy, a NIE rzucamy wyjątkiem: przeliczanie wołają też ścieżki tylko
@@ -123,23 +127,23 @@ module.exports = async function calculateScores(guildId, eventId) {
     // zapisanych już punktach. Wywołania świadome (przycisk w panelu, przycisk
     // na Discordzie) sprawdzają zwrócony status i informują admina.
     if (archiwalny && Number(archiwalny.is_archived) === 1) {
-      logWarn('scores', 'Skipping score calculation for archived event', {
+      logWarn("scores", "Skipping score calculation for archived event", {
         guildId,
         eventId,
-        extra: { eventName: archiwalny.name }
+        extra: { eventName: archiwalny.name },
       });
 
       return {
         skipped: true,
-        reason: 'EVENT_ARCHIVED',
+        reason: "EVENT_ARCHIVED",
         eventId,
-        eventName: archiwalny.name
+        eventName: archiwalny.name,
       };
     }
 
-    logInfo('scores', '=== SCORE RUN START ===', {
+    logInfo("scores", "=== SCORE RUN START ===", {
       guildId,
-      eventId
+      eventId,
     });
 
     await pool.query(
@@ -148,7 +152,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -157,7 +161,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -166,7 +170,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -175,7 +179,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -184,7 +188,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -193,7 +197,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     await pool.query(
@@ -202,7 +206,7 @@ module.exports = async function calculateScores(guildId, eventId) {
   WHERE guild_id = ?
     AND event_id = ?
   `,
-      [guildId, eventId]
+      [guildId, eventId],
     );
 
     /* =========================
@@ -225,11 +229,14 @@ module.exports = async function calculateScores(guildId, eventId) {
     END ASC,
     id DESC
   `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!rows.length) {
-        logWarn('scores', 'No Swiss data, skipping phase', { guildId, eventId });
+        logWarn("scores", "No Swiss data, skipping phase", {
+          guildId,
+          eventId,
+        });
       }
 
       for (const correct of rows) {
@@ -247,7 +254,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             AND event_id = ?
             AND stage = ?
           `,
-          [guildId, eventId, stage]
+          [guildId, eventId, stage],
         );
 
         const scoreRows = [];
@@ -255,15 +262,15 @@ module.exports = async function calculateScores(guildId, eventId) {
         for (const p of preds) {
           let score = 0;
 
-          cleanList(p.pick_3_0).forEach(t => {
+          cleanList(p.pick_3_0).forEach((t) => {
             if (correct30.includes(t)) score += 4;
           });
 
-          cleanList(p.pick_0_3).forEach(t => {
+          cleanList(p.pick_0_3).forEach((t) => {
             if (correct03.includes(t)) score += 4;
           });
 
-          cleanList(p.advancing).forEach(t => {
+          cleanList(p.advancing).forEach((t) => {
             if (correctAdv.includes(t)) score += 2;
           });
 
@@ -273,7 +280,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             p.user_id,
             stage,
             p.displayname || p.user_id,
-            score
+            score,
           ]);
         }
 
@@ -287,18 +294,18 @@ module.exports = async function calculateScores(guildId, eventId) {
               displayname = VALUES(displayname),
               points = VALUES(points)
             `,
-            [scoreRows]
+            [scoreRows],
           );
         }
       }
 
-      logInfo('scores', 'Swiss done', { guildId, eventId });
+      logInfo("scores", "Swiss done", { guildId, eventId });
     } catch (e) {
-      logError('scores', 'Swiss failed', {
+      logError("scores", "Swiss failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -316,11 +323,14 @@ module.exports = async function calculateScores(guildId, eventId) {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!rows.length) {
-        logWarn('scores', 'No Playoffs data, skipping phase', { guildId, eventId });
+        logWarn("scores", "No Playoffs data, skipping phase", {
+          guildId,
+          eventId,
+        });
       } else {
         const correct = rows[0];
 
@@ -331,7 +341,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           WHERE guild_id = ?
             AND event_id = ?
           `,
-          [guildId, eventId]
+          [guildId, eventId],
         );
 
         const scoreRows = [];
@@ -339,23 +349,25 @@ module.exports = async function calculateScores(guildId, eventId) {
         for (const p of preds) {
           let score = 0;
 
-          cleanList(p.semifinalists).forEach(t => {
-            if (cleanList(correct.correct_semifinalists).includes(t)) score += 1;
+          cleanList(p.semifinalists).forEach((t) => {
+            if (cleanList(correct.correct_semifinalists).includes(t))
+              score += 1;
           });
 
-          cleanList(p.finalists).forEach(t => {
+          cleanList(p.finalists).forEach((t) => {
             if (cleanList(correct.correct_finalists).includes(t)) score += 2;
           });
 
           if (p.winner === correct.correct_winner) score += 3;
-          if (p.third_place_winner === correct.correct_third_place_winner) score += 2;
+          if (p.third_place_winner === correct.correct_third_place_winner)
+            score += 2;
 
           scoreRows.push([
             guildId,
             eventId,
             p.user_id,
             p.displayname || p.user_id,
-            score
+            score,
           ]);
         }
 
@@ -369,18 +381,18 @@ module.exports = async function calculateScores(guildId, eventId) {
               displayname = VALUES(displayname),
               points = VALUES(points)
             `,
-            [scoreRows]
+            [scoreRows],
           );
         }
 
-        logInfo('scores', 'Playoffs done', { guildId, eventId });
+        logInfo("scores", "Playoffs done", { guildId, eventId });
       }
     } catch (e) {
-      logError('scores', 'Playoffs failed', {
+      logError("scores", "Playoffs failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -394,7 +406,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         WHERE guild_id = ?
           AND event_id = ?
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [rows] = await pool.query(
@@ -407,11 +419,14 @@ module.exports = async function calculateScores(guildId, eventId) {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!rows.length) {
-        logWarn('scores', 'No DoubleElim data, skipping phase', { guildId, eventId });
+        logWarn("scores", "No DoubleElim data, skipping phase", {
+          guildId,
+          eventId,
+        });
       } else {
         const correct = rows[0];
 
@@ -422,7 +437,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           WHERE guild_id = ?
             AND event_id = ?
           `,
-          [guildId, eventId]
+          [guildId, eventId],
         );
 
         const scoreRows = [];
@@ -430,19 +445,19 @@ module.exports = async function calculateScores(guildId, eventId) {
         for (const p of preds) {
           let score = 0;
 
-          cleanList(p.upper_final_a).forEach(t => {
+          cleanList(p.upper_final_a).forEach((t) => {
             if (cleanList(correct.upper_final_a).includes(t)) score += 1;
           });
 
-          cleanList(p.lower_final_a).forEach(t => {
+          cleanList(p.lower_final_a).forEach((t) => {
             if (cleanList(correct.lower_final_a).includes(t)) score += 1;
           });
 
-          cleanList(p.upper_final_b).forEach(t => {
+          cleanList(p.upper_final_b).forEach((t) => {
             if (cleanList(correct.upper_final_b).includes(t)) score += 1;
           });
 
-          cleanList(p.lower_final_b).forEach(t => {
+          cleanList(p.lower_final_b).forEach((t) => {
             if (cleanList(correct.lower_final_b).includes(t)) score += 1;
           });
 
@@ -451,7 +466,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             eventId,
             p.user_id,
             p.displayname || p.user_id,
-            score
+            score,
           ]);
         }
 
@@ -465,18 +480,18 @@ module.exports = async function calculateScores(guildId, eventId) {
               displayname = VALUES(displayname),
               points = VALUES(points)
             `,
-            [scoreRows]
+            [scoreRows],
           );
         }
 
-        logInfo('scores', 'DoubleElim done', { guildId, eventId });
+        logInfo("scores", "DoubleElim done", { guildId, eventId });
       }
     } catch (e) {
-      logError('scores', 'DoubleElim failed', {
+      logError("scores", "DoubleElim failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -490,7 +505,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         WHERE guild_id = ?
           AND event_id = ?
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [rows] = await pool.query(
@@ -503,11 +518,14 @@ module.exports = async function calculateScores(guildId, eventId) {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!rows.length) {
-        logWarn('scores', 'No Play-In data, skipping phase', { guildId, eventId });
+        logWarn("scores", "No Play-In data, skipping phase", {
+          guildId,
+          eventId,
+        });
       } else {
         const correct = rows[0];
 
@@ -515,7 +533,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           correct.correct_teams ??
           correct.official_playin_teams ??
           correct.teams ??
-          '';
+          "";
 
         const correctTeams = cleanList(official);
 
@@ -526,7 +544,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           WHERE guild_id = ?
             AND event_id = ?
           `,
-          [guildId, eventId]
+          [guildId, eventId],
         );
 
         const scoreRows = [];
@@ -534,7 +552,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         for (const p of preds) {
           let score = 0;
 
-          cleanList(p.teams).forEach(t => {
+          cleanList(p.teams).forEach((t) => {
             if (correctTeams.includes(t)) score += 1;
           });
 
@@ -543,7 +561,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             eventId,
             p.user_id,
             p.displayname || p.user_id,
-            score
+            score,
           ]);
         }
 
@@ -557,18 +575,18 @@ module.exports = async function calculateScores(guildId, eventId) {
               displayname = VALUES(displayname),
               points = VALUES(points)
             `,
-            [scoreRows]
+            [scoreRows],
           );
         }
 
-        logInfo('scores', 'Play-In done', { guildId, eventId });
+        logInfo("scores", "Play-In done", { guildId, eventId });
       }
     } catch (e) {
-      logError('scores', 'Play-In failed', {
+      logError("scores", "Play-In failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -582,7 +600,7 @@ module.exports = async function calculateScores(guildId, eventId) {
     WHERE guild_id = ?
       AND event_id = ?
     `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [seriesRows] = await pool.query(
@@ -606,7 +624,7 @@ module.exports = async function calculateScores(guildId, eventId) {
     WHERE m.guild_id = ?
       AND m.event_id = ?
     `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const rows = [];
@@ -616,7 +634,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           predA: r.pred_a,
           predB: r.pred_b,
           resA: r.res_a,
-          resB: r.res_b
+          resB: r.res_b,
         });
 
         rows.push([
@@ -625,7 +643,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           r.match_id,
           r.user_id,
           seriesPts,
-          'series'
+          "series",
         ]);
       }
 
@@ -655,7 +673,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       AND r.exact_a IS NOT NULL
       AND r.exact_b IS NOT NULL
     `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [boMapRows] = await pool.query(
@@ -686,7 +704,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       AND r.exact_a IS NOT NULL
       AND r.exact_b IS NOT NULL
     `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const mapPointsByMatchUser = new Map();
@@ -698,12 +716,12 @@ module.exports = async function calculateScores(guildId, eventId) {
           predExactA: row.predA,
           predExactB: row.predB,
           exactA: row.resA,
-          exactB: row.resB
+          exactB: row.resB,
         });
 
         mapPointsByMatchUser.set(
           key,
-          (mapPointsByMatchUser.get(key) || 0) + points
+          (mapPointsByMatchUser.get(key) || 0) + points,
         );
       }
 
@@ -711,16 +729,9 @@ module.exports = async function calculateScores(guildId, eventId) {
       for (const r of boMapRows) addMapPoint(r);
 
       for (const [key, points] of mapPointsByMatchUser.entries()) {
-        const [matchId, userId] = key.split(':');
+        const [matchId, userId] = key.split(":");
 
-        rows.push([
-          guildId,
-          eventId,
-          Number(matchId),
-          userId,
-          points,
-          'map'
-        ]);
+        rows.push([guildId, eventId, Number(matchId), userId, points, "map"]);
       }
 
       if (rows.length) {
@@ -733,23 +744,23 @@ module.exports = async function calculateScores(guildId, eventId) {
         points = VALUES(points),
         computed_at = CURRENT_TIMESTAMP
       `,
-          [rows]
+          [rows],
         );
       }
 
-      logInfo('scores', 'Matches score done', {
+      logInfo("scores", "Matches score done", {
         guildId,
         eventId,
         rowsInserted: rows.length,
         bo1Maps: bo1MapRows.length,
-        boSeriesMaps: boMapRows.length
+        boSeriesMaps: boMapRows.length,
       });
     } catch (e) {
-      logError('scores', 'Matches failed', {
+      logError("scores", "Matches failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -763,7 +774,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         WHERE guild_id = ?
           AND event_id = ?
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [resultRows] = await pool.query(
@@ -776,11 +787,14 @@ module.exports = async function calculateScores(guildId, eventId) {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       if (!resultRows.length) {
-        logWarn('scores', 'No MVP result, skipping phase', { guildId, eventId });
+        logWarn("scores", "No MVP result, skipping phase", {
+          guildId,
+          eventId,
+        });
       } else {
         const correctCandidateId = Number(resultRows[0].candidate_id);
 
@@ -791,7 +805,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           WHERE guild_id = ?
             AND event_id = ?
           `,
-          [guildId, eventId]
+          [guildId, eventId],
         );
 
         const scoreRows = [];
@@ -804,7 +818,7 @@ module.exports = async function calculateScores(guildId, eventId) {
             eventId,
             p.user_id,
             p.username || p.user_id,
-            points
+            points,
           ]);
         }
 
@@ -818,22 +832,22 @@ module.exports = async function calculateScores(guildId, eventId) {
               displayname = VALUES(displayname),
               points = VALUES(points)
             `,
-            [scoreRows]
+            [scoreRows],
           );
         }
 
-        logInfo('scores', 'MVP done', {
+        logInfo("scores", "MVP done", {
           guildId,
           eventId,
-          correctCandidateId
+          correctCandidateId,
         });
       }
     } catch (e) {
-      logError('scores', 'MVP failed', {
+      logError("scores", "MVP failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
@@ -847,7 +861,7 @@ module.exports = async function calculateScores(guildId, eventId) {
         WHERE guild_id = ?
           AND event_id = ?
         `,
-        [guildId, eventId]
+        [guildId, eventId],
       );
 
       const [rows] = await pool.query(
@@ -891,21 +905,27 @@ module.exports = async function calculateScores(guildId, eventId) {
         GROUP BY user_id
         `,
         [
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId,
-          guildId, eventId
-        ]
+          guildId,
+          eventId,
+          guildId,
+          eventId,
+          guildId,
+          eventId,
+          guildId,
+          eventId,
+          guildId,
+          eventId,
+          guildId,
+          eventId,
+        ],
       );
 
       if (rows.length) {
-        const insertRows = rows.map(r => [
+        const insertRows = rows.map((r) => [
           guildId,
           eventId,
           r.user_id,
-          r.total_points
+          r.total_points,
         ]);
 
         await pool.query(
@@ -914,26 +934,26 @@ module.exports = async function calculateScores(guildId, eventId) {
             (guild_id, event_id, user_id, total_points)
           VALUES ?
           `,
-          [insertRows]
+          [insertRows],
         );
       }
 
-      logInfo('scores', 'Leaderboard rebuilt', {
+      logInfo("scores", "Leaderboard rebuilt", {
         guildId,
-        eventId
+        eventId,
       });
     } catch (e) {
-      logError('scores', 'Leaderboard rebuild failed', {
+      logError("scores", "Leaderboard rebuild failed", {
         guildId,
         eventId,
         message: e.message,
-        stack: e.stack
+        stack: e.stack,
       });
     }
 
-    logInfo('scores', 'Score calculation finished', {
+    logInfo("scores", "Score calculation finished", {
       guildId,
-      eventId
+      eventId,
     });
 
     return { skipped: false, eventId };

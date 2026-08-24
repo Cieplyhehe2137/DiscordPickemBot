@@ -1,11 +1,11 @@
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
 
 module.exports = async function playoffsMvpSelect(interaction) {
   try {
     if (!interaction.isStringSelectMenu()) return;
-    if (!interaction.customId.startsWith('playoffs_mvp_page_')) return;
+    if (!interaction.customId.startsWith("playoffs_mvp_page_")) return;
 
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
@@ -14,7 +14,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
       interaction.member?.displayName ||
       interaction.user?.globalName ||
       interaction.user?.username ||
-      'Unknown';
+      "Unknown";
 
     const selectedCandidateId = interaction.values?.[0];
 
@@ -26,7 +26,7 @@ module.exports = async function playoffsMvpSelect(interaction) {
       const eventId = await getOpenEventId(pool, guildId);
 
       if (!eventId) {
-        throw new Error('No OPEN event found for MVP prediction');
+        throw new Error("No OPEN event found for MVP prediction");
       }
 
       await pool.query(
@@ -44,22 +44,16 @@ module.exports = async function playoffsMvpSelect(interaction) {
           candidate_id = VALUES(candidate_id),
           updated_at = CURRENT_TIMESTAMP
         `,
-        [
-          guildId,
-          eventId,
-          userId,
-          username,
-          selectedCandidateId
-        ]
+        [guildId, eventId, userId, username, selectedCandidateId],
       );
     });
 
     await interaction.deferUpdate();
   } catch (err) {
-    logError('mvp', 'playoffsMvpSelect failed', {
+    logError("mvp", "playoffsMvpSelect failed", {
       guildId: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     return interaction.deferUpdate().catch(() => {});

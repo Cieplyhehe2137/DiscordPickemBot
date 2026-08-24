@@ -1,17 +1,11 @@
-module.exports = async function undoMatchResultCancel(
-  interaction
-) {
-  if (
-    interaction.customId !==
-    'undo_match_result_cancel'
-  ) {
+module.exports = async function undoMatchResultCancel(interaction) {
+  if (interaction.customId !== "undo_match_result_cancel") {
     return;
   }
 
   return interaction.update({
-    content:
-      '❌ Cofnięcie wyniku anulowane.',
+    content: "❌ Cofnięcie wyniku anulowane.",
     embeds: [],
-    components: []
+    components: [],
   });
 };

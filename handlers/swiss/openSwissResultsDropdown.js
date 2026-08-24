@@ -3,14 +3,14 @@ const {
   StringSelectMenuBuilder,
   EmbedBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
-const { getCurrentSwissResults } = require('../../utils/swissRepository');
-const { loadActiveTeamsBySortOrder } = require('../../utils/loadActiveTeams');
+const { withGuild } = require("../../utils/guildContext");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getCurrentSwissResults } = require("../../utils/swissRepository");
+const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
 
 /* =======================
    HELPERS
@@ -34,12 +34,12 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
   const leftA = Math.max(0, 6 - cur.adv.length);
 
   const used = new Set(
-    [...cur.x3_0, ...cur.x0_3, ...cur.adv].map(t => String(t).toLowerCase())
+    [...cur.x3_0, ...cur.x0_3, ...cur.adv].map((t) => String(t).toLowerCase()),
   );
 
   const baseOptions = teams
-    .filter(t => !used.has(String(t).toLowerCase()))
-    .map(t => ({ label: t, value: t }));
+    .filter((t) => !used.has(String(t).toLowerCase()))
+    .map((t) => ({ label: t, value: t }));
 
   const optionChunks = chunk(baseOptions, 25);
   const components = [];
@@ -51,43 +51,43 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
           new StringSelectMenuBuilder()
             .setCustomId(`official_admin_swiss_${type}:${stageDb}:p${idx}`)
             .setPlaceholder(
-              left > 0
-                ? `${label} (część ${idx + 1})`
-                : `${label} uzupełnione`
+              left > 0 ? `${label} (część ${idx + 1})` : `${label} uzupełnione`,
             )
             .setMinValues(0)
             .setMaxValues(left > 0 ? Math.min(left, opts.length) : 1)
             .setDisabled(left === 0)
-            .addOptions(opts)
-        )
+            .addOptions(opts),
+        ),
       );
     });
   }
 
-  makeSelectRows('3_0', left30, '3-0');
-  makeSelectRows('0_3', left03, '0-3');
-  makeSelectRows('advancing', leftA, 'Awans');
+  makeSelectRows("3_0", left30, "3-0");
+  makeSelectRows("0_3", left03, "0-3");
+  makeSelectRows("advancing", leftA, "Awans");
 
   components.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`confirm_official_swiss_results:${stageDb}`)
-        .setLabel('✅ Zatwierdź (dopisz)')
-        .setStyle(ButtonStyle.Success)
-    )
+        .setLabel("✅ Zatwierdź (dopisz)")
+        .setStyle(ButtonStyle.Success),
+    ),
   );
 
   const embed = new EmbedBuilder()
     .setTitle(`📌 Oficjalne wyniki – SWISS ${stageLabel.toUpperCase()}`)
-    .setDescription([
-      'Ustawiaj wyniki **inkrementalnie**:',
-      `• 🔥 3-0: ${cur.x3_0.length}/2 – ${cur.x3_0.join(', ') || '—'}`,
-      `• 💀 0-3: ${cur.x0_3.length}/2 – ${cur.x0_3.join(', ') || '—'}`,
-      `• 🚀 Awans: ${cur.adv.length}/6 – ${cur.adv.join(', ') || '—'}`,
-      '',
-      'Po wyborze kliknij **Zatwierdź (dopisz)**.'
-    ].join('\n'))
-    .setColor('#ff4d4d');
+    .setDescription(
+      [
+        "Ustawiaj wyniki **inkrementalnie**:",
+        `• 🔥 3-0: ${cur.x3_0.length}/2 – ${cur.x3_0.join(", ") || "—"}`,
+        `• 💀 0-3: ${cur.x0_3.length}/2 – ${cur.x0_3.join(", ") || "—"}`,
+        `• 🚀 Awans: ${cur.adv.length}/6 – ${cur.adv.join(", ") || "—"}`,
+        "",
+        "Po wyborze kliknij **Zatwierdź (dopisz)**.",
+      ].join("\n"),
+    )
+    .setColor("#ff4d4d");
 
   return { embed, components };
 }
@@ -98,13 +98,13 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
 
 module.exports = async function openSwissResultsDropdown(
   interaction,
-  _client // ignorujemy drugi parametr z routera
+  _client, // ignorujemy drugi parametr z routera
 ) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
@@ -114,8 +114,8 @@ module.exports = async function openSwissResultsDropdown(
 
     if (!stage) {
       return interaction.reply({
-        content: '❌ Nieprawidłowy etap Swiss.',
-        ephemeral: true
+        content: "❌ Nieprawidłowy etap Swiss.",
+        ephemeral: true,
       });
     }
 
@@ -132,30 +132,33 @@ module.exports = async function openSwissResultsDropdown(
 
       if (!eventId) {
         return interaction.editReply({
-          content: '❌ Nie znaleziono aktywnego eventu.'
+          content: "❌ Nie znaleziono aktywnego eventu.",
         });
       }
       const cur = await getCurrentSwissResults(pool, guildId, eventId, stageDb);
 
-      const { embed, components } =
-        buildSwissComponents(stageLabel, stageDb, teams, cur);
+      const { embed, components } = buildSwissComponents(
+        stageLabel,
+        stageDb,
+        teams,
+        cur,
+      );
 
       await interaction.editReply({
         embeds: [embed],
-        components
+        components,
       });
     });
-
   } catch (err) {
-    logError('interaction', 'openSwissResultsDropdown failed', {
+    logError("interaction", "openSwissResultsDropdown failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Błąd podczas otwierania wyników Swiss.',
-        ephemeral: true
+        content: "❌ Błąd podczas otwierania wyników Swiss.",
+        ephemeral: true,
       });
     }
   }

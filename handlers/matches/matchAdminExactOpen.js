@@ -3,14 +3,14 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const adminState = require('../../utils/matchAdminState');
-const { withGuild } = require('../../utils/guildContext');
-const { getMapLabel, maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const adminState = require("../../utils/matchAdminState");
+const { withGuild } = require("../../utils/guildContext");
+const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 /* ======================
    GUARDS
@@ -18,10 +18,12 @@ const { getMatchById } = require('../../utils/matchesStore');
 
 function requireGuild(interaction) {
   if (!interaction.guildId) {
-    interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
-    }).catch(() => { });
+    interaction
+      .reply({
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
+      })
+      .catch(() => {});
     return false;
   }
   return true;
@@ -29,8 +31,10 @@ function requireGuild(interaction) {
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
-  return perms?.has(PermissionFlagsBits.Administrator) ||
-    perms?.has(PermissionFlagsBits.ManageGuild);
+  return (
+    perms?.has(PermissionFlagsBits.Administrator) ||
+    perms?.has(PermissionFlagsBits.ManageGuild)
+  );
 }
 
 /* ======================
@@ -47,9 +51,9 @@ async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
         WHERE match_id = ? AND guild_id = ?
         LIMIT 1
         `,
-        [matchId, guildId]
+        [matchId, guildId],
       );
-      return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+      return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
     }
 
     const [[r]] = await pool.query(
@@ -61,12 +65,12 @@ async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
         AND map_no = ?
       LIMIT 1
       `,
-      [matchId, guildId, mapNo]
+      [matchId, guildId, mapNo],
     );
 
-    return { a: r?.exact_a ?? '', b: r?.exact_b ?? '' };
+    return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
   } catch {
-    return { a: '', b: '' };
+    return { a: "", b: "" };
   }
 }
 
@@ -82,8 +86,8 @@ module.exports = async function matchAdminExactOpen(interaction) {
       const ctx = adminState.get(guildId, interaction.user.id);
       if (!ctx?.matchId) {
         return interaction.reply({
-          content: '❌ Brak wybranego meczu. Najpierw wybierz mecz z listy.',
-          ephemeral: true
+          content: "❌ Brak wybranego meczu. Najpierw wybierz mecz z listy.",
+          ephemeral: true,
         });
       }
 
@@ -92,8 +96,8 @@ module.exports = async function matchAdminExactOpen(interaction) {
       if (!match) {
         adminState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '❌ Ten mecz nie istnieje lub nie należy do tego serwera.',
-          ephemeral: true
+          content: "❌ Ten mecz nie istnieje lub nie należy do tego serwera.",
+          ephemeral: true,
         });
       }
 
@@ -110,7 +114,7 @@ module.exports = async function matchAdminExactOpen(interaction) {
         teamA: match.team_a,
         teamB: match.team_b,
         bestOf: match.best_of,
-        mapNo
+        mapNo,
       });
 
       const defaults = await getDefaults(
@@ -118,48 +122,49 @@ module.exports = async function matchAdminExactOpen(interaction) {
         guildId,
         match.id,
         maxMaps,
-        mapNo
+        mapNo,
       );
 
       const modal = new ModalBuilder()
-        .setCustomId('match_admin_exact_submit')
+        .setCustomId("match_admin_exact_submit")
         .setTitle(
           maxMaps === 1
-            ? 'Oficjalny dokładny wynik'
-            : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`
+            ? "Oficjalny dokładny wynik"
+            : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`,
         );
 
       const aInput = new TextInputBuilder()
-        .setCustomId('exact_a')
+        .setCustomId("exact_a")
         .setLabel(`${match.team_a} — wynik (np. 13)`)
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setValue(defaults.a === '' ? '' : String(defaults.a));
+        .setValue(defaults.a === "" ? "" : String(defaults.a));
 
       const bInput = new TextInputBuilder()
-        .setCustomId('exact_b')
+        .setCustomId("exact_b")
         .setLabel(`${match.team_b} — wynik (np. 8)`)
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setValue(defaults.b === '' ? '' : String(defaults.b));
+        .setValue(defaults.b === "" ? "" : String(defaults.b));
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(aInput),
-        new ActionRowBuilder().addComponents(bInput)
+        new ActionRowBuilder().addComponents(bInput),
       );
 
       return interaction.showModal(modal);
     });
-
   } catch (err) {
-    logError('matches', 'matchAdminExactOpen failed', {
+    logError("matches", "matchAdminExactOpen failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się otworzyć modala.',
-      ephemeral: true
-    }).catch(() => { });
+    return interaction
+      .reply({
+        content: "❌ Nie udało się otworzyć modala.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

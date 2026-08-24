@@ -1,13 +1,17 @@
-require('dotenv').config();
+require("dotenv").config();
 
-const { getAllGuildConfig } = require('./utils/guildRegistry');
+const { getAllGuildConfig } = require("./utils/guildRegistry");
 
 module.exports = function validateConfig() {
-  const requiredRoot = ['DISCORD_TOKEN', 'CLIENT_ID'];
-  const missingRoot = requiredRoot.filter(k => !process.env[k] || !String(process.env[k]).trim());
+  const requiredRoot = ["DISCORD_TOKEN", "CLIENT_ID"];
+  const missingRoot = requiredRoot.filter(
+    (k) => !process.env[k] || !String(process.env[k]).trim(),
+  );
 
   if (missingRoot.length) {
-    console.error(`❌ Brakujące zmienne w root .env: ${missingRoot.join(', ')}`);
+    console.error(
+      `❌ Brakujące zmienne w root .env: ${missingRoot.join(", ")}`,
+    );
     process.exit(1);
   }
 
@@ -15,7 +19,9 @@ module.exports = function validateConfig() {
   try {
     const cfgs = getAllGuildConfig();
     if (!cfgs || !Object.keys(cfgs).length) {
-      console.error('❌ Brak konfiguracji guild (config/*.env) i brak legacy root GUILD_ID/DB_*');
+      console.error(
+        "❌ Brak konfiguracji guild (config/*.env) i brak legacy root GUILD_ID/DB_*",
+      );
       process.exit(1);
     }
   } catch (e) {

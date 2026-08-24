@@ -1,17 +1,17 @@
 // ❌ USUŃ withGuild stąd
 // const { withGuild } = require('./guildContext');
 
-const db = require('../db');
-const logger = require('./logger');
-const { ensureTournamentState } = require('./ensureTournamentTables');
+const db = require("../db");
+const logger = require("./logger");
+const { ensureTournamentState } = require("./ensureTournamentTables");
 
 async function getTournamentState(guildId, pool) {
   if (!guildId || !pool) {
     return {
       ok: false,
-      phase: 'UNKNOWN',
+      phase: "UNKNOWN",
       isOpen: false,
-      error: 'Missing guild context',
+      error: "Missing guild context",
     };
   }
 
@@ -19,16 +19,16 @@ async function getTournamentState(guildId, pool) {
     await ensureTournamentState(pool);
 
     const [[row]] = await pool.query(
-      'SELECT phase, is_open FROM tournament_state WHERE id = 1'
+      "SELECT phase, is_open FROM tournament_state WHERE id = 1",
     );
 
     return {
       ok: true,
-      phase: row?.phase ?? 'UNKNOWN',
+      phase: row?.phase ?? "UNKNOWN",
       isOpen: !!row?.is_open,
     };
   } catch (err) {
-    logError('tournament', 'getTournamentState failed', {
+    logError("tournament", "getTournamentState failed", {
       guildId,
       message: err.message,
       stack: err.stack,
@@ -36,7 +36,7 @@ async function getTournamentState(guildId, pool) {
 
     return {
       ok: false,
-      phase: 'UNKNOWN',
+      phase: "UNKNOWN",
       isOpen: false,
       error: err.message,
     };

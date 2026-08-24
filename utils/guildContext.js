@@ -1,9 +1,9 @@
-const db = require('../db');
+const db = require("../db");
 
 async function withGuild(source, fn) {
   let guildId = null;
 
-  if (typeof source === 'string') {
+  if (typeof source === "string") {
     guildId = source;
   } else if (source?.guildId) {
     guildId = source.guildId;
@@ -12,8 +12,8 @@ async function withGuild(source, fn) {
   if (!guildId) {
     throw new Error(
       `[withGuild] Brak guildId (DM / nieprawidłowe źródło): ${JSON.stringify(
-        source
-      )}`
+        source,
+      )}`,
     );
   }
 
@@ -25,9 +25,9 @@ async function withGuild(source, fn) {
   }
 
   // 🔥 HARD ASSERT — zabija bug raz na zawsze
-  const test = pool.query('SELECT 1');
-  if (!test || typeof test.then !== 'function') {
-    throw new Error('[withGuild] Pool is NOT mysql2/promise pool');
+  const test = pool.query("SELECT 1");
+  if (!test || typeof test.then !== "function") {
+    throw new Error("[withGuild] Pool is NOT mysql2/promise pool");
   }
 
   // ✅ JEDEN, STAŁY KONTRAKT

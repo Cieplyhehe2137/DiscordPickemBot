@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Walks `dir` recursively so handlers can live in domain subfolders
 // (handlers/swiss/, handlers/playoffs/, ...). Keys stay flat basenames
@@ -20,12 +20,12 @@ function loadHandlers(dir) {
         continue;
       }
 
-      if (entry.name.endsWith('.js')) {
-        const key = entry.name.replace(/\.js$/, '');
+      if (entry.name.endsWith(".js")) {
+        const key = entry.name.replace(/\.js$/, "");
 
         if (handlers[key]) {
           throw new Error(
-            `[loader] Duplicate handler name "${key}" (${fullPath} vs a previously loaded file). Handler basenames must be unique across all subfolders.`
+            `[loader] Duplicate handler name "${key}" (${fullPath} vs a previously loaded file). Handler basenames must be unique across all subfolders.`,
           );
         }
 

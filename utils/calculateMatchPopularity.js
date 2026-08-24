@@ -1,4 +1,4 @@
-const { logError } = require('./logger');
+const { logError } = require("./logger");
 
 function bump(map, key) {
   if (!key) return;
@@ -15,7 +15,7 @@ function toPercentList(counter, total) {
     out.push({
       label,
       count,
-      pct: total ? (count / total) * 100 : 0
+      pct: total ? (count / total) * 100 : 0,
     });
   });
 
@@ -23,42 +23,46 @@ function toPercentList(counter, total) {
     (a, b) =>
       b.count - a.count ||
       b.pct - a.pct ||
-      String(a.label).localeCompare(String(b.label))
+      String(a.label).localeCompare(String(b.label)),
   );
 }
 
 async function pickExistingColumn(pool, table, candidates) {
-  const [cols] = await pool.query('SHOW COLUMNS FROM ??', [table]);
-  const names = new Set(cols.map(c => c.Field));
+  const [cols] = await pool.query("SHOW COLUMNS FROM ??", [table]);
+  const names = new Set(cols.map((c) => c.Field));
 
-  return candidates.find(c => names.has(c)) || null;
+  return candidates.find((c) => names.has(c)) || null;
 }
 
-async function calculateMatchPopularity({
-  pool,
-  guildId,
-  matchId
-}) {
-  if (!pool) throw new Error('pool is required');
-  if (!guildId) throw new Error('guildId is required');
-  if (!matchId) throw new Error('matchId is required');
+async function calculateMatchPopularity({ pool, guildId, matchId }) {
+  if (!pool) throw new Error("pool is required");
+  if (!guildId) throw new Error("guildId is required");
+  if (!matchId) throw new Error("matchId is required");
 
   try {
-    const predTable = 'match_predictions';
+    const predTable = "match_predictions";
 
-    const cUserId = await pickExistingColumn(pool, predTable, ['user_id']);
-    const cMatchId = await pickExistingColumn(pool, predTable, ['match_id']);
-    const cGuildId = await pickExistingColumn(pool, predTable, ['guild_id']);
+    const cUserId = await pickExistingColumn(pool, predTable, ["user_id"]);
+    const cMatchId = await pickExistingColumn(pool, predTable, ["match_id"]);
+    const cGuildId = await pickExistingColumn(pool, predTable, ["guild_id"]);
 
-    const cPredA = await pickExistingColumn(pool, predTable, ['pred_a', 'score_a', 'team_a_score']);
-    const cPredB = await pickExistingColumn(pool, predTable, ['pred_b', 'score_b', 'team_b_score']);
+    const cPredA = await pickExistingColumn(pool, predTable, [
+      "pred_a",
+      "score_a",
+      "team_a_score",
+    ]);
+    const cPredB = await pickExistingColumn(pool, predTable, [
+      "pred_b",
+      "score_b",
+      "team_b_score",
+    ]);
 
     if (!cMatchId || !cUserId) {
       return {
         totalUsers: 0,
         winner: [],
         scores: [],
-        match: null
+        match: null,
       };
     }
 
@@ -69,7 +73,7 @@ async function calculateMatchPopularity({
       WHERE id = ?
       LIMIT 1
       `,
-      [matchId]
+      [matchId],
     );
 
     const match = matchRows?.[0] || null;
@@ -80,7 +84,7 @@ async function calculateMatchPopularity({
       match?.team_a_name ||
       match?.team1_name ||
       match?.a_team ||
-      'Team A';
+      "Team A";
 
     const teamB =
       match?.team_b ||
@@ -88,7 +92,7 @@ async function calculateMatchPopularity({
       match?.team_b_name ||
       match?.team2_name ||
       match?.b_team ||
-      'Team B';
+      "Team B";
 
     const where = [`${cMatchId} = ?`];
     const params = [matchId];
@@ -101,15 +105,15 @@ async function calculateMatchPopularity({
     const sql = `
       SELECT
         ${cUserId} AS user_id,
-        ${cPredA || 'NULL'} AS pred_a,
-        ${cPredB || 'NULL'} AS pred_b
+        ${cPredA || "NULL"} AS pred_a,
+        ${cPredB || "NULL"} AS pred_b
       FROM ${predTable}
-      WHERE ${where.join(' AND ')}
+      WHERE ${where.join(" AND ")}
     `;
 
     const [rows] = await pool.query(sql, params);
 
-    const users = new Set(rows.map(r => r.user_id));
+    const users = new Set(rows.map((r) => r.user_id));
     const totalUsers = users.size;
 
     const winnerMap = new Map();
@@ -128,7 +132,7 @@ async function calculateMatchPopularity({
       } else if (b > a) {
         bump(winnerMap, teamB);
       } else {
-        bump(winnerMap, 'Remis');
+        bump(winnerMap, "Remis");
       }
     }
 
@@ -138,28 +142,28 @@ async function calculateMatchPopularity({
         id: matchId,
         teamA,
         teamB,
-        raw: match
+        raw: match,
       },
       winner: toPercentList(winnerMap, totalUsers),
-      scores: toPercentList(scoreMap, totalUsers)
+      scores: toPercentList(scoreMap, totalUsers),
     };
   } catch (err) {
-    logError('stats', 'calculateMatchPopularity failed', {
+    logError("stats", "calculateMatchPopularity failed", {
       guildId,
       matchId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     return {
       totalUsers: 0,
       match: null,
       winner: [],
-      scores: []
+      scores: [],
     };
   }
 }
 
 module.exports = {
-  calculateMatchPopularity
+  calculateMatchPopularity,
 };

@@ -1,14 +1,14 @@
 // utils/matchScoring.js
 
-const SCORING = require('../rules/scoring');
+const SCORING = require("../rules/scoring");
 
 function getWinner(a, b) {
   if (a === b) return null;
-  return a > b ? 'A' : 'B';
+  return a > b ? "A" : "B";
 }
 
 function toFiniteNumber(value) {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || value === "") return null;
 
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
@@ -27,7 +27,7 @@ function computeSeriesPoints({ predA, predB, resA, resB }) {
   const ra = toFiniteNumber(resA);
   const rb = toFiniteNumber(resB);
 
-  if ([pa, pb, ra, rb].some(v => v === null)) {
+  if ([pa, pb, ra, rb].some((v) => v === null)) {
     return 0;
   }
 
@@ -60,7 +60,7 @@ function computeMapPoints({ predExactA, predExactB, exactA, exactB }) {
   const ea = toFiniteNumber(exactA);
   const eb = toFiniteNumber(exactB);
 
-  if ([pa, pb, ea, eb].some(v => v === null)) {
+  if ([pa, pb, ea, eb].some((v) => v === null)) {
     return SCORING.MAP.MISS;
   }
 
@@ -100,22 +100,20 @@ function validateScore({ a, b, bestOf }) {
   const bo = Number(bestOf);
 
   if (!Number.isFinite(na) || !Number.isFinite(nb)) {
-    return { ok: false, reason: 'Wynik musi być liczbą.' };
+    return { ok: false, reason: "Wynik musi być liczbą." };
   }
 
   if (na < 0 || nb < 0) {
-    return { ok: false, reason: 'Wynik nie może być ujemny.' };
+    return { ok: false, reason: "Wynik nie może być ujemny." };
   }
 
   if (na === nb) {
-    return { ok: false, reason: 'Remisy nie są dozwolone.' };
+    return { ok: false, reason: "Remisy nie są dozwolone." };
   }
 
   if (bo === 1) {
     const ok = (na === 1 && nb === 0) || (na === 0 && nb === 1);
-    return ok
-      ? { ok: true }
-      : { ok: false, reason: 'BO1: tylko 1:0 lub 0:1.' };
+    return ok ? { ok: true } : { ok: false, reason: "BO1: tylko 1:0 lub 0:1." };
   }
 
   if (bo === 3) {
@@ -125,7 +123,7 @@ function validateScore({ a, b, bestOf }) {
 
     return ok
       ? { ok: true }
-      : { ok: false, reason: 'BO3: 2:0 / 2:1 / 0:2 / 1:2.' };
+      : { ok: false, reason: "BO3: 2:0 / 2:1 / 0:2 / 1:2." };
   }
 
   if (bo === 5) {
@@ -135,7 +133,7 @@ function validateScore({ a, b, bestOf }) {
 
     return ok
       ? { ok: true }
-      : { ok: false, reason: 'BO5: 3:0 / 3:1 / 3:2 itd.' };
+      : { ok: false, reason: "BO5: 3:0 / 3:1 / 3:2 itd." };
   }
 
   return {

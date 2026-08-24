@@ -1,8 +1,8 @@
-const { getAllGuildIds } = require('./guildRegistry');
-const { withGuild } = require('./guildContext');
-const { disablePickemComponents } = require('../utils/disablePickemComponents');
-const { disableMatchComponents } = require('../utils/disableMatchComponents');
-const { logInfo, logWarn, logError } = require('../utils/logger');
+const { getAllGuildIds } = require("./guildRegistry");
+const { withGuild } = require("./guildContext");
+const { disablePickemComponents } = require("../utils/disablePickemComponents");
+const { disableMatchComponents } = require("../utils/disableMatchComponents");
+const { logInfo, logWarn, logError } = require("../utils/logger");
 
 let _running = false;
 
@@ -30,7 +30,7 @@ async function closeExpiredPanels(client) {
             AND deadline IS NOT NULL
             AND UTC_TIMESTAMP() >= deadline
           `,
-          [guildId]
+          [guildId],
         );
 
         for (const panel of pickemPanels) {
@@ -39,10 +39,10 @@ async function closeExpiredPanels(client) {
             .catch(() => null);
 
           if (!channel) {
-            logWarn('deadline', 'Pickem panel channel not found', {
+            logWarn("deadline", "Pickem panel channel not found", {
               guildId,
               panelId: panel.id,
-              channelId: panel.channel_id
+              channelId: panel.channel_id,
             });
             continue;
           }
@@ -60,14 +60,18 @@ async function closeExpiredPanels(client) {
                   closed_at = NOW()
               WHERE id = ?
               `,
-              [panel.id]
+              [panel.id],
             );
 
-            logWarn('deadline', 'Pickem panel message not found, marked closed', {
-              guildId,
-              panelId: panel.id,
-              messageId: panel.message_id
-            });
+            logWarn(
+              "deadline",
+              "Pickem panel message not found, marked closed",
+              {
+                guildId,
+                panelId: panel.id,
+                messageId: panel.message_id,
+              },
+            );
 
             continue;
           }
@@ -82,17 +86,17 @@ async function closeExpiredPanels(client) {
                 closed_at = NOW()
             WHERE id = ?
             `,
-            [panel.id]
+            [panel.id],
           );
 
-          logInfo('deadline', 'Pickem panel closed by deadline', {
+          logInfo("deadline", "Pickem panel closed by deadline", {
             guildId,
             panelId: panel.id,
             phase: panel.phase,
             stage: panel.stage,
             stage_key: panel.stage_key,
             channelId: panel.channel_id,
-            messageId: panel.message_id
+            messageId: panel.message_id,
           });
         }
 
@@ -108,7 +112,7 @@ async function closeExpiredPanels(client) {
             AND match_deadline IS NOT NULL
             AND UTC_TIMESTAMP() >= match_deadline
           `,
-          [guildId]
+          [guildId],
         );
 
         for (const panel of matchPanels) {
@@ -117,10 +121,10 @@ async function closeExpiredPanels(client) {
             .catch(() => null);
 
           if (!channel) {
-            logWarn('deadline', 'Match panel channel not found', {
+            logWarn("deadline", "Match panel channel not found", {
               guildId,
               panelId: panel.id,
-              channelId: panel.channel_id
+              channelId: panel.channel_id,
             });
             continue;
           }
@@ -138,14 +142,18 @@ async function closeExpiredPanels(client) {
                   closed_at = NOW()
               WHERE id = ?
               `,
-              [panel.id]
+              [panel.id],
             );
 
-            logWarn('deadline', 'Match panel message not found, marked closed', {
-              guildId,
-              panelId: panel.id,
-              messageId: panel.message_id
-            });
+            logWarn(
+              "deadline",
+              "Match panel message not found, marked closed",
+              {
+                guildId,
+                panelId: panel.id,
+                messageId: panel.message_id,
+              },
+            );
 
             continue;
           }
@@ -160,25 +168,25 @@ async function closeExpiredPanels(client) {
                 closed_at = NOW()
             WHERE id = ?
             `,
-            [panel.id]
+            [panel.id],
           );
 
-          logInfo('deadline', 'Match panel closed by deadline', {
+          logInfo("deadline", "Match panel closed by deadline", {
             guildId,
             panelId: panel.id,
             phase: panel.phase,
             stage: panel.stage,
             stage_key: panel.stage_key,
             channelId: panel.channel_id,
-            messageId: panel.message_id
+            messageId: panel.message_id,
           });
         }
       });
     }
   } catch (err) {
-    logError('deadline', 'closeExpiredPanels failed', {
+    logError("deadline", "closeExpiredPanels failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
   } finally {
     _running = false;
@@ -186,5 +194,5 @@ async function closeExpiredPanels(client) {
 }
 
 module.exports = {
-  closeExpiredPanels
+  closeExpiredPanels,
 };

@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext } from "react";
 
 // Sam kontekst i hook, bez komponentu - provider siedzi w AppProvider.jsx.
 // Plik zawierający komponent może eksportować wyłącznie komponenty, inaczej

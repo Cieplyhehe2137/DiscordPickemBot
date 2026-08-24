@@ -1,8 +1,8 @@
 // handlers/clearMatchesPhaseSelect.js
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { PermissionFlagsBits } = require('discord.js');
-const { withGuild } = require('../../utils/guildContext');
-const { runInTransaction } = require('../../utils/runInTransaction');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { PermissionFlagsBits } = require("discord.js");
+const { withGuild } = require("../../utils/guildContext");
+const { runInTransaction } = require("../../utils/runInTransaction");
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -19,22 +19,22 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
   try {
     if (!hasAdminPerms(interaction)) {
       return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
+        content: "❌ Brak uprawnień.",
+        ephemeral: true,
       });
     }
 
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu serwera (guildId).',
-        ephemeral: true
+        content: "❌ Brak kontekstu serwera (guildId).",
+        ephemeral: true,
       });
     }
 
     if (!phase) {
       return interaction.update({
-        content: '❌ Nie wybrano fazy.',
-        components: []
+        content: "❌ Nie wybrano fazy.",
+        components: [],
       });
     }
 
@@ -48,7 +48,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           WHERE m.phase = ?
             AND m.guild_id = ?
           `,
-          [phase, guildId]
+          [phase, guildId],
         );
 
         const [r2] = await conn.query(
@@ -59,7 +59,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           WHERE m.phase = ?
             AND m.guild_id = ?
           `,
-          [phase, guildId]
+          [phase, guildId],
         );
 
         const [r3] = await conn.query(
@@ -70,7 +70,7 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           WHERE m.phase = ?
             AND m.guild_id = ?
           `,
-          [phase, guildId]
+          [phase, guildId],
         );
 
         const [r4] = await conn.query(
@@ -79,20 +79,20 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           WHERE phase = ?
             AND guild_id = ?
           `,
-          [phase, guildId]
+          [phase, guildId],
         );
 
         return { r1, r2, r3, r4 };
       });
 
-      logInfo('matches', 'Cleared matches phase (guild-safe)', {
+      logInfo("matches", "Cleared matches phase (guild-safe)", {
         guildId,
         phase,
         deleted_points: r1?.affectedRows ?? 0,
         deleted_predictions: r2?.affectedRows ?? 0,
         deleted_results: r3?.affectedRows ?? 0,
         deleted_matches: r4?.affectedRows ?? 0,
-        by: interaction.user?.id
+        by: interaction.user?.id,
       });
 
       return interaction.update({
@@ -102,22 +102,21 @@ module.exports = async function clearMatchesPhaseSelect(interaction) {
           `• typy: **${r2?.affectedRows ?? 0}**\n` +
           `• wyniki: **${r3?.affectedRows ?? 0}**\n` +
           `• mecze: **${r4?.affectedRows ?? 0}**`,
-        components: []
+        components: [],
       });
     });
-
   } catch (err) {
-    logError('matches', 'clearMatchesPhaseSelect failed', {
+    logError("matches", "clearMatchesPhaseSelect failed", {
       guildId,
       phase,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Błąd podczas czyszczenia meczów.',
-        ephemeral: true
+        content: "❌ Błąd podczas czyszczenia meczów.",
+        ephemeral: true,
       });
     }
   }

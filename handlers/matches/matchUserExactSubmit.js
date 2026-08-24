@@ -1,11 +1,11 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const userState = require('../../utils/matchUserState');
-const { isMatchLocked } = require('../../utils/matchLock');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { withGuild } = require('../../utils/guildContext');
-const { maxMapsFromBo } = require('../../utils/mapLabels');
-const { getMatchById } = require('../../utils/matchesStore');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const userState = require("../../utils/matchUserState");
+const { isMatchLocked } = require("../../utils/matchLock");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const { withGuild } = require("../../utils/guildContext");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
+const { getMatchById } = require("../../utils/matchesStore");
 
 function getRequiredMapsFromSeries(targetWinsA, targetWinsB, maxMaps) {
   if (
@@ -29,15 +29,15 @@ function validateScore(a, b) {
   const scoreB = Number(b);
 
   if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB)) {
-    return 'Wynik musi być liczbą całkowitą.';
+    return "Wynik musi być liczbą całkowitą.";
   }
 
   if (scoreA < 0 || scoreB < 0) {
-    return 'Wynik nie może być ujemny.';
+    return "Wynik nie może być ujemny.";
   }
 
   if (scoreA === scoreB) {
-    return 'Na mapie nie może być remisu.';
+    return "Na mapie nie może być remisu.";
   }
 
   const winner = Math.max(scoreA, scoreB);
@@ -62,15 +62,15 @@ function validateScore(a, b) {
     return null;
   }
 
-  return 'Nieprawidłowy wynik mapy CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.';
+  return "Nieprawidłowy wynik mapy CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.";
 }
 
 module.exports = async function matchUserExactSubmit(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Brak kontekstu serwera.',
-        ephemeral: true
+        content: "❌ Brak kontekstu serwera.",
+        ephemeral: true,
       });
     }
 
@@ -78,31 +78,31 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const ctx = userState.get(guildId, interaction.user.id);
       if (!ctx?.matchId) {
         return interaction.reply({
-          content: '❌ Brak kontekstu meczu.',
-          ephemeral: true
+          content: "❌ Brak kontekstu meczu.",
+          ephemeral: true,
         });
       }
 
       const gate = await assertPredictionsAllowed({
         guildId,
-        kind: 'MATCHES'
+        kind: "MATCHES",
       });
 
       if (!gate.allowed) {
         return interaction.reply({
-          content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
-          ephemeral: true
+          content: gate.message || "❌ Typowanie jest aktualnie zamknięte.",
+          ephemeral: true,
         });
       }
 
-      const exactARaw = interaction.fields.getTextInputValue('exact_a');
-      const exactBRaw = interaction.fields.getTextInputValue('exact_b');
+      const exactARaw = interaction.fields.getTextInputValue("exact_a");
+      const exactBRaw = interaction.fields.getTextInputValue("exact_b");
 
       const validationError = validateScore(exactARaw, exactBRaw);
       if (validationError) {
         return interaction.reply({
           content: `❌ ${validationError}`,
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
@@ -114,23 +114,23 @@ module.exports = async function matchUserExactSubmit(interaction) {
       if (!match) {
         userState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '❌ Mecz nie istnieje.',
-          ephemeral: true
+          content: "❌ Mecz nie istnieje.",
+          ephemeral: true,
         });
       }
 
       if (!match.event_id) {
         return interaction.reply({
-          content: '❌ Ten mecz nie ma przypisanego eventu.',
-          ephemeral: true
+          content: "❌ Ten mecz nie ma przypisanego eventu.",
+          ephemeral: true,
         });
       }
 
       if (isMatchLocked(match)) {
         userState.clear(guildId, interaction.user.id);
         return interaction.reply({
-          content: '🔒 Typowanie tego meczu jest już zamknięte.',
-          ephemeral: true
+          content: "🔒 Typowanie tego meczu jest już zamknięte.",
+          ephemeral: true,
         });
       }
 
@@ -152,9 +152,9 @@ module.exports = async function matchUserExactSubmit(interaction) {
       const prevWinsA = Number(ctx.mapWinsA || 0);
       const prevWinsB = Number(ctx.mapWinsB || 0);
 
-      const mapWinner = exactA > exactB ? 'A' : 'B';
-      const nextWinsA = prevWinsA + (mapWinner === 'A' ? 1 : 0);
-      const nextWinsB = prevWinsB + (mapWinner === 'B' ? 1 : 0);
+      const mapWinner = exactA > exactB ? "A" : "B";
+      const nextWinsA = prevWinsA + (mapWinner === "A" ? 1 : 0);
+      const nextWinsB = prevWinsB + (mapWinner === "B" ? 1 : 0);
 
       if (hasTarget) {
         if (nextWinsA > targetWinsA || nextWinsB > targetWinsB) {
@@ -162,7 +162,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
             content:
               `❌ Ten wynik mapy nie pasuje do wybranego wyniku serii ` +
               `(**${targetWinsA}-${targetWinsB}**).\nPopraw mapę **#${mapNo}**.`,
-            ephemeral: true
+            ephemeral: true,
           });
         }
 
@@ -176,7 +176,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
               `❌ Po ostatniej mapie wynik serii musi wynosić ` +
               `**${targetWinsA}-${targetWinsB}**.\n` +
               `Teraz wychodzi **${nextWinsA}-${nextWinsB}**.`,
-            ephemeral: true
+            ephemeral: true,
           });
         }
       }
@@ -205,15 +205,15 @@ module.exports = async function matchUserExactSubmit(interaction) {
             predA,
             predB,
             exactA,
-            exactB
-          ]
+            exactB,
+          ],
         );
 
         userState.clear(guildId, interaction.user.id);
 
         return interaction.reply({
           content: `✅ Zapisano dokładny wynik: **${match.team_a} ${exactA}:${exactB} ${match.team_b}**`,
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
@@ -235,17 +235,17 @@ module.exports = async function matchUserExactSubmit(interaction) {
             interaction.user.id,
             mapNo,
             exactA,
-            exactB
-          ]
+            exactB,
+          ],
         );
       } catch (e) {
-        logWarn('matches', 'match_map_predictions insert failed', {
-          message: e.message
+        logWarn("matches", "match_map_predictions insert failed", {
+          message: e.message,
         });
 
         return interaction.reply({
-          content: '❌ Nie udało się zapisać wyniku mapy.',
-          ephemeral: true
+          content: "❌ Nie udało się zapisać wyniku mapy.",
+          ephemeral: true,
         });
       }
 
@@ -264,7 +264,7 @@ module.exports = async function matchUserExactSubmit(interaction) {
           mapNo: nextMapNo,
           requiredMaps,
           mapWinsA: nextWinsA,
-          mapWinsB: nextWinsB
+          mapWinsB: nextWinsB,
         });
 
         return interaction.reply({
@@ -276,10 +276,10 @@ module.exports = async function matchUserExactSubmit(interaction) {
               new ButtonBuilder()
                 .setCustomId(`match_exact_open:${match.id}:${nextMapNo}`)
                 .setLabel(`Wpisz mapę #${nextMapNo}`)
-                .setStyle(ButtonStyle.Primary)
-            )
+                .setStyle(ButtonStyle.Primary),
+            ),
           ],
-          ephemeral: true
+          ephemeral: true,
         });
       }
 
@@ -302,8 +302,8 @@ module.exports = async function matchUserExactSubmit(interaction) {
             match.id,
             interaction.user.id,
             targetWinsA,
-            targetWinsB
-          ]
+            targetWinsB,
+          ],
         );
       }
 
@@ -311,19 +311,21 @@ module.exports = async function matchUserExactSubmit(interaction) {
 
       return interaction.reply({
         content: `✅ Zapisano dokładne wyniki dla BO${match.best_of} (mapy 1–${requiredMaps}).`,
-        ephemeral: true
+        ephemeral: true,
       });
     });
   } catch (err) {
-    logError('matches', 'matchUserExactSubmit failed', {
+    logError("matches", "matchUserExactSubmit failed", {
       guild_id: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.reply({
-      content: '❌ Nie udało się zapisać wyniku.',
-      ephemeral: true
-    }).catch(() => { });
+    return interaction
+      .reply({
+        content: "❌ Nie udało się zapisać wyniku.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

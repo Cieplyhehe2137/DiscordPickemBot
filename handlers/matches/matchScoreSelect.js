@@ -1,43 +1,43 @@
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const { validateScore } = require('../../utils/matchScoring');
-const userState = require('../../utils/matchUserState');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { assertPredictionsAllowed } = require('../../utils/protectionsGuards');
-const { withGuild } = require('../../utils/guildContext');
-const { getMatchById } = require('../../utils/matchesStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { validateScore } = require("../../utils/matchScoring");
+const userState = require("../../utils/matchUserState");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const { withGuild } = require("../../utils/guildContext");
+const { getMatchById } = require("../../utils/matchesStore");
 
 module.exports = async function matchScoreSelect(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.update({
-        content: '❌ Brak kontekstu serwera.',
-        components: []
+        content: "❌ Brak kontekstu serwera.",
+        components: [],
       });
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
       const mode =
-        interaction.customId === 'match_score_select_res' ? 'res' : 'pred';
+        interaction.customId === "match_score_select_res" ? "res" : "pred";
 
       const val = interaction.values?.[0];
       if (!val) {
         return interaction.update({
-          content: '❌ Nie wybrano wyniku.',
-          components: []
+          content: "❌ Nie wybrano wyniku.",
+          components: [],
         });
       }
 
-      const [guildIdFromValue, matchIdStr, scoreStr] = val.split('|');
+      const [guildIdFromValue, matchIdStr, scoreStr] = val.split("|");
 
       if (guildIdFromValue !== guildId) {
         return interaction.update({
-          content: '❌ Błędny kontekst serwera.',
-          components: []
+          content: "❌ Błędny kontekst serwera.",
+          components: [],
         });
       }
 
       const matchId = Number(matchIdStr);
-      const [aStr, bStr] = String(scoreStr || '').split(':');
+      const [aStr, bStr] = String(scoreStr || "").split(":");
       const a = Number(aStr);
       const b = Number(bStr);
 
@@ -45,8 +45,8 @@ module.exports = async function matchScoreSelect(interaction) {
 
       if (!match) {
         return interaction.update({
-          content: '❌ Nie znaleziono meczu.',
-          components: []
+          content: "❌ Nie znaleziono meczu.",
+          components: [],
         });
       }
 
@@ -54,28 +54,28 @@ module.exports = async function matchScoreSelect(interaction) {
       if (!v.ok) {
         return interaction.update({
           content: `❌ ${v.reason}`,
-          components: []
+          components: [],
         });
       }
 
       // ================= USER =================
-      if (mode === 'pred') {
+      if (mode === "pred") {
         if (match.is_locked) {
           return interaction.update({
-            content: '🔒 Ten mecz jest zablokowany (nie można już typować).',
-            components: []
+            content: "🔒 Ten mecz jest zablokowany (nie można już typować).",
+            components: [],
           });
         }
 
         const gate = await assertPredictionsAllowed({
           guildId,
-          kind: 'MATCHES'
+          kind: "MATCHES",
         });
 
         if (!gate.allowed) {
           return interaction.update({
-            content: gate.message || '❌ Typowanie jest aktualnie zamknięte.',
-            components: []
+            content: gate.message || "❌ Typowanie jest aktualnie zamknięte.",
+            components: [],
           });
         }
 
@@ -88,7 +88,7 @@ module.exports = async function matchScoreSelect(interaction) {
             pred_b = VALUES(pred_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, matchId, interaction.user.id, a, b]
+          [guildId, matchId, interaction.user.id, a, b],
         );
 
         userState.set(guildId, interaction.user.id, {
@@ -96,7 +96,7 @@ module.exports = async function matchScoreSelect(interaction) {
           teamA: match.team_a,
           teamB: match.team_b,
           bestOf: match.best_of,
-          phase: match.phase
+          phase: match.phase,
         });
 
         return interaction.update({
@@ -104,11 +104,11 @@ module.exports = async function matchScoreSelect(interaction) {
           components: [
             new ActionRowBuilder().addComponents(
               new ButtonBuilder()
-                .setCustomId('match_user_exact_open')
-                .setLabel('🧮 Wpisz dokładny wynik')
-                .setStyle(ButtonStyle.Secondary)
-            )
-          ]
+                .setCustomId("match_user_exact_open")
+                .setLabel("🧮 Wpisz dokładny wynik")
+                .setStyle(ButtonStyle.Secondary),
+            ),
+          ],
         });
       }
 
@@ -122,7 +122,7 @@ module.exports = async function matchScoreSelect(interaction) {
           res_b = VALUES(res_b),
           finished_at = CURRENT_TIMESTAMP
         `,
-        [guildId, matchId, a, b]
+        [guildId, matchId, a, b],
       );
 
       await pool.query(
@@ -131,35 +131,36 @@ module.exports = async function matchScoreSelect(interaction) {
         SET is_locked = 1
         WHERE guild_id = ? AND id = ?
         `,
-        [guildId, matchId]
+        [guildId, matchId],
       );
 
-      logInfo('matches', 'Official match result saved', {
+      logInfo("matches", "Official match result saved", {
         guild_id: guildId,
         matchId,
         a,
         b,
-        by: interaction.user?.id
+        by: interaction.user?.id,
       });
 
       return interaction.update({
         content:
           `✅ Ustawiono wynik: **${match.team_a} ${a}:${b} ${match.team_b}**\n` +
           `➡️ Punkty zostaną przeliczone przez **calculateScores**.`,
-        components: []
+        components: [],
       });
     });
-
   } catch (err) {
-    logError('matches', 'matchScoreSelect failed', {
+    logError("matches", "matchScoreSelect failed", {
       guild_id: interaction.guildId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    return interaction.update({
-      content: '❌ Błąd przy zapisie wyniku.',
-      components: []
-    }).catch(() => {});
+    return interaction
+      .update({
+        content: "❌ Błąd przy zapisie wyniku.",
+        components: [],
+      })
+      .catch(() => {});
   }
 };

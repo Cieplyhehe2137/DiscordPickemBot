@@ -1,4 +1,4 @@
-const isAdmin = require('../../utils/isAdmin');
+const isAdmin = require("../../utils/isAdmin");
 
 const {
   ActionRowBuilder,
@@ -6,35 +6,35 @@ const {
   ButtonStyle,
   EmbedBuilder,
   StringSelectMenuBuilder,
-} = require('discord.js');
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
-  if (interaction.customId !== 'select_pickem_phase') return;
+  if (interaction.customId !== "select_pickem_phase") return;
 
   if (!interaction.guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
+      content: "❌ Ta akcja działa tylko na serwerze.",
       ephemeral: true,
     });
   }
 
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '❌ Brak uprawnień do użycia tego panelu.',
+      content: "❌ Brak uprawnień do użycia tego panelu.",
       ephemeral: true,
     });
   }
 
-  const rawValue = String(interaction.values?.[0] || '');
-  const [selected, rawEventId] = rawValue.split(':');
+  const rawValue = String(interaction.values?.[0] || "");
+  const [selected, rawEventId] = rawValue.split(":");
   const eventId = Number(rawEventId);
 
   if (!eventId) {
     return interaction.reply({
-      content: '❌ Nieprawidłowe ID eventu.',
+      content: "❌ Nieprawidłowe ID eventu.",
       ephemeral: true,
     });
   }
@@ -48,36 +48,36 @@ module.exports = async (interaction) => {
     // SWISS
     // =========================================
 
-    if (selected === 'swiss') {
+    if (selected === "swiss") {
       const embed = new EmbedBuilder()
-        .setColor('Red')
-        .setTitle('📌 Typowanie fazy Swiss')
+        .setColor("Red")
+        .setTitle("📌 Typowanie fazy Swiss")
         .setDescription(
-          '**Typujesz:**\n' +
-          '• 🆙 **2 drużyny na 3-0**\n' +
-          '• 🆘 **2 drużyny na 0-3**\n' +
-          '• 🏅 **6 drużyn awansujących**\n\n' +
-          '🔽 Wybierz etap fazy Swiss:'
+          "**Typujesz:**\n" +
+            "• 🆙 **2 drużyny na 3-0**\n" +
+            "• 🆘 **2 drużyny na 0-3**\n" +
+            "• 🏅 **6 drużyn awansujących**\n\n" +
+            "🔽 Wybierz etap fazy Swiss:",
         );
 
       const row = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId('admin_select_swiss_stage')
-          .setPlaceholder('Wybierz etap Swiss...')
+          .setCustomId("admin_select_swiss_stage")
+          .setPlaceholder("Wybierz etap Swiss...")
           .addOptions(
             {
-              label: 'Swiss Stage 1',
-              value: 'swiss_stage1',
+              label: "Swiss Stage 1",
+              value: "swiss_stage1",
             },
             {
-              label: 'Swiss Stage 2',
-              value: 'swiss_stage2',
+              label: "Swiss Stage 2",
+              value: "swiss_stage2",
             },
             {
-              label: 'Swiss Stage 3',
-              value: 'swiss_stage3',
-            }
-          )
+              label: "Swiss Stage 3",
+              value: "swiss_stage3",
+            },
+          ),
       );
 
       return interaction.followUp({
@@ -93,39 +93,37 @@ module.exports = async (interaction) => {
 
     const phaseConfig = {
       playoffs: {
-        color: 'Green',
-        title: '📌 Typowanie fazy Playoffs',
+        color: "Green",
+        title: "📌 Typowanie fazy Playoffs",
         description:
-          '**Typujesz:**\n' +
-          '• 🏆 **4 półfinalistów**\n' +
-          '• 🥈 **2 finalistów**\n' +
-          '• 👑 **Zwycięzcę turnieju**\n' +
-          '• 🥉 **3. miejsce (opcjonalnie)**',
-        buttonId: 'open_playoffs_dropdown',
-        buttonLabel: 'Typuj Playoffs',
+          "**Typujesz:**\n" +
+          "• 🏆 **4 półfinalistów**\n" +
+          "• 🥈 **2 finalistów**\n" +
+          "• 👑 **Zwycięzcę turnieju**\n" +
+          "• 🥉 **3. miejsce (opcjonalnie)**",
+        buttonId: "open_playoffs_dropdown",
+        buttonLabel: "Typuj Playoffs",
       },
 
       doubleelim: {
-        color: 'Purple',
-        title: '📌 Typowanie fazy Double Elim',
+        color: "Purple",
+        title: "📌 Typowanie fazy Double Elim",
         description:
-          '**Typujesz:**\n' +
-          '• 🔝 Upper Final A (2)\n' +
-          '• 🔻 Lower Final A (2)\n' +
-          '• 🔝 Upper Final B (2)\n' +
-          '• 🔻 Lower Final B (2)',
-        buttonId: 'open_doubleelim_modal',
-        buttonLabel: 'Typuj Double Elim',
+          "**Typujesz:**\n" +
+          "• 🔝 Upper Final A (2)\n" +
+          "• 🔻 Lower Final A (2)\n" +
+          "• 🔝 Upper Final B (2)\n" +
+          "• 🔻 Lower Final B (2)",
+        buttonId: "open_doubleelim_modal",
+        buttonLabel: "Typuj Double Elim",
       },
 
       playin: {
-        color: 'Blue',
-        title: '📌 Typowanie fazy Play-In',
-        description:
-          '**Typujesz:**\n' +
-          '• 🎯 **8 drużyn awansujących**',
-        buttonId: 'open_playin_dropdown',
-        buttonLabel: 'Typuj Play-In',
+        color: "Blue",
+        title: "📌 Typowanie fazy Play-In",
+        description: "**Typujesz:**\n" + "• 🎯 **8 drużyn awansujących**",
+        buttonId: "open_playin_dropdown",
+        buttonLabel: "Typuj Play-In",
       },
     };
 
@@ -146,10 +144,10 @@ module.exports = async (interaction) => {
       .setTitle(config.title)
       .setDescription(
         config.description +
-        '\n\n━━━━━━━━━━━━━━\n' +
-        '🎯 Wyniki meczów typujesz osobno.\n' +
-        '📋 Możesz sprawdzić swoje zapisane typy.\n' +
-        '📊 Statystyki aktualizują się po rozliczeniu meczów.'
+          "\n\n━━━━━━━━━━━━━━\n" +
+          "🎯 Wyniki meczów typujesz osobno.\n" +
+          "📋 Możesz sprawdzić swoje zapisane typy.\n" +
+          "📊 Statystyki aktualizują się po rozliczeniu meczów.",
       );
 
     // =========================================
@@ -164,28 +162,25 @@ module.exports = async (interaction) => {
 
       new ButtonBuilder()
         .setCustomId(`match_pick:${selected}`)
-        .setLabel('🎯 Typuj wyniki meczów')
+        .setLabel("🎯 Typuj wyniki meczów")
         .setStyle(ButtonStyle.Success),
 
       new ButtonBuilder()
         .setCustomId(`my_predictions:${selected}:${eventId}:0`)
-        .setLabel('📋 Moje typy')
+        .setLabel("📋 Moje typy")
         .setStyle(ButtonStyle.Secondary),
 
       new ButtonBuilder()
         .setCustomId(`my_stats:${eventId}`)
-        .setLabel('📊 Moje statystyki')
-        .setStyle(ButtonStyle.Secondary)
+        .setLabel("📊 Moje statystyki")
+        .setStyle(ButtonStyle.Secondary),
     );
 
     // =========================================
     // PUBLIKACJA PANELU
     // =========================================
 
-    await withGuild(interaction, async ({
-      pool,
-      guildId,
-    }) => {
+    await withGuild(interaction, async ({ pool, guildId }) => {
       const msg = await interaction.channel.send({
         embeds: [embed],
         components: [row],
@@ -205,37 +200,29 @@ module.exports = async (interaction) => {
           channel_id = VALUES(channel_id),
           message_id = VALUES(message_id)
         `,
-        [
-          guildId,
-          selected,
-          interaction.channel.id,
-          msg.id,
-        ]
+        [guildId, selected, interaction.channel.id, msg.id],
       );
     });
 
     return interaction.editReply({
-      content:
-        `✅ Panel dla fazy **${selected}** został opublikowany.`,
+      content: `✅ Panel dla fazy **${selected}** został opublikowany.`,
     });
-
   } catch (err) {
-    console.error(
-      '[select_pickem_phase]',
-      err
-    );
+    console.error("[select_pickem_phase]", err);
 
     if (interaction.deferred) {
-      return interaction.editReply({
-        content:
-          '❌ Wystąpił błąd podczas publikowania panelu.',
-      }).catch(() => {});
+      return interaction
+        .editReply({
+          content: "❌ Wystąpił błąd podczas publikowania panelu.",
+        })
+        .catch(() => {});
     }
 
-    return interaction.reply({
-      content:
-        '❌ Wystąpił błąd podczas publikowania panelu.',
-      ephemeral: true,
-    }).catch(() => {});
+    return interaction
+      .reply({
+        content: "❌ Wystąpił błąd podczas publikowania panelu.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

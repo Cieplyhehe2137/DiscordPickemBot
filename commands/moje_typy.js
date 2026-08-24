@@ -4,10 +4,14 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require('discord.js');
+} = require("discord.js");
 
-const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
-const { withGuild } = require('../utils/guildContext');
+const {
+  PHASE_CHOICES,
+  humanPhase,
+  getSwissStageAliases,
+} = require("../utils/phase");
+const { withGuild } = require("../utils/guildContext");
 
 /* =========================
    HELPERS
@@ -17,38 +21,38 @@ function parseList(input) {
   if (input == null) return [];
 
   if (Array.isArray(input)) {
-    if (input.length && typeof input[0] === 'object') {
+    if (input.length && typeof input[0] === "object") {
       return input
-        .map(o => (o?.label ?? o?.value ?? '').toString().trim())
+        .map((o) => (o?.label ?? o?.value ?? "").toString().trim())
         .filter(Boolean);
     }
 
-    return input.map(x => (x ?? '').toString().trim()).filter(Boolean);
+    return input.map((x) => (x ?? "").toString().trim()).filter(Boolean);
   }
 
   try {
     const parsed = JSON.parse(input);
 
     if (Array.isArray(parsed)) {
-      if (parsed.length && typeof parsed[0] === 'object') {
+      if (parsed.length && typeof parsed[0] === "object") {
         return parsed
-          .map(o => (o?.label ?? o?.value ?? '').toString().trim())
+          .map((o) => (o?.label ?? o?.value ?? "").toString().trim())
           .filter(Boolean);
       }
 
-      return parsed.map(x => (x ?? '').toString().trim()).filter(Boolean);
+      return parsed.map((x) => (x ?? "").toString().trim()).filter(Boolean);
     }
-  } catch (_) { }
+  } catch (_) {}
 
   return String(input)
-    .replace(/[[\]"]/g, '')
+    .replace(/[[\]"]/g, "")
     .split(/[;,\n|]+/)
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean);
 }
 
 function joinOrDash(arr) {
-  return Array.isArray(arr) && arr.length ? arr.join(', ') : '—';
+  return Array.isArray(arr) && arr.length ? arr.join(", ") : "—";
 }
 
 function normalizePhase(phase, stage = null) {
@@ -57,27 +61,27 @@ function normalizePhase(phase, stage = null) {
   const p = String(phase).trim();
   const s = stage ? String(stage).trim() : null;
 
-  if (p === 'swiss') {
-    if (s === 'stage1') return 'swiss1';
-    if (s === 'stage2') return 'swiss2';
-    if (s === 'stage3') return 'swiss3';
+  if (p === "swiss") {
+    if (s === "stage1") return "swiss1";
+    if (s === "stage2") return "swiss2";
+    if (s === "stage3") return "swiss3";
   }
 
-  if (p === 'swiss_stage_1') return 'swiss1';
-  if (p === 'swiss_stage_2') return 'swiss2';
-  if (p === 'swiss_stage_3') return 'swiss3';
+  if (p === "swiss_stage_1") return "swiss1";
+  if (p === "swiss_stage_2") return "swiss2";
+  if (p === "swiss_stage_3") return "swiss3";
 
   return p;
 }
 
 function humanPhaseSafe(phase) {
-  if (phase === 'matches') return 'Mecze';
+  if (phase === "matches") return "Mecze";
   return humanPhase(phase);
 }
 
-function pickWinnerFromValues(row, leftKey, rightKey, fallbackText = '—') {
-  const teamA = row.team_a || 'Team A';
-  const teamB = row.team_b || 'Team B';
+function pickWinnerFromValues(row, leftKey, rightKey, fallbackText = "—") {
+  const teamA = row.team_a || "Team A";
+  const teamB = row.team_b || "Team B";
 
   const aRaw = row[leftKey];
   const bRaw = row[rightKey];
@@ -97,18 +101,23 @@ function pickWinnerFromValues(row, leftKey, rightKey, fallbackText = '—') {
 
 function getPickedWinner(row) {
   if (row.pred_exact_a != null && row.pred_exact_b != null) {
-    return pickWinnerFromValues(row, 'pred_exact_a', 'pred_exact_b', '—');
+    return pickWinnerFromValues(row, "pred_exact_a", "pred_exact_b", "—");
   }
 
-  return pickWinnerFromValues(row, 'pred_a', 'pred_b', '—');
+  return pickWinnerFromValues(row, "pred_a", "pred_b", "—");
 }
 
 function getOfficialWinner(row) {
   if (row.result_exact_a != null && row.result_exact_b != null) {
-    return pickWinnerFromValues(row, 'result_exact_a', 'result_exact_b', 'nierozliczone');
+    return pickWinnerFromValues(
+      row,
+      "result_exact_a",
+      "result_exact_b",
+      "nierozliczone",
+    );
   }
 
-  return pickWinnerFromValues(row, 'result_a', 'result_b', 'nierozliczone');
+  return pickWinnerFromValues(row, "result_a", "result_b", "nierozliczone");
 }
 
 function formatPredictedScore(row) {
@@ -120,7 +129,7 @@ function formatPredictedScore(row) {
     return `${row.pred_a}:${row.pred_b}`;
   }
 
-  return '—';
+  return "—";
 }
 
 function formatOfficialResult(row) {
@@ -132,15 +141,15 @@ function formatOfficialResult(row) {
     return `${row.result_a}:${row.result_b}`;
   }
 
-  return 'nierozliczone';
+  return "nierozliczone";
 }
 
 function formatMapScores(input) {
-  if (input == null) return '—';
+  if (input == null) return "—";
 
   const text = String(input).trim();
 
-  if (!text || text === '—') return '—';
+  if (!text || text === "—") return "—";
 
   return text;
 }
@@ -233,7 +242,7 @@ async function loadMatchRows(pool, guildId, userId, eventId) {
 
     ORDER BY mp.updated_at DESC, mp.match_id DESC
     `,
-    [guildId, userId, eventId]
+    [guildId, userId, eventId],
   );
 
   return rows;
@@ -246,18 +255,18 @@ function createMatchesEmbed(rows, page, pageSize, eventId) {
   const pageRows = rows.slice(start, start + pageSize);
 
   const embed = new EmbedBuilder()
-    .setTitle('Twoje typy — Mecze')
+    .setTitle("Twoje typy — Mecze")
     .setColor(0x3b82f6)
     .setDescription(
       `Event ID: **${eventId}**\n` +
-      `Pokazuję **${start + 1}-${start + pageRows.length}** z **${rows.length}** zapisanych typów meczowych.\n` +
-      `Strona **${safePage + 1}/${totalPages}**.`
+        `Pokazuję **${start + 1}-${start + pageRows.length}** z **${rows.length}** zapisanych typów meczowych.\n` +
+        `Strona **${safePage + 1}/${totalPages}**.`,
     )
-    .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
+    .setFooter({ text: "Widoczne tylko dla Ciebie." });
 
   for (const r of pageRows) {
-    const teamA = r.team_a || 'Team A';
-    const teamB = r.team_b || 'Team B';
+    const teamA = r.team_a || "Team A";
+    const teamB = r.team_b || "Team B";
 
     embed.addFields({
       name: `#${r.match_id} • ${teamA} vs ${teamB}`,
@@ -278,13 +287,13 @@ function createMatchesButtons(userId, page, totalPages) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`moje_typy_matches_prev_${userId}`)
-      .setLabel('⬅️ Poprzednia')
+      .setLabel("⬅️ Poprzednia")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page <= 0),
 
     new ButtonBuilder()
       .setCustomId(`moje_typy_matches_next_${userId}`)
-      .setLabel('Następna ➡️')
+      .setLabel("Następna ➡️")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(page >= totalPages - 1),
   );
@@ -298,7 +307,11 @@ async function safeEditReply(interaction, payload) {
   }
 }
 
-async function safeButtonUpdate(buttonInteraction, originalInteraction, payload) {
+async function safeButtonUpdate(
+  buttonInteraction,
+  originalInteraction,
+  payload,
+) {
   try {
     if (!buttonInteraction.deferred && !buttonInteraction.replied) {
       await buttonInteraction.deferUpdate();
@@ -307,11 +320,14 @@ async function safeButtonUpdate(buttonInteraction, originalInteraction, payload)
     return await originalInteraction.editReply(payload);
   } catch (err) {
     if (err?.code === 10062 || err?.code === 40060 || err?.code === 10008) {
-      console.warn('[moje_typy] pagination interaction expired/invalid:', err?.code);
+      console.warn(
+        "[moje_typy] pagination interaction expired/invalid:",
+        err?.code,
+      );
       return null;
     }
 
-    console.error('[moje_typy] pagination button error', err);
+    console.error("[moje_typy] pagination button error", err);
     return null;
   }
 }
@@ -353,12 +369,17 @@ async function resolveLatestUserPhase(pool, guildId, userId) {
     LIMIT 1
     `,
     [
-      guildId, userId,
-      guildId, userId,
-      guildId, userId,
-      guildId, userId,
-      guildId, userId,
-    ]
+      guildId,
+      userId,
+      guildId,
+      userId,
+      guildId,
+      userId,
+      guildId,
+      userId,
+      guildId,
+      userId,
+    ],
   );
 
   if (!last.length) return null;
@@ -370,7 +391,7 @@ async function resolveLatestUserPhase(pool, guildId, userId) {
 }
 
 async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
-  if (phase?.startsWith('swiss')) {
+  if (phase?.startsWith("swiss")) {
     const aliases = getSwissStageAliases(phase);
 
     let sql = `
@@ -383,7 +404,7 @@ async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
     const params = [guildId, userId];
 
     if (aliases.length) {
-      sql += ` AND stage IN (${aliases.map(() => '?').join(', ')})`;
+      sql += ` AND stage IN (${aliases.map(() => "?").join(", ")})`;
       params.push(...aliases);
     }
 
@@ -397,9 +418,9 @@ async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
   }
 
   const tableByPhase = {
-    playoffs: 'playoffs_predictions',
-    double_elim: 'doubleelim_predictions',
-    playin: 'playin_predictions',
+    playoffs: "playoffs_predictions",
+    double_elim: "doubleelim_predictions",
+    playin: "playin_predictions",
   };
 
   if (tableByPhase[phase]) {
@@ -412,13 +433,13 @@ async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
       ORDER BY submitted_at DESC, id DESC
       LIMIT 1
       `,
-      [guildId, userId]
+      [guildId, userId],
     );
 
     return rows[0]?.event_id ?? null;
   }
 
-  if (phase === 'matches') {
+  if (phase === "matches") {
     const [rows] = await pool.query(
       `
       SELECT event_id
@@ -428,7 +449,7 @@ async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
       ORDER BY updated_at DESC, match_id DESC
       LIMIT 1
       `,
-      [guildId, userId]
+      [guildId, userId],
     );
 
     return rows[0]?.event_id ?? null;
@@ -443,23 +464,25 @@ async function resolveLatestEventForManualPhase(pool, guildId, userId, phase) {
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('moje_typy')
-    .setDescription('Pokaż Twoje zapisane typy.')
-    .addStringOption(opt =>
+    .setName("moje_typy")
+    .setDescription("Pokaż Twoje zapisane typy.")
+    .addStringOption((opt) =>
       opt
-        .setName('faza')
-        .setDescription('Wybierz fazę. Bez wyboru pokaże ostatnią z Twoimi typami.')
-        .addChoices(
-          ...PHASE_CHOICES.filter(c => c.value !== 'total'),
-          { name: 'Mecze', value: 'matches' }
+        .setName("faza")
+        .setDescription(
+          "Wybierz fazę. Bez wyboru pokaże ostatnią z Twoimi typami.",
         )
-        .setRequired(false)
+        .addChoices(...PHASE_CHOICES.filter((c) => c.value !== "total"), {
+          name: "Mecze",
+          value: "matches",
+        })
+        .setRequired(false),
     ),
 
   async execute(interaction) {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta komenda działa tylko na serwerze.',
+        content: "❌ Ta komenda działa tylko na serwerze.",
         ephemeral: true,
       });
     }
@@ -468,7 +491,7 @@ module.exports = {
 
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
-    const manualPhase = normalizePhase(interaction.options.getString('faza'));
+    const manualPhase = normalizePhase(interaction.options.getString("faza"));
 
     try {
       await withGuild(interaction, async ({ pool }) => {
@@ -487,15 +510,15 @@ module.exports = {
             pool,
             guildId,
             userId,
-            manualPhase
+            manualPhase,
           );
         }
 
         if (!phaseToShow || !eventIdToShow) {
           return interaction.editReply({
             content: manualPhase
-              ? 'Nie masz jeszcze zapisanych typów dla tej fazy.'
-              : 'Nie masz jeszcze żadnych zapisanych typów.',
+              ? "Nie masz jeszcze zapisanych typów dla tej fazy."
+              : "Nie masz jeszcze żadnych zapisanych typów.",
             components: [],
           });
         }
@@ -504,9 +527,9 @@ module.exports = {
           .setTitle(`Twoje typy — ${humanPhaseSafe(phaseToShow)}`)
           .setColor(0x3b82f6)
           .setDescription(`Event ID: **${eventIdToShow}**`)
-          .setFooter({ text: 'Widoczne tylko dla Ciebie.' });
+          .setFooter({ text: "Widoczne tylko dla Ciebie." });
 
-        if (phaseToShow.startsWith('swiss')) {
+        if (phaseToShow.startsWith("swiss")) {
           const aliases = getSwissStageAliases(phaseToShow);
 
           let sql = `
@@ -520,7 +543,7 @@ module.exports = {
           const params = [guildId, userId, eventIdToShow];
 
           if (aliases.length) {
-            sql += ` AND stage IN (${aliases.map(() => '?').join(', ')})`;
+            sql += ` AND stage IN (${aliases.map(() => "?").join(", ")})`;
             params.push(...aliases);
           }
 
@@ -533,7 +556,9 @@ module.exports = {
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              embeds: [
+                embed.setDescription("Brak zapisanych typów dla tej fazy."),
+              ],
               components: [],
             });
           }
@@ -541,15 +566,18 @@ module.exports = {
           const r = rows[0];
 
           embed.addFields(
-            { name: '3-0 (2)', value: joinOrDash(parseList(r.pick_3_0)) },
-            { name: '0-3 (2)', value: joinOrDash(parseList(r.pick_0_3)) },
-            { name: 'Awansujące (6)', value: joinOrDash(parseList(r.advancing)) },
+            { name: "3-0 (2)", value: joinOrDash(parseList(r.pick_3_0)) },
+            { name: "0-3 (2)", value: joinOrDash(parseList(r.pick_0_3)) },
+            {
+              name: "Awansujące (6)",
+              value: joinOrDash(parseList(r.advancing)),
+            },
           );
 
           return interaction.editReply({ embeds: [embed], components: [] });
         }
 
-        if (phaseToShow === 'playoffs') {
+        if (phaseToShow === "playoffs") {
           const [rows] = await pool.query(
             `
             SELECT *
@@ -560,12 +588,14 @@ module.exports = {
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId, eventIdToShow]
+            [guildId, userId, eventIdToShow],
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              embeds: [
+                embed.setDescription("Brak zapisanych typów dla tej fazy."),
+              ],
               components: [],
             });
           }
@@ -573,16 +603,30 @@ module.exports = {
           const r = rows[0];
 
           embed.addFields(
-            { name: 'Półfinaliści (4)', value: joinOrDash(parseList(r.semifinalists)) },
-            { name: 'Finaliści (2)', value: joinOrDash(parseList(r.finalists)) },
-            { name: 'Zwycięzca', value: joinOrDash(parseList(r.winner)), inline: true },
-            { name: '3. miejsce', value: joinOrDash(parseList(r.third_place_winner)), inline: true },
+            {
+              name: "Półfinaliści (4)",
+              value: joinOrDash(parseList(r.semifinalists)),
+            },
+            {
+              name: "Finaliści (2)",
+              value: joinOrDash(parseList(r.finalists)),
+            },
+            {
+              name: "Zwycięzca",
+              value: joinOrDash(parseList(r.winner)),
+              inline: true,
+            },
+            {
+              name: "3. miejsce",
+              value: joinOrDash(parseList(r.third_place_winner)),
+              inline: true,
+            },
           );
 
           return interaction.editReply({ embeds: [embed], components: [] });
         }
 
-        if (phaseToShow === 'double_elim') {
+        if (phaseToShow === "double_elim") {
           const [rows] = await pool.query(
             `
             SELECT *
@@ -593,12 +637,14 @@ module.exports = {
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId, eventIdToShow]
+            [guildId, userId, eventIdToShow],
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              embeds: [
+                embed.setDescription("Brak zapisanych typów dla tej fazy."),
+              ],
               components: [],
             });
           }
@@ -606,16 +652,28 @@ module.exports = {
           const r = rows[0];
 
           embed.addFields(
-            { name: 'Upper Final A (2)', value: joinOrDash(parseList(r.upper_final_a)) },
-            { name: 'Lower Final A (2)', value: joinOrDash(parseList(r.lower_final_a)) },
-            { name: 'Upper Final B (2)', value: joinOrDash(parseList(r.upper_final_b)) },
-            { name: 'Lower Final B (2)', value: joinOrDash(parseList(r.lower_final_b)) },
+            {
+              name: "Upper Final A (2)",
+              value: joinOrDash(parseList(r.upper_final_a)),
+            },
+            {
+              name: "Lower Final A (2)",
+              value: joinOrDash(parseList(r.lower_final_a)),
+            },
+            {
+              name: "Upper Final B (2)",
+              value: joinOrDash(parseList(r.upper_final_b)),
+            },
+            {
+              name: "Lower Final B (2)",
+              value: joinOrDash(parseList(r.lower_final_b)),
+            },
           );
 
           return interaction.editReply({ embeds: [embed], components: [] });
         }
 
-        if (phaseToShow === 'playin') {
+        if (phaseToShow === "playin") {
           const [rows] = await pool.query(
             `
             SELECT *
@@ -626,30 +684,41 @@ module.exports = {
             ORDER BY submitted_at DESC, id DESC
             LIMIT 1
             `,
-            [guildId, userId, eventIdToShow]
+            [guildId, userId, eventIdToShow],
           );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [embed.setDescription('Brak zapisanych typów dla tej fazy.')],
+              embeds: [
+                embed.setDescription("Brak zapisanych typów dla tej fazy."),
+              ],
               components: [],
             });
           }
 
           embed.addFields({
-            name: 'Wytypowane drużyny',
+            name: "Wytypowane drużyny",
             value: joinOrDash(parseList(rows[0].teams)),
           });
 
           return interaction.editReply({ embeds: [embed], components: [] });
         }
 
-        if (phaseToShow === 'matches') {
-          const rows = await loadMatchRows(pool, guildId, userId, eventIdToShow);
+        if (phaseToShow === "matches") {
+          const rows = await loadMatchRows(
+            pool,
+            guildId,
+            userId,
+            eventIdToShow,
+          );
 
           if (!rows.length) {
             return interaction.editReply({
-              embeds: [embed.setDescription('Nie masz jeszcze zapisanych typów meczowych.')],
+              embeds: [
+                embed.setDescription(
+                  "Nie masz jeszcze zapisanych typów meczowych.",
+                ),
+              ],
               components: [],
             });
           }
@@ -660,24 +729,23 @@ module.exports = {
 
           const message = await interaction.editReply({
             embeds: [createMatchesEmbed(rows, page, pageSize, eventIdToShow)],
-            components: totalPages > 1
-              ? [createMatchesButtons(userId, page, totalPages)]
-              : [],
+            components:
+              totalPages > 1
+                ? [createMatchesButtons(userId, page, totalPages)]
+                : [],
           });
 
           if (totalPages <= 1) return;
 
           const collector = message.createMessageComponentCollector({
             time: 5 * 60 * 1000,
-            filter: i =>
+            filter: (i) =>
               i.user.id === userId &&
-              (
-                i.customId === `moje_typy_matches_prev_${userId}` ||
-                i.customId === `moje_typy_matches_next_${userId}`
-              ),
+              (i.customId === `moje_typy_matches_prev_${userId}` ||
+                i.customId === `moje_typy_matches_next_${userId}`),
           });
 
-          collector.on('collect', async i => {
+          collector.on("collect", async (i) => {
             if (i.customId === `moje_typy_matches_prev_${userId}`) {
               page = Math.max(0, page - 1);
             }
@@ -692,7 +760,7 @@ module.exports = {
             });
           });
 
-          collector.on('end', async () => {
+          collector.on("end", async () => {
             await safeEditReply(interaction, { components: [] });
           });
 
@@ -700,15 +768,15 @@ module.exports = {
         }
 
         return interaction.editReply({
-          embeds: [embed.setDescription('Nieobsługiwana faza.')],
+          embeds: [embed.setDescription("Nieobsługiwana faza.")],
           components: [],
         });
       });
     } catch (err) {
-      console.error('[moje_typy] error', err);
+      console.error("[moje_typy] error", err);
 
       return interaction.editReply({
-        content: '⚠️ Wystąpił błąd podczas pobierania typów.',
+        content: "⚠️ Wystąpił błąd podczas pobierania typów.",
         components: [],
       });
     }

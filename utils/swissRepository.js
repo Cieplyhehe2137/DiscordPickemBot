@@ -17,12 +17,12 @@ function parseList(input) {
   try {
     const j = JSON.parse(s);
     if (Array.isArray(j)) return j.map(String);
-  } catch (_) { }
+  } catch (_) {}
 
   return s
-    .replace(/[\[\]"]+/g, '')
+    .replace(/[\[\]"]+/g, "")
     .split(/[;,]+/)
-    .map(x => x.trim())
+    .map((x) => x.trim())
     .filter(Boolean);
 }
 
@@ -38,7 +38,7 @@ async function getCurrentSwissResults(pool, guildId, eventId, stage) {
     ORDER BY id DESC
     LIMIT 1
     `,
-    [guildId, eventId, stage]
+    [guildId, eventId, stage],
   );
 
   if (!rows.length) {
@@ -48,7 +48,7 @@ async function getCurrentSwissResults(pool, guildId, eventId, stage) {
   return {
     x3_0: parseList(rows[0].correct_3_0),
     x0_3: parseList(rows[0].correct_0_3),
-    adv: parseList(rows[0].correct_advancing)
+    adv: parseList(rows[0].correct_advancing),
   };
 }
 

@@ -3,18 +3,18 @@ const {
   StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
 
 const PAGE_SIZE = 23;
 
 function safeLabel(str) {
-  if (!str) return 'mecz';
+  if (!str) return "mecz";
   const s = String(str);
-  return s.length > 100 ? s.slice(0, 97) + '…' : s;
+  return s.length > 100 ? s.slice(0, 97) + "…" : s;
 }
 
 function hasAdminPerms(interaction) {
@@ -26,9 +26,7 @@ function hasAdminPerms(interaction) {
 }
 
 function getScore(m) {
-  return (m.res_a === null || m.res_b === null)
-    ? '—'
-    : `${m.res_a}:${m.res_b}`;
+  return m.res_a === null || m.res_b === null ? "—" : `${m.res_a}:${m.res_b}`;
 }
 
 function buildPayload({ rows, phase, page }) {
@@ -38,37 +36,37 @@ function buildPayload({ rows, phase, page }) {
   const start = safePage * PAGE_SIZE;
   const pageRows = rows.slice(start, start + PAGE_SIZE);
 
-  const options = pageRows.map(m => {
+  const options = pageRows.map((m) => {
     const label =
-      `#${m.match_no ?? '?'} ${m.team_a} vs ${m.team_b} ` +
+      `#${m.match_no ?? "?"} ${m.team_a} vs ${m.team_b} ` +
       `(BO${m.best_of}) [${getScore(m)}]`;
 
     return {
       label: safeLabel(label),
       value: String(m.id),
-      description: 'Wybierz, aby ustawić wynik'
+      description: "Wybierz, aby ustawić wynik",
     };
   });
 
   const selectRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
-      .setCustomId('match_admin_match_select')
-      .setPlaceholder('Wybierz mecz do ustawienia wyniku…')
-      .addOptions(options)
+      .setCustomId("match_admin_match_select")
+      .setPlaceholder("Wybierz mecz do ustawienia wyniku…")
+      .addOptions(options),
   );
 
   const buttonRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`match_admin_page:${phase}:${safePage - 1}`)
-      .setLabel('⬅️ Poprzednia')
+      .setLabel("⬅️ Poprzednia")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(safePage <= 0),
 
     new ButtonBuilder()
       .setCustomId(`match_admin_page:${phase}:${safePage + 1}`)
-      .setLabel('Następna ➡️')
+      .setLabel("Następna ➡️")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(safePage >= totalPages - 1)
+      .setDisabled(safePage >= totalPages - 1),
   );
 
   return {
@@ -76,7 +74,7 @@ function buildPayload({ rows, phase, page }) {
       `🎯 **Wyniki meczów** — faza: **${phase}**\n` +
       `Strona **${safePage + 1}/${totalPages}** | Mecze: **${rows.length}**\n` +
       `Wybierz mecz:`,
-    components: totalPages > 1 ? [selectRow, buttonRow] : [selectRow]
+    components: totalPages > 1 ? [selectRow, buttonRow] : [selectRow],
   };
 }
 
@@ -84,15 +82,15 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
   try {
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
     if (!hasAdminPerms(interaction)) {
       return interaction.reply({
-        content: '❌ Brak uprawnień.',
-        ephemeral: true
+        content: "❌ Brak uprawnień.",
+        ephemeral: true,
       });
     }
 
@@ -104,15 +102,15 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
     }
 
     if (interaction.isButton()) {
-      const parts = interaction.customId.split(':');
+      const parts = interaction.customId.split(":");
       phase = parts[1];
       page = Number(parts[2] ?? 0);
     }
 
     if (!phase) {
       return interaction.update({
-        content: '❌ Nie wybrano fazy.',
-        components: []
+        content: "❌ Nie wybrano fazy.",
+        components: [],
       });
     }
 
@@ -136,7 +134,7 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
           AND m.phase = ?
         ORDER BY COALESCE(m.match_no, 999999) ASC, m.id ASC
         `,
-        [guildId, phase]
+        [guildId, phase],
       );
 
       if (!rows.length) {
@@ -144,29 +142,28 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
           content:
             `ℹ️ Brak meczów w bazie dla fazy **${phase}**.\n` +
             `Dodaj je przyciskiem **➕ Dodaj mecz** w panelu.`,
-          components: []
+          components: [],
         });
       }
 
       return interaction.update(buildPayload({ rows, phase, page }));
     });
-
   } catch (err) {
-    logError('matches', 'matchAdminPhaseSelect failed', {
+    logError("matches", "matchAdminPhaseSelect failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Błąd przy pobieraniu meczów z bazy.',
-        ephemeral: true
+        content: "❌ Błąd przy pobieraniu meczów z bazy.",
+        ephemeral: true,
       });
     }
 
     return interaction.editReply({
-      content: '❌ Błąd przy pobieraniu meczów z bazy.',
-      components: []
+      content: "❌ Błąd przy pobieraniu meczów z bazy.",
+      components: [],
     });
   }
 };

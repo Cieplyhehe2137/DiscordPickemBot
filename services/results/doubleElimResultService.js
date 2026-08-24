@@ -9,10 +9,10 @@ async function loadDoubleElimTeams(pool, guildId) {
       AND active = 1
     ORDER BY sort_order ASC, name ASC
     `,
-    [guildId]
+    [guildId],
   );
 
-  return rows.map(r => ({ name: r.name })).filter(t => t.name);
+  return rows.map((r) => ({ name: r.name })).filter((t) => t.name);
 }
 
 module.exports = { loadDoubleElimTeams };

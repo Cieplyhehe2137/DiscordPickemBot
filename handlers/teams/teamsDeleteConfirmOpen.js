@@ -3,11 +3,11 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const teamsState = require('../../utils/teamsState');
-const { listTeams } = require('../../utils/teamsStore');
+const teamsState = require("../../utils/teamsState");
+const { listTeams } = require("../../utils/teamsStore");
 
 function getSelectedIds(st) {
   if (Array.isArray(st?.selectedTeamIds)) return st.selectedTeamIds;
@@ -22,54 +22,54 @@ module.exports = async function teamsDeleteConfirmOpen(interaction) {
   // tylko serwer
   if (!guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta akcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
   // tylko admin
   if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
-      ephemeral: true
+      content: "⛔ Tylko administracja.",
+      ephemeral: true,
     });
   }
 
   const st = teamsState.getState(guildId, userId) || {};
   const ids = getSelectedIds(st)
     .map(Number)
-    .filter(n => Number.isFinite(n) && n > 0);
+    .filter((n) => Number.isFinite(n) && n > 0);
 
   if (!ids.length) {
     return interaction.reply({
-      content: '⚠️ Najpierw wybierz drużyny do usunięcia.',
-      ephemeral: true
+      content: "⚠️ Najpierw wybierz drużyny do usunięcia.",
+      ephemeral: true,
     });
   }
 
   // nazwy drużyn (do podglądu)
   const all = await listTeams(guildId, { includeInactive: true });
-  const byId = new Map(all.map(t => [Number(t.id), t.name]));
-  const names = ids.map(id => byId.get(id) || `ID:${id}`);
+  const byId = new Map(all.map((t) => [Number(t.id), t.name]));
+  const names = ids.map((id) => byId.get(id) || `ID:${id}`);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('teams:delete_yes')
-      .setLabel('🗑 Usuń')
+      .setCustomId("teams:delete_yes")
+      .setLabel("🗑 Usuń")
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
-      .setCustomId('teams:delete_no')
-      .setLabel('❌ Anuluj')
-      .setStyle(ButtonStyle.Secondary)
+      .setCustomId("teams:delete_no")
+      .setLabel("❌ Anuluj")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   const preview = names.slice(0, 10);
   const extra =
     names.length > preview.length
       ? `\n… i jeszcze **${names.length - preview.length}**`
-      : '';
+      : "";
 
-  const list = preview.map(n => `• ${n}`).join('\n') + extra;
+  const list = preview.map((n) => `• ${n}`).join("\n") + extra;
 
   return interaction.reply({
     content:
@@ -77,6 +77,6 @@ module.exports = async function teamsDeleteConfirmOpen(interaction) {
       `Czy na pewno chcesz usunąć **${ids.length}** drużyn?\n\n` +
       `${list}`,
     components: [row],
-    ephemeral: true
+    ephemeral: true,
   });
 };

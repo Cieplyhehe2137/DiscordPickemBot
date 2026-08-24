@@ -1,5 +1,5 @@
 // utils/loadTeamsFromDB.js
-const { withGuild } = require('./guildContext');
+const { withGuild } = require("./guildContext");
 
 module.exports = async function loadTeamsFromDB(source) {
   return withGuild(source, async ({ guildId, pool }) => {
@@ -11,9 +11,9 @@ module.exports = async function loadTeamsFromDB(source) {
         AND active = 1
       ORDER BY name ASC
       `,
-      [guildId]
+      [guildId],
     );
 
-    return rows.map(r => r.name);
+    return rows.map((r) => r.name);
   });
 };

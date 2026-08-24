@@ -5,12 +5,12 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const teamsState = require('../../utils/teamsState');
-const { listTeams, getTeamNames } = require('../../utils/teamsStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const teamsState = require("../../utils/teamsState");
+const { listTeams, getTeamNames } = require("../../utils/teamsStore");
 
 function isAdmin(interaction) {
   return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
@@ -24,7 +24,7 @@ function chunk25(arr, page = 0) {
     items: arr.slice(start, start + 25),
     hasPrev: p > 0,
     hasNext: start + 25 < arr.length,
-    total: arr.length
+    total: arr.length,
   };
 }
 
@@ -40,110 +40,109 @@ async function render(interaction) {
 
   const st = teamsState.getState(guildId, userId) || {
     page: 0,
-    selectedTeamIds: []
+    selectedTeamIds: [],
   };
 
   const all = await listTeams(guildId, { includeInactive: true });
   const { page, items, hasPrev, hasNext, total } = chunk25(all, st.page);
 
-  const activeCount = all.filter(t => t.active === 1).length;
+  const activeCount = all.filter((t) => t.active === 1).length;
 
   const selectedIds = pickSelectedIds(st)
     .map(Number)
-    .filter(n => Number.isFinite(n) && n > 0);
+    .filter((n) => Number.isFinite(n) && n > 0);
 
   const selectedSet = new Set(selectedIds);
   const selectedCount = selectedIds.length;
 
   // ===== EMBED HEADER =====
-  let selectedLine = '• Wybrane: **brak**';
+  let selectedLine = "• Wybrane: **brak**";
 
   if (selectedCount === 1) {
-    const t = all.find(x => Number(x.id) === selectedIds[0]);
+    const t = all.find((x) => Number(x.id) === selectedIds[0]);
     selectedLine = t
       ? `• Wybrana: **${t.name}** (ID: **${t.id}**)`
       : `• Wybrana ID: **${selectedIds[0]}**`;
   } else if (selectedCount > 1) {
     const names = all
-      .filter(t => selectedSet.has(Number(t.id)))
-      .map(t => t.name)
+      .filter((t) => selectedSet.has(Number(t.id)))
+      .map((t) => t.name)
       .slice(0, 6);
 
     selectedLine =
       `• Wybrane: **${selectedCount}**` +
       (names.length
-        ? ` (${names.join(', ')}${selectedCount > names.length ? '…' : ''})`
-        : '');
+        ? ` (${names.join(", ")}${selectedCount > names.length ? "…" : ""})`
+        : "");
   }
 
   const embed = new EmbedBuilder()
     .setColor(0x2f3136)
-    .setTitle('👥 Manager drużyn')
+    .setTitle("👥 Manager drużyn")
     .setDescription(
-      'Zarządzaj listą drużyn w bazie danych (`teams`).\n\n' +
-      `• Aktywne: **${activeCount}** / Wszystkie: **${total}**\n` +
-      `• Strona: **${page + 1}**\n` +
-      selectedLine
+      "Zarządzaj listą drużyn w bazie danych (`teams`).\n\n" +
+        `• Aktywne: **${activeCount}** / Wszystkie: **${total}**\n` +
+        `• Strona: **${page + 1}**\n` +
+        selectedLine,
     );
 
   // ===== SELECT (BEZ default!) =====
-  const optionsRaw = items.map(t => ({
-    label: (t.name || '').slice(0, 100),
+  const optionsRaw = items.map((t) => ({
+    label: (t.name || "").slice(0, 100),
     value: String(t.id),
-    description: t.active === 1 ? 'Aktywna' : 'Nieaktywna'
+    description: t.active === 1 ? "Aktywna" : "Nieaktywna",
   }));
 
   const hasOptions = optionsRaw.length > 0;
   const remainingSlots = Math.max(0, 10 - selectedCount);
 
   const select = new StringSelectMenuBuilder()
-  .setCustomId('teams:select')
-  .setPlaceholder(
-    hasOptions
-      ? remainingSlots > 0
-        ? `Wybierz drużyny… (pozostało ${remainingSlots})`
-        : 'Limit zaznaczeń osiągnięty'
-      : 'Brak drużyn'
-  );
+    .setCustomId("teams:select")
+    .setPlaceholder(
+      hasOptions
+        ? remainingSlots > 0
+          ? `Wybierz drużyny… (pozostało ${remainingSlots})`
+          : "Limit zaznaczeń osiągnięty"
+        : "Brak drużyn",
+    );
 
-if (!hasOptions) {
-  select
-    .setMinValues(1)
-    .setMaxValues(1)
-    .setDisabled(true)
-    .addOptions([{ label: 'Brak drużyn', value: 'none' }]);
-} else if (remainingSlots === 0) {
-  select
-    .setMinValues(1)
-    .setMaxValues(1)
-    .setDisabled(true)
-    .addOptions([{ label: 'Limit zaznaczeń osiągnięty', value: 'limit' }]);
-} else {
-  select
-    .setMinValues(1)
-    .setMaxValues(Math.min(remainingSlots, optionsRaw.length))
-    .addOptions(optionsRaw);
-}
-
+  if (!hasOptions) {
+    select
+      .setMinValues(1)
+      .setMaxValues(1)
+      .setDisabled(true)
+      .addOptions([{ label: "Brak drużyn", value: "none" }]);
+  } else if (remainingSlots === 0) {
+    select
+      .setMinValues(1)
+      .setMaxValues(1)
+      .setDisabled(true)
+      .addOptions([{ label: "Limit zaznaczeń osiągnięty", value: "limit" }]);
+  } else {
+    select
+      .setMinValues(1)
+      .setMaxValues(Math.min(remainingSlots, optionsRaw.length))
+      .addOptions(optionsRaw);
+  }
 
   const selectRow = new ActionRowBuilder().addComponents(select);
 
   // ===== NAV =====
   const navRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('teams:page_prev')
-      .setLabel('⬅️')
+      .setCustomId("teams:page_prev")
+      .setLabel("⬅️")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!hasPrev),
     new ButtonBuilder()
-      .setCustomId('teams:page_next')
-      .setLabel('➡️')
+      .setCustomId("teams:page_next")
+      .setLabel("➡️")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!hasNext),
     new ButtonBuilder()
-      .setCustomId('teams:refresh')
-      .setLabel('🔄 Odśwież')
-      .setStyle(ButtonStyle.Secondary)
+      .setCustomId("teams:refresh")
+      .setLabel("🔄 Odśwież")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   // ===== ACTIONS =====
@@ -152,35 +151,35 @@ if (!hasOptions) {
 
   const actionsRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('teams:add')
-      .setLabel('➕ Dodaj')
+      .setCustomId("teams:add")
+      .setLabel("➕ Dodaj")
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId('teams:rename')
-      .setLabel('✏️ Zmień nazwę')
+      .setCustomId("teams:rename")
+      .setLabel("✏️ Zmień nazwę")
       .setStyle(ButtonStyle.Primary)
       .setDisabled(!canSingle),
     new ButtonBuilder()
-      .setCustomId('teams:toggle')
-      .setLabel('Aktywuj / Dezaktywuj')
+      .setCustomId("teams:toggle")
+      .setLabel("Aktywuj / Dezaktywuj")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(!canSingle),
     new ButtonBuilder()
-      .setCustomId('teams:delete')
-      .setLabel('🗑 Usuń')
+      .setCustomId("teams:delete")
+      .setLabel("🗑 Usuń")
       .setStyle(ButtonStyle.Danger)
-      .setDisabled(!canAny)
+      .setDisabled(!canAny),
   );
 
   const ioRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('teams:export')
-      .setLabel('📤 Eksport')
+      .setCustomId("teams:export")
+      .setLabel("📤 Eksport")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId('teams:import')
-      .setLabel('📥 Import')
-      .setStyle(ButtonStyle.Secondary)
+      .setCustomId("teams:import")
+      .setLabel("📥 Import")
+      .setStyle(ButtonStyle.Secondary),
   );
 
   // ===== PREVIEW =====
@@ -188,17 +187,19 @@ if (!hasOptions) {
   const preview = activeNames.slice(0, 15);
 
   embed.addFields({
-    name: '✅ Aktywne drużyny (podgląd)',
+    name: "✅ Aktywne drużyny (podgląd)",
     value: activeNames.length
-      ? `${preview.join(' • ')}${activeNames.length > preview.length
-          ? ` … (+${activeNames.length - preview.length})`
-          : ''}`
-      : '—'
+      ? `${preview.join(" • ")}${
+          activeNames.length > preview.length
+            ? ` … (+${activeNames.length - preview.length})`
+            : ""
+        }`
+      : "—",
   });
 
   return {
     embeds: [embed],
-    components: [selectRow, navRow, actionsRow, ioRow]
+    components: [selectRow, navRow, actionsRow, ioRow],
   };
 }
 
@@ -206,8 +207,8 @@ module.exports = async function openTeamsManager(interaction) {
   try {
     if (!isAdmin(interaction)) {
       return interaction.reply({
-        content: '⛔ Tylko administracja.',
-        ephemeral: true
+        content: "⛔ Tylko administracja.",
+        ephemeral: true,
       });
     }
 
@@ -215,7 +216,7 @@ module.exports = async function openTeamsManager(interaction) {
 
     const isTeamsComponent =
       (interaction.isButton() || interaction.isStringSelectMenu()) &&
-      interaction.customId?.startsWith('teams:');
+      interaction.customId?.startsWith("teams:");
 
     if (isTeamsComponent) {
       return interaction.update(payload);
@@ -227,15 +228,15 @@ module.exports = async function openTeamsManager(interaction) {
 
     return interaction.reply({ ...payload, ephemeral: true });
   } catch (err) {
-    logError('teams', 'openTeamsManager failed', {
+    logError("teams", "openTeamsManager failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Nie udało się otworzyć managera drużyn.',
-        ephemeral: true
+        content: "❌ Nie udało się otworzyć managera drużyn.",
+        ephemeral: true,
       });
     }
   }

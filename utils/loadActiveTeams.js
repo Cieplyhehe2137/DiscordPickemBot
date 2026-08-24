@@ -9,10 +9,10 @@ async function loadActiveTeams(pool, guildId) {
       AND active = 1
     ORDER BY name ASC
     `,
-    [guildId]
+    [guildId],
   );
 
-  return rows.map(r => r.name);
+  return rows.map((r) => r.name);
 }
 
 // Same as loadActiveTeams but ordered by sort_order first - used by the
@@ -28,10 +28,10 @@ async function loadActiveTeamsBySortOrder(pool, guildId) {
       AND active = 1
     ORDER BY sort_order ASC, name ASC
     `,
-    [guildId]
+    [guildId],
   );
 
-  return rows.map(r => r.name).filter(Boolean);
+  return rows.map((r) => r.name).filter(Boolean);
 }
 
 module.exports = { loadActiveTeams, loadActiveTeamsBySortOrder };

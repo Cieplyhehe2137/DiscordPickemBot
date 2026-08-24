@@ -1,22 +1,17 @@
-const {
-  EmbedBuilder,
-  PermissionFlagsBits,
-} = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { getActiveEventId } = require('../../utils/getOpenEventId');
-const { logError } = require('../../utils/logger');
+const { withGuild } = require("../../utils/guildContext");
+const { getActiveEventId } = require("../../utils/getOpenEventId");
+const { logError } = require("../../utils/logger");
 
 function isAdmin(interaction) {
-  return interaction.memberPermissions?.has(
-    PermissionFlagsBits.Administrator
-  );
+  return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
 }
 
 module.exports = async function eventAuditMatch(interaction) {
   if (!isAdmin(interaction)) {
     return interaction.reply({
-      content: '⛔ Tylko administracja.',
+      content: "⛔ Tylko administracja.",
       ephemeral: true,
     });
   }
@@ -31,7 +26,7 @@ module.exports = async function eventAuditMatch(interaction) {
 
       if (!eventId) {
         return interaction.editReply({
-          content: '❌ Nie znaleziono aktywnego eventu.',
+          content: "❌ Nie znaleziono aktywnego eventu.",
         });
       }
 
@@ -39,7 +34,7 @@ module.exports = async function eventAuditMatch(interaction) {
 
       if (!Number.isInteger(matchId) || matchId <= 0) {
         return interaction.editReply({
-          content: '❌ Niepoprawny identyfikator meczu.',
+          content: "❌ Niepoprawny identyfikator meczu.",
         });
       }
 
@@ -75,12 +70,12 @@ module.exports = async function eventAuditMatch(interaction) {
 
         LIMIT 1
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       if (!match) {
         return interaction.editReply({
-          content: '❌ Nie znaleziono tego meczu.',
+          content: "❌ Nie znaleziono tego meczu.",
         });
       }
 
@@ -102,7 +97,7 @@ module.exports = async function eventAuditMatch(interaction) {
           AND event_id = ?
           AND match_id = ?
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       /*
@@ -123,7 +118,7 @@ module.exports = async function eventAuditMatch(interaction) {
           AND event_id = ?
           AND match_id = ?
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       /*
@@ -147,7 +142,7 @@ module.exports = async function eventAuditMatch(interaction) {
 
         ORDER BY map_no ASC
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       /*
@@ -169,7 +164,7 @@ module.exports = async function eventAuditMatch(interaction) {
           AND event_id = ?
           AND match_id = ?
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       const [[seriesPointStats]] = await pool.query(
@@ -184,7 +179,7 @@ module.exports = async function eventAuditMatch(interaction) {
           AND match_id = ?
           AND source = 'series'
         `,
-        [guildId, eventId, matchId]
+        [guildId, eventId, matchId],
       );
 
       /*
@@ -219,7 +214,7 @@ module.exports = async function eventAuditMatch(interaction) {
             HAVING COUNT(mp.id) = 0
           ) x
           `,
-          [guildId, eventId, matchId]
+          [guildId, eventId, matchId],
         );
 
         usersWithoutMaps = Number(missing?.total || 0);
@@ -234,50 +229,40 @@ module.exports = async function eventAuditMatch(interaction) {
       const problems = [];
 
       if (![1, 3, 5].includes(Number(match.best_of))) {
-        problems.push(
-          `❌ Niepoprawne BO: **${match.best_of}**`
-        );
+        problems.push(`❌ Niepoprawne BO: **${match.best_of}**`);
       }
 
       if (!match.start_time_utc) {
-        problems.push(
-          '⚠️ Brak godziny rozpoczęcia'
-        );
+        problems.push("⚠️ Brak godziny rozpoczęcia");
       }
 
       if (usersWithoutMaps > 0) {
         problems.push(
-          `⚠️ **${usersWithoutMaps}** użytkowników ma typ serii bez typów map`
+          `⚠️ **${usersWithoutMaps}** użytkowników ma typ serii bez typów map`,
         );
       }
 
-      const hasResult =
-        match.res_a !== null &&
-        match.res_b !== null;
+      const hasResult = match.res_a !== null && match.res_b !== null;
 
       if (hasResult) {
-        const predictionUsers =
-          Number(predictionStats?.users || 0);
+        const predictionUsers = Number(predictionStats?.users || 0);
 
-        const seriesPointUsers =
-          Number(seriesPointStats?.users || 0);
+        const seriesPointUsers = Number(seriesPointStats?.users || 0);
 
         if (seriesPointUsers < predictionUsers) {
           problems.push(
             `❌ Brak punktów za serię dla **${
               predictionUsers - seriesPointUsers
-            }** użytkowników`
+            }** użytkowników`,
           );
         }
 
         if ([3, 5].includes(Number(match.best_of))) {
-          const expectedMaps =
-            Number(match.res_a) +
-            Number(match.res_b);
+          const expectedMaps = Number(match.res_a) + Number(match.res_b);
 
           if (mapResults.length !== expectedMaps) {
             problems.push(
-              `❌ Wyniki map: **${mapResults.length}/${expectedMaps}**`
+              `❌ Wyniki map: **${mapResults.length}/${expectedMaps}**`,
             );
           }
         }
@@ -289,25 +274,17 @@ module.exports = async function eventAuditMatch(interaction) {
        * ==============================================
        */
 
-      const hasError =
-        problems.some(line => line.startsWith('❌'));
+      const hasError = problems.some((line) => line.startsWith("❌"));
 
-      const hasWarning =
-        problems.some(line => line.startsWith('⚠️'));
+      const hasWarning = problems.some((line) => line.startsWith("⚠️"));
 
-      const color =
-        hasError
-          ? 0xed4245
-          : hasWarning
-            ? 0xfee75c
-            : 0x57f287;
+      const color = hasError ? 0xed4245 : hasWarning ? 0xfee75c : 0x57f287;
 
-      const status =
-        hasError
-          ? '❌ Wykryto problemy'
-          : hasWarning
-            ? '⚠️ Wymaga uwagi'
-            : '✅ Mecz wygląda poprawnie';
+      const status = hasError
+        ? "❌ Wykryto problemy"
+        : hasWarning
+          ? "⚠️ Wymaga uwagi"
+          : "✅ Mecz wygląda poprawnie";
 
       /*
        * ==============================================
@@ -317,18 +294,18 @@ module.exports = async function eventAuditMatch(interaction) {
 
       const resultText = hasResult
         ? `**${match.team_a} ${match.res_a}:${match.res_b} ${match.team_b}**`
-        : '⏳ Brak wyniku';
+        : "⏳ Brak wyniku";
 
-      let mapResultText = 'Brak wyników map';
+      let mapResultText = "Brak wyników map";
 
       if (mapResults.length) {
         mapResultText = mapResults
           .map(
-            map =>
+            (map) =>
               `Mapa ${map.map_no}: **${match.team_a} ` +
-              `${map.exact_a}:${map.exact_b} ${match.team_b}**`
+              `${map.exact_a}:${map.exact_b} ${match.team_b}**`,
           )
-          .join('\n');
+          .join("\n");
       }
 
       /*
@@ -337,98 +314,73 @@ module.exports = async function eventAuditMatch(interaction) {
        * ==============================================
        */
 
-      const matchNumber =
-        match.match_no ?? match.id;
+      const matchNumber = match.match_no ?? match.id;
 
       const embed = new EmbedBuilder()
         .setColor(color)
-        .setTitle(
-          `🎮 Diagnostyka meczu #${matchNumber}`
-        )
+        .setTitle(`🎮 Diagnostyka meczu #${matchNumber}`)
         .setDescription(
           `**${match.team_a} vs ${match.team_b}**\n` +
-          `BO${match.best_of}\n\n` +
-          `**${status}**`
+            `BO${match.best_of}\n\n` +
+            `**${status}**`,
         )
         .addFields(
           {
-            name: '⚙️ Stan',
+            name: "⚙️ Stan",
             value:
-              `Lock: **${
-                Number(match.is_locked)
-                  ? '🔒 TAK'
-                  : '🔓 NIE'
-              }**\n` +
+              `Lock: **${Number(match.is_locked) ? "🔒 TAK" : "🔓 NIE"}**\n` +
               `Godzina: **${
-                match.start_time_utc
-                  ? match.start_time_utc
-                  : 'BRAK'
+                match.start_time_utc ? match.start_time_utc : "BRAK"
               }**`,
             inline: true,
           },
 
           {
-            name: '🎯 Typowanie',
+            name: "🎯 Typowanie",
             value:
-              `Typy serii: **${Number(
-                predictionStats?.total || 0
-              )}**\n` +
-              `Użytkownicy: **${Number(
-                predictionStats?.users || 0
-              )}**\n` +
-              `Typy map: **${Number(
-                mapPredictionStats?.total || 0
-              )}**\n` +
-              `Userzy z mapami: **${Number(
-                mapPredictionStats?.users || 0
-              )}**`,
+              `Typy serii: **${Number(predictionStats?.total || 0)}**\n` +
+              `Użytkownicy: **${Number(predictionStats?.users || 0)}**\n` +
+              `Typy map: **${Number(mapPredictionStats?.total || 0)}**\n` +
+              `Userzy z mapami: **${Number(mapPredictionStats?.users || 0)}**`,
             inline: true,
           },
 
           {
-            name: '⭐ Punktacja',
+            name: "⭐ Punktacja",
             value:
-              `Wpisy: **${Number(
-                pointStats?.rows_count || 0
-              )}**\n` +
-              `Użytkownicy: **${Number(
-                pointStats?.users || 0
-              )}**\n` +
-              `Łącznie pkt: **${Number(
-                pointStats?.total_points || 0
-              )}**`,
+              `Wpisy: **${Number(pointStats?.rows_count || 0)}**\n` +
+              `Użytkownicy: **${Number(pointStats?.users || 0)}**\n` +
+              `Łącznie pkt: **${Number(pointStats?.total_points || 0)}**`,
             inline: true,
           },
 
           {
-            name: '🏆 Wynik serii',
+            name: "🏆 Wynik serii",
             value: resultText,
-          }
+          },
         );
 
       if ([3, 5].includes(Number(match.best_of))) {
         embed.addFields({
-          name: '🗺️ Wyniki map',
+          name: "🗺️ Wyniki map",
           value: mapResultText.slice(0, 1024),
         });
       }
 
       if (problems.length) {
         embed.addFields({
-          name: '⚠️ Diagnostyka',
-          value: problems.join('\n').slice(0, 1024),
+          name: "⚠️ Diagnostyka",
+          value: problems.join("\n").slice(0, 1024),
         });
       } else {
         embed.addFields({
-          name: '✅ Diagnostyka',
-          value:
-            'Nie wykryto problemów z tym meczem.',
+          name: "✅ Diagnostyka",
+          value: "Nie wykryto problemów z tym meczem.",
         });
       }
 
       embed.setFooter({
-        text:
-          `Match ID: ${match.id} • Event ID: ${eventId}`,
+        text: `Match ID: ${match.id} • Event ID: ${eventId}`,
       });
 
       return interaction.editReply({
@@ -437,7 +389,7 @@ module.exports = async function eventAuditMatch(interaction) {
       });
     });
   } catch (err) {
-    logError('audit', 'eventAuditMatch failed', {
+    logError("audit", "eventAuditMatch failed", {
       guildId: interaction.guildId,
       userId: interaction.user?.id || null,
       message: err.message,
@@ -445,8 +397,7 @@ module.exports = async function eventAuditMatch(interaction) {
     });
 
     return interaction.editReply({
-      content:
-        '❌ Nie udało się wykonać diagnostyki meczu.',
+      content: "❌ Nie udało się wykonać diagnostyki meczu.",
       embeds: [],
       components: [],
     });

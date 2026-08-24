@@ -3,20 +3,22 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
+  PermissionFlagsBits,
+} = require("discord.js");
 
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const teamsState = require('../../utils/teamsState');
-const { renameTeam } = require('../../utils/teamsStore');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const teamsState = require("../../utils/teamsState");
+const { renameTeam } = require("../../utils/teamsStore");
 
 module.exports = async function teamsRenameSubmit(interaction) {
   try {
     // 🔐 admin only
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
       return interaction.reply({
-        content: '⛔ Tylko administracja.',
-        ephemeral: true
+        content: "⛔ Tylko administracja.",
+        ephemeral: true,
       });
     }
 
@@ -25,8 +27,8 @@ module.exports = async function teamsRenameSubmit(interaction) {
 
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja musi być wykonana na serwerze (nie w DM).',
-        ephemeral: true
+        content: "❌ Ta akcja musi być wykonana na serwerze (nie w DM).",
+        ephemeral: true,
       });
     }
 
@@ -37,19 +39,20 @@ module.exports = async function teamsRenameSubmit(interaction) {
 
     if (!Number.isFinite(teamId) || teamId <= 0) {
       return interaction.reply({
-        content: '⚠️ Nie znaleziono drużyny do zmiany nazwy. Otwórz manager i spróbuj ponownie.',
-        ephemeral: true
+        content:
+          "⚠️ Nie znaleziono drużyny do zmiany nazwy. Otwórz manager i spróbuj ponownie.",
+        ephemeral: true,
       });
     }
 
-    const newName = interaction.fields.getTextInputValue('team_name')?.trim();
+    const newName = interaction.fields.getTextInputValue("team_name")?.trim();
     const newShort =
-      interaction.fields.getTextInputValue('team_short')?.trim() || null;
+      interaction.fields.getTextInputValue("team_short")?.trim() || null;
 
     if (!newName) {
       return interaction.reply({
-        content: '⚠️ Podaj nową nazwę drużyny.',
-        ephemeral: true
+        content: "⚠️ Podaj nową nazwę drużyny.",
+        ephemeral: true,
       });
     }
 
@@ -59,7 +62,7 @@ module.exports = async function teamsRenameSubmit(interaction) {
     // DB
     // ===============================
     await renameTeam(guildId, teamId, newName, {
-      shortName: newShort
+      shortName: newShort,
     });
 
     // 🧹 cleanup stanu
@@ -67,31 +70,30 @@ module.exports = async function teamsRenameSubmit(interaction) {
       page: st?.page || 0,
       selectedTeamIds: [],
       selectedTeamId: null,
-      renamingTeamId: null
+      renamingTeamId: null,
     });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('panel:open:teams')
-        .setLabel('👥 Otwórz manager drużyn')
-        .setStyle(ButtonStyle.Secondary)
+        .setCustomId("panel:open:teams")
+        .setLabel("👥 Otwórz manager drużyn")
+        .setStyle(ButtonStyle.Secondary),
     );
 
     return interaction.editReply({
       content: `✅ Zmieniono nazwę drużyny na **${newName}**`,
-      components: [row]
+      components: [row],
     });
-
   } catch (err) {
-    logError('teams', 'teamsRenameSubmit failed', {
+    logError("teams", "teamsRenameSubmit failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     const msg =
-      err?.code === 'ER_DUP_ENTRY'
-        ? '⚠️ Taka nazwa już istnieje na tym serwerze.'
-        : '❌ Nie udało się zmienić nazwy drużyny.';
+      err?.code === "ER_DUP_ENTRY"
+        ? "⚠️ Taka nazwa już istnieje na tym serwerze."
+        : "❌ Nie udało się zmienić nazwy drużyny.";
 
     if (interaction.deferred || interaction.replied) {
       return interaction.editReply({ content: msg, components: [] });
@@ -99,7 +101,7 @@ module.exports = async function teamsRenameSubmit(interaction) {
 
     return interaction.reply({
       content: msg,
-      ephemeral: true
+      ephemeral: true,
     });
   }
 };

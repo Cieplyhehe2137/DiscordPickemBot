@@ -2,113 +2,76 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
-
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
 
 // ======================================================
 // HELPERY
 // ======================================================
 
 function pct(value, total) {
-  if (!total) return '—';
+  if (!total) return "—";
 
-  return `${(
-    (Number(value) / Number(total)) *
-    100
-  )
+  return `${((Number(value) / Number(total)) * 100)
     .toFixed(1)
-    .replace('.0', '')}%`;
+    .replace(".0", "")}%`;
 }
-
 
 function percentageNumber(value, total) {
   if (!total) return 0;
 
-  return (
-    Number(value) /
-    Number(total)
-  ) * 100;
+  return (Number(value) / Number(total)) * 100;
 }
-
 
 function formatDifference(value) {
   const number = Number(value || 0);
 
   if (Math.abs(number) < 0.05) {
-    return '**0 pp**';
+    return "**0 pp**";
   }
 
-  const sign = number > 0
-    ? '+'
-    : '';
+  const sign = number > 0 ? "+" : "";
 
-  const emoji = number > 0
-    ? '🟢'
-    : '🔴';
+  const emoji = number > 0 ? "🟢" : "🔴";
 
-  return (
-    `${emoji} **${sign}${number
-      .toFixed(1)
-      .replace('.0', '')} pp**`
-  );
+  return `${emoji} **${sign}${number.toFixed(1).replace(".0", "")} pp**`;
 }
-
 
 function formatPointsDifference(value) {
   const number = Number(value || 0);
 
   if (Math.abs(number) < 0.005) {
-    return '**0.00 pkt**';
+    return "**0.00 pkt**";
   }
 
-  const sign = number > 0
-    ? '+'
-    : '';
+  const sign = number > 0 ? "+" : "";
 
-  const emoji = number > 0
-    ? '🟢'
-    : '🔴';
+  const emoji = number > 0 ? "🟢" : "🔴";
 
-  return (
-    `${emoji} **${sign}${number.toFixed(2)} pkt**`
-  );
+  return `${emoji} **${sign}${number.toFixed(2)} pkt**`;
 }
-
 
 function winnerSide(a, b) {
   const left = Number(a);
   const right = Number(b);
 
-  if (
-    !Number.isFinite(left) ||
-    !Number.isFinite(right) ||
-    left === right
-  ) {
+  if (!Number.isFinite(left) || !Number.isFinite(right) || left === right) {
     return 0;
   }
 
   return left > right ? 1 : -1;
 }
 
-
 function isWinnerCorrect(row) {
-  const predicted = winnerSide(
-    row.pred_a,
-    row.pred_b
-  );
+  const predicted = winnerSide(row.pred_a, row.pred_b);
 
-  const official = winnerSide(
-    row.res_a,
-    row.res_b
-  );
+  const official = winnerSide(row.res_a, row.res_b);
 
   return predicted !== 0 && predicted === official;
 }
-
 
 function isSeriesExact(row) {
   // BO1 ma osobne exact score
@@ -134,21 +97,13 @@ function isSeriesExact(row) {
   );
 }
 
-
 function isMapWinnerCorrect(row) {
-  const predicted = winnerSide(
-    row.pred_exact_a,
-    row.pred_exact_b
-  );
+  const predicted = winnerSide(row.pred_exact_a, row.pred_exact_b);
 
-  const official = winnerSide(
-    row.exact_a,
-    row.exact_b
-  );
+  const official = winnerSide(row.exact_a, row.exact_b);
 
   return predicted !== 0 && predicted === official;
 }
-
 
 function isMapExact(row) {
   return (
@@ -160,7 +115,6 @@ function isMapExact(row) {
     Number(row.pred_exact_b) === Number(row.exact_b)
   );
 }
-
 
 function calculateStreaks(rows) {
   let current = 0;
@@ -177,34 +131,28 @@ function calculateStreaks(rows) {
 
   return {
     current,
-    best
+    best,
   };
 }
-
 
 function calculateRecentForm(rows, amount) {
   const recent = rows.slice(-amount);
 
-  const hits = recent.filter(
-    isWinnerCorrect
-  ).length;
+  const hits = recent.filter(isWinnerCorrect).length;
 
   return {
     total: recent.length,
     hits,
-    percentage: pct(hits, recent.length)
+    percentage: pct(hits, recent.length),
   };
 }
 
-
 function formatBestMatch(row) {
   if (!row) {
-    return '—';
+    return "—";
   }
 
-  const label = row.match_no
-    ? `#${row.match_no} • `
-    : '';
+  const label = row.match_no ? `#${row.match_no} • ` : "";
 
   return (
     `${label}${row.team_a} vs ${row.team_b}\n` +
@@ -212,24 +160,17 @@ function formatBestMatch(row) {
   );
 }
 
-
 function getBoStats(rows, bestOf) {
-  const filtered = rows.filter(
-    row => Number(row.best_of) === Number(bestOf)
-  );
+  const filtered = rows.filter((row) => Number(row.best_of) === Number(bestOf));
 
-  const winnerHits = filtered.filter(
-    isWinnerCorrect
-  ).length;
+  const winnerHits = filtered.filter(isWinnerCorrect).length;
 
-  const exactHits = filtered.filter(
-    isSeriesExact
-  ).length;
+  const exactHits = filtered.filter(isSeriesExact).length;
 
   return {
     total: filtered.length,
     winnerHits,
-    exactHits
+    exactHits,
   };
 }
 
@@ -249,15 +190,11 @@ function getMapMarginError(row) {
     return null;
   }
 
-  const predictedMargin =
-    predA - predB;
+  const predictedMargin = predA - predB;
 
-  const realMargin =
-    realA - realB;
+  const realMargin = realA - realB;
 
-  return Math.abs(
-    predictedMargin - realMargin
-  );
+  return Math.abs(predictedMargin - realMargin);
 }
 
 function calculateMapAccuracy(rows) {
@@ -267,12 +204,11 @@ function calculateMapAccuracy(rows) {
     error2: 0,
     error3plus: 0,
     total: 0,
-    errorSum: 0
+    errorSum: 0,
   };
 
   for (const row of rows) {
-    const error =
-      getMapMarginError(row);
+    const error = getMapMarginError(row);
 
     if (error == null) {
       continue;
@@ -283,26 +219,16 @@ function calculateMapAccuracy(rows) {
 
     if (error === 0) {
       result.exact += 1;
-    }
-
-    else if (error === 1) {
+    } else if (error === 1) {
       result.error1 += 1;
-    }
-
-    else if (error === 2) {
+    } else if (error === 2) {
       result.error2 += 1;
-    }
-
-    else {
+    } else {
       result.error3plus += 1;
     }
   }
 
-  result.averageError =
-    result.total
-      ? result.errorSum /
-      result.total
-      : 0;
+  result.averageError = result.total ? result.errorSum / result.total : 0;
 
   return result;
 }
@@ -316,7 +242,7 @@ function calculateTeamStats(rows) {
         name,
         matches: 0,
         picked: 0,
-        correct: 0
+        correct: 0,
       });
     }
 
@@ -324,26 +250,16 @@ function calculateTeamStats(rows) {
   }
 
   for (const row of rows) {
-    const teamA =
-      ensureTeam(row.team_a);
+    const teamA = ensureTeam(row.team_a);
 
-    const teamB =
-      ensureTeam(row.team_b);
+    const teamB = ensureTeam(row.team_b);
 
     teamA.matches += 1;
     teamB.matches += 1;
 
-    const predictedSide =
-      winnerSide(
-        row.pred_a,
-        row.pred_b
-      );
+    const predictedSide = winnerSide(row.pred_a, row.pred_b);
 
-    const officialSide =
-      winnerSide(
-        row.res_a,
-        row.res_b
-      );
+    const officialSide = winnerSide(row.res_a, row.res_b);
 
     if (predictedSide === 1) {
       teamA.picked += 1;
@@ -351,9 +267,7 @@ function calculateTeamStats(rows) {
       if (officialSide === 1) {
         teamA.correct += 1;
       }
-    }
-
-    else if (predictedSide === -1) {
+    } else if (predictedSide === -1) {
       teamB.picked += 1;
 
       if (officialSide === -1) {
@@ -362,78 +276,40 @@ function calculateTeamStats(rows) {
     }
   }
 
-  const list =
-    [...teams.values()]
-      .filter(team =>
-        team.picked > 0
-      )
-      .map(team => ({
-        ...team,
+  const list = [...teams.values()]
+    .filter((team) => team.picked > 0)
+    .map((team) => ({
+      ...team,
 
-        accuracy:
-          team.picked
-            ? (
-              team.correct /
-              team.picked
-            ) * 100
-            : 0
-      }));
+      accuracy: team.picked ? (team.correct / team.picked) * 100 : 0,
+    }));
 
-  const mostPicked =
-    [...list]
-      .sort((a, b) =>
-        b.picked - a.picked
-      )[0] || null;
+  const mostPicked = [...list].sort((a, b) => b.picked - a.picked)[0] || null;
 
-  const qualified =
-    list.filter(team =>
-      team.picked >= 3
-    );
+  const qualified = list.filter((team) => team.picked >= 3);
 
   const best =
-    [...qualified]
-      .sort((a, b) => {
+    [...qualified].sort((a, b) => {
+      if (b.accuracy !== a.accuracy) {
+        return b.accuracy - a.accuracy;
+      }
 
-        if (
-          b.accuracy !==
-          a.accuracy
-        ) {
-          return (
-            b.accuracy -
-            a.accuracy
-          );
-        }
-
-        return (
-          b.picked -
-          a.picked
-        );
-      })[0] || null;
+      return b.picked - a.picked;
+    })[0] || null;
 
   const nemesis =
-    [...qualified]
-      .sort((a, b) => {
+    [...qualified].sort((a, b) => {
+      if (a.accuracy !== b.accuracy) {
+        return a.accuracy - b.accuracy;
+      }
 
-        if (
-          a.accuracy !==
-          b.accuracy
-        ) {
-          return (
-            a.accuracy -
-            b.accuracy
-          );
-        }
-
-        return (
-          b.picked -
-          a.picked
-        );
-      })[0] || null;
+      return b.picked - a.picked;
+    })[0] || null;
 
   return {
     best,
     nemesis,
-    mostPicked
+    mostPicked,
   };
 }
 
@@ -450,73 +326,32 @@ function calculatePlayerStyle({
   contrarianHits,
 
   majorityPicks,
-  majorityHits
+  majorityHits,
 }) {
   if (settledMatches < 5) {
     return {
-      emoji: '🌱',
-      name: 'Debiutant',
+      emoji: "🌱",
+      name: "Debiutant",
       description:
-        'Potrzeba minimum 5 rozliczonych meczów, żeby określić Twój styl typowania.'
+        "Potrzeba minimum 5 rozliczonych meczów, żeby określić Twój styl typowania.",
     };
   }
 
+  const winnerAccuracy = percentageNumber(winnerHits, settledMatches);
 
-  const winnerAccuracy =
-    percentageNumber(
-      winnerHits,
-      settledMatches
-    );
+  const exactAccuracy = percentageNumber(seriesExacts, settledMatches);
 
+  const mapAccuracy = percentageNumber(mapWinnerHits, settledMaps);
 
-  const exactAccuracy =
-    percentageNumber(
-      seriesExacts,
-      settledMatches
-    );
+  const mapExactAccuracy = percentageNumber(exactMaps, settledMaps);
 
+  const contrarianRate = percentageNumber(contrarianPicks, settledMatches);
 
-  const mapAccuracy =
-    percentageNumber(
-      mapWinnerHits,
-      settledMaps
-    );
+  const contrarianAccuracy = percentageNumber(contrarianHits, contrarianPicks);
 
+  const majorityRate = percentageNumber(majorityPicks, settledMatches);
 
-  const mapExactAccuracy =
-    percentageNumber(
-      exactMaps,
-      settledMaps
-    );
-
-
-  const contrarianRate =
-    percentageNumber(
-      contrarianPicks,
-      settledMatches
-    );
-
-
-  const contrarianAccuracy =
-    percentageNumber(
-      contrarianHits,
-      contrarianPicks
-    );
-
-
-  const majorityRate =
-    percentageNumber(
-      majorityPicks,
-      settledMatches
-    );
-
-
-  const majorityAccuracy =
-    percentageNumber(
-      majorityHits,
-      majorityPicks
-    );
-
+  const majorityAccuracy = percentageNumber(majorityHits, majorityPicks);
 
   // =========================================
   // UNDERDOG HUNTER
@@ -528,64 +363,49 @@ function calculatePlayerStyle({
     contrarianAccuracy >= 50
   ) {
     return {
-      emoji: '💎',
-      name: 'Underdog Hunter',
+      emoji: "💎",
+      name: "Underdog Hunter",
       description:
-        'Często idziesz przeciwko większości i potrafisz trafiać takie wybory.'
+        "Często idziesz przeciwko większości i potrafisz trafiać takie wybory.",
     };
   }
-
 
   // =========================================
   // MAP EXPERT
   // =========================================
 
-  if (
-    settledMaps >= 5 &&
-    mapAccuracy >= 75
-  ) {
+  if (settledMaps >= 5 && mapAccuracy >= 75) {
     return {
-      emoji: '🗺️',
-      name: 'Map Expert',
-      description:
-        'Największą przewagę budujesz na typowaniu wyników map.'
+      emoji: "🗺️",
+      name: "Map Expert",
+      description: "Największą przewagę budujesz na typowaniu wyników map.",
     };
   }
-
 
   // =========================================
   // SNIPER
   // =========================================
 
-  if (
-    settledMatches >= 5 &&
-    exactAccuracy >= 30
-  ) {
+  if (settledMatches >= 5 && exactAccuracy >= 30) {
     return {
-      emoji: '🎯',
-      name: 'Snajper',
-      description:
-        'Masz wyjątkowo dobre oko do dokładnych wyników serii.'
+      emoji: "🎯",
+      name: "Snajper",
+      description: "Masz wyjątkowo dobre oko do dokładnych wyników serii.",
     };
   }
-
 
   // =========================================
   // SAFE PLAYER
   // =========================================
 
-  if (
-    majorityRate >= 70 &&
-    majorityAccuracy >= 60
-  ) {
+  if (majorityRate >= 70 && majorityAccuracy >= 60) {
     return {
-      emoji: '🛡️',
-      name: 'Bezpieczny gracz',
+      emoji: "🛡️",
+      name: "Bezpieczny gracz",
       description:
-        'Najczęściej wybierasz stronę popieraną przez większość społeczności.'
+        "Najczęściej wybierasz stronę popieraną przez większość społeczności.",
     };
   }
-
 
   // =========================================
   // CONSISTENT
@@ -593,30 +413,24 @@ function calculatePlayerStyle({
 
   if (winnerAccuracy >= 70) {
     return {
-      emoji: '📈',
-      name: 'Regularny',
+      emoji: "📈",
+      name: "Regularny",
       description:
-        'Nie kombinujesz bez potrzeby — po prostu regularnie trafiasz zwycięzców.'
+        "Nie kombinujesz bez potrzeby — po prostu regularnie trafiasz zwycięzców.",
     };
   }
-
 
   // =========================================
   // MAP SNIPER
   // =========================================
 
-  if (
-    settledMaps >= 5 &&
-    mapExactAccuracy >= 25
-  ) {
+  if (settledMaps >= 5 && mapExactAccuracy >= 25) {
     return {
-      emoji: '💯',
-      name: 'Map Sniper',
-      description:
-        'Masz dobre wyczucie dokładnych wyników poszczególnych map.'
+      emoji: "💯",
+      name: "Map Sniper",
+      description: "Masz dobre wyczucie dokładnych wyników poszczególnych map.",
     };
   }
-
 
   // =========================================
   // RISK TAKER
@@ -624,26 +438,24 @@ function calculatePlayerStyle({
 
   if (contrarianRate >= 30) {
     return {
-      emoji: '🎲',
-      name: 'Ryzykant',
+      emoji: "🎲",
+      name: "Ryzykant",
       description:
-        'Lubisz iść własną drogą, nawet gdy większość typuje przeciwnie.'
+        "Lubisz iść własną drogą, nawet gdy większość typuje przeciwnie.",
     };
   }
-
 
   // =========================================
   // BALANCED
   // =========================================
 
   return {
-    emoji: '⚖️',
-    name: 'Zbalansowany',
+    emoji: "⚖️",
+    name: "Zbalansowany",
     description:
-      'Łączysz bezpieczne wybory z własnym wyczuciem i nie trzymasz się jednego schematu.'
+      "Łączysz bezpieczne wybory z własnym wyczuciem i nie trzymasz się jednego schematu.",
   };
 }
-
 
 // ======================================================
 // BUTTONY ZAKŁADEK
@@ -653,80 +465,67 @@ function buildStatsButtons(eventId, activeTab) {
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:general`)
-      .setLabel('Ogólne')
-      .setEmoji('📊')
+      .setLabel("Ogólne")
+      .setEmoji("📊")
       .setStyle(
-        activeTab === 'general'
-          ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+        activeTab === "general" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'general'),
+      .setDisabled(activeTab === "general"),
 
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:accuracy`)
-      .setLabel('Skuteczność')
-      .setEmoji('🎯')
+      .setLabel("Skuteczność")
+      .setEmoji("🎯")
       .setStyle(
-        activeTab === 'accuracy'
-          ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+        activeTab === "accuracy" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'accuracy'),
+      .setDisabled(activeTab === "accuracy"),
 
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:form`)
-      .setLabel('Forma')
-      .setEmoji('🔥')
+      .setLabel("Forma")
+      .setEmoji("🔥")
       .setStyle(
-        activeTab === 'form'
-          ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+        activeTab === "form" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'form'),
+      .setDisabled(activeTab === "form"),
 
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:comparison`)
-      .setLabel('Porównanie')
-      .setEmoji('👥')
+      .setLabel("Porównanie")
+      .setEmoji("👥")
       .setStyle(
-        activeTab === 'comparison'
+        activeTab === "comparison"
           ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+          : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'comparison'),
+      .setDisabled(activeTab === "comparison"),
 
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:analysis`)
-      .setLabel('Analiza')
-      .setEmoji('🧠')
+      .setLabel("Analiza")
+      .setEmoji("🧠")
       .setStyle(
-        activeTab === 'analysis'
-          ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+        activeTab === "analysis" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'analysis')
+      .setDisabled(activeTab === "analysis"),
   );
 
   const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:style`)
-      .setLabel('Styl gracza')
-      .setEmoji('🎭')
+      .setLabel("Styl gracza")
+      .setEmoji("🎭")
       .setStyle(
-        activeTab === 'style'
-          ? ButtonStyle.Primary
-          : ButtonStyle.Secondary
+        activeTab === "style" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
-      .setDisabled(activeTab === 'style')
+      .setDisabled(activeTab === "style"),
   );
 
   return [row1, row2];
 }
 
-function calculateContrarianStats(
-  userRows,
-  communityRows
-) {
+function calculateContrarianStats(userRows, communityRows) {
   const communityByMatch = new Map();
 
   // =========================================
@@ -740,29 +539,22 @@ function calculateContrarianStats(
       communityByMatch.set(matchId, {
         teamA: 0,
         teamB: 0,
-        total: 0
+        total: 0,
       });
     }
 
-    const stats =
-      communityByMatch.get(matchId);
+    const stats = communityByMatch.get(matchId);
 
-    const side = winnerSide(
-      row.pred_a,
-      row.pred_b
-    );
+    const side = winnerSide(row.pred_a, row.pred_b);
 
     if (side === 1) {
       stats.teamA += 1;
       stats.total += 1;
-    }
-
-    else if (side === -1) {
+    } else if (side === -1) {
       stats.teamB += 1;
       stats.total += 1;
     }
   }
-
 
   let contrarianPicks = 0;
   let contrarianHits = 0;
@@ -772,45 +564,28 @@ function calculateContrarianStats(
 
   let rarestHit = null;
 
-
   // =========================================
   // ANALIZA USERA
   // =========================================
 
   for (const row of userRows) {
-    const stats =
-      communityByMatch.get(
-        String(row.match_id)
-      );
+    const stats = communityByMatch.get(String(row.match_id));
 
     if (!stats || !stats.total) {
       continue;
     }
 
-    const predictedSide =
-      winnerSide(
-        row.pred_a,
-        row.pred_b
-      );
+    const predictedSide = winnerSide(row.pred_a, row.pred_b);
 
     if (!predictedSide) {
       continue;
     }
 
-    const pickedCount =
-      predictedSide === 1
-        ? stats.teamA
-        : stats.teamB;
+    const pickedCount = predictedSide === 1 ? stats.teamA : stats.teamB;
 
-    const pickedPercent =
-      (
-        pickedCount /
-        stats.total
-      ) * 100;
+    const pickedPercent = (pickedCount / stats.total) * 100;
 
-    const correct =
-      isWinnerCorrect(row);
-
+    const correct = isWinnerCorrect(row);
 
     // =====================================
     // PICK MNIEJSZOŚCIOWY
@@ -822,37 +597,23 @@ function calculateContrarianStats(
       if (correct) {
         contrarianHits += 1;
 
-        if (
-          !rarestHit ||
-          pickedPercent <
-          rarestHit.percent
-        ) {
+        if (!rarestHit || pickedPercent < rarestHit.percent) {
           rarestHit = {
-            team:
-              predictedSide === 1
-                ? row.team_a
-                : row.team_b,
+            team: predictedSide === 1 ? row.team_a : row.team_b,
 
-            opponent:
-              predictedSide === 1
-                ? row.team_b
-                : row.team_a,
+            opponent: predictedSide === 1 ? row.team_b : row.team_a,
 
-            percent:
-              pickedPercent,
+            percent: pickedPercent,
 
-            matchNo:
-              row.match_no
+            matchNo: row.match_no,
           };
         }
       }
     }
 
-
     // =====================================
     // PICK WIĘKSZOŚCIOWY
     // =====================================
-
     else if (pickedPercent > 50) {
       majorityPicks += 1;
 
@@ -862,7 +623,6 @@ function calculateContrarianStats(
     }
   }
 
-
   return {
     contrarianPicks,
     contrarianHits,
@@ -870,10 +630,9 @@ function calculateContrarianStats(
     majorityPicks,
     majorityHits,
 
-    rarestHit
+    rarestHit,
   };
 }
-
 
 // ======================================================
 // EMBED: OGÓLNE
@@ -891,78 +650,64 @@ function buildGeneralEmbed({
   totalPoints,
   seriesPoints,
   mapPoints,
-  averagePoints
+  averagePoints,
 }) {
   return new EmbedBuilder()
-    .setTitle(
-      `📊 Twoje statystyki — ${event.name}`
-    )
-    .setColor(0x5865F2)
-    .setDescription(
-      'Ogólne podsumowanie Twoich typów meczowych.'
-    )
+    .setTitle(`📊 Twoje statystyki — ${event.name}`)
+    .setColor(0x5865f2)
+    .setDescription("Ogólne podsumowanie Twoich typów meczowych.")
     .addFields(
-
       {
-        name: '🎮 Mecze',
+        name: "🎮 Mecze",
         value:
           `Oddane typy: **${totalPredictions}**\n` +
           `Rozliczone: **${settledMatches}**`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '🏆 Zwycięzcy',
+        name: "🏆 Zwycięzcy",
         value:
           `Trafione: **${winnerHits}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(
-            winnerHits,
-            settledMatches
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(winnerHits, settledMatches)}**`,
+        inline: true,
       },
 
       {
-        name: '🎯 Exact serii',
+        name: "🎯 Exact serii",
         value:
           `Trafione: **${seriesExacts}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(
-            seriesExacts,
-            settledMatches
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(seriesExacts, settledMatches)}**`,
+        inline: true,
       },
 
       {
-        name: '🗺️ Mapy',
+        name: "🗺️ Mapy",
         value:
           `Zwycięzca: **${mapWinnerHits}/${settledMaps}**\n` +
           `Exact: **${exactMaps}/${settledMaps}**`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '⭐ Punkty',
+        name: "⭐ Punkty",
         value:
           `Łącznie: **${totalPoints} pkt**\n` +
           `└ Serie: **${seriesPoints} pkt**\n` +
           `└ Mapy: **${mapPoints} pkt**`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '📈 Średnia',
-        value:
-          `**${averagePoints} pkt / mecz**`,
-        inline: true
-      }
+        name: "📈 Średnia",
+        value: `**${averagePoints} pkt / mecz**`,
+        inline: true,
+      },
     )
     .setFooter({
-      text:
-        'Statystyki są widoczne tylko dla Ciebie.'
+      text: "Statystyki są widoczne tylko dla Ciebie.",
     });
 }
-
 
 // ======================================================
 // EMBED: SKUTECZNOŚĆ
@@ -978,7 +723,7 @@ function buildAccuracyEmbed({
   exactMaps,
   bo1,
   bo3,
-  bo5
+  bo5,
 }) {
   const formatBo = (label, stats) => {
     if (!stats.total) {
@@ -987,10 +732,7 @@ function buildAccuracyEmbed({
 
     return (
       `${label}: **${stats.winnerHits}/${stats.total}** ` +
-      `(${pct(
-        stats.winnerHits,
-        stats.total
-      )})`
+      `(${pct(stats.winnerHits, stats.total)})`
     );
   };
 
@@ -1001,93 +743,71 @@ function buildAccuracyEmbed({
 
     return (
       `${label}: **${stats.exactHits}/${stats.total}** ` +
-      `(${pct(
-        stats.exactHits,
-        stats.total
-      )})`
+      `(${pct(stats.exactHits, stats.total)})`
     );
   };
 
   return new EmbedBuilder()
-    .setTitle(
-      `🎯 Skuteczność — ${event.name}`
-    )
-    .setColor(0x57F287)
-    .setDescription(
-      'Dokładna analiza skuteczności Twoich typów.'
-    )
+    .setTitle(`🎯 Skuteczność — ${event.name}`)
+    .setColor(0x57f287)
+    .setDescription("Dokładna analiza skuteczności Twoich typów.")
     .addFields(
-
       {
-        name: '🏆 Zwycięzca meczu',
+        name: "🏆 Zwycięzca meczu",
         value:
           `Trafione: **${winnerHits}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(
-            winnerHits,
-            settledMatches
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(winnerHits, settledMatches)}**`,
+        inline: true,
       },
 
       {
-        name: '🎯 Dokładny wynik serii',
+        name: "🎯 Dokładny wynik serii",
         value:
           `Trafione: **${seriesExacts}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(
-            seriesExacts,
-            settledMatches
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(seriesExacts, settledMatches)}**`,
+        inline: true,
       },
 
       {
-        name: '🗺️ Zwycięzca mapy',
+        name: "🗺️ Zwycięzca mapy",
         value:
           `Trafione: **${mapWinnerHits}/${settledMaps}**\n` +
-          `Skuteczność: **${pct(
-            mapWinnerHits,
-            settledMaps
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(mapWinnerHits, settledMaps)}**`,
+        inline: true,
       },
 
       {
-        name: '💯 Exact mapy',
+        name: "💯 Exact mapy",
         value:
           `Trafione: **${exactMaps}/${settledMaps}**\n` +
-          `Skuteczność: **${pct(
-            exactMaps,
-            settledMaps
-          )}**`,
-        inline: true
+          `Skuteczność: **${pct(exactMaps, settledMaps)}**`,
+        inline: true,
       },
 
       {
-        name: '🎮 Zwycięzcy według formatu',
+        name: "🎮 Zwycięzcy według formatu",
         value: [
-          formatBo('BO1', bo1),
-          formatBo('BO3', bo3),
-          formatBo('BO5', bo5)
-        ].join('\n'),
-        inline: false
+          formatBo("BO1", bo1),
+          formatBo("BO3", bo3),
+          formatBo("BO5", bo5),
+        ].join("\n"),
+        inline: false,
       },
 
       {
-        name: '🎯 Exact według formatu',
+        name: "🎯 Exact według formatu",
         value: [
-          formatBoExact('BO1', bo1),
-          formatBoExact('BO3', bo3),
-          formatBoExact('BO5', bo5)
-        ].join('\n'),
-        inline: false
-      }
+          formatBoExact("BO1", bo1),
+          formatBoExact("BO3", bo3),
+          formatBoExact("BO5", bo5),
+        ].join("\n"),
+        inline: false,
+      },
     )
     .setFooter({
-      text:
-        'Exact BO1 oznacza dokładny wynik mapy.'
+      text: "Exact BO1 oznacza dokładny wynik mapy.",
     });
 }
-
 
 // ======================================================
 // EMBED: FORMA
@@ -1098,102 +818,73 @@ function buildFormEmbed({
   settledRows,
   currentStreak,
   bestStreak,
-  bestMatch
+  bestMatch,
 }) {
-  const last5 = calculateRecentForm(
-    settledRows,
-    5
-  );
+  const last5 = calculateRecentForm(settledRows, 5);
 
-  const last10 = calculateRecentForm(
-    settledRows,
-    10
-  );
+  const last10 = calculateRecentForm(settledRows, 10);
 
   const form = settledRows
     .slice(-10)
-    .map(row =>
-      isWinnerCorrect(row)
-        ? '✅'
-        : '❌'
-    )
-    .join(' ');
+    .map((row) => (isWinnerCorrect(row) ? "✅" : "❌"))
+    .join(" ");
 
   return new EmbedBuilder()
-    .setTitle(
-      `🔥 Twoja forma — ${event.name}`
-    )
-    .setColor(0xFEE75C)
+    .setTitle(`🔥 Twoja forma — ${event.name}`)
+    .setColor(0xfee75c)
     .setDescription(
-      'Forma liczona jest na podstawie poprawnie wytypowanych zwycięzców meczów.'
+      "Forma liczona jest na podstawie poprawnie wytypowanych zwycięzców meczów.",
     )
     .addFields(
-
       {
-        name: '📈 Ostatnie mecze',
-        value:
-          form ||
-          'Brak rozliczonych typów.',
-        inline: false
+        name: "📈 Ostatnie mecze",
+        value: form || "Brak rozliczonych typów.",
+        inline: false,
       },
 
       {
-        name: '⚡ Ostatnie 5',
-        value:
-          last5.total
-            ? `**${last5.hits}/${last5.total}**\n` +
+        name: "⚡ Ostatnie 5",
+        value: last5.total
+          ? `**${last5.hits}/${last5.total}**\n` +
             `Skuteczność: **${last5.percentage}**`
-            : 'Brak danych.',
-        inline: true
+          : "Brak danych.",
+        inline: true,
       },
 
       {
-        name: '📊 Ostatnie 10',
-        value:
-          last10.total
-            ? `**${last10.hits}/${last10.total}**\n` +
+        name: "📊 Ostatnie 10",
+        value: last10.total
+          ? `**${last10.hits}/${last10.total}**\n` +
             `Skuteczność: **${last10.percentage}**`
-            : 'Brak danych.',
-        inline: true
+          : "Brak danych.",
+        inline: true,
       },
 
       {
-        name: '🔥 Aktualna seria',
+        name: "🔥 Aktualna seria",
         value:
           `**${currentStreak}** ` +
-          (
-            currentStreak === 1
-              ? 'trafienie'
-              : 'trafień'
-          ),
-        inline: true
+          (currentStreak === 1 ? "trafienie" : "trafień"),
+        inline: true,
       },
 
       {
-        name: '🏅 Rekordowa seria',
+        name: "🏅 Rekordowa seria",
         value:
-          `**${bestStreak}** ` +
-          (
-            bestStreak === 1
-              ? 'trafienie'
-              : 'trafień'
-          ),
-        inline: true
+          `**${bestStreak}** ` + (bestStreak === 1 ? "trafienie" : "trafień"),
+        inline: true,
       },
 
       {
-        name: '💎 Najlepszy mecz',
-        value:
-          formatBestMatch(bestMatch),
-        inline: false
-      }
+        name: "💎 Najlepszy mecz",
+        value: formatBestMatch(bestMatch),
+        inline: false,
+      },
     )
     .setFooter({
-      text:
-        '✅ poprawny zwycięzca • ❌ błędny zwycięzca'
+      text: "✅ poprawny zwycięzca • ❌ błędny zwycięzca",
     });
 }
-
 
 // ======================================================
 // EMBED: PORÓWNANIE
@@ -1219,311 +910,210 @@ function buildComparisonEmbed({
   communityAveragePoints,
 
   totalPoints,
-  communityAverageTotalPoints
+  communityAverageTotalPoints,
 }) {
-  const userWinnerAccuracy =
-    percentageNumber(
-      winnerHits,
-      settledMatches
-    );
+  const userWinnerAccuracy = percentageNumber(winnerHits, settledMatches);
 
-  const communityWinnerAccuracy =
-    percentageNumber(
-      communityWinnerHits,
-      communitySettledMatches
-    );
+  const communityWinnerAccuracy = percentageNumber(
+    communityWinnerHits,
+    communitySettledMatches,
+  );
 
-  const userExactAccuracy =
-    percentageNumber(
-      seriesExacts,
-      settledMatches
-    );
+  const userExactAccuracy = percentageNumber(seriesExacts, settledMatches);
 
-  const communityExactAccuracy =
-    percentageNumber(
-      communitySeriesExacts,
-      communitySettledMatches
-    );
+  const communityExactAccuracy = percentageNumber(
+    communitySeriesExacts,
+    communitySettledMatches,
+  );
 
-  const winnerDifference =
-    userWinnerAccuracy -
-    communityWinnerAccuracy;
+  const winnerDifference = userWinnerAccuracy - communityWinnerAccuracy;
 
-  const exactDifference =
-    userExactAccuracy -
-    communityExactAccuracy;
+  const exactDifference = userExactAccuracy - communityExactAccuracy;
 
   const pointsDifference =
-    Number(averagePoints) -
-    Number(communityAveragePoints);
+    Number(averagePoints) - Number(communityAveragePoints);
 
   const totalPointsDifference =
-    Number(totalPoints) -
-    Number(communityAverageTotalPoints);
+    Number(totalPoints) - Number(communityAverageTotalPoints);
 
-  let rankEmoji = '🏅';
+  let rankEmoji = "🏅";
 
   if (rank === 1) {
-    rankEmoji = '🥇';
+    rankEmoji = "🥇";
   } else if (rank === 2) {
-    rankEmoji = '🥈';
+    rankEmoji = "🥈";
   } else if (rank === 3) {
-    rankEmoji = '🥉';
+    rankEmoji = "🥉";
   }
 
   return new EmbedBuilder()
-    .setTitle(
-      `👥 Na tle graczy — ${event.name}`
-    )
-    .setColor(0xEB459E)
+    .setTitle(`👥 Na tle graczy — ${event.name}`)
+    .setColor(0xeb459e)
     .setDescription(
-      'Zobacz, jak Twoje typowanie wypada na tle pozostałych uczestników eventu.'
+      "Zobacz, jak Twoje typowanie wypada na tle pozostałych uczestników eventu.",
     )
     .addFields(
-
       {
         name: `${rankEmoji} Ranking`,
         value:
           `Pozycja: **#${rank} / ${participantCount}**\n` +
           `TOP **${topPercent}%** graczy`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '⭐ Punkty',
+        name: "⭐ Punkty",
         value:
           `Ty: **${totalPoints} pkt**\n` +
           `Średnia: **${communityAverageTotalPoints.toFixed(2)} pkt**\n` +
-          `Różnica: ${formatPointsDifference(
-            totalPointsDifference
-          )}`,
-        inline: true
+          `Różnica: ${formatPointsDifference(totalPointsDifference)}`,
+        inline: true,
       },
 
       {
-        name: '📈 Punkty / mecz',
+        name: "📈 Punkty / mecz",
         value:
           `Ty: **${Number(averagePoints).toFixed(2)}**\n` +
           `Średnia: **${communityAveragePoints.toFixed(2)}**\n` +
-          `Różnica: ${formatPointsDifference(
-            pointsDifference
-          )}`,
-        inline: true
+          `Różnica: ${formatPointsDifference(pointsDifference)}`,
+        inline: true,
       },
 
       {
-        name: '🏆 Trafieni zwycięzcy',
+        name: "🏆 Trafieni zwycięzcy",
         value:
-          `Ty: **${pct(
-            winnerHits,
-            settledMatches
-          )}**\n` +
+          `Ty: **${pct(winnerHits, settledMatches)}**\n` +
           `Średnia eventu: **${pct(
             communityWinnerHits,
-            communitySettledMatches
+            communitySettledMatches,
           )}**\n` +
-          `Różnica: ${formatDifference(
-            winnerDifference
-          )}`,
-        inline: true
+          `Różnica: ${formatDifference(winnerDifference)}`,
+        inline: true,
       },
 
       {
-        name: '🎯 Exact serii',
+        name: "🎯 Exact serii",
         value:
-          `Ty: **${pct(
-            seriesExacts,
-            settledMatches
-          )}**\n` +
+          `Ty: **${pct(seriesExacts, settledMatches)}**\n` +
           `Średnia eventu: **${pct(
             communitySeriesExacts,
-            communitySettledMatches
+            communitySettledMatches,
           )}**\n` +
-          `Różnica: ${formatDifference(
-            exactDifference
-          )}`,
-        inline: true
+          `Różnica: ${formatDifference(exactDifference)}`,
+        inline: true,
       },
 
       {
-        name: '👥 Próba porównawcza',
+        name: "👥 Próba porównawcza",
         value:
           `Graczy: **${participantCount}**\n` +
           `Rozliczonych typów: **${communitySettledMatches}**`,
-        inline: true
-      }
+        inline: true,
+      },
     )
     .setFooter({
-      text:
-        'Średnie liczone są na podstawie rozliczonych typów w tym evencie.'
+      text: "Średnie liczone są na podstawie rozliczonych typów w tym evencie.",
     });
 }
-
 
 // ======================================================
 // EMBED: ANALIZA
 // ======================================================
 
-function buildAnalysisEmbed({
-  event,
-  teamStats,
-  mapAccuracy
-}) {
-  const {
-    best,
-    nemesis,
-    mostPicked
-  } = teamStats;
+function buildAnalysisEmbed({ event, teamStats, mapAccuracy }) {
+  const { best, nemesis, mostPicked } = teamStats;
 
+  const formatTeam = (team) => {
+    if (!team) {
+      return "Brak wystarczającej liczby danych.";
+    }
 
-  const formatTeam =
-    (team) => {
+    return (
+      `**${team.name}**\n` +
+      `${team.correct}/${team.picked} trafień ` +
+      `(**${team.accuracy.toFixed(1).replace(".0", "")}%**)`
+    );
+  };
 
-      if (!team) {
-        return (
-          'Brak wystarczającej liczby danych.'
-        );
-      }
+  const formatMostPicked = (team) => {
+    if (!team) {
+      return "Brak danych.";
+    }
 
-      return (
-        `**${team.name}**\n` +
-        `${team.correct}/${team.picked} trafień ` +
-        `(**${team.accuracy
-          .toFixed(1)
-          .replace('.0', '')}%**)`
-      );
-    };
-
-
-  const formatMostPicked =
-    (team) => {
-
-      if (!team) {
-        return 'Brak danych.';
-      }
-
-      return (
-        `**${team.name}**\n` +
-        `Typowana na zwycięzcę: ` +
-        `**${team.picked} razy**`
-      );
-    };
-
+    return (
+      `**${team.name}**\n` +
+      `Typowana na zwycięzcę: ` +
+      `**${team.picked} razy**`
+    );
+  };
 
   return new EmbedBuilder()
 
-    .setTitle(
-      `🧠 Analiza — ${event.name}`
-    )
+    .setTitle(`🧠 Analiza — ${event.name}`)
 
-    .setColor(0x9B59B6)
+    .setColor(0x9b59b6)
 
-    .setDescription(
-      'Trochę głębsze spojrzenie na Twój styl typowania.'
-    )
+    .setDescription("Trochę głębsze spojrzenie na Twój styl typowania.")
 
     .addFields(
-
       {
-        name:
-          '🟢 Najlepiej typowana drużyna',
+        name: "🟢 Najlepiej typowana drużyna",
 
-        value:
-          formatTeam(best),
+        value: formatTeam(best),
 
-        inline: true
+        inline: true,
       },
 
-
       {
-        name:
-          '😈 Nemesis',
+        name: "😈 Nemesis",
 
-        value:
-          formatTeam(nemesis),
+        value: formatTeam(nemesis),
 
-        inline: true
+        inline: true,
       },
 
-
       {
-        name:
-          '❤️ Najczęściej wybierana',
+        name: "❤️ Najczęściej wybierana",
 
-        value:
-          formatMostPicked(
-            mostPicked
-          ),
+        value: formatMostPicked(mostPicked),
 
-        inline: true
+        inline: true,
       },
 
-
       {
-        name:
-          '🗺️ Dokładność wyników map',
+        name: "🗺️ Dokładność wyników map",
 
-        value:
-          mapAccuracy.total
-            ? (
-              `💯 Exact: **${mapAccuracy.exact}/${mapAccuracy.total} ` +
-              `(${pct(
-                mapAccuracy.exact,
-                mapAccuracy.total
-              )})**\n` +
+        value: mapAccuracy.total
+          ? `💯 Exact: **${mapAccuracy.exact}/${mapAccuracy.total} ` +
+            `(${pct(mapAccuracy.exact, mapAccuracy.total)})**\n` +
+            `🟢 Błąd 1: **${mapAccuracy.error1}/${mapAccuracy.total} ` +
+            `(${pct(mapAccuracy.error1, mapAccuracy.total)})**\n` +
+            `🟡 Błąd 2: **${mapAccuracy.error2}/${mapAccuracy.total} ` +
+            `(${pct(mapAccuracy.error2, mapAccuracy.total)})**\n` +
+            `🔴 Błąd 3+: **${mapAccuracy.error3plus}/${mapAccuracy.total} ` +
+            `(${pct(mapAccuracy.error3plus, mapAccuracy.total)})**`
+          : "Brak danych.",
 
-              `🟢 Błąd 1: **${mapAccuracy.error1}/${mapAccuracy.total} ` +
-              `(${pct(
-                mapAccuracy.error1,
-                mapAccuracy.total
-              )})**\n` +
-
-              `🟡 Błąd 2: **${mapAccuracy.error2}/${mapAccuracy.total} ` +
-              `(${pct(
-                mapAccuracy.error2,
-                mapAccuracy.total
-              )})**\n` +
-
-              `🔴 Błąd 3+: **${mapAccuracy.error3plus}/${mapAccuracy.total} ` +
-              `(${pct(
-                mapAccuracy.error3plus,
-                mapAccuracy.total
-              )})**`
-            )
-            : 'Brak danych.',
-
-        inline: false
+        inline: false,
       },
 
-
       {
-        name:
-          '📏 Średni błąd wyniku mapy',
+        name: "📏 Średni błąd wyniku mapy",
 
-        value:
-          mapAccuracy.total
-            ? (
-              `**${mapAccuracy.averageError
-                .toFixed(2)} rundy**`
-            )
-            : 'Brak danych.',
+        value: mapAccuracy.total
+          ? `**${mapAccuracy.averageError.toFixed(2)} rundy**`
+          : "Brak danych.",
 
-        inline: true
-      }
+        inline: true,
+      },
     )
 
     .setFooter({
-      text:
-        'Statystyki drużyn wymagają minimum 3 typów na daną drużynę.'
+      text: "Statystyki drużyn wymagają minimum 3 typów na daną drużynę.",
     });
 }
 
-function buildStyleEmbed({
-  event,
-  style,
-  contrarianStats,
-  settledMatches
-}) {
+function buildStyleEmbed({ event, style, contrarianStats, settledMatches }) {
   const {
     contrarianPicks,
     contrarianHits,
@@ -1531,102 +1121,69 @@ function buildStyleEmbed({
     majorityPicks,
     majorityHits,
 
-    rarestHit
+    rarestHit,
   } = contrarianStats;
 
+  const contrarianRate = pct(contrarianPicks, settledMatches);
 
-  const contrarianRate =
-    pct(
-      contrarianPicks,
-      settledMatches
-    );
+  const contrarianAccuracy = pct(contrarianHits, contrarianPicks);
 
+  const majorityRate = pct(majorityPicks, settledMatches);
 
-  const contrarianAccuracy =
-    pct(
-      contrarianHits,
-      contrarianPicks
-    );
+  const majorityAccuracy = pct(majorityHits, majorityPicks);
 
-
-  const majorityRate =
-    pct(
-      majorityPicks,
-      settledMatches
-    );
-
-
-  const majorityAccuracy =
-    pct(
-      majorityHits,
-      majorityPicks
-    );
-
-
-  let rarestHitText =
-    'Brak trafionego picku przeciwko większości.';
-
+  let rarestHitText = "Brak trafionego picku przeciwko większości.";
 
   if (rarestHit) {
-    const matchLabel =
-      rarestHit.matchNo
-        ? `#${rarestHit.matchNo} • `
-        : '';
+    const matchLabel = rarestHit.matchNo ? `#${rarestHit.matchNo} • ` : "";
 
     rarestHitText =
       `${matchLabel}**${rarestHit.team}** vs ${rarestHit.opponent}\n` +
       `Tylko **${rarestHit.percent
         .toFixed(1)
-        .replace('.0', '')}%** graczy wybrało tę drużynę.`;
+        .replace(".0", "")}%** graczy wybrało tę drużynę.`;
   }
-
 
   return new EmbedBuilder()
 
-    .setTitle(
-      `🎭 Styl gracza — ${event.name}`
-    )
+    .setTitle(`🎭 Styl gracza — ${event.name}`)
 
-    .setColor(0xE67E22)
+    .setColor(0xe67e22)
 
     .setDescription(
-      `${style.emoji} Twój profil: **${style.name}**\n\n` +
-      style.description
+      `${style.emoji} Twój profil: **${style.name}**\n\n` + style.description,
     )
 
     .addFields(
-
       {
-        name: '💎 Przeciwko większości',
+        name: "💎 Przeciwko większości",
         value:
           `Picki: **${contrarianPicks}/${settledMatches}** ` +
           `(${contrarianRate})\n` +
           `Trafione: **${contrarianHits}/${contrarianPicks}** ` +
           `(${contrarianAccuracy})`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '👥 Z większością',
+        name: "👥 Z większością",
         value:
           `Picki: **${majorityPicks}/${settledMatches}** ` +
           `(${majorityRate})\n` +
           `Trafione: **${majorityHits}/${majorityPicks}** ` +
           `(${majorityAccuracy})`,
-        inline: true
+        inline: true,
       },
 
       {
-        name: '💠 Najrzadszy trafiony pick',
-        value:
-          rarestHitText,
-        inline: false
-      }
+        name: "💠 Najrzadszy trafiony pick",
+        value: rarestHitText,
+        inline: false,
+      },
     )
 
     .setFooter({
-      text:
-        'Pick przeciwko większości = drużyna wybrana przez mniej niż 50% typujących.'
+      text: "Pick przeciwko większości = drużyna wybrana przez mniej niż 50% typujących.",
     });
 }
 
@@ -1634,94 +1191,71 @@ function buildStyleEmbed({
 // MAIN
 // ======================================================
 
-module.exports = async function showMyStats(
-  interaction
-) {
+module.exports = async function showMyStats(interaction) {
   try {
-    const customId = String(
-      interaction.customId || ''
-    );
+    const customId = String(interaction.customId || "");
 
-    const parts = customId.split(':');
+    const parts = customId.split(":");
 
     const action = parts[0];
 
     let eventId;
-    let activeTab = 'general';
-
+    let activeTab = "general";
 
     // Pierwsze wejście:
     // my_stats:123
-    if (action === 'my_stats') {
+    if (action === "my_stats") {
       eventId = Number(parts[1]);
-      activeTab = 'general';
+      activeTab = "general";
     }
 
     // Zmiana zakładki:
     // my_stats_tab:123:accuracy
-    else if (action === 'my_stats_tab') {
+    else if (action === "my_stats_tab") {
       eventId = Number(parts[1]);
-      activeTab = parts[2] || 'general';
-    }
-
-    else {
+      activeTab = parts[2] || "general";
+    } else {
       return;
     }
 
-
     if (!eventId) {
-      if (
-        !interaction.replied &&
-        !interaction.deferred
-      ) {
+      if (!interaction.replied && !interaction.deferred) {
         return interaction.reply({
-          content:
-            '❌ Brak informacji o evencie.',
-          ephemeral: true
+          content: "❌ Brak informacji o evencie.",
+          ephemeral: true,
         });
       }
 
       return interaction.editReply({
-        content:
-          '❌ Brak informacji o evencie.',
+        content: "❌ Brak informacji o evencie.",
         embeds: [],
-        components: []
+        components: [],
       });
     }
-
 
     // ==================================================
     // DEFER
     // ==================================================
 
-    if (
-      !interaction.deferred &&
-      !interaction.replied
-    ) {
-      if (action === 'my_stats_tab') {
+    if (!interaction.deferred && !interaction.replied) {
+      if (action === "my_stats_tab") {
         await interaction.deferUpdate();
       } else {
         await interaction.deferReply({
-          ephemeral: true
+          ephemeral: true,
         });
       }
     }
 
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      const userId = interaction.user.id;
 
-    return withGuild(
-      interaction,
-      async ({ pool, guildId }) => {
+      // ==================================================
+      // EVENT
+      // ==================================================
 
-        const userId =
-          interaction.user.id;
-
-
-        // ==================================================
-        // EVENT
-        // ==================================================
-
-        const [[event]] = await pool.query(
-          `
+      const [[event]] = await pool.query(
+        `
           SELECT
             id,
             name
@@ -1730,30 +1264,23 @@ module.exports = async function showMyStats(
             AND guild_id = ?
           LIMIT 1
           `,
-          [
-            eventId,
-            guildId
-          ]
-        );
+        [eventId, guildId],
+      );
 
+      if (!event) {
+        return interaction.editReply({
+          content: "❌ Nie znaleziono tego eventu.",
+          embeds: [],
+          components: [],
+        });
+      }
 
-        if (!event) {
-          return interaction.editReply({
-            content:
-              '❌ Nie znaleziono tego eventu.',
-            embeds: [],
-            components: []
-          });
-        }
+      // ==================================================
+      // LICZBA WSZYSTKICH TYPÓW
+      // ==================================================
 
-
-        // ==================================================
-        // LICZBA WSZYSTKICH TYPÓW
-        // ==================================================
-
-        const [[predictionCount]] =
-          await pool.query(
-            `
+      const [[predictionCount]] = await pool.query(
+        `
             SELECT
               COUNT(*) AS total
             FROM match_predictions
@@ -1761,37 +1288,27 @@ module.exports = async function showMyStats(
               AND event_id = ?
               AND user_id = ?
             `,
-            [
-              guildId,
-              eventId,
-              userId
-            ]
-          );
+        [guildId, eventId, userId],
+      );
 
+      const totalPredictions = Number(predictionCount?.total || 0);
 
-        const totalPredictions = Number(
-          predictionCount?.total || 0
-        );
+      if (!totalPredictions) {
+        return interaction.editReply({
+          content:
+            `Nie masz jeszcze typów meczowych ` +
+            `w evencie **${event.name}**.`,
+          embeds: [],
+          components: [],
+        });
+      }
 
+      // ==================================================
+      // ROZLICZONE MECZE USERA
+      // ==================================================
 
-        if (!totalPredictions) {
-          return interaction.editReply({
-            content:
-              `Nie masz jeszcze typów meczowych ` +
-              `w evencie **${event.name}**.`,
-            embeds: [],
-            components: []
-          });
-        }
-
-
-        // ==================================================
-        // ROZLICZONE MECZE USERA
-        // ==================================================
-
-        const [settledRows] =
-          await pool.query(
-            `
+      const [settledRows] = await pool.query(
+        `
             SELECT
               m.id AS match_id,
               m.match_no,
@@ -1830,69 +1347,38 @@ module.exports = async function showMyStats(
               mr.finished_at ASC,
               m.id ASC
             `,
-            [
-              guildId,
-              eventId,
-              userId
-            ]
-          );
+        [guildId, eventId, userId],
+      );
 
+      const settledMatches = settledRows.length;
 
-        const settledMatches =
-          settledRows.length;
+      const winnerHits = settledRows.filter(isWinnerCorrect).length;
 
+      const seriesExacts = settledRows.filter(isSeriesExact).length;
 
-        const winnerHits =
-          settledRows.filter(
-            isWinnerCorrect
-          ).length;
+      // ==================================================
+      // STREAK
+      // ==================================================
 
+      const { current: currentStreak, best: bestStreak } =
+        calculateStreaks(settledRows);
 
-        const seriesExacts =
-          settledRows.filter(
-            isSeriesExact
-          ).length;
+      // ==================================================
+      // BO STATS
+      // ==================================================
 
+      const bo1 = getBoStats(settledRows, 1);
 
-        // ==================================================
-        // STREAK
-        // ==================================================
+      const bo3 = getBoStats(settledRows, 3);
 
-        const {
-          current: currentStreak,
-          best: bestStreak
-        } = calculateStreaks(
-          settledRows
-        );
+      const bo5 = getBoStats(settledRows, 5);
 
+      // ==================================================
+      // MAPY
+      // ==================================================
 
-        // ==================================================
-        // BO STATS
-        // ==================================================
-
-        const bo1 = getBoStats(
-          settledRows,
-          1
-        );
-
-        const bo3 = getBoStats(
-          settledRows,
-          3
-        );
-
-        const bo5 = getBoStats(
-          settledRows,
-          5
-        );
-
-
-        // ==================================================
-        // MAPY
-        // ==================================================
-
-        const [mapRows] =
-          await pool.query(
-            `
+      const [mapRows] = await pool.query(
+        `
             SELECT
               p.match_id,
               p.map_no,
@@ -1915,102 +1401,77 @@ module.exports = async function showMyStats(
               AND p.event_id = ?
               AND p.user_id = ?
             `,
-            [
-              guildId,
-              eventId,
-              userId
-            ]
-          );
+        [guildId, eventId, userId],
+      );
 
-        // ==================================================
-        // BO1 = JEDNA MAPA
-        // ==================================================
-        //
-        // W BO1 dokładny wynik zapisujemy bezpośrednio
-        // w match_predictions / match_results.
-        // Dlatego dokładamy BO1 do statystyk map,
-        // jeśli nie istnieje już wpis w tabelach mapowych.
+      // ==================================================
+      // BO1 = JEDNA MAPA
+      // ==================================================
+      //
+      // W BO1 dokładny wynik zapisujemy bezpośrednio
+      // w match_predictions / match_results.
+      // Dlatego dokładamy BO1 do statystyk map,
+      // jeśli nie istnieje już wpis w tabelach mapowych.
 
-        const existingMapKeys = new Set(
-          mapRows.map(row =>
-            `${row.match_id}:${row.map_no}`
-          )
-        );
+      const existingMapKeys = new Set(
+        mapRows.map((row) => `${row.match_id}:${row.map_no}`),
+      );
 
-        for (const row of settledRows) {
-          if (Number(row.best_of) !== 1) {
-            continue;
-          }
-
-          const key = `${row.match_id}:1`;
-
-          // zabezpieczenie przed podwójnym policzeniem
-          if (existingMapKeys.has(key)) {
-            continue;
-          }
-
-          if (
-            row.pred_exact_a == null ||
-            row.pred_exact_b == null ||
-            row.exact_a == null ||
-            row.exact_b == null
-          ) {
-            continue;
-          }
-
-          mapRows.push({
-            match_id: row.match_id,
-            map_no: 1,
-
-            pred_exact_a: row.pred_exact_a,
-            pred_exact_b: row.pred_exact_b,
-
-            exact_a: row.exact_a,
-            exact_b: row.exact_b
-          });
-
-          existingMapKeys.add(key);
+      for (const row of settledRows) {
+        if (Number(row.best_of) !== 1) {
+          continue;
         }
 
+        const key = `${row.match_id}:1`;
 
-        const settledMaps =
-          mapRows.length;
+        // zabezpieczenie przed podwójnym policzeniem
+        if (existingMapKeys.has(key)) {
+          continue;
+        }
 
+        if (
+          row.pred_exact_a == null ||
+          row.pred_exact_b == null ||
+          row.exact_a == null ||
+          row.exact_b == null
+        ) {
+          continue;
+        }
 
-        const mapWinnerHits =
-          mapRows.filter(
-            isMapWinnerCorrect
-          ).length;
+        mapRows.push({
+          match_id: row.match_id,
+          map_no: 1,
 
+          pred_exact_a: row.pred_exact_a,
+          pred_exact_b: row.pred_exact_b,
 
-        const exactMaps =
-          mapRows.filter(
-            isMapExact
-          ).length;
+          exact_a: row.exact_a,
+          exact_b: row.exact_b,
+        });
 
-        // ==================================================
-        // ANALIZA
-        // ==================================================
+        existingMapKeys.add(key);
+      }
 
-        const teamStats =
-          calculateTeamStats(
-            settledRows
-          );
+      const settledMaps = mapRows.length;
 
+      const mapWinnerHits = mapRows.filter(isMapWinnerCorrect).length;
 
-        const mapAccuracy =
-          calculateMapAccuracy(
-            mapRows
-          );
+      const exactMaps = mapRows.filter(isMapExact).length;
 
+      // ==================================================
+      // ANALIZA
+      // ==================================================
 
-        // ==================================================
-        // PUNKTY USERA
-        // ==================================================
+      const teamStats = calculateTeamStats(settledRows);
 
-        const [[points]] =
-          await pool.query(
-            `
+      const mapAccuracy = calculateMapAccuracy(mapRows);
+
+      // ==================================================
+      // PUNKTY USERA
+      // ==================================================
+
+      const [[points]] = await pool.query(
+        `
             SELECT
 
               COALESCE(
@@ -2046,43 +1507,25 @@ module.exports = async function showMyStats(
               AND event_id = ?
               AND user_id = ?
             `,
-            [
-              guildId,
-              eventId,
-              userId
-            ]
-          );
+        [guildId, eventId, userId],
+      );
 
+      const totalPoints = Number(points?.total_points || 0);
 
-        const totalPoints = Number(
-          points?.total_points || 0
-        );
+      const seriesPoints = Number(points?.series_points || 0);
 
-        const seriesPoints = Number(
-          points?.series_points || 0
-        );
+      const mapPoints = Number(points?.map_points || 0);
 
-        const mapPoints = Number(
-          points?.map_points || 0
-        );
+      const averagePoints = settledMatches
+        ? (totalPoints / settledMatches).toFixed(2)
+        : "0.00";
 
+      // ==================================================
+      // PORÓWNANIE — WSZYSTKIE ROZLICZONE TYPY
+      // ==================================================
 
-        const averagePoints =
-          settledMatches
-            ? (
-              totalPoints /
-              settledMatches
-            ).toFixed(2)
-            : '0.00';
-
-
-        // ==================================================
-        // PORÓWNANIE — WSZYSTKIE ROZLICZONE TYPY
-        // ==================================================
-
-        const [communityRows] =
-          await pool.query(
-            `
+      const [communityRows] = await pool.query(
+        `
             SELECT
               mp.user_id,
 
@@ -2114,94 +1557,65 @@ module.exports = async function showMyStats(
             WHERE mp.guild_id = ?
               AND mp.event_id = ?
             `,
-            [
-              guildId,
-              eventId
-            ]
-          );
+        [guildId, eventId],
+      );
 
+      const communitySettledMatches = communityRows.length;
 
-        const communitySettledMatches =
-          communityRows.length;
+      const communityWinnerHits = communityRows.filter(isWinnerCorrect).length;
 
+      const communitySeriesExacts = communityRows.filter(isSeriesExact).length;
 
-        const communityWinnerHits =
-          communityRows.filter(
-            isWinnerCorrect
-          ).length;
+      // ==================================================
+      // STYL GRACZA / CONTRARIAN PICKS
+      // ==================================================
 
+      const contrarianStats = calculateContrarianStats(
+        settledRows,
+        communityRows,
+      );
 
-        const communitySeriesExacts =
-          communityRows.filter(
-            isSeriesExact
-          ).length;
+      const style = calculatePlayerStyle({
+        settledMatches,
+        winnerHits,
+        seriesExacts,
 
-        // ==================================================
-        // STYL GRACZA / CONTRARIAN PICKS
-        // ==================================================
+        settledMaps,
+        mapWinnerHits,
+        exactMaps,
 
-        const contrarianStats =
-          calculateContrarianStats(
-            settledRows,
-            communityRows
-          );
+        contrarianPicks: contrarianStats.contrarianPicks,
 
+        contrarianHits: contrarianStats.contrarianHits,
 
-        const style =
-          calculatePlayerStyle({
-            settledMatches,
-            winnerHits,
-            seriesExacts,
+        majorityPicks: contrarianStats.majorityPicks,
 
-            settledMaps,
-            mapWinnerHits,
-            exactMaps,
+        majorityHits: contrarianStats.majorityHits,
+      });
 
-            contrarianPicks:
-              contrarianStats.contrarianPicks,
+      // ==================================================
+      // UCZESTNICY
+      // ==================================================
 
-            contrarianHits:
-              contrarianStats.contrarianHits,
-
-            majorityPicks:
-              contrarianStats.majorityPicks,
-
-            majorityHits:
-              contrarianStats.majorityHits
-          });
-
-
-        // ==================================================
-        // UCZESTNICY
-        // ==================================================
-
-        const [participants] =
-          await pool.query(
-            `
+      const [participants] = await pool.query(
+        `
             SELECT DISTINCT
               user_id
             FROM match_predictions
             WHERE guild_id = ?
               AND event_id = ?
             `,
-            [
-              guildId,
-              eventId
-            ]
-          );
+        [guildId, eventId],
+      );
 
+      const participantCount = participants.length;
 
-        const participantCount =
-          participants.length;
+      // ==================================================
+      // PUNKTY WSZYSTKICH GRACZY
+      // ==================================================
 
-
-        // ==================================================
-        // PUNKTY WSZYSTKICH GRACZY
-        // ==================================================
-
-        const [allPlayerPoints] =
-          await pool.query(
-            `
+      const [allPlayerPoints] = await pool.query(
+        `
             SELECT
               user_id,
 
@@ -2217,98 +1631,56 @@ module.exports = async function showMyStats(
 
             GROUP BY user_id
             `,
-            [
-              guildId,
-              eventId
-            ]
-          );
+        [guildId, eventId],
+      );
 
+      const pointsByUser = new Map();
 
-        const pointsByUser =
-          new Map();
+      for (const row of allPlayerPoints) {
+        pointsByUser.set(String(row.user_id), Number(row.total_points || 0));
+      }
 
+      const ranking = participants
+        .map((row) => ({
+          userId: String(row.user_id),
 
-        for (const row of allPlayerPoints) {
-          pointsByUser.set(
-            String(row.user_id),
-            Number(row.total_points || 0)
-          );
-        }
+          points: pointsByUser.get(String(row.user_id)) || 0,
+        }))
+        .sort((a, b) => b.points - a.points);
 
+      const rank =
+        ranking.filter((player) => Number(player.points) > Number(totalPoints))
+          .length + 1;
 
-        const ranking = participants
-          .map(row => ({
-            userId:
-              String(row.user_id),
+      const topPercent = participantCount
+        ? Math.max(0.1, (rank / participantCount) * 100)
+            .toFixed(1)
+            .replace(".0", "")
+        : "—";
 
-            points:
-              pointsByUser.get(
-                String(row.user_id)
-              ) || 0
-          }))
-          .sort(
-            (a, b) =>
-              b.points - a.points
-          );
+      // ==================================================
+      // ŚREDNIE PUNKTY EVENTU
+      // ==================================================
 
+      const communityTotalPoints = ranking.reduce(
+        (sum, player) => sum + Number(player.points || 0),
+        0,
+      );
 
-        const rank =
-          ranking.filter(
-            player =>
-              Number(player.points) >
-              Number(totalPoints)
-          ).length + 1;
+      const communityAverageTotalPoints = participantCount
+        ? communityTotalPoints / participantCount
+        : 0;
 
+      const communityAveragePoints = communitySettledMatches
+        ? communityTotalPoints / communitySettledMatches
+        : 0;
 
-        const topPercent =
-          participantCount
-            ? Math.max(
-              0.1,
-              (
-                rank /
-                participantCount *
-                100
-              )
-            )
-              .toFixed(1)
-              .replace('.0', '')
-            : '—';
+      // ==================================================
+      // NAJLEPSZY MECZ
+      // ==================================================
 
-
-        // ==================================================
-        // ŚREDNIE PUNKTY EVENTU
-        // ==================================================
-
-        const communityTotalPoints =
-          ranking.reduce(
-            (sum, player) =>
-              sum +
-              Number(player.points || 0),
-            0
-          );
-
-
-        const communityAverageTotalPoints =
-          participantCount
-            ? communityTotalPoints /
-            participantCount
-            : 0;
-
-
-        const communityAveragePoints =
-          communitySettledMatches
-            ? communityTotalPoints /
-            communitySettledMatches
-            : 0;
-
-
-        // ==================================================
-        // NAJLEPSZY MECZ
-        // ==================================================
-
-        const [[bestMatch]] =
-          await pool.query(
-            `
+      const [[bestMatch]] = await pool.query(
+        `
             SELECT
               m.id AS match_id,
               m.match_no,
@@ -2341,171 +1713,127 @@ module.exports = async function showMyStats(
 
             LIMIT 1
             `,
-            [
-              guildId,
-              eventId,
-              userId
-            ]
-          );
+        [guildId, eventId, userId],
+      );
 
+      // ==================================================
+      // WYBÓR EMBEDA
+      // ==================================================
 
-        // ==================================================
-        // WYBÓR EMBEDA
-        // ==================================================
+      let embed;
 
-        let embed;
+      if (activeTab === "accuracy") {
+        embed = buildAccuracyEmbed({
+          event,
 
+          settledMatches,
+          winnerHits,
+          seriesExacts,
 
-        if (activeTab === 'accuracy') {
-          embed = buildAccuracyEmbed({
-            event,
+          settledMaps,
+          mapWinnerHits,
+          exactMaps,
 
-            settledMatches,
-            winnerHits,
-            seriesExacts,
-
-            settledMaps,
-            mapWinnerHits,
-            exactMaps,
-
-            bo1,
-            bo3,
-            bo5
-          });
-        }
-
-
-        else if (activeTab === 'form') {
-          embed = buildFormEmbed({
-            event,
-            settledRows,
-            currentStreak,
-            bestStreak,
-            bestMatch
-          });
-        }
-
-
-        else if (activeTab === 'comparison') {
-          embed = buildComparisonEmbed({
-            event,
-
-            rank,
-            participantCount,
-            topPercent,
-
-            winnerHits,
-            settledMatches,
-
-            communityWinnerHits,
-            communitySettledMatches,
-
-            seriesExacts,
-            communitySeriesExacts,
-
-            averagePoints,
-            communityAveragePoints,
-
-            totalPoints,
-            communityAverageTotalPoints
-          });
-        }
-
-        else if (activeTab === 'analysis') {
-
-          embed = buildAnalysisEmbed({
-            event,
-            teamStats,
-            mapAccuracy
-          });
-
-        }
-
-        else if (activeTab === 'style') {
-          embed = buildStyleEmbed({
-            event,
-            style,
-            contrarianStats,
-            settledMatches
-          });
-        }
-
-        else {
-          activeTab = 'general';
-
-          embed = buildGeneralEmbed({
-            event,
-
-            totalPredictions,
-            settledMatches,
-
-            winnerHits,
-            seriesExacts,
-
-            settledMaps,
-            mapWinnerHits,
-            exactMaps,
-
-            totalPoints,
-            seriesPoints,
-            mapPoints,
-            averagePoints
-          });
-        }
-
-
-
-
-        // ==================================================
-        // RESPONSE
-        // ==================================================
-
-        return interaction.editReply({
-          content: '',
-          embeds: [
-            embed
-          ],
-          components: buildStatsButtons(
-            eventId,
-            activeTab
-          )
+          bo1,
+          bo3,
+          bo5,
         });
-      }
-    );
+      } else if (activeTab === "form") {
+        embed = buildFormEmbed({
+          event,
+          settledRows,
+          currentStreak,
+          bestStreak,
+          bestMatch,
+        });
+      } else if (activeTab === "comparison") {
+        embed = buildComparisonEmbed({
+          event,
 
-  } catch (err) {
+          rank,
+          participantCount,
+          topPercent,
 
-    logError(
-      'matches',
-      'showMyStats failed',
-      {
-        message: err.message,
-        stack: err.stack
-      }
-    );
+          winnerHits,
+          settledMatches,
 
+          communityWinnerHits,
+          communitySettledMatches,
 
-    try {
+          seriesExacts,
+          communitySeriesExacts,
 
-      if (
-        !interaction.deferred &&
-        !interaction.replied
-      ) {
-        return interaction.reply({
-          content:
-            '❌ Nie udało się pobrać Twoich statystyk.',
-          ephemeral: true
+          averagePoints,
+          communityAveragePoints,
+
+          totalPoints,
+          communityAverageTotalPoints,
+        });
+      } else if (activeTab === "analysis") {
+        embed = buildAnalysisEmbed({
+          event,
+          teamStats,
+          mapAccuracy,
+        });
+      } else if (activeTab === "style") {
+        embed = buildStyleEmbed({
+          event,
+          style,
+          contrarianStats,
+          settledMatches,
+        });
+      } else {
+        activeTab = "general";
+
+        embed = buildGeneralEmbed({
+          event,
+
+          totalPredictions,
+          settledMatches,
+
+          winnerHits,
+          seriesExacts,
+
+          settledMaps,
+          mapWinnerHits,
+          exactMaps,
+
+          totalPoints,
+          seriesPoints,
+          mapPoints,
+          averagePoints,
         });
       }
 
+      // ==================================================
+      // RESPONSE
+      // ==================================================
 
       return interaction.editReply({
-        content:
-          '❌ Nie udało się pobrać Twoich statystyk.',
-        embeds: [],
-        components: []
+        content: "",
+        embeds: [embed],
+        components: buildStatsButtons(eventId, activeTab),
       });
+    });
+  } catch (err) {
+    logError("matches", "showMyStats failed", {
+      message: err.message,
+      stack: err.stack,
+    });
 
+    try {
+      if (!interaction.deferred && !interaction.replied) {
+        return interaction.reply({
+          content: "❌ Nie udało się pobrać Twoich statystyk.",
+          ephemeral: true,
+        });
+      }
+
+      return interaction.editReply({
+        content: "❌ Nie udało się pobrać Twoich statystyk.",
+        embeds: [],
+        components: [],
+      });
     } catch (_) {
       return null;
     }

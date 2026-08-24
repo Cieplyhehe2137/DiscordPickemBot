@@ -1,7 +1,7 @@
 // handlers/teamsSelect.js
-const { logInfo, logWarn, logError } = require('../../utils/logger');
-const teamsState = require('../../utils/teamsState');
-const openTeamsManager = require('./openTeamsManager');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
+const teamsState = require("../../utils/teamsState");
+const openTeamsManager = require("./openTeamsManager");
 
 module.exports = async function teamsSelect(interaction) {
   try {
@@ -10,8 +10,8 @@ module.exports = async function teamsSelect(interaction) {
 
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze (nie w DM).',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze (nie w DM).",
+        ephemeral: true,
       });
     }
 
@@ -19,17 +19,17 @@ module.exports = async function teamsSelect(interaction) {
     const st = teamsState.getState(guildId, userId) || {
       page: 0,
       selectedTeamIds: [],
-      selectedTeamId: null
+      selectedTeamId: null,
     };
 
     // ===============================
     // CLEAR SELECTION (minValues=0)
     // ===============================
-    if (!values.length || values.includes('none')) {
+    if (!values.length || values.includes("none")) {
       teamsState.setState(guildId, userId, {
         ...st,
         selectedTeamIds: [],
-        selectedTeamId: null
+        selectedTeamId: null,
       });
 
       return openTeamsManager(interaction);
@@ -39,31 +39,30 @@ module.exports = async function teamsSelect(interaction) {
     // NORMAL SELECTION
     // ===============================
     const ids = values
-      .map(v => Number(v))
-      .filter(n => Number.isFinite(n) && n > 0);
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n) && n > 0);
 
     const uniq = Array.from(new Set(ids));
 
     teamsState.setState(guildId, userId, {
       ...st,
       selectedTeamIds: uniq,
-      selectedTeamId: uniq[0] || null // legacy compatibility
+      selectedTeamId: uniq[0] || null, // legacy compatibility
     });
 
     return openTeamsManager(interaction);
-
   } catch (err) {
-    logError('teams', 'teamsSelect failed', {
+    logError("teams", "teamsSelect failed", {
       message: err.message,
       stack: err.stack,
       guildId: interaction.guildId,
-      userId: interaction.user?.id
+      userId: interaction.user?.id,
     });
 
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: '❌ Nie udało się wybrać drużyn.',
-        ephemeral: true
+        content: "❌ Nie udało się wybrać drużyn.",
+        ephemeral: true,
       });
     }
   }

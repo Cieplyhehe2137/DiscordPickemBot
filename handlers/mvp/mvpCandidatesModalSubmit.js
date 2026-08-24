@@ -1,30 +1,30 @@
-const { withGuild } = require('../../utils/guildContext');
-const { getOpenEventId } = require('../../utils/getOpenEventId');
+const { withGuild } = require("../../utils/guildContext");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
 
 function parseMvpCandidates(raw) {
   return String(raw)
-    .split('\n')
-    .map(line => line.trim())
+    .split("\n")
+    .map((line) => line.trim())
     .filter(Boolean)
-    .map(line => {
+    .map((line) => {
       const parts = line
-        .split('|')
-        .map(v => v.trim())
+        .split("|")
+        .map((v) => v.trim())
         .filter(Boolean);
 
       return {
         nickname: parts[0] || null,
-        team_name: parts[1] || null
+        team_name: parts[1] || null,
       };
     })
-    .filter(x => x.nickname);
+    .filter((x) => x.nickname);
 }
 
 function getTextInputValueSafe(interaction, customId) {
   try {
     return interaction.fields.getTextInputValue(customId);
   } catch (_) {
-    return '';
+    return "";
   }
 }
 
@@ -37,10 +37,10 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
     if (!interaction.isModalSubmit()) return;
 
     const match = String(interaction.customId).match(
-      /^mvp_admin_candidates_modal:(\d+)$/
+      /^mvp_admin_candidates_modal:(\d+)$/,
     );
 
-    const isLegacyModal = interaction.customId === 'mvp:candidates:modal';
+    const isLegacyModal = interaction.customId === "mvp:candidates:modal";
 
     if (!match && !isLegacyModal) return;
 
@@ -49,14 +49,14 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
     }
 
     const raw =
-      getTextInputValueSafe(interaction, 'mvp_candidates_input') ||
-      getTextInputValueSafe(interaction, 'mvp_candidates');
+      getTextInputValueSafe(interaction, "mvp_candidates_input") ||
+      getTextInputValueSafe(interaction, "mvp_candidates");
 
     const candidates = parseMvpCandidates(raw);
 
     if (!candidates.length) {
       return interaction.editReply({
-        content: '❌ Nie podano żadnych poprawnych kandydatów MVP.'
+        content: "❌ Nie podano żadnych poprawnych kandydatów MVP.",
       });
     }
 
@@ -85,7 +85,7 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
           WHERE guild_id = ?
             AND event_id = ?
           `,
-          [guildId, eventId]
+          [guildId, eventId],
         );
 
         for (const c of candidates) {
@@ -100,7 +100,7 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
             )
             VALUES (?, ?, ?, ?, 1)
             `,
-            [guildId, eventId, c.nickname, c.team_name]
+            [guildId, eventId, c.nickname, c.team_name],
           );
         }
 
@@ -115,37 +115,39 @@ module.exports = async function mvpCandidatesModalSubmit(interaction) {
 
     if (!savedEventId) {
       return interaction.editReply({
-        content: '❌ Nie znaleziono aktywnego eventu.'
+        content: "❌ Nie znaleziono aktywnego eventu.",
       });
     }
 
     const preview = candidates
       .slice(0, 20)
-      .map(c => `• ${c.nickname}${c.team_name ? ` (${c.team_name})` : ''}`)
-      .join('\n');
+      .map((c) => `• ${c.nickname}${c.team_name ? ` (${c.team_name})` : ""}`)
+      .join("\n");
 
     const more =
-      candidates.length > 20
-        ? `\n...i jeszcze ${candidates.length - 20}`
-        : '';
+      candidates.length > 20 ? `\n...i jeszcze ${candidates.length - 20}` : "";
 
     return interaction.editReply({
       content:
         `✅ Zapisano kandydatów MVP: ${candidates.length}\n\n` +
-        `${preview}${more}`
+        `${preview}${more}`,
     });
   } catch (err) {
-    console.error('mvpCandidatesModalSubmit failed:', err);
+    console.error("mvpCandidatesModalSubmit failed:", err);
 
     if (interaction.replied || interaction.deferred) {
-      return interaction.editReply({
-        content: '❌ Nie udało się zapisać kandydatów MVP.'
-      }).catch(() => {});
+      return interaction
+        .editReply({
+          content: "❌ Nie udało się zapisać kandydatów MVP.",
+        })
+        .catch(() => {});
     }
 
-    return interaction.reply({
-      content: '❌ Nie udało się zapisać kandydatów MVP.',
-      ephemeral: true
-    }).catch(() => {});
+    return interaction
+      .reply({
+        content: "❌ Nie udało się zapisać kandydatów MVP.",
+        ephemeral: true,
+      })
+      .catch(() => {});
   }
 };

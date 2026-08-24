@@ -1,29 +1,36 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { withGuild } = require('../utils/guildContext');
-const { PHASE_CHOICES, humanPhase, getSwissStageAliases } = require('../utils/phase');
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { withGuild } = require("../utils/guildContext");
+const {
+  PHASE_CHOICES,
+  humanPhase,
+  getSwissStageAliases,
+} = require("../utils/phase");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('moje_miejsce')
-    .setDescription('Pokaż Twoją pozycję w rankingu (łącznie lub dla wybranej fazy).')
-    .addStringOption(opt =>
-      opt.setName('faza')
-        .setDescription('Wybierz etap/fazę turnieju')
+    .setName("moje_miejsce")
+    .setDescription(
+      "Pokaż Twoją pozycję w rankingu (łącznie lub dla wybranej fazy).",
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("faza")
+        .setDescription("Wybierz etap/fazę turnieju")
         .addChoices(...PHASE_CHOICES)
-        .setRequired(false)
+        .setRequired(false),
     ),
 
   async execute(interaction) {
     const guildId = interaction.guildId;
     if (!guildId) {
       return interaction.reply({
-        content: '❌ Ta komenda działa tylko na serwerze.',
+        content: "❌ Ta komenda działa tylko na serwerze.",
         ephemeral: true,
       });
     }
 
     const userId = interaction.user.id;
-    const phase = interaction.options.getString('faza') || 'total';
+    const phase = interaction.options.getString("faza") || "total";
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -35,7 +42,7 @@ module.exports = {
         /* =======================
            TOTAL
         ======================= */
-        if (phase === 'total') {
+        if (phase === "total") {
           const [rows] = await pool.query(
             `
             SELECT user_id, SUM(points) AS total_points
@@ -52,25 +59,29 @@ module.exports = {
             HAVING SUM(points) > 0
             ORDER BY total_points DESC, user_id ASC
             `,
-            [guildId, guildId, guildId, guildId]
+            [guildId, guildId, guildId, guildId],
           );
 
-          const idx = rows.findIndex(r => String(r.user_id) === userId);
+          const idx = rows.findIndex((r) => String(r.user_id) === userId);
           const rank = idx >= 0 ? idx + 1 : null;
           const me = rows[idx];
 
           const embed = new EmbedBuilder()
-            .setTitle('Twoje miejsce — łącznie')
-            .setColor(0x00AE86);
+            .setTitle("Twoje miejsce — łącznie")
+            .setColor(0x00ae86);
 
           if (!me) {
-            embed.setDescription('Nie masz jeszcze żadnych punktów.');
+            embed.setDescription("Nie masz jeszcze żadnych punktów.");
           } else {
             embed
               .setDescription(`**#${rank}** miejsce`)
               .addFields(
-                { name: 'Nick', value: displayName, inline: true },
-                { name: 'Punkty (łącznie)', value: String(me.total_points), inline: true }
+                { name: "Nick", value: displayName, inline: true },
+                {
+                  name: "Punkty (łącznie)",
+                  value: String(me.total_points),
+                  inline: true,
+                },
               );
           }
 
@@ -83,11 +94,11 @@ module.exports = {
         let rows = [];
         const title = `Twoje miejsce — ${humanPhase(phase)}`;
 
-        if (phase.startsWith('swiss_')) {
+        if (phase.startsWith("swiss_")) {
           const aliases = getSwissStageAliases(phase);
 
           if (aliases.length) {
-            const placeholders = aliases.map(() => '?').join(', ');
+            const placeholders = aliases.map(() => "?").join(", ");
             const [r] = await pool.query(
               `
               SELECT user_id, SUM(points) AS points
@@ -98,7 +109,7 @@ module.exports = {
               HAVING SUM(points) > 0
               ORDER BY points DESC, user_id ASC
               `,
-              [guildId, ...aliases]
+              [guildId, ...aliases],
             );
             rows = r;
           } else {
@@ -111,12 +122,11 @@ module.exports = {
               HAVING SUM(points) > 0
               ORDER BY points DESC, user_id ASC
               `,
-              [guildId]
+              [guildId],
             );
             rows = r;
           }
-
-        } else if (phase === 'playoffs') {
+        } else if (phase === "playoffs") {
           const [r] = await pool.query(
             `
             SELECT user_id, SUM(points) AS points
@@ -126,11 +136,10 @@ module.exports = {
             HAVING SUM(points) > 0
             ORDER BY points DESC, user_id ASC
             `,
-            [guildId]
+            [guildId],
           );
           rows = r;
-
-        } else if (phase === 'double_elim') {
+        } else if (phase === "double_elim") {
           const [r] = await pool.query(
             `
             SELECT user_id, SUM(points) AS points
@@ -140,11 +149,10 @@ module.exports = {
             HAVING SUM(points) > 0
             ORDER BY points DESC, user_id ASC
             `,
-            [guildId]
+            [guildId],
           );
           rows = r;
-
-        } else if (phase === 'playin') {
+        } else if (phase === "playin") {
           const [r] = await pool.query(
             `
             SELECT user_id, SUM(points) AS points
@@ -154,46 +162,42 @@ module.exports = {
             HAVING SUM(points) > 0
             ORDER BY points DESC, user_id ASC
             `,
-            [guildId]
+            [guildId],
           );
           rows = r;
-
         } else {
           return interaction.editReply({
             embeds: [
               new EmbedBuilder()
                 .setTitle(title)
-                .setDescription('Nieobsługiwana faza.')
-                .setColor(0x00AE86)
-            ]
+                .setDescription("Nieobsługiwana faza.")
+                .setColor(0x00ae86),
+            ],
           });
         }
 
-        const idx = rows.findIndex(r => String(r.user_id) === userId);
+        const idx = rows.findIndex((r) => String(r.user_id) === userId);
         const rank = idx >= 0 ? idx + 1 : null;
         const me = rows[idx];
 
-        const embed = new EmbedBuilder()
-          .setTitle(title)
-          .setColor(0x00AE86);
+        const embed = new EmbedBuilder().setTitle(title).setColor(0x00ae86);
 
         if (!me) {
-          embed.setDescription('Nie masz punktów w tej fazie.');
+          embed.setDescription("Nie masz punktów w tej fazie.");
         } else {
           embed
             .setDescription(`**#${rank}** miejsce`)
             .addFields(
-              { name: 'Nick', value: displayName, inline: true },
-              { name: 'Punkty', value: String(me.points), inline: true }
+              { name: "Nick", value: displayName, inline: true },
+              { name: "Punkty", value: String(me.points), inline: true },
             );
         }
 
         return interaction.editReply({ embeds: [embed] });
-
       } catch (err) {
-        console.error('[moje_miejsce] error', err);
+        console.error("[moje_miejsce] error", err);
         return interaction.editReply({
-          content: '⚠️ Wystąpił błąd podczas pobierania rankingu.',
+          content: "⚠️ Wystąpił błąd podczas pobierania rankingu.",
         });
       }
     });

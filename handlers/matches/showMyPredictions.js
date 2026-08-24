@@ -2,22 +2,22 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder
-} = require('discord.js');
+  EmbedBuilder,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
-const { logError } = require('../../utils/logger');
-const { getMapLabel } = require('../../utils/mapLabels');
+const { withGuild } = require("../../utils/guildContext");
+const { logError } = require("../../utils/logger");
+const { getMapLabel } = require("../../utils/mapLabels");
 
 const PAGE_SIZE = 5;
 
 function formatPoints(match) {
   if (!Number(match.has_result)) {
-    return '⏳ Punkty: oczekiwanie na wynik meczu';
+    return "⏳ Punkty: oczekiwanie na wynik meczu";
   }
 
   if (match.pred_a == null || match.pred_b == null) {
-    return '➖ Punkty: brak typu';
+    return "➖ Punkty: brak typu";
   }
 
   const seriesPoints = Number(match.series_points || 0);
@@ -27,26 +27,26 @@ function formatPoints(match) {
   return [
     `⭐ Zdobyte punkty: **${totalPoints} pkt**`,
     `└ Seria: **${seriesPoints} pkt**`,
-    `└ Mapy: **${mapPoints} pkt**`
-  ].join('\n');
+    `└ Mapy: **${mapPoints} pkt**`,
+  ].join("\n");
 }
 
 function formatMatchPrediction(match, maps) {
   const header =
-    `${match.match_no ? `#${match.match_no} ` : ''}` +
+    `${match.match_no ? `#${match.match_no} ` : ""}` +
     `${match.team_a} vs ${match.team_b} (Bo${match.best_of})`;
 
   if (match.pred_a == null || match.pred_b == null) {
     return [
       `🎮 **${header}**`,
-      'Brak zapisanego typu.',
-      formatPoints(match)
-    ].join('\n');
+      "Brak zapisanego typu.",
+      formatPoints(match),
+    ].join("\n");
   }
 
   const lines = [
     `✅ **${header}**`,
-    `🏆 Typ: **${match.team_a} ${match.pred_a}:${match.pred_b} ${match.team_b}**`
+    `🏆 Typ: **${match.team_a} ${match.pred_a}:${match.pred_b} ${match.team_b}**`,
   ];
 
   if (
@@ -56,79 +56,69 @@ function formatMatchPrediction(match, maps) {
   ) {
     lines.push(
       `🗺️ Dokładny wynik: **${match.team_a} ` +
-      `${match.pred_exact_a}:${match.pred_exact_b} ${match.team_b}**`
+        `${match.pred_exact_a}:${match.pred_exact_b} ${match.team_b}**`,
     );
 
-    lines.push('', formatPoints(match));
+    lines.push("", formatPoints(match));
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   if (!maps.length) {
-    lines.push('⚠️ Brak zapisanych typów map.');
+    lines.push("⚠️ Brak zapisanych typów map.");
   } else {
-    lines.push('🗺️ Mapy:');
+    lines.push("🗺️ Mapy:");
 
     for (const map of maps) {
       const mapLabel = getMapLabel(
         map.map_no,
         match.best_of,
         match.team_a,
-        match.team_b
+        match.team_b,
       );
 
       lines.push(
         `• **${mapLabel}**`,
-        `  🎯 Twój typ: **${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}**`
+        `  🎯 Twój typ: **${match.team_a} ${map.pred_exact_a}:${map.pred_exact_b} ${match.team_b}**`,
       );
 
-      if (
-        map.res_exact_a != null &&
-        map.res_exact_b != null
-      ) {
+      if (map.res_exact_a != null && map.res_exact_b != null) {
         lines.push(
-          `  🏁 Wynik: **${match.team_a} ${map.res_exact_a}:${map.res_exact_b} ${match.team_b}**`
+          `  🏁 Wynik: **${match.team_a} ${map.res_exact_a}:${map.res_exact_b} ${match.team_b}**`,
         );
       } else {
-        lines.push(
-          '  ⏳ Wynik: oczekiwanie'
-        );
+        lines.push("  ⏳ Wynik: oczekiwanie");
       }
     }
   }
 
-  lines.push('');
+  lines.push("");
   lines.push(formatPoints(match));
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 module.exports = async function showMyPredictions(interaction) {
   try {
-    const customId = String(interaction.customId || '');
+    const customId = String(interaction.customId || "");
 
-    const [
-      action,
-      phaseKey,
-      rawEventId,
-      rawPage
-    ] = customId.split(':');
+    const [action, phaseKey, rawEventId, rawPage] = customId.split(":");
 
-    if (action !== 'my_predictions') return;
+    if (action !== "my_predictions") return;
 
     const eventId = Number(rawEventId);
     const page = Math.max(0, Number(rawPage) || 0);
 
     if (!phaseKey || !eventId) {
       return interaction.reply({
-        content: '❌ Brak informacji o evencie lub fazie.',
-        ephemeral: true
+        content: "❌ Brak informacji o evencie lub fazie.",
+        ephemeral: true,
       });
     }
 
     if (!interaction.deferred && !interaction.replied) {
       await interaction.deferReply({
-        ephemeral: true
+        ephemeral: true,
       });
     }
 
@@ -141,14 +131,14 @@ module.exports = async function showMyPredictions(interaction) {
           AND guild_id = ?
         LIMIT 1
         `,
-        [eventId, guildId]
+        [eventId, guildId],
       );
 
       if (!event) {
         return interaction.editReply({
-          content: '❌ Nie znaleziono tego eventu.',
+          content: "❌ Nie znaleziono tego eventu.",
           components: [],
-          embeds: []
+          embeds: [],
         });
       }
 
@@ -160,7 +150,7 @@ module.exports = async function showMyPredictions(interaction) {
           AND event_id = ?
           AND phase = ?
         `,
-        [guildId, eventId, phaseKey]
+        [guildId, eventId, phaseKey],
       );
 
       const totalMatches = Number(countRow?.total || 0);
@@ -169,14 +159,11 @@ module.exports = async function showMyPredictions(interaction) {
         return interaction.editReply({
           content: `Brak meczów dla fazy **${phaseKey}**.`,
           components: [],
-          embeds: []
+          embeds: [],
         });
       }
 
-      const totalPages = Math.max(
-        1,
-        Math.ceil(totalMatches / PAGE_SIZE)
-      );
+      const totalPages = Math.max(1, Math.ceil(totalMatches / PAGE_SIZE));
 
       const safePage = Math.min(page, totalPages - 1);
       const offset = safePage * PAGE_SIZE;
@@ -270,8 +257,8 @@ module.exports = async function showMyPredictions(interaction) {
           eventId,
           phaseKey,
           PAGE_SIZE,
-          offset
-        ]
+          offset,
+        ],
       );
 
       const matchIds = matches.map((m) => Number(m.id));
@@ -279,7 +266,7 @@ module.exports = async function showMyPredictions(interaction) {
       let maps = [];
 
       if (matchIds.length) {
-        const placeholders = matchIds.map(() => '?').join(', ');
+        const placeholders = matchIds.map(() => "?").join(", ");
 
         const [mapRows] = await pool.query(
           `
@@ -302,12 +289,7 @@ module.exports = async function showMyPredictions(interaction) {
     AND p.match_id IN (${placeholders})
   ORDER BY p.match_id, p.map_no
   `,
-          [
-            guildId,
-            eventId,
-            interaction.user.id,
-            ...matchIds
-          ]
+          [guildId, eventId, interaction.user.id, ...matchIds],
         );
 
         maps = mapRows;
@@ -326,23 +308,18 @@ module.exports = async function showMyPredictions(interaction) {
       }
 
       const blocks = matches.map((match) => {
-        const matchMaps =
-          mapsByMatch.get(Number(match.id)) || [];
+        const matchMaps = mapsByMatch.get(Number(match.id)) || [];
 
         return formatMatchPrediction(match, matchMaps);
       });
 
       const embed = new EmbedBuilder()
         .setTitle(`📋 Twoje typy — ${event.name}`)
-        .setDescription(
-          blocks.join('\n\n━━━━━━━━━━━━━━\n\n')
-        )
+        .setDescription(blocks.join("\n\n━━━━━━━━━━━━━━\n\n"))
         .setFooter({
-          text:
-            `Faza: ${phaseKey} • ` +
-            `Strona ${safePage + 1}/${totalPages}`
+          text: `Faza: ${phaseKey} • ` + `Strona ${safePage + 1}/${totalPages}`,
         })
-        .setColor('Blue');
+        .setColor("Blue");
 
       const buttons = [];
 
@@ -350,64 +327,62 @@ module.exports = async function showMyPredictions(interaction) {
         buttons.push(
           new ButtonBuilder()
             .setCustomId(
-              `my_predictions:${phaseKey}:${eventId}:${safePage - 1}`
+              `my_predictions:${phaseKey}:${eventId}:${safePage - 1}`,
             )
-            .setLabel('⬅️ Poprzednia')
-            .setStyle(ButtonStyle.Secondary)
+            .setLabel("⬅️ Poprzednia")
+            .setStyle(ButtonStyle.Secondary),
         );
       }
 
       buttons.push(
         new ButtonBuilder()
           .setCustomId(`match_pick:${phaseKey}`)
-          .setLabel('🎯 Typuj mecze')
-          .setStyle(ButtonStyle.Success)
+          .setLabel("🎯 Typuj mecze")
+          .setStyle(ButtonStyle.Success),
       );
 
       buttons.push(
         new ButtonBuilder()
           .setCustomId(`my_stats:${eventId}`)
-          .setLabel('📊 Statystyki')
-          .setStyle(ButtonStyle.Secondary)
+          .setLabel("📊 Statystyki")
+          .setStyle(ButtonStyle.Secondary),
       );
 
       if (safePage < totalPages - 1) {
         buttons.push(
           new ButtonBuilder()
             .setCustomId(
-              `my_predictions:${phaseKey}:${eventId}:${safePage + 1}`
+              `my_predictions:${phaseKey}:${eventId}:${safePage + 1}`,
             )
-            .setLabel('Następna ➡️')
-            .setStyle(ButtonStyle.Secondary)
+            .setLabel("Następna ➡️")
+            .setStyle(ButtonStyle.Secondary),
         );
       }
 
       return interaction.editReply({
-        content: '',
+        content: "",
         embeds: [embed],
-        components: [
-          new ActionRowBuilder().addComponents(buttons)
-        ]
+        components: [new ActionRowBuilder().addComponents(buttons)],
       });
     });
   } catch (err) {
-    logError('matches', 'showMyPredictions failed', {
+    logError("matches", "showMyPredictions failed", {
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     try {
       if (!interaction.deferred && !interaction.replied) {
         return interaction.reply({
-          content: '❌ Nie udało się pobrać Twoich typów.',
-          ephemeral: true
+          content: "❌ Nie udało się pobrać Twoich typów.",
+          ephemeral: true,
         });
       }
 
       return interaction.editReply({
-        content: '❌ Nie udało się pobrać Twoich typów.',
+        content: "❌ Nie udało się pobrać Twoich typów.",
         embeds: [],
-        components: []
+        components: [],
       });
     } catch (_) {
       return null;

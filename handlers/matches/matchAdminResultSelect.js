@@ -1,14 +1,14 @@
-const { logInfo, logError } = require('../../utils/logger');
-const { withGuild } = require('../../utils/guildContext');
-const recalculateMatchPoints = require('../../services/recalculateMatchPoints');
-const { getMatchById } = require('../../utils/matchesStore');
-const { runInTransaction } = require('../../utils/runInTransaction');
+const { logInfo, logError } = require("../../utils/logger");
+const { withGuild } = require("../../utils/guildContext");
+const recalculateMatchPoints = require("../../services/recalculateMatchPoints");
+const { getMatchById } = require("../../utils/matchesStore");
+const { runInTransaction } = require("../../utils/runInTransaction");
 
 module.exports = async function matchAdminResultSelect(interaction) {
   const picked = interaction.values?.[0];
   if (!picked) return interaction.deferUpdate();
 
-  const [matchIdStr, resAStr, resBStr] = picked.split('|');
+  const [matchIdStr, resAStr, resBStr] = picked.split("|");
   const matchId = Number(matchIdStr);
   const resA = Number(resAStr);
   const resB = Number(resBStr);
@@ -20,8 +20,8 @@ module.exports = async function matchAdminResultSelect(interaction) {
     !Number.isInteger(resB)
   ) {
     return interaction.update({
-      content: '❌ Niepoprawne dane wyniku.',
-      components: []
+      content: "❌ Niepoprawne dane wyniku.",
+      components: [],
     });
   }
 
@@ -34,8 +34,8 @@ module.exports = async function matchAdminResultSelect(interaction) {
 
         if (!match) {
           outcome = {
-            content: '❌ Ten mecz nie istnieje lub nie należy do tego serwera.',
-            components: []
+            content: "❌ Ten mecz nie istnieje lub nie należy do tego serwera.",
+            components: [],
           };
           return;
         }
@@ -44,8 +44,8 @@ module.exports = async function matchAdminResultSelect(interaction) {
 
         if (!eventId) {
           outcome = {
-            content: '❌ Ten mecz nie ma przypisanego event_id.',
-            components: []
+            content: "❌ Ten mecz nie ma przypisanego event_id.",
+            components: [],
           };
           return;
         }
@@ -61,7 +61,7 @@ module.exports = async function matchAdminResultSelect(interaction) {
             res_a = VALUES(res_a),
             res_b = VALUES(res_b)
           `,
-          [guildId, eventId, matchId, resA, resB]
+          [guildId, eventId, matchId, resA, resB],
         );
 
         await recalculateMatchPoints(
@@ -69,39 +69,39 @@ module.exports = async function matchAdminResultSelect(interaction) {
           guildId,
           eventId,
           matchId,
-          match.best_of
+          match.best_of,
         );
 
-        logInfo('matches', 'Match result set', {
+        logInfo("matches", "Match result set", {
           guildId,
           eventId,
           matchId,
           resA,
           resB,
-          by: interaction.user.id
+          by: interaction.user.id,
         });
 
         outcome = {
           content:
             `✅ Ustawiono wynik meczu **#${matchId}**: **${resA}:${resB}**\n` +
             `📊 Punkty zostały przeliczone.`,
-          components: []
+          components: [],
         };
       });
 
       return interaction.update(outcome);
     });
   } catch (err) {
-    logError('matches', 'matchAdminResultSelect failed', {
+    logError("matches", "matchAdminResultSelect failed", {
       guildId: interaction.guildId,
       matchId,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     return interaction.update({
-      content: '❌ Błąd podczas zapisu wyniku meczu.',
-      components: []
+      content: "❌ Błąd podczas zapisu wyniku meczu.",
+      components: [],
     });
   }
 };

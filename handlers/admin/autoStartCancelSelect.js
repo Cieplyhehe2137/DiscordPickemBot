@@ -1,55 +1,36 @@
-const {
-  withGuild
-} = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 
-module.exports =
-  async function autoStartCancelSelect(interaction) {
+module.exports = async function autoStartCancelSelect(interaction) {
+  const eventId = Number(interaction.values?.[0]);
 
-    const eventId =
-      Number(
-        interaction.values?.[0]
-      );
+  if (!eventId) {
+    return interaction.reply({
+      content: "❌ Niepoprawny event.",
+      ephemeral: true,
+    });
+  }
 
-    if (!eventId) {
-      return interaction.reply({
-        content:
-          '❌ Niepoprawny event.',
-        ephemeral: true
-      });
-    }
-
-    return withGuild(
-      interaction.guildId,
-      async ({
-        pool,
-        guildId
-      }) => {
-
-        const [events] =
-          await pool.query(
-            `
+  return withGuild(interaction.guildId, async ({ pool, guildId }) => {
+    const [events] = await pool.query(
+      `
             SELECT name
             FROM events
             WHERE id = ?
               AND guild_id = ?
             LIMIT 1
             `,
-            [
-              eventId,
-              guildId
-            ]
-          );
+      [eventId, guildId],
+    );
 
-        if (!events.length) {
-          return interaction.update({
-            content:
-              '❌ Event nie istnieje.',
-            components: []
-          });
-        }
+    if (!events.length) {
+      return interaction.update({
+        content: "❌ Event nie istnieje.",
+        components: [],
+      });
+    }
 
-        await pool.query(
-          `
+    await pool.query(
+      `
           UPDATE events
           SET
             auto_start_at = NULL,
@@ -59,17 +40,12 @@ module.exports =
           WHERE id = ?
             AND guild_id = ?
           `,
-          [
-            eventId,
-            guildId
-          ]
-        );
-
-        return interaction.update({
-          content:
-            `✅ Anulowano auto-start dla **${events[0].name}**.`,
-          components: []
-        });
-      }
+      [eventId, guildId],
     );
-  };
+
+    return interaction.update({
+      content: `✅ Anulowano auto-start dla **${events[0].name}**.`,
+      components: [],
+    });
+  });
+};

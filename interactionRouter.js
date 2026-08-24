@@ -1,28 +1,28 @@
 // interactionRouter.js
-const { logInfo, logWarn, logError } = require('./utils/logger');
-const { withGuild } = require('./utils/guildContext.js');
+const { logInfo, logWarn, logError } = require("./utils/logger");
+const { withGuild } = require("./utils/guildContext.js");
 
 async function safeDeferUpdate(interaction) {
   if (interaction.replied || interaction.deferred) return;
   try {
     await interaction.deferUpdate();
-  } catch (_) { }
+  } catch (_) {}
 }
 
 function resolveHandler(handlers, handlerName) {
   let fn = handlers?.[handlerName];
 
-  if (fn && typeof fn === 'object') {
+  if (fn && typeof fn === "object") {
     fn = fn[handlerName] || fn.execute || fn.run || fn.handler || fn.default;
   }
 
-  if (typeof fn !== 'function') {
+  if (typeof fn !== "function") {
     try {
       const mod = require(`./handlers/${handlerName}`);
       fn =
-        (typeof mod === 'function' && mod) ||
+        (typeof mod === "function" && mod) ||
         (mod &&
-          typeof mod === 'object' &&
+          typeof mod === "object" &&
           (mod[handlerName] ||
             mod.execute ||
             mod.run ||
@@ -34,12 +34,17 @@ function resolveHandler(handlers, handlerName) {
     }
   }
 
-  return typeof fn === 'function' ? fn : null;
+  return typeof fn === "function" ? fn : null;
 }
 
-async function _handleInteraction(interaction, client, handlers = {}, maps = {}) {
+async function _handleInteraction(
+  interaction,
+  client,
+  handlers = {},
+  maps = {},
+) {
   if (!interaction.guildId) {
-    logWarn('INTERACTION_WITHOUT_GUILD_BLOCKED', {
+    logWarn("INTERACTION_WITHOUT_GUILD_BLOCKED", {
       userId: interaction.user?.id || null,
       customId: interaction.customId || null,
       extra: { type: interaction.type },
@@ -55,7 +60,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
   } = maps;
 
   try {
-    logInfo('INTERACTION_RECEIVED', {
+    logInfo("INTERACTION_RECEIVED", {
       guildId: interaction.guildId,
       userId: interaction.user?.id || null,
       command: interaction.commandName || null,
@@ -67,7 +72,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       const command = client.commands.get(interaction.commandName);
 
       if (!command) {
-        logWarn('SLASH_COMMAND_NOT_FOUND', {
+        logWarn("SLASH_COMMAND_NOT_FOUND", {
           guildId: interaction.guildId,
           userId: interaction.user?.id || null,
           command: interaction.commandName,
@@ -82,63 +87,65 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (interaction.isButton()) {
       let customId = interaction.customId;
 
-      if (customId.startsWith('ranking:')) {
-        const rankingCmd = require('./commands/ranking.js');
+      if (customId.startsWith("ranking:")) {
+        const rankingCmd = require("./commands/ranking.js");
         return rankingCmd.handleComponent(interaction);
       }
 
-      if (customId.startsWith('ranking_')) {
-        const handler = require('./handlers/admin/rankingPagination');
+      if (customId.startsWith("ranking_")) {
+        const handler = require("./handlers/admin/rankingPagination");
         return handler(interaction, client);
       }
 
       if (
-        customId.startsWith('playoffs_mvp_prev_') ||
-        customId.startsWith('playoffs_mvp_next_')
+        customId.startsWith("playoffs_mvp_prev_") ||
+        customId.startsWith("playoffs_mvp_next_")
       ) {
-        const handler = require('./handlers/mvp/playoffsMvpPagination');
+        const handler = require("./handlers/mvp/playoffsMvpPagination");
         return handler(interaction, client);
       }
 
-      if (customId.startsWith('match_admin_page:')) {
-        const handler = require('./handlers/matches/matchAdminPhaseSelect');
+      if (customId.startsWith("match_admin_page:")) {
+        const handler = require("./handlers/matches/matchAdminPhaseSelect");
         return handler(interaction, client);
       }
 
-      if (customId === 'clear_user_picks') customId = 'clear_db_confirm';
-      if (customId === 'full_reset') customId = 'clear_db_with_results';
-      if (customId === 'clear_official_results') customId = 'clear_only_results_confirm';
+      if (customId === "clear_user_picks") customId = "clear_db_confirm";
+      if (customId === "full_reset") customId = "clear_db_with_results";
+      if (customId === "clear_official_results")
+        customId = "clear_only_results_confirm";
 
       if (dropdownMap?.[customId]) {
         const nameOrFile = dropdownMap[customId];
-        const fn = handlers?.[nameOrFile] || require(`./handlers/${nameOrFile}`);
+        const fn =
+          handlers?.[nameOrFile] || require(`./handlers/${nameOrFile}`);
         return fn(interaction, client);
       }
 
       const prefixKey = Object.keys(buttonMap).find((key) =>
-        customId.startsWith(key)
+        customId.startsWith(key),
       );
 
       let handlerName =
         buttonMap[customId] ||
         (prefixKey && buttonMap[prefixKey]) ||
-        (customId?.startsWith('confirm_end_pickem') && 'confirmEndPickem') ||
-        (customId?.startsWith('confirm_stage') && 'submitSwissDropdown');
+        (customId?.startsWith("confirm_end_pickem") && "confirmEndPickem") ||
+        (customId?.startsWith("confirm_stage") && "submitSwissDropdown");
 
-      if (!handlerName && customId?.startsWith('clear_')) {
-        logWarn('FALLBACK_CLEAR_DATABASE_HANDLER', {
+      if (!handlerName && customId?.startsWith("clear_")) {
+        logWarn("FALLBACK_CLEAR_DATABASE_HANDLER", {
           guildId: interaction.guildId,
           userId: interaction.user?.id || null,
           customId,
         });
 
-        handlerName = 'clearDatabaseHandler';
+        handlerName = "clearDatabaseHandler";
       }
 
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
       if (!fn) {
-        logWarn('UNHANDLED_BUTTON', {
+        logWarn("UNHANDLED_BUTTON", {
           guildId: interaction.guildId,
           userId: interaction.user?.id || null,
           customId,
@@ -149,18 +156,18 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return;
       }
 
-      if (customId === 'export_ranking') {
+      if (customId === "export_ranking") {
         try {
           await fn(interaction, client);
         } catch (err) {
-          logError('EXPORT_RANKING_FAILED', err, {
+          logError("EXPORT_RANKING_FAILED", err, {
             guildId: interaction.guildId,
             userId: interaction.user?.id || null,
             customId,
           });
 
           const payload = {
-            content: '❌ Wystąpił błąd podczas generowania pliku.',
+            content: "❌ Wystąpił błąd podczas generowania pliku.",
             ephemeral: true,
           };
 
@@ -173,25 +180,25 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return;
       }
 
-      if (customId === 'calculate_scores') {
+      if (customId === "calculate_scores") {
         await interaction.deferReply({ ephemeral: true });
 
         try {
           await fn(interaction.guildId);
 
           await interaction.followUp({
-            content: '✅ Punkty zostały przeliczone!',
+            content: "✅ Punkty zostały przeliczone!",
             ephemeral: true,
           });
         } catch (err) {
-          logError('CALCULATE_SCORES_FAILED', err, {
+          logError("CALCULATE_SCORES_FAILED", err, {
             guildId: interaction.guildId,
             userId: interaction.user?.id || null,
             customId,
           });
 
           await interaction.followUp({
-            content: '❌ Wystąpił błąd podczas przeliczania punktów.',
+            content: "❌ Wystąpił błąd podczas przeliczania punktów.",
             ephemeral: true,
           });
         }
@@ -208,19 +215,16 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
 
       let handlerName =
         modalMap?.[customId] ||
-        modalMap?.[customId.split(':')[0]] ||
-        modalMap?.[customId.split(':').slice(0, 3).join(':')] ||
+        modalMap?.[customId.split(":")[0]] ||
+        modalMap?.[customId.split(":").slice(0, 3).join(":")] ||
         modalMap?.[
-        Object.keys(modalMap || {})
-          .find(key =>
-            customId.startsWith(key)
-          )
+          Object.keys(modalMap || {}).find((key) => customId.startsWith(key))
         ];
 
       const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
       if (!fn) {
-        logWarn('UNHANDLED_MODAL', {
+        logWarn("UNHANDLED_MODAL", {
           guildId: interaction.guildId,
           userId: interaction.user?.id || null,
           customId,
@@ -235,22 +239,21 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
 
-      if (customId.startsWith('ranking:')) {
-        const rankingCmd = require('./commands/ranking.js');
+      if (customId.startsWith("ranking:")) {
+        const rankingCmd = require("./commands/ranking.js");
         return rankingCmd.handleComponent(interaction);
       }
 
-      const selectKey =
-        selectMap?.[customId]
-          ? customId
-          : Object.keys(selectMap || {}).find((key) => customId.startsWith(key));
+      const selectKey = selectMap?.[customId]
+        ? customId
+        : Object.keys(selectMap || {}).find((key) => customId.startsWith(key));
 
       if (selectKey) {
         const handlerName = selectMap[selectKey];
         const fn = handlerName ? resolveHandler(handlers, handlerName) : null;
 
         if (!fn) {
-          logError('SELECT_HANDLER_NOT_CALLABLE', null, {
+          logError("SELECT_HANDLER_NOT_CALLABLE", null, {
             guildId: interaction.guildId,
             userId: interaction.user?.id || null,
             customId,
@@ -264,7 +267,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client, handlers, maps);
       }
 
-      const baseId = customId.replace(/_p\d+$/i, '');
+      const baseId = customId.replace(/_p\d+$/i, "");
       const dropdownKey =
         dropdownMap?.[customId] ||
         dropdownMap?.[baseId] ||
@@ -273,10 +276,11 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
 
       if (dropdownKey) {
         const nameOrFile = dropdownMap[dropdownKey];
-        const fn = handlers?.[nameOrFile] || require(`./handlers/${nameOrFile}`);
+        const fn =
+          handlers?.[nameOrFile] || require(`./handlers/${nameOrFile}`);
 
-        if (typeof fn !== 'function') {
-          logError('DROPDOWN_HANDLER_NOT_CALLABLE', null, {
+        if (typeof fn !== "function") {
+          logError("DROPDOWN_HANDLER_NOT_CALLABLE", null, {
             guildId: interaction.guildId,
             userId: interaction.user?.id || null,
             customId,
@@ -290,7 +294,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
         return fn(interaction, client);
       }
 
-      logWarn('UNHANDLED_SELECT_MENU', {
+      logWarn("UNHANDLED_SELECT_MENU", {
         guildId: interaction.guildId,
         userId: interaction.user?.id || null,
         customId,
@@ -301,7 +305,7 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
       return;
     }
   } catch (err) {
-    logError('INTERACTION_ROUTER_ERROR', err, {
+    logError("INTERACTION_ROUTER_ERROR", err, {
       guildId: interaction.guildId,
       userId: interaction.user?.id || null,
       command: interaction.commandName || null,
@@ -311,17 +315,22 @@ async function _handleInteraction(interaction, client, handlers = {}, maps = {})
     if (!interaction.replied && !interaction.deferred) {
       try {
         await interaction.reply({
-          content: '❌ Wystąpił błąd podczas obsługi interakcji.',
+          content: "❌ Wystąpił błąd podczas obsługi interakcji.",
           ephemeral: true,
         });
-      } catch (_) { }
+      } catch (_) {}
     }
   }
 }
 
-async function handleInteraction(interaction, client, handlers = {}, maps = {}) {
+async function handleInteraction(
+  interaction,
+  client,
+  handlers = {},
+  maps = {},
+) {
   if (!interaction.guildId) {
-    logWarn('BLOCKED_INTERACTION_WITHOUT_GUILD', {
+    logWarn("BLOCKED_INTERACTION_WITHOUT_GUILD", {
       userId: interaction.user?.id || null,
       customId: interaction.customId || null,
       extra: { type: interaction.type },
@@ -330,7 +339,7 @@ async function handleInteraction(interaction, client, handlers = {}, maps = {}) 
   }
 
   return withGuild(interaction.guildId, async () =>
-    _handleInteraction(interaction, client, handlers, maps)
+    _handleInteraction(interaction, client, handlers, maps),
   );
 }
 

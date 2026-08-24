@@ -3,10 +3,10 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   ButtonBuilder,
-  ButtonStyle
-} = require('discord.js');
+  ButtonStyle,
+} = require("discord.js");
 
-const { withGuild } = require('../../utils/guildContext');
+const { withGuild } = require("../../utils/guildContext");
 
 const CACHE_TTL = 15 * 60 * 1000;
 const cache = new Map();
@@ -28,8 +28,8 @@ function setCache(key, data) {
 module.exports = async (interaction) => {
   if (!interaction.guildId) {
     return interaction.reply({
-      content: '❌ Ta akcja działa tylko na serwerze.',
-      ephemeral: true
+      content: "❌ Ta akcja działa tylko na serwerze.",
+      ephemeral: true,
     });
   }
 
@@ -38,7 +38,6 @@ module.exports = async (interaction) => {
   }
 
   await withGuild(interaction, async ({ pool, guildId }) => {
-
     const [rows] = await pool.query(
       `
       SELECT name
@@ -47,14 +46,14 @@ module.exports = async (interaction) => {
         AND active = 1
       ORDER BY sort_order ASC, name ASC
       `,
-      [guildId]
+      [guildId],
     );
 
-    const teamNames = rows.map(r => r.name).filter(Boolean);
+    const teamNames = rows.map((r) => r.name).filter(Boolean);
 
     if (teamNames.length === 0) {
       return interaction.editReply({
-        content: '❌ Brak aktywnych drużyn w bazie.'
+        content: "❌ Brak aktywnych drużyn w bazie.",
       });
     }
 
@@ -65,49 +64,45 @@ module.exports = async (interaction) => {
     const left = 8 - current.length;
 
     const embed = new EmbedBuilder()
-      .setColor('#00b0f4')
-      .setTitle('📌 Pick\'Em – Play-In')
+      .setColor("#00b0f4")
+      .setTitle("📌 Pick'Em – Play-In")
       .setDescription(
         `Wybrano **${current.length}/8** drużyn.\n\n` +
-        (current.length
-          ? `Obecne wybory:\n${current.join(', ')}`
-          : 'Nie wybrano jeszcze żadnej drużyny.') +
-        '\n\nPo wyborze kliknij **Zatwierdź typy**.'
+          (current.length
+            ? `Obecne wybory:\n${current.join(", ")}`
+            : "Nie wybrano jeszcze żadnej drużyny.") +
+          "\n\nPo wyborze kliknij **Zatwierdź typy**.",
       );
 
-    const availableTeams = teamNames.filter(
-      t => !current.includes(t)
-    );
+    const availableTeams = teamNames.filter((t) => !current.includes(t));
 
     const dropdown = new StringSelectMenuBuilder()
-      .setCustomId('playin_select')
+      .setCustomId("playin_select")
       .setPlaceholder(
-        left > 0
-          ? `Wybierz drużyny (${current.length}/8)`
-          : 'Uzupełniono 8/8'
+        left > 0 ? `Wybierz drużyny (${current.length}/8)` : "Uzupełniono 8/8",
       )
       .setMinValues(0)
       .setMaxValues(left > 0 ? Math.min(left, availableTeams.length) : 1)
       .setDisabled(left === 0)
       .addOptions(
-        availableTeams.map(team => ({
+        availableTeams.map((team) => ({
           label: team,
-          value: team
-        }))
+          value: team,
+        })),
       );
 
     const rowSelect = new ActionRowBuilder().addComponents(dropdown);
 
     const rowButtons = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('confirm_playin')
-        .setLabel('✅ Zatwierdź typy')
+        .setCustomId("confirm_playin")
+        .setLabel("✅ Zatwierdź typy")
         .setStyle(ButtonStyle.Success),
     );
 
     return interaction.editReply({
       embeds: [embed],
-      components: [rowSelect, rowButtons]
+      components: [rowSelect, rowButtons],
     });
   });
 };

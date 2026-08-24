@@ -1,17 +1,15 @@
 // handlers/teamsAddSubmit.js
-const { logInfo, logWarn, logError } = require('../../utils/logger');
+const { logInfo, logWarn, logError } = require("../../utils/logger");
 const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  PermissionFlagsBits
-} = require('discord.js');
-const { addTeam } = require('../../utils/teamsStore');
+  PermissionFlagsBits,
+} = require("discord.js");
+const { addTeam } = require("../../utils/teamsStore");
 
 function normalizeName(str) {
-  return String(str)
-    .trim()
-    .replace(/\s+/g, ' ');
+  return String(str).trim().replace(/\s+/g, " ");
 }
 
 module.exports = async function teamsAddSubmit(interaction) {
@@ -19,38 +17,40 @@ module.exports = async function teamsAddSubmit(interaction) {
     // tylko serwer
     if (!interaction.guildId) {
       return interaction.reply({
-        content: '❌ Ta akcja działa tylko na serwerze.',
-        ephemeral: true
+        content: "❌ Ta akcja działa tylko na serwerze.",
+        ephemeral: true,
       });
     }
 
     // tylko admin
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    if (
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
       return interaction.reply({
-        content: '⛔ Tylko administracja.',
-        ephemeral: true
+        content: "⛔ Tylko administracja.",
+        ephemeral: true,
       });
     }
 
     const guildId = interaction.guildId;
 
-    const rawName = interaction.fields.getTextInputValue('team_name');
-    const rawShort = interaction.fields.getTextInputValue('team_short');
+    const rawName = interaction.fields.getTextInputValue("team_name");
+    const rawShort = interaction.fields.getTextInputValue("team_short");
 
     const name = normalizeName(rawName);
     const shortName = rawShort ? normalizeName(rawShort) : null;
 
     if (!name || name.length < 2) {
       return interaction.reply({
-        content: '⚠️ Nazwa drużyny jest za krótka.',
-        ephemeral: true
+        content: "⚠️ Nazwa drużyny jest za krótka.",
+        ephemeral: true,
       });
     }
 
     if (name.length > 100) {
       return interaction.reply({
-        content: '⚠️ Nazwa drużyny jest za długa (max 100 znaków).',
-        ephemeral: true
+        content: "⚠️ Nazwa drużyny jest za długa (max 100 znaków).",
+        ephemeral: true,
       });
     }
 
@@ -61,31 +61,27 @@ module.exports = async function teamsAddSubmit(interaction) {
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('panel:open:teams')
-        .setLabel('👥 Otwórz manager drużyn')
-        .setStyle(ButtonStyle.Secondary)
+        .setCustomId("panel:open:teams")
+        .setLabel("👥 Otwórz manager drużyn")
+        .setStyle(ButtonStyle.Secondary),
     );
 
     return interaction.editReply({
       content: `✅ Dodano drużynę: **${name}**`,
-      components: [row]
+      components: [row],
     });
-
   } catch (err) {
-    logError('teams', 'teamsAddSubmit failed', {
+    logError("teams", "teamsAddSubmit failed", {
       guildId: interaction.guildId,
       userId: interaction.user?.id,
       message: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
-    let msg = '❌ Nie udało się dodać drużyny.';
+    let msg = "❌ Nie udało się dodać drużyny.";
 
-    if (
-      err?.code === 'ER_DUP_ENTRY' ||
-      /duplicate/i.test(err?.message)
-    ) {
-      msg = '⚠️ Taka drużyna już istnieje na tym serwerze.';
+    if (err?.code === "ER_DUP_ENTRY" || /duplicate/i.test(err?.message)) {
+      msg = "⚠️ Taka drużyna już istnieje na tym serwerze.";
     }
 
     if (interaction.deferred || interaction.replied) {
@@ -94,7 +90,7 @@ module.exports = async function teamsAddSubmit(interaction) {
 
     return interaction.reply({
       content: msg,
-      ephemeral: true
+      ephemeral: true,
     });
   }
 };
