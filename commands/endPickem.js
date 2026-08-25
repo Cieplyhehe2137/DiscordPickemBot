@@ -53,15 +53,15 @@ module.exports = {
 
       const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
-          .setCustomId("close_phase_swiss_stage_1")
+          .setCustomId("close_phase_swiss_stage1")
           .setLabel("Zamknij Swiss 1")
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
-          .setCustomId("close_phase_swiss_stage_2")
+          .setCustomId("close_phase_swiss_stage2")
           .setLabel("Zamknij Swiss 2")
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
-          .setCustomId("close_phase_swiss_stage_3")
+          .setCustomId("close_phase_swiss_stage3")
           .setLabel("Zamknij Swiss 3")
           .setStyle(ButtonStyle.Danger),
       );
@@ -133,12 +133,15 @@ module.exports = {
                 const panelMsg = await channel.messages.fetch(messageId);
 
                 const PHASE_REGEX = {
-                  swiss_stage_1:
+                  swiss_stage1:
                     /(swiss(?:[_\- ]*stage)?[_\- ]*1|swiss1|stage[_\- ]*1|s1)/i,
-                  swiss_stage_2:
+
+                  swiss_stage2:
                     /(swiss(?:[_\- ]*stage)?[_\- ]*2|swiss2|stage[_\- ]*2|s2)/i,
-                  swiss_stage_3:
+
+                  swiss_stage3:
                     /(swiss(?:[_\- ]*stage)?[_\- ]*3|swiss3|stage[_\- ]*3|s3)/i,
+
                   playoffs: /(playoffs?|final|semi|quarter)/i,
                   doubleelim: /(double|de[_\- ]|upper|lower|elim)/i,
                   playin: /(play[-_ ]?in|pi[_\- ])/i,
