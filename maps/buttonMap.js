@@ -50,6 +50,7 @@ module.exports = {
   confirm_playin: "submitPlayinDropdown",
   set_results_playin: "openPlayinResultsDropdown",
   confirm_playin_results: "submitPlayinResultsDropdown",
+  clear_playin_results: "submitPlayinResultsDropdown",
 
   // ===== RANKING =====
   ranking_prev: "rankingPagination",
@@ -112,8 +113,6 @@ module.exports = {
   "panel:open:mvp": "openMvpAdminPanel",
   "mvp:admin:candidates": "openMvpCandidatesModalEntry",
   "mvp:admin:result": "openAdminMvpResultEntry",
-  "mvp:admin:list": "showMvpCandidates",
-  "mvp:admin:show_result": "showOfficialMvp",
   "mvp:set_result": "openMvpAdminPanel",
 
   // ===== COFANIE WYNIKU MECZU =====

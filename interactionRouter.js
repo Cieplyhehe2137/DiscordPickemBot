@@ -180,32 +180,6 @@ async function _handleInteraction(
         return;
       }
 
-      if (customId === "calculate_scores") {
-        await interaction.deferReply({ ephemeral: true });
-
-        try {
-          await fn(interaction.guildId);
-
-          await interaction.followUp({
-            content: "✅ Punkty zostały przeliczone!",
-            ephemeral: true,
-          });
-        } catch (err) {
-          logError("CALCULATE_SCORES_FAILED", err, {
-            guildId: interaction.guildId,
-            userId: interaction.user?.id || null,
-            customId,
-          });
-
-          await interaction.followUp({
-            content: "❌ Wystąpił błąd podczas przeliczania punktów.",
-            ephemeral: true,
-          });
-        }
-
-        return;
-      }
-
       await fn(interaction, client);
       return;
     }

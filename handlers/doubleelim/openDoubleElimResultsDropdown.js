@@ -57,7 +57,7 @@ module.exports = async function openDoubleElimResultsDropdown(interaction) {
 
       const row1 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId("double_results_upper_final_a")
+          .setCustomId("official_doubleelim_upper_final_a")
           .setPlaceholder("Upper Final A — wybierz 2 drużyny")
           .setMinValues(2)
           .setMaxValues(2)
@@ -66,7 +66,7 @@ module.exports = async function openDoubleElimResultsDropdown(interaction) {
 
       const row2 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId("double_results_lower_final_a")
+          .setCustomId("official_doubleelim_lower_final_a")
           .setPlaceholder("Lower Final A — wybierz 2 drużyny")
           .setMinValues(2)
           .setMaxValues(2)
@@ -75,7 +75,7 @@ module.exports = async function openDoubleElimResultsDropdown(interaction) {
 
       const row3 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId("double_results_upper_final_b")
+          .setCustomId("official_doubleelim_lower_final_b")
           .setPlaceholder("Upper Final B — wybierz 2 drużyny")
           .setMinValues(2)
           .setMaxValues(2)
