@@ -74,11 +74,26 @@ module.exports = async (interaction) => {
     });
   }
 
+  const swissDescription =
+    "• 🆙 **2 drużyny na 3-0**\n" +
+    "• 🆘 **2 drużyny na 0-3**\n" +
+    "• 🏅 **6 drużyn awansujących**";
+
   const embed = new EmbedBuilder()
-    .setTitle(`🟠 Etap Swiss (STAGE ${stageNumber})`)
-    .setDescription("Kliknij przycisk poniżej, aby rozpocząć typowanie:")
+    .setTitle(`📌 Typowanie fazy Swiss ${stageNumber}`)
+    .setDescription(
+      `🏆 **Event:** ${event.name}\n\n` +
+        `🎯 **Typujesz:**\n` +
+        `${swissDescription}\n\n` +
+        `🎮 **Mecze**\n` +
+        `Typuj również wyniki poszczególnych spotkań.\n\n` +
+        `📋 **Twoje dane**\n` +
+        `Możesz w każdej chwili sprawdzić zapisane typy i statystyki.`,
+    )
     .setColor("#ff9900")
-    .setFooter({ text: "⏰ Typowanie otwarte – brak deadline." });
+    .setFooter({
+      text: "⏰ Typowanie otwarte – brak deadline.",
+    });
 
   const mainRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
