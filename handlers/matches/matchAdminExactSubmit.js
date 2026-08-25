@@ -14,6 +14,7 @@ const { withGuild } = require("../../utils/guildContext");
 const recalculateMatchPoints = require("../../services/recalculateMatchPoints");
 const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
 const { getMatchById } = require("../../utils/matchesStore");
+const { runInTransaction } = require("../../utils/runInTransaction");
 
 /* ======================
    GUARDS
@@ -26,7 +27,7 @@ function requireGuild(interaction) {
         content: "❌ Ta akcja działa tylko na serwerze.",
         ephemeral: true,
       })
-      .catch(() => {});
+      .catch(() => { });
     return false;
   }
   return true;
@@ -177,44 +178,82 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         mapNo = 1;
       }
 
-      if (maxMaps === 1) {
-        await pool.query(
-          `
-          INSERT INTO match_results
-            (guild_id, event_id, match_id, exact_a, exact_b)
-          VALUES
-            (?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            event_id = VALUES(event_id),
-            exact_a = VALUES(exact_a),
-            exact_b = VALUES(exact_b)
-          `,
-          [guildId, match.event_id, match.id, exactA, exactB],
-        );
-      } else {
-        await pool.query(
-          `
-          INSERT INTO match_map_results
-            (guild_id, event_id, match_id, map_no, exact_a, exact_b)
-          VALUES
-            (?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            event_id = VALUES(event_id),
-            exact_a = VALUES(exact_a),
-            exact_b = VALUES(exact_b),
-            updated_at = CURRENT_TIMESTAMP
-          `,
-          [guildId, match.event_id, match.id, mapNo, exactA, exactB],
-        );
-      }
+      await runInTransaction(pool, async (conn) => {
+        // =========================================
+        // ZAPIS OFICJALNEGO WYNIKU
+        // =========================================
 
-      await recalculateMatchPoints(
-        pool,
-        guildId,
-        match.event_id,
-        match.id,
-        match.best_of,
-      );
+        if (maxMaps === 1) {
+          await conn.query(
+            `
+      INSERT INTO match_results
+        (
+          guild_id,
+          event_id,
+          match_id,
+          exact_a,
+          exact_b
+        )
+      VALUES
+        (?, ?, ?, ?, ?)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        exact_a = VALUES(exact_a),
+        exact_b = VALUES(exact_b)
+      `,
+            [
+              guildId,
+              match.event_id,
+              match.id,
+              exactA,
+              exactB,
+            ],
+          );
+        } else {
+          await conn.query(
+            `
+      INSERT INTO match_map_results
+        (
+          guild_id,
+          event_id,
+          match_id,
+          map_no,
+          exact_a,
+          exact_b
+        )
+      VALUES
+        (?, ?, ?, ?, ?, ?)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        exact_a = VALUES(exact_a),
+        exact_b = VALUES(exact_b),
+        updated_at = CURRENT_TIMESTAMP
+      `,
+            [
+              guildId,
+              match.event_id,
+              match.id,
+              mapNo,
+              exactA,
+              exactB,
+            ],
+          );
+        }
+
+        // =========================================
+        // PRZELICZENIE PUNKTÓW
+        // =========================================
+
+        await recalculateMatchPoints(
+          conn,
+          guildId,
+          match.event_id,
+          match.id,
+          match.best_of,
+        );
+      });
 
       if (maxMaps > 1 && mapNo < maxMaps) {
         const nextMapNo = mapNo + 1;
@@ -274,6 +313,6 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         content: "❌ Nie udało się zapisać wyników.",
         ephemeral: true,
       })
-      .catch(() => {});
+      .catch(() => { });
   }
 };

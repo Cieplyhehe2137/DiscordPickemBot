@@ -1,11 +1,14 @@
 // utils/matchUserState.js
 
+const STATE_TTL_MS = 30 * 60 * 1000;
+
 const state = new Map();
 
 function makeKey(guildId, userId) {
   if (!guildId) {
     throw new Error("matchUserState: missing guildId");
   }
+
   if (!userId) {
     throw new Error("matchUserState: missing userId");
   }
@@ -13,28 +16,56 @@ function makeKey(guildId, userId) {
   return `${String(guildId)}:${String(userId)}`;
 }
 
-module.exports = {
-  set(guildId, userId, ctx) {
-    if (!ctx) {
-      throw new Error("matchUserState.set: missing ctx");
-    }
+function isExpired(entry) {
+  return !entry || Date.now() - entry.ts > STATE_TTL_MS;
+}
 
-    const key = makeKey(guildId, userId);
-    state.set(key, ctx);
-  },
+function set(guildId, userId, ctx) {
+  if (!ctx) {
+    throw new Error("matchUserState.set: missing ctx");
+  }
 
-  get(guildId, userId) {
-    const key = makeKey(guildId, userId);
-    return state.get(key) || null;
-  },
+  const key = makeKey(guildId, userId);
 
-  clear(guildId, userId) {
-    const key = makeKey(guildId, userId);
+  state.set(key, {
+    data: ctx,
+    ts: Date.now(),
+  });
+}
+
+function get(guildId, userId) {
+  const key = makeKey(guildId, userId);
+
+  const entry = state.get(key);
+
+  if (!entry) {
+    return null;
+  }
+
+  if (isExpired(entry)) {
     state.delete(key);
-  },
+    return null;
+  }
 
-  has(guildId, userId) {
-    const key = makeKey(guildId, userId);
-    return state.has(key);
-  },
+  // aktywne użycie przedłuża TTL
+  entry.ts = Date.now();
+
+  return entry.data;
+}
+
+function clear(guildId, userId) {
+  const key = makeKey(guildId, userId);
+
+  state.delete(key);
+}
+
+function has(guildId, userId) {
+  return get(guildId, userId) !== null;
+}
+
+module.exports = {
+  set,
+  get,
+  clear,
+  has,
 };
