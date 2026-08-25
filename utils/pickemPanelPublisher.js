@@ -110,14 +110,14 @@ function buildStandardPayload(event, eventId, phase, config) {
     .setTitle(config.title)
     .setDescription(
       `🏆 Event: **${event.name}**\n\n` +
-        config.description +
-        "\n\n━━━━━━━━━━━━━━\n" +
-        "🎯 Wyniki meczów typujesz osobno.\n" +
-        "📋 Możesz sprawdzić swoje zapisane typy.\n" +
-        "📊 Statystyki aktualizują się po rozliczeniu meczów.",
+      config.description +
+      "\n\n━━━━━━━━━━━━━━\n" +
+      "🎯 Wyniki meczów typujesz osobno.\n" +
+      "📋 Możesz sprawdzić swoje zapisane typy.\n" +
+      "📊 Statystyki aktualizują się po rozliczeniu meczów.",
     );
 
-  const row = new ActionRowBuilder().addComponents(
+  const mainRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(config.buttonId)
       .setLabel(config.buttonLabel)
@@ -125,23 +125,28 @@ function buildStandardPayload(event, eventId, phase, config) {
 
     new ButtonBuilder()
       .setCustomId(`match_pick:${phase}`)
-      .setLabel("🎯 Typuj wyniki meczów")
+      .setLabel("Typuj mecze")
+      .setEmoji("🎯")
       .setStyle(ButtonStyle.Success),
+  );
 
+  const playerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_predictions:${phase}:${eventId}:0`)
-      .setLabel("📋 Moje typy")
+      .setLabel("Moje typy")
+      .setEmoji("📋")
       .setStyle(ButtonStyle.Secondary),
 
     new ButtonBuilder()
       .setCustomId(`my_stats:${eventId}`)
-      .setLabel("📊 Moje statystyki")
+      .setLabel("Moje statystyki")
+      .setEmoji("📊")
       .setStyle(ButtonStyle.Secondary),
   );
 
   return {
     embeds: [embed],
-    components: [row],
+    components: [mainRow, playerRow],
   };
 }
 
