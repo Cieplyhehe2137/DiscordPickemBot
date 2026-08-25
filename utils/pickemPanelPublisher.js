@@ -28,7 +28,6 @@ const phasesConfig = {
     label: "Playoffs",
     title: "📌 Typowanie fazy Playoffs",
     description:
-      "**Typujesz:**\n" +
       "• 🏆 **4 półfinalistów**\n" +
       "• 🥈 **2 finalistów**\n" +
       "• 👑 **Zwycięzcę turnieju**\n" +
@@ -42,11 +41,10 @@ const phasesConfig = {
     label: "Double Elimination",
     title: "📌 Typowanie fazy Double Elim",
     description:
-      "**Typujesz:**\n" +
-      "• 🔝 Upper Final A (2)\n" +
-      "• 🔻 Lower Final A (2)\n" +
-      "• 🔝 Upper Final B (2)\n" +
-      "• 🔻 Lower Final B (2)",
+      "• 🔝 **Upper Final A (2)**\n" +
+      "• 🔻 **Lower Final A (2)**\n" +
+      "• 🔝 **Upper Final B (2)**\n" +
+      "• 🔻 **Lower Final B (2)**",
     buttonId: "open_doubleelim_modal",
     buttonLabel: "Typuj Double Elim",
     color: "Purple",
@@ -55,17 +53,42 @@ const phasesConfig = {
   playin: {
     label: "Play-In",
     title: "📌 Typowanie fazy Play-In",
-    description: "**Typujesz:**\n" + "• 🎯 **8 drużyn awansujących**",
+    description: "• 🎯 **8 drużyn awansujących**",
     buttonId: "open_playin_dropdown",
     buttonLabel: "Typuj Play-In",
     color: "Blue",
   },
 };
 
+// ======================================================
+// WSPÓLNY OPIS PANELU
+// ======================================================
+
+function buildPanelDescription(eventName, phaseDescription) {
+  return (
+    `🏆 **Event:** ${eventName}\n\n` +
+    `🎯 **Typujesz:**\n` +
+    `${phaseDescription}\n\n` +
+    `🎮 **Mecze**\n` +
+    `Typuj również wyniki poszczególnych spotkań.\n\n` +
+    `📋 **Twoje dane**\n` +
+    `Możesz w każdej chwili sprawdzić zapisane typy i statystyki.`
+  );
+}
+
+// ======================================================
+// SWISS
+// ======================================================
+
 function buildSwissPayload(event, eventId, phase, config) {
+  const swissDescription =
+    "• 🆙 **2 drużyny na 3-0**\n" +
+    "• 🆘 **2 drużyny na 0-3**\n" +
+    "• 🏅 **6 drużyn awansujących**";
+
   const embed = new EmbedBuilder()
-    .setTitle(`🟠 Etap Swiss (STAGE ${config.stageNumber})`)
-    .setDescription("Kliknij przycisk poniżej, aby rozpocząć typowanie:")
+    .setTitle(`📌 Typowanie fazy Swiss ${config.stageNumber}`)
+    .setDescription(buildPanelDescription(event.name, swissDescription))
     .setColor("#ff9900")
     .setFooter({
       text: "⏰ Typowanie otwarte – brak deadline.",
@@ -104,18 +127,18 @@ function buildSwissPayload(event, eventId, phase, config) {
   };
 }
 
+// ======================================================
+// PLAYOFFS / DOUBLE ELIM / PLAY-IN
+// ======================================================
+
 function buildStandardPayload(event, eventId, phase, config) {
   const embed = new EmbedBuilder()
     .setColor(config.color)
     .setTitle(config.title)
-    .setDescription(
-      `🏆 Event: **${event.name}**\n\n` +
-      config.description +
-      "\n\n━━━━━━━━━━━━━━\n" +
-      "🎯 Wyniki meczów typujesz osobno.\n" +
-      "📋 Możesz sprawdzić swoje zapisane typy.\n" +
-      "📊 Statystyki aktualizują się po rozliczeniu meczów.",
-    );
+    .setDescription(buildPanelDescription(event.name, config.description))
+    .setFooter({
+      text: "Wybierz jedną z opcji poniżej.",
+    });
 
   const mainRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -149,6 +172,10 @@ function buildStandardPayload(event, eventId, phase, config) {
     components: [mainRow, playerRow],
   };
 }
+
+// ======================================================
+// PUBLIKACJA PANELU
+// ======================================================
 
 async function publishPickemPanel({
   client,
@@ -196,10 +223,15 @@ async function publishPickemPanel({
   const message = await channel.send({
     content: "@everyone",
     ...payload,
+
     allowedMentions: {
       parse: ["everyone"],
     },
   });
+
+  // ======================================================
+  // EVENT
+  // ======================================================
 
   await pool.query(
     `
@@ -215,6 +247,10 @@ async function publishPickemPanel({
     [phase, eventId, guildId],
   );
 
+  // ======================================================
+  // WYŁĄCZENIE POPRZEDNIEGO PANELU
+  // ======================================================
+
   await pool.query(
     `
     UPDATE active_panels
@@ -224,6 +260,10 @@ async function publishPickemPanel({
     `,
     [guildId, phase],
   );
+
+  // ======================================================
+  // PANEL SWISS
+  // ======================================================
 
   if (isSwiss) {
     await pool.query(
@@ -254,7 +294,12 @@ async function publishPickemPanel({
       `,
       [guildId, phase, config.stage, message.id, channel.id],
     );
-  } else {
+  }
+
+  // ======================================================
+  // POZOSTAŁE FAZY
+  // ======================================================
+  else {
     await pool.query(
       `
       INSERT INTO active_panels
