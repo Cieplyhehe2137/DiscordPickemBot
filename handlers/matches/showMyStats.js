@@ -666,7 +666,9 @@ function buildStatsButtons(eventId, activeTab) {
           : ButtonStyle.Secondary,
       )
       .setDisabled(activeTab === "comparison"),
+  );
 
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:analysis`)
       .setLabel("Analiza")
@@ -675,12 +677,10 @@ function buildStatsButtons(eventId, activeTab) {
         activeTab === "analysis" ? ButtonStyle.Primary : ButtonStyle.Secondary,
       )
       .setDisabled(activeTab === "analysis"),
-  );
 
-  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_stats_tab:${eventId}:style`)
-      .setLabel("Styl gracza")
+      .setLabel("Styl")
       .setEmoji("🎭")
       .setStyle(
         activeTab === "style" ? ButtonStyle.Primary : ButtonStyle.Secondary,
@@ -815,27 +815,69 @@ function calculateContrarianStats(userRows, communityRows) {
 
 function buildGeneralEmbed({
   event,
+  playerName,
+  playerAvatar,
+
   totalPredictions,
   settledMatches,
+
   winnerHits,
   seriesExacts,
+
   settledMaps,
   mapWinnerHits,
   exactMaps,
+
   totalPoints,
   seriesPoints,
   mapPoints,
   averagePoints,
+
+  rank,
+  participantCount,
+  topPercent,
+
+  style,
+  trends,
 }) {
-  return new EmbedBuilder()
-    .setTitle(`📊 Twoje statystyki — ${event.name}`)
+  let formText = "➡️ Stabilna";
+
+  if (trends?.direction?.name === "Forma rośnie") {
+    formText = "📈 Rośnie";
+  } else if (trends?.direction?.name === "Forma spada") {
+    formText = "📉 Spada";
+  }
+
+  const embed = new EmbedBuilder()
     .setColor(0x5865f2)
-    .setDescription("Ogólne podsumowanie Twoich typów meczowych.")
+    .setTitle(`📊 Twoje statystyki — ${event.name}`)
+    .setDescription("Szybkie podsumowanie Twojego Pick'Ema.")
     .addFields(
       {
-        name: "🎮 Mecze",
+        name: "🏅 Ranking",
         value:
-          `Oddane typy: **${totalPredictions}**\n` +
+          participantCount > 0
+            ? `**#${rank} / ${participantCount}**\nTOP **${topPercent}%**`
+            : "Brak danych",
+        inline: true,
+      },
+
+      {
+        name: "⭐ Punkty",
+        value: `**${totalPoints} pkt**\n` + `${averagePoints} pkt / mecz`,
+        inline: true,
+      },
+
+      {
+        name: "🎭 Profil",
+        value: `**${style?.name || "—"}**\n` + formText,
+        inline: true,
+      },
+
+      {
+        name: "🎮 Typy",
+        value:
+          `Oddane: **${totalPredictions}**\n` +
           `Rozliczone: **${settledMatches}**`,
         inline: true,
       },
@@ -843,45 +885,48 @@ function buildGeneralEmbed({
       {
         name: "🏆 Zwycięzcy",
         value:
-          `Trafione: **${winnerHits}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(winnerHits, settledMatches)}**`,
+          `**${winnerHits}/${settledMatches}**\n` +
+          `${pct(winnerHits, settledMatches)}`,
         inline: true,
       },
 
       {
         name: "🎯 Exact serii",
         value:
-          `Trafione: **${seriesExacts}/${settledMatches}**\n` +
-          `Skuteczność: **${pct(seriesExacts, settledMatches)}**`,
+          `**${seriesExacts}/${settledMatches}**\n` +
+          `${pct(seriesExacts, settledMatches)}`,
         inline: true,
       },
 
       {
         name: "🗺️ Mapy",
         value:
-          `Zwycięzca: **${mapWinnerHits}/${settledMaps}**\n` +
-          `Exact: **${exactMaps}/${settledMaps}**`,
-        inline: true,
+          `Zwycięzca: **${mapWinnerHits}/${settledMaps}** ` +
+          `(${pct(mapWinnerHits, settledMaps)})\n` +
+          `Exact: **${exactMaps}/${settledMaps}** ` +
+          `(${pct(exactMaps, settledMaps)})`,
+        inline: false,
       },
 
       {
-        name: "⭐ Punkty",
+        name: "📦 Punkty",
         value:
-          `Łącznie: **${totalPoints} pkt**\n` +
-          `└ Serie: **${seriesPoints} pkt**\n` +
-          `└ Mapy: **${mapPoints} pkt**`,
-        inline: true,
-      },
-
-      {
-        name: "📈 Średnia",
-        value: `**${averagePoints} pkt / mecz**`,
-        inline: true,
+          `Serie: **${seriesPoints} pkt** • ` + `Mapy: **${mapPoints} pkt**`,
+        inline: false,
       },
     )
     .setFooter({
-      text: "Statystyki są widoczne tylko dla Ciebie.",
+      text: "Szczegółowe dane znajdziesz w zakładkach poniżej.",
     });
+
+  if (playerName) {
+    embed.setAuthor({
+      name: playerName,
+      ...(playerAvatar ? { iconURL: playerAvatar } : {}),
+    });
+  }
+
+  return embed;
 }
 
 // ======================================================
