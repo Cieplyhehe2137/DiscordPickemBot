@@ -3,6 +3,10 @@ const db = require("../db");
 async function withGuild(source, fn) {
   let guildId = null;
 
+  // ======================================================
+  // GUILD ID
+  // ======================================================
+
   if (typeof source === "string") {
     guildId = source;
   } else if (source?.guildId) {
@@ -11,27 +15,44 @@ async function withGuild(source, fn) {
 
   if (!guildId) {
     throw new Error(
-      `[withGuild] Brak guildId (DM / nieprawidłowe źródło): ${JSON.stringify(
-        source,
-      )}`,
+      "[withGuild] Brak guildId " + "(DM / nieprawidłowe źródło)",
     );
   }
 
   guildId = String(guildId);
 
+  // ======================================================
+  // POOL
+  // ======================================================
+
   const pool = db.getPoolForGuild(guildId);
+
   if (!pool) {
     throw new Error(`[withGuild] Brak poola DB dla guildId=${guildId}`);
   }
 
-  // 🔥 HARD ASSERT — zabija bug raz na zawsze
-  const test = pool.query("SELECT 1");
-  if (!test || typeof test.then !== "function") {
-    throw new Error("[withGuild] Pool is NOT mysql2/promise pool");
+  // ======================================================
+  // WALIDACJA POOLA
+  //
+  // Bez SELECT 1.
+  // ======================================================
+
+  if (typeof pool.query !== "function") {
+    throw new Error(`[withGuild] Nieprawidłowy pool DB dla guildId=${guildId}`);
   }
 
-  // ✅ JEDEN, STAŁY KONTRAKT
-  return fn({ guildId, pool });
+  // ======================================================
+  // CALLBACK
+  // ======================================================
+
+  if (typeof fn !== "function") {
+    throw new Error("[withGuild] Brak callbacka fn");
+  }
+
+  return fn({
+    guildId,
+    pool,
+  });
 }
 
 module.exports = {

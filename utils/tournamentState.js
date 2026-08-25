@@ -1,8 +1,5 @@
-// ❌ USUŃ withGuild stąd
-// const { withGuild } = require('./guildContext');
+const { logError } = require("./logger");
 
-const db = require("../db");
-const logger = require("./logger");
 const { ensureTournamentState } = require("./ensureTournamentTables");
 
 async function getTournamentState(guildId, pool) {
@@ -19,18 +16,28 @@ async function getTournamentState(guildId, pool) {
     await ensureTournamentState(pool);
 
     const [[row]] = await pool.query(
-      "SELECT phase, is_open FROM tournament_state WHERE id = 1",
+      `
+        SELECT
+          phase,
+          is_open
+        FROM tournament_state
+        WHERE id = 1
+        `,
     );
 
     return {
       ok: true,
+
       phase: row?.phase ?? "UNKNOWN",
-      isOpen: !!row?.is_open,
+
+      isOpen: Boolean(row?.is_open),
     };
   } catch (err) {
     logError("tournament", "getTournamentState failed", {
       guildId,
+
       message: err.message,
+
       stack: err.stack,
     });
 
@@ -45,6 +52,7 @@ async function getTournamentState(guildId, pool) {
 
 async function isPredictionsOpen(guildId, pool) {
   const state = await getTournamentState(guildId, pool);
+
   return state.ok && state.isOpen;
 }
 
