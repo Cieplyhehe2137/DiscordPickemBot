@@ -5,12 +5,15 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require("discord.js");
+
 const { withGuild } = require("../../utils/guildContext");
 
 module.exports = async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
+  if (interaction.customId !== "admin_select_swiss_stage") return;
 
   const guildId = interaction.guildId;
+
   if (!guildId) {
     return interaction.reply({
       content: "❌ Ta akcja działa tylko na serwerze.",
@@ -19,10 +22,13 @@ module.exports = async (interaction) => {
   }
 
   if (!interaction.deferred && !interaction.replied) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({
+      ephemeral: true,
+    });
   }
 
   const perms = interaction.memberPermissions;
+
   if (
     !perms?.has(PermissionFlagsBits.ManageGuild) &&
     !perms?.has(PermissionFlagsBits.Administrator)
@@ -32,14 +38,15 @@ module.exports = async (interaction) => {
     });
   }
 
-  const raw = interaction.values?.[0]; // np. swiss_stage_1
+  const raw = String(interaction.values?.[0] || "");
+
   if (!raw) {
     return interaction.editReply({
       content: "❌ Nie wybrano etapu.",
     });
   }
 
-  const stageNumber = String(raw).match(/\d+/)?.[0];
+  const stageNumber = raw.match(/\d+/)?.[0];
 
   if (!stageNumber) {
     return interaction.editReply({
@@ -50,115 +57,152 @@ module.exports = async (interaction) => {
   const phase = `swiss_stage${stageNumber}`;
   const stage = `stage${stageNumber}`;
 
-  let eventId = null;
-
-  await withGuild(guildId, async ({ pool }) => {
-    const [events] = await pool.query(
-      `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
-      AND status = 'OPEN'
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-      [guildId],
-    );
-
-    eventId = Number(events?.[0]?.id || 0);
-  });
-
-  if (!eventId) {
-    return interaction.editReply({
-      content: "❌ Nie znaleziono aktywnego eventu.",
-    });
-  }
-
-  const swissDescription =
-    "• 🆙 **2 drużyny na 3-0**\n" +
-    "• 🆘 **2 drużyny na 0-3**\n" +
-    "• 🏅 **6 drużyn awansujących**";
-
-  const embed = new EmbedBuilder()
-    .setTitle(`📌 Typowanie fazy Swiss ${stageNumber}`)
-    .setDescription(
-      `🏆 **Event:** ${event.name}\n\n` +
-        `🎯 **Typujesz:**\n` +
-        `${swissDescription}\n\n` +
-        `🎮 **Mecze**\n` +
-        `Typuj również wyniki poszczególnych spotkań.\n\n` +
-        `📋 **Twoje dane**\n` +
-        `Możesz w każdej chwili sprawdzić zapisane typy i statystyki.`,
-    )
-    .setColor("#ff9900")
-    .setFooter({
-      text: "⏰ Typowanie otwarte – brak deadline.",
-    });
-
-  const mainRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`start_${phase}`)
-      .setLabel(`Typuj Swiss ${stageNumber}`)
-      .setStyle(ButtonStyle.Primary),
-
-    new ButtonBuilder()
-      .setCustomId(`match_pick:${phase}`)
-      .setLabel("Typuj mecze")
-      .setEmoji("🎯")
-      .setStyle(ButtonStyle.Success),
-  );
-
-  const playerRow = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`my_predictions:${phase}:${eventId}:0`)
-      .setLabel("Moje typy")
-      .setEmoji("📋")
-      .setStyle(ButtonStyle.Secondary),
-
-    new ButtonBuilder()
-      .setCustomId(`my_stats:${eventId}`)
-      .setLabel("Moje statystyki")
-      .setEmoji("📊")
-      .setStyle(ButtonStyle.Secondary),
-  );
-
   try {
-    const sentMessage = await interaction.channel.send({
-      content: "@everyone",
-      embeds: [embed],
-      components: [mainRow, playerRow],
-      allowedMentions: {
-        parse: ["everyone"],
-      },
-    });
+    return withGuild(guildId, async ({ pool }) => {
+      // ======================================================
+      // AKTYWNY EVENT
+      // ======================================================
 
-    await withGuild(guildId, async ({ pool }) => {
+      const [[event]] = await pool.query(
+        `
+        SELECT
+          id,
+          name
+        FROM events
+        WHERE guild_id = ?
+          AND status = 'OPEN'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId],
+      );
+
+      if (!event) {
+        return interaction.editReply({
+          content: "❌ Nie znaleziono aktywnego eventu.",
+        });
+      }
+
+      const eventId = Number(event.id);
+
+      // ======================================================
+      // EMBED
+      // ======================================================
+
+      const swissDescription =
+        "• 🆙 **2 drużyny na 3-0**\n" +
+        "• 🆘 **2 drużyny na 0-3**\n" +
+        "• 🏅 **6 drużyn awansujących**";
+
+      const embed = new EmbedBuilder()
+        .setTitle(`📌 Typowanie fazy Swiss ${stageNumber}`)
+        .setDescription(
+          `🏆 **Event:** ${event.name}\n\n` +
+            `🎯 **Typujesz:**\n` +
+            `${swissDescription}\n\n` +
+            `🎮 **Mecze**\n` +
+            `Typuj również wyniki poszczególnych spotkań.\n\n` +
+            `📋 **Twoje dane**\n` +
+            `Możesz w każdej chwili sprawdzić zapisane typy i statystyki.`,
+        )
+        .setColor("#ff9900")
+        .setFooter({
+          text: "⏰ Typowanie otwarte – brak deadline.",
+        });
+
+      // ======================================================
+      // BUTTONY — TYPOWANIE
+      // ======================================================
+
+      const mainRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`start_${phase}`)
+          .setLabel(`Typuj Swiss ${stageNumber}`)
+          .setStyle(ButtonStyle.Primary),
+
+        new ButtonBuilder()
+          .setCustomId(`match_pick:${phase}`)
+          .setLabel("Typuj mecze")
+          .setEmoji("🎯")
+          .setStyle(ButtonStyle.Success),
+      );
+
+      // ======================================================
+      // BUTTONY — USER
+      // ======================================================
+
+      const playerRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`my_predictions:${phase}:${eventId}:0`)
+          .setLabel("Moje typy")
+          .setEmoji("📋")
+          .setStyle(ButtonStyle.Secondary),
+
+        new ButtonBuilder()
+          .setCustomId(`my_stats:${eventId}`)
+          .setLabel("Moje statystyki")
+          .setEmoji("📊")
+          .setStyle(ButtonStyle.Secondary),
+      );
+
+      // ======================================================
+      // PUBLIKACJA
+      // ======================================================
+
+      const sentMessage = await interaction.channel.send({
+        content: "@everyone",
+        embeds: [embed],
+        components: [mainRow, playerRow],
+        allowedMentions: {
+          parse: ["everyone"],
+        },
+      });
+
+      // ======================================================
+      // ACTIVE PANEL
+      // ======================================================
+
       await pool.query(
         `
-        INSERT INTO active_panels
-          (guild_id, phase, stage, message_id, channel_id, reminded, closed, active, deadline)
+        INSERT INTO active_panels (
+          guild_id,
+          phase,
+          stage,
+          message_id,
+          channel_id,
+          reminded,
+          closed,
+          active,
+          deadline
+        )
         VALUES (?, ?, ?, ?, ?, 0, 0, 1, NULL)
+
         ON DUPLICATE KEY UPDATE
           message_id = VALUES(message_id),
           channel_id = VALUES(channel_id),
           stage = VALUES(stage),
           reminded = 0,
           closed = 0,
+          closed_at = NULL,
           active = 1,
           deadline = NULL
         `,
         [guildId, phase, stage, sentMessage.id, sentMessage.channel.id],
       );
-    });
 
-    await interaction.editReply({
-      content: `✅ Wysłano panel Swiss (STAGE ${stageNumber}).`,
+      return interaction.editReply({
+        content:
+          `✅ Wysłano panel Swiss (STAGE ${stageNumber}).\n` +
+          `🏆 Event: **${event.name}**`,
+      });
     });
   } catch (err) {
-    console.error("Błąd wysyłania panelu Swiss:", err);
+    console.error("[adminSwissStage]", err);
 
-    await interaction.editReply({
-      content: "❌ Nie udało się wysłać panelu.",
-    });
+    return interaction
+      .editReply({
+        content: "❌ Nie udało się wysłać panelu.",
+      })
+      .catch(() => {});
   }
 };
