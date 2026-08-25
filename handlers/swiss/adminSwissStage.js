@@ -80,7 +80,7 @@ module.exports = async (interaction) => {
     .setColor("#ff9900")
     .setFooter({ text: "⏰ Typowanie otwarte – brak deadline." });
 
-  const row = new ActionRowBuilder().addComponents(
+  const mainRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`start_${phase}`)
       .setLabel(`Typuj Swiss ${stageNumber}`)
@@ -88,17 +88,22 @@ module.exports = async (interaction) => {
 
     new ButtonBuilder()
       .setCustomId(`match_pick:${phase}`)
-      .setLabel("🎯 Typuj wyniki meczów")
+      .setLabel("Typuj mecze")
+      .setEmoji("🎯")
       .setStyle(ButtonStyle.Success),
+  );
 
+  const playerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_predictions:${phase}:${eventId}:0`)
-      .setLabel("📋 Moje typy")
+      .setLabel("Moje typy")
+      .setEmoji("📋")
       .setStyle(ButtonStyle.Secondary),
 
     new ButtonBuilder()
       .setCustomId(`my_stats:${eventId}`)
-      .setLabel("📊 Moje statystyki")
+      .setLabel("Moje statystyki")
+      .setEmoji("📊")
       .setStyle(ButtonStyle.Secondary),
   );
 
@@ -106,7 +111,7 @@ module.exports = async (interaction) => {
     const sentMessage = await interaction.channel.send({
       content: "@everyone",
       embeds: [embed],
-      components: [row],
+      components: [mainRow, playerRow],
       allowedMentions: {
         parse: ["everyone"],
       },

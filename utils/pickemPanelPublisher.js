@@ -71,7 +71,7 @@ function buildSwissPayload(event, eventId, phase, config) {
       text: "⏰ Typowanie otwarte – brak deadline.",
     });
 
-  const row = new ActionRowBuilder().addComponents(
+  const mainRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`start_${phase}`)
       .setLabel(`Typuj Swiss ${config.stageNumber}`)
@@ -79,23 +79,28 @@ function buildSwissPayload(event, eventId, phase, config) {
 
     new ButtonBuilder()
       .setCustomId(`match_pick:${phase}`)
-      .setLabel("🎯 Typuj wyniki meczów")
+      .setLabel("Typuj mecze")
+      .setEmoji("🎯")
       .setStyle(ButtonStyle.Success),
+  );
 
+  const playerRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`my_predictions:${phase}:${eventId}:0`)
-      .setLabel("📋 Moje typy")
+      .setLabel("Moje typy")
+      .setEmoji("📋")
       .setStyle(ButtonStyle.Secondary),
 
     new ButtonBuilder()
       .setCustomId(`my_stats:${eventId}`)
-      .setLabel("📊 Moje statystyki")
+      .setLabel("Moje statystyki")
+      .setEmoji("📊")
       .setStyle(ButtonStyle.Secondary),
   );
 
   return {
     embeds: [embed],
-    components: [row],
+    components: [mainRow, playerRow],
   };
 }
 

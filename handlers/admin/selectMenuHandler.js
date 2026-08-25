@@ -154,7 +154,7 @@ module.exports = async (interaction) => {
     // BUTTONY
     // =========================================
 
-    const row = new ActionRowBuilder().addComponents(
+    const mainRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(config.buttonId)
         .setLabel(config.buttonLabel)
@@ -162,17 +162,22 @@ module.exports = async (interaction) => {
 
       new ButtonBuilder()
         .setCustomId(`match_pick:${selected}`)
-        .setLabel("🎯 Typuj wyniki meczów")
+        .setLabel("Typuj mecze")
+        .setEmoji("🎯")
         .setStyle(ButtonStyle.Success),
+    );
 
+    const playerRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`my_predictions:${selected}:${eventId}:0`)
-        .setLabel("📋 Moje typy")
+        .setLabel("Moje typy")
+        .setEmoji("📋")
         .setStyle(ButtonStyle.Secondary),
 
       new ButtonBuilder()
         .setCustomId(`my_stats:${eventId}`)
-        .setLabel("📊 Moje statystyki")
+        .setLabel("Moje statystyki")
+        .setEmoji("📊")
         .setStyle(ButtonStyle.Secondary),
     );
 
@@ -183,7 +188,7 @@ module.exports = async (interaction) => {
     await withGuild(interaction, async ({ pool, guildId }) => {
       const msg = await interaction.channel.send({
         embeds: [embed],
-        components: [row],
+        components: [mainRow, playerRow],
       });
 
       await pool.query(

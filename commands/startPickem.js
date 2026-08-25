@@ -342,7 +342,7 @@ module.exports = {
           )
           .setColor(config.color);
 
-        const row = new ActionRowBuilder().addComponents(
+        const mainRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(config.buttonId)
             .setLabel(config.buttonLabel)
@@ -350,24 +350,29 @@ module.exports = {
 
           new ButtonBuilder()
             .setCustomId(`match_pick:${selected}`)
-            .setLabel("🎯 Typuj wyniki meczów")
+            .setLabel("Typuj mecze")
+            .setEmoji("🎯")
             .setStyle(ButtonStyle.Success),
+        );
 
+        const playerRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`my_predictions:${selected}:${eventId}:0`)
-            .setLabel("📋 Moje typy")
+            .setLabel("Moje typy")
+            .setEmoji("📋")
             .setStyle(ButtonStyle.Secondary),
 
           new ButtonBuilder()
             .setCustomId(`my_stats:${eventId}`)
-            .setLabel("📊 Moje statystyki")
+            .setLabel("Moje statystyki")
+            .setEmoji("📊")
             .setStyle(ButtonStyle.Secondary),
         );
 
         const message = await interaction.channel.send({
           content: "@everyone",
           embeds: [embed],
-          components: [row],
+          components: [mainRow, playerRow],
           allowedMentions: {
             parse: ["everyone"],
           },
