@@ -1197,12 +1197,10 @@ app.post(
         count = await teamsStore.importTeamsFromJsonText(guildId, jsonText);
       } catch (err) {
         if (err.message === "INVALID_JSON") {
-          return res
-            .status(400)
-            .json({
-              error:
-                'Invalid JSON - expected an array of team name strings, e.g. ["FaZe","NAVI","G2"]',
-            });
+          return res.status(400).json({
+            error:
+              'Invalid JSON - expected an array of team name strings, e.g. ["FaZe","NAVI","G2"]',
+          });
         }
 
         throw err;
@@ -1238,11 +1236,9 @@ app.post(
       }
 
       if (phase === "swiss" && !stage) {
-        return res
-          .status(400)
-          .json({
-            error: "stage is required for phase=swiss (e.g. 1, 2, or 3)",
-          });
+        return res.status(400).json({
+          error: "stage is required for phase=swiss (e.g. 1, 2, or 3)",
+        });
       }
 
       const parsed = parseDeadlineInput(data);
@@ -1258,11 +1254,9 @@ app.post(
       }
 
       if (!lookup.row) {
-        return res
-          .status(404)
-          .json({
-            error: `No active panel found for phase "${lookup.lookupPhase}"${lookup.lookupStageKey ? ` / stage "${lookup.lookupStageKey}"` : ""}`,
-          });
+        return res.status(404).json({
+          error: `No active panel found for phase "${lookup.lookupPhase}"${lookup.lookupStageKey ? ` / stage "${lookup.lookupStageKey}"` : ""}`,
+        });
       }
 
       await pool.query(
@@ -3004,11 +2998,9 @@ app.post(
         : [];
 
       if (teams.length !== 8) {
-        return res
-          .status(400)
-          .json({
-            error: `Play-In requires exactly 8 teams (got ${teams.length})`,
-          });
+        return res.status(400).json({
+          error: `Play-In requires exactly 8 teams (got ${teams.length})`,
+        });
       }
 
       const [[event]] = await pool.query(

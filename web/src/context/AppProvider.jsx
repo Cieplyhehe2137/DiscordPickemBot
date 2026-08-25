@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AppContext } from './AppContext';
+import { useState } from "react";
+import { AppContext } from "./AppContext";
 
 export function AppProvider({ children }) {
   const [selectedGuild, setSelectedGuild] = useState(null);
@@ -12,7 +12,7 @@ export function AppProvider({ children }) {
         setSelectedGuild,
 
         selectedEvent,
-        setSelectedEvent
+        setSelectedEvent,
       }}
     >
       {children}

@@ -1,10 +1,10 @@
-import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { Archive } from 'lucide-react';
-import { getPublicArchives } from '../lib/api';
-import PublicAuthButton from '../components/public/PublicAuthButton';
-import PublicFooter from '../components/public/PublicFooter';
-import EmptyState from '../components/ui/EmptyState';
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Archive } from "lucide-react";
+import { getPublicArchives } from "../lib/api";
+import PublicAuthButton from "../components/public/PublicAuthButton";
+import PublicFooter from "../components/public/PublicFooter";
+import EmptyState from "../components/ui/EmptyState";
 
 export default function PublicArchivePage() {
   const [archives, setArchives] = useState([]);
@@ -31,13 +31,19 @@ export default function PublicArchivePage() {
 
       <div className="relative z-10 mx-auto max-w-7xl">
         <div className="mb-8 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-          <Link to="/public" className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white">
+          <Link
+            to="/public"
+            className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
             Społeczności
           </Link>
 
           <div className="h-5 w-px bg-white/10" />
 
-          <Link to="/public/leaderboard" className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white">
+          <Link
+            to="/public/leaderboard"
+            className="rounded-xl px-4 py-2 text-sm font-black text-white/70 transition hover:bg-white/10 hover:text-white"
+          >
             Ranking
           </Link>
 
@@ -65,11 +71,7 @@ export default function PublicArchivePage() {
         </p>
 
         <div className="mt-10 grid gap-4">
-          {loading && (
-            <p className="text-white/50">
-              Ładowanie archiwum...
-            </p>
-          )}
+          {loading && <p className="text-white/50">Ładowanie archiwum...</p>}
 
           {!loading && archives.length === 0 && (
             <EmptyState
@@ -79,37 +81,39 @@ export default function PublicArchivePage() {
             />
           )}
 
-          {!loading && archives.map((archive) => (
-            <div
-              key={archive.id}
-              className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-6 transition hover:border-violet-400/30 hover:bg-violet-500/5"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-6">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
-                    Plik archiwum
-                  </p>
+          {!loading &&
+            archives.map((archive) => (
+              <div
+                key={archive.id}
+                className="card-hover rounded-[2rem] border border-white/10 bg-white/5 p-6 transition hover:border-violet-400/30 hover:bg-violet-500/5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-6">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.2em] text-violet-300">
+                      Plik archiwum
+                    </p>
 
-                  <h2 className="mt-2 text-2xl font-black">
-                    {archive.filename}
-                  </h2>
+                    <h2 className="mt-2 text-2xl font-black">
+                      {archive.filename}
+                    </h2>
 
-                  <p className="mt-2 text-white/40">
-                    Utworzono: {archive.created_at
-                      ? new Date(archive.created_at).toLocaleString()
-                      : '-'}
-                  </p>
+                    <p className="mt-2 text-white/40">
+                      Utworzono:{" "}
+                      {archive.created_at
+                        ? new Date(archive.created_at).toLocaleString()
+                        : "-"}
+                    </p>
+                  </div>
+
+                  <a
+                    href={`/api/public/archives/${archive.id}/download`}
+                    className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
+                  >
+                    Pobierz Excel
+                  </a>
                 </div>
-
-                <a
-                  href={`/api/public/archives/${archive.id}/download`}
-                  className="rounded-2xl bg-violet-500 px-6 py-4 font-black transition hover:bg-violet-400"
-                >
-                  Pobierz Excel
-                </a>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
 
         <PublicFooter />

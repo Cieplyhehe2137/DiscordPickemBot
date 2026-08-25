@@ -3,6 +3,7 @@
 ## ✅ Done / Current Foundation
 
 ### Public Platform
+
 - Public home page `/public`
 - Community hub `/public/:guildSlug`
 - Event page `/public/event/:slug`
@@ -11,6 +12,7 @@
 - My predictions dashboard `/public/me/predictions`
 
 ### Public Event Features
+
 - Live event overview
 - Match cards
 - Featured match
@@ -24,6 +26,7 @@
 - Next Pick shortcut
 
 ### Player Features
+
 - Public profiles
 - Accuracy stats
 - Exact score hits
@@ -32,6 +35,7 @@
 - Recent predictions
 
 ### Leaderboard
+
 - Global public leaderboard
 - Sort by points, accuracy, exact hits, predictions
 - Player profile links
@@ -42,9 +46,11 @@
 ## 🔥 Next Priority
 
 ### 1. Discord OAuth Stabilization
+
 Goal: make login/session reliable and use Discord identity everywhere.
 
 Tasks:
+
 - Verify `/api/auth/discord`
 - Verify `/api/auth/discord/callback`
 - Verify `/api/auth/me`
@@ -55,9 +61,11 @@ Tasks:
 - Remove any frontend-sent `user_id` trust
 
 ### 2. Event Leaderboard
+
 Goal: leaderboard scoped to one event.
 
 Tasks:
+
 - `/api/public/events/:slug/leaderboard`
 - `/public/event/:slug/leaderboard`
 - Link from event page
@@ -65,9 +73,11 @@ Tasks:
 - Profile links
 
 ### 3. Full Pick'Em Web UI
+
 Goal: support main Pick'Em phase predictions from the website.
 
 Priority order:
+
 - Swiss 3-0 / 0-3 / advancing
 - Play-In
 - Playoffs
@@ -79,17 +89,20 @@ Priority order:
 ## 🧱 Core Systems To Protect
 
 ### Multi-Guild
+
 - Every public/admin query must respect `guild_id`
 - Never mix data between guilds
 - Event slug alone may not be enough long-term
 - Prefer event id + guild id internally
 
 ### Locking / Deadlines
+
 - Website predictions must respect match locks
 - Full Pick'Em predictions must respect phase deadlines
 - Backend must enforce locks, not only frontend
 
 ### Scoring
+
 - Match predictions
 - Swiss predictions
 - Playoffs predictions
@@ -102,6 +115,7 @@ Priority order:
 ## 🕒 Later
 
 ### Social / Platform Features
+
 - Seasons
 - Badges v2
 - ELO / ranked system
@@ -110,6 +124,7 @@ Priority order:
 - Prediction sharing cards
 
 ### Visual Polish
+
 - Event banners
 - Team logos
 - Discord avatars
@@ -118,6 +133,7 @@ Priority order:
 - Empty states
 
 ### SaaS / Multi-Community
+
 - Community onboarding
 - Admin billing/subscription
 - Public community discovery

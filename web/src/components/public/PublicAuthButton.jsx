@@ -1,139 +1,128 @@
-import { Link } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
-import { usePublicAuth } from '../../context/PublicAuthContext';
-import { logout } from '../../lib/api';
+import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { usePublicAuth } from "../../context/PublicAuthContext";
+import { logout } from "../../lib/api";
 
 export default function PublicAuthButton() {
-    const { user, loading, isLoggedIn } = usePublicAuth();
+  const { user, loading, isLoggedIn } = usePublicAuth();
 
-    async function handleLogout() {
-        try {
-            await logout();
-        } finally {
-            window.location.href = '/public';
-        }
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      window.location.href = "/public";
+    }
+  }
+
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const displayName = user?.global_name || user?.username || "Profil";
+
+  const avatarUrl = user?.avatar
+    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+    : null;
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+      }
     }
 
-    const [open, setOpen] = useState(false);
-    const dropdownRef = useRef(null);
+    document.addEventListener("mousedown", handleClickOutside);
 
-    const displayName = user?.global_name || user?.username || 'Profil';
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-    const avatarUrl =
-        user?.avatar
-            ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
-            : null;
+  if (loading) {
+    return <div className="h-10 w-32 animate-pulse rounded-xl bg-white/10" />;
+  }
 
-    useEffect(() => {
-        function handleClickOutside(event) {
-            if (
-                dropdownRef.current &&
-                !dropdownRef.current.contains(event.target)
-            ) {
-                setOpen(false);
-            }
-        }
-
-        document.addEventListener('mousedown', handleClickOutside);
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="h-10 w-32 animate-pulse rounded-xl bg-white/10" />
-        );
-    }
-
-    if (!isLoggedIn) {
-        return (
-            <a
-                href={`/api/auth/discord?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
-                className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-400"
-            >
-                Zaloguj przez Discord
-            </a>
-        );
-    }
-
+  if (!isLoggedIn) {
     return (
-        <div
-            ref={dropdownRef}
-            className="relative"
-        >
-            <button
-                onClick={() => setOpen((value) => !value)}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 transition hover:bg-white/10"
-            >
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-violet-500/20 text-sm font-black text-violet-300">
-                    {avatarUrl ? (
-                        <img
-                            src={avatarUrl}
-                            alt={displayName}
-                            className="h-full w-full object-cover"
-                        />
-                    ) : (
-                        displayName.charAt(0)
-                    )}
-                </div>
-
-                <span className="max-w-[140px] truncate text-sm font-black text-white/80">
-                    {displayName}
-                </span>
-            </button>
-
-            {open && (
-                <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
-                    <div className="border-b border-white/10 p-4">
-                        <p className="truncate text-sm font-black text-white">
-                            {displayName}
-                        </p>
-
-                        <p className="mt-1 text-xs text-white/40">
-                            Połączono z Discord
-                        </p>
-                    </div>
-
-                    <div className="p-2">
-                        <Link
-                            to={`/public/users/${user.id}`}
-                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
-                        >
-                            Mój Profil
-                        </Link>
-
-                        <Link
-                            to="/public/me/predictions"
-                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
-                        >
-                            Moje Typy
-                        </Link>
-
-                        <Link
-                            to="/public/leaderboard"
-                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
-                        >
-                            Ranking
-                        </Link>
-
-                        <Link
-                            to="/app"
-                            className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
-                        >
-                            Panel
-                        </Link>
-
-                        <button
-                            onClick={handleLogout}
-                            className="flex w-full rounded-xl px-4 py-3 text-left text-sm font-black text-red-300 transition hover:bg-red-500/10"
-                        >
-                            Wyloguj
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
+      <a
+        href={`/api/auth/discord?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`}
+        className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-400"
+      >
+        Zaloguj przez Discord
+      </a>
     );
+  }
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 transition hover:bg-white/10"
+      >
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-violet-500/20 text-sm font-black text-violet-300">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            displayName.charAt(0)
+          )}
+        </div>
+
+        <span className="max-w-[140px] truncate text-sm font-black text-white/80">
+          {displayName}
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
+          <div className="border-b border-white/10 p-4">
+            <p className="truncate text-sm font-black text-white">
+              {displayName}
+            </p>
+
+            <p className="mt-1 text-xs text-white/40">Połączono z Discord</p>
+          </div>
+
+          <div className="p-2">
+            <Link
+              to={`/public/users/${user.id}`}
+              className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+            >
+              Mój Profil
+            </Link>
+
+            <Link
+              to="/public/me/predictions"
+              className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+            >
+              Moje Typy
+            </Link>
+
+            <Link
+              to="/public/leaderboard"
+              className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+            >
+              Ranking
+            </Link>
+
+            <Link
+              to="/app"
+              className="flex rounded-xl px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/5"
+            >
+              Panel
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              className="flex w-full rounded-xl px-4 py-3 text-left text-sm font-black text-red-300 transition hover:bg-red-500/10"
+            >
+              Wyloguj
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

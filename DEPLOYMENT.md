@@ -4,11 +4,11 @@ Ten dokument opisuje wystawienie panelu (`server/` + `web/`) na **web hostingu C
 
 Układ docelowy:
 
-| element | gdzie | zmiana |
-|---|---|---|
-| bot Discord | dotychczasowy hosting bota (panel Pterodactyl) | **żadna** |
-| baza MySQL | dotychczasowa, wspólna dla wszystkich gildii | **żadna** |
-| API + strona | nowy web hosting (Plesk), jeden proces Node | nowość |
+| element      | gdzie                                          | zmiana    |
+| ------------ | ---------------------------------------------- | --------- |
+| bot Discord  | dotychczasowy hosting bota (panel Pterodactyl) | **żadna** |
+| baza MySQL   | dotychczasowa, wspólna dla wszystkich gildii   | **żadna** |
+| API + strona | nowy web hosting (Plesk), jeden proces Node    | nowość    |
 
 `server/index.js` serwuje zbudowaną stronę z `web/dist` samodzielnie, więc to **jeden proces Node**, jedna domena i jeden origin — bez osobnego hostingu na frontend i bez ciasteczek cross-origin.
 
@@ -47,17 +47,17 @@ Musi się znaleźć na serwerze:
 
 Lista wyliczona z realnych importów serwera (29 plików projektu), nie z pamięci:
 
-| element | po co |
-|---|---|
-| `server/` | kod API |
-| `web/dist/` | zbudowana strona (krok 4) |
-| `utils/` | współdzielone z botem — `restoreBackup.js`, `guildRegistry.js`, repozytoria faz |
-| `handlers/` | eksport klasyfikacji, przeliczanie wyników |
-| `services/` | przeliczanie punktów meczów |
-| `rules/` | zasady punktacji |
-| `db.js` | pula połączeń per gildia — pojedynczy plik w katalogu głównym |
-| `package.json` + `package-lock.json` | potrzebne do `npm install` w katalogu głównym (krok 5) |
-| `config/*.env` | konfiguracje gildii — **serwer web też ich potrzebuje**: dane dostępowe do bazy per gildia oraz nazwy, slugi i link zaproszenia na Discorda |
+| element                              | po co                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/`                            | kod API                                                                                                                                     |
+| `web/dist/`                          | zbudowana strona (krok 4)                                                                                                                   |
+| `utils/`                             | współdzielone z botem — `restoreBackup.js`, `guildRegistry.js`, repozytoria faz                                                             |
+| `handlers/`                          | eksport klasyfikacji, przeliczanie wyników                                                                                                  |
+| `services/`                          | przeliczanie punktów meczów                                                                                                                 |
+| `rules/`                             | zasady punktacji                                                                                                                            |
+| `db.js`                              | pula połączeń per gildia — pojedynczy plik w katalogu głównym                                                                               |
+| `package.json` + `package-lock.json` | potrzebne do `npm install` w katalogu głównym (krok 5)                                                                                      |
+| `config/*.env`                       | konfiguracje gildii — **serwer web też ich potrzebuje**: dane dostępowe do bazy per gildia oraz nazwy, slugi i link zaproszenia na Discorda |
 
 Nie musi: `commands/`, `index.js` bota, `web/src/`, `web/node_modules/`, `node_modules/`.
 
@@ -113,7 +113,7 @@ npm run build
 
 Powstanie `web/dist/` — wgraj **całą zawartość** do `web/dist/` na serwerze.
 
-Alternatywa, jeśli wolisz budować na serwerze: wgraj `web/` z `package.json`, w panelu Node.js ustaw tymczasowo Application Root na `web/`, kliknij *NPM install*, uruchom skrypt `build`, po czym przestaw Application Root z powrotem na `server/`. Wersja lokalna jest prostsza i przewidywalna — hosting współdzielony bywa skąpy w pamięć przy budowaniu.
+Alternatywa, jeśli wolisz budować na serwerze: wgraj `web/` z `package.json`, w panelu Node.js ustaw tymczasowo Application Root na `web/`, kliknij _NPM install_, uruchom skrypt `build`, po czym przestaw Application Root z powrotem na `server/`. Wersja lokalna jest prostsza i przewidywalna — hosting współdzielony bywa skąpy w pamięć przy budowaniu.
 
 Po **każdej** późniejszej zmianie w `web/` trzeba powtórzyć build i wgrać `dist` na nowo — to pliki statyczne, nie odświeżą się same.
 
@@ -123,16 +123,16 @@ Po **każdej** późniejszej zmianie w `web/` trzeba powtórzyć build i wgrać 
 
 W panelu domeny → **Node.js**:
 
-| ustawienie | wartość |
-|---|---|
-| Node.js version | 20 LTS lub 22 LTS |
-| Application Mode | `production` |
-| Application Root | `/var/www/vhosts/TWOJA-DOMENA/pickem/server` |
-| Application Startup File | `index.js` |
+| ustawienie               | wartość                                      |
+| ------------------------ | -------------------------------------------- |
+| Node.js version          | 20 LTS lub 22 LTS                            |
+| Application Mode         | `production`                                 |
+| Application Root         | `/var/www/vhosts/TWOJA-DOMENA/pickem/server` |
+| Application Startup File | `index.js`                                   |
 
 **Application Root musi wskazywać na `server/`, nie na katalog główny repozytorium.** Powody:
 
-- przycisk *NPM install* instaluje zależności z `package.json` znalezionego w Application Root — w katalogu głównym leżą zależności **bota**, nie serwera,
+- przycisk _NPM install_ instaluje zależności z `package.json` znalezionego w Application Root — w katalogu głównym leżą zależności **bota**, nie serwera,
 - `dotenv` szuka `.env` w katalogu roboczym, czyli znajdzie `server/.env`,
 - backupy i archiwa również zapisują się względem katalogu roboczego, czyli trafią do `server/backup/` — tak samo jak lokalnie.
 
@@ -158,7 +158,7 @@ Jeśli masz dostęp SSH, to po prostu `npm install --omit=dev` w obu katalogach.
 
 ## 6. HTTPS
 
-W panelu domeny → **SSL/TLS Certificates** → wystaw darmowy certyfikat Let's Encrypt, potem włącz przekierowanie na HTTPS (*Hosting Settings → Permanent SEO-safe 301 redirect from HTTP to HTTPS*).
+W panelu domeny → **SSL/TLS Certificates** → wystaw darmowy certyfikat Let's Encrypt, potem włącz przekierowanie na HTTPS (_Hosting Settings → Permanent SEO-safe 301 redirect from HTTP to HTTPS_).
 
 To nie jest opcjonalne: przy `NODE_ENV=production` ciasteczko sesji ma flagę `secure` i przeglądarka **nie wyśle go po zwykłym HTTP** — logowanie przestanie działać, bez żadnego błędu w logach.
 
@@ -170,27 +170,27 @@ Aplikacja jest już przygotowana na pracę za reverse proxy Pleska (`trust proxy
 
 Po kolei, bo każdy krok sprawdza co innego:
 
-1. `https://TWOJA-DOMENA/public` — strona publiczna z realnymi danymi. *Jeśli działa: Node wstał, baza odpowiada, `web/dist` jest na miejscu.*
-2. „Zaloguj przez Discord" → powrót na stronę jako zalogowany. *Jeśli działa: redirect URI, HTTPS i ciasteczka sesji są poprawne.*
-3. `https://TWOJA-DOMENA/api/auth/dev-login` — musi zwrócić **404**. *Jeśli zwraca cokolwiek innego, `NODE_ENV` nie jest ustawione na `production` i panel stoi otworem.*
-4. `/app` → panel admina z listą Twoich serwerów. *Jeśli działa: konfiguracje gildii są znalezione (`GUILD_CONFIG_DIR`).*
-5. Wejdź w serwer → turniej → **Operacje turniejowe → Utwórz backup**, potem **Pobierz**. *Jeśli plik się pobiera: katalog roboczy jest zapisywalny, a `mysqldump` działa.*
-6. Restart aplikacji w panelu, będąc zalogowanym → sesja przeżywa restart. *Sesje siedzą w MySQL, nie w pamięci procesu.*
+1. `https://TWOJA-DOMENA/public` — strona publiczna z realnymi danymi. _Jeśli działa: Node wstał, baza odpowiada, `web/dist` jest na miejscu._
+2. „Zaloguj przez Discord" → powrót na stronę jako zalogowany. _Jeśli działa: redirect URI, HTTPS i ciasteczka sesji są poprawne._
+3. `https://TWOJA-DOMENA/api/auth/dev-login` — musi zwrócić **404**. _Jeśli zwraca cokolwiek innego, `NODE_ENV` nie jest ustawione na `production` i panel stoi otworem._
+4. `/app` → panel admina z listą Twoich serwerów. _Jeśli działa: konfiguracje gildii są znalezione (`GUILD_CONFIG_DIR`)._
+5. Wejdź w serwer → turniej → **Operacje turniejowe → Utwórz backup**, potem **Pobierz**. _Jeśli plik się pobiera: katalog roboczy jest zapisywalny, a `mysqldump` działa._
+6. Restart aplikacji w panelu, będąc zalogowanym → sesja przeżywa restart. _Sesje siedzą w MySQL, nie w pamięci procesu._
 
 ---
 
 ## Gdy coś nie działa
 
-| objaw | przyczyna | co zrobić |
-|---|---|---|
-| Logowanie „przechodzi", ale wracasz niezalogowany | ciasteczko `secure` nie przechodzi przez HTTP | dokończ krok 6 (certyfikat + wymuszenie HTTPS) |
-| `Invalid OAuth2 redirect_uri` | `DISCORD_REDIRECT_URI` ≠ wpis w Developer Portal | porównaj znak po znaku, także ukośnik końcowy |
-| Strona publiczna działa, `/app` pokazuje pustą listę serwerów | serwer nie znalazł `config/*.env` | `GUILD_CONFIG_DIR` musi być ścieżką bezwzględną (krok 3) |
-| Biała strona, w konsoli 404 na plikach `.js` | brak `web/dist` na serwerze | krok 4 |
-| Aplikacja nie startuje, `Cannot find module 'winston'` (albo `luxon`/`exceljs`) | brak `node_modules` w katalogu **głównym** | *NPM install* trzeba wykonać w obu katalogach (krok 5) |
-| Aplikacja nie startuje, `Cannot find module 'express'` | brak `server/node_modules` | jw. — drugi przebieg *NPM install* z Application Root na `server/` |
-| Panel działa, ale nie odświeża się na żywo | WebSockety nie przechodzą | nic nie trzeba — Socket.io schodzi wtedy na long-polling i działa dalej, tylko wolniej |
-| Backup zwraca 500 | katalog roboczy niezapisywalny | sprawdź prawa do `server/backup/` |
+| objaw                                                                           | przyczyna                                        | co zrobić                                                                              |
+| ------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Logowanie „przechodzi", ale wracasz niezalogowany                               | ciasteczko `secure` nie przechodzi przez HTTP    | dokończ krok 6 (certyfikat + wymuszenie HTTPS)                                         |
+| `Invalid OAuth2 redirect_uri`                                                   | `DISCORD_REDIRECT_URI` ≠ wpis w Developer Portal | porównaj znak po znaku, także ukośnik końcowy                                          |
+| Strona publiczna działa, `/app` pokazuje pustą listę serwerów                   | serwer nie znalazł `config/*.env`                | `GUILD_CONFIG_DIR` musi być ścieżką bezwzględną (krok 3)                               |
+| Biała strona, w konsoli 404 na plikach `.js`                                    | brak `web/dist` na serwerze                      | krok 4                                                                                 |
+| Aplikacja nie startuje, `Cannot find module 'winston'` (albo `luxon`/`exceljs`) | brak `node_modules` w katalogu **głównym**       | _NPM install_ trzeba wykonać w obu katalogach (krok 5)                                 |
+| Aplikacja nie startuje, `Cannot find module 'express'`                          | brak `server/node_modules`                       | jw. — drugi przebieg _NPM install_ z Application Root na `server/`                     |
+| Panel działa, ale nie odświeża się na żywo                                      | WebSockety nie przechodzą                        | nic nie trzeba — Socket.io schodzi wtedy na long-polling i działa dalej, tylko wolniej |
+| Backup zwraca 500                                                               | katalog roboczy niezapisywalny                   | sprawdź prawa do `server/backup/`                                                      |
 
 Logi aplikacji: panel Plesk → Node.js → **Log file**, albo Logs domeny.
 

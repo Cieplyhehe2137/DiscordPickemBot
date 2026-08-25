@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getGuilds } from '../lib/api';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getGuilds } from "../lib/api";
 
 export default function GuildSelect() {
   const [guilds, setGuilds] = useState([]);
@@ -30,9 +30,7 @@ export default function GuildSelect() {
           PickemBot
         </p>
 
-        <h1 className="mt-3 text-5xl font-black">
-          Wybierz serwer
-        </h1>
+        <h1 className="mt-3 text-5xl font-black">Wybierz serwer</h1>
 
         {loading && (
           <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-8 text-white/60">
@@ -52,13 +50,9 @@ export default function GuildSelect() {
                 {guild.role}
               </p>
 
-              <h2 className="mt-3 text-3xl font-black">
-                {guild.name}
-              </h2>
+              <h2 className="mt-3 text-3xl font-black">{guild.name}</h2>
 
-              <p className="mt-4 text-white/40">
-                ID: {guild.id}
-              </p>
+              <p className="mt-4 text-white/40">ID: {guild.id}</p>
             </button>
           ))}
         </div>

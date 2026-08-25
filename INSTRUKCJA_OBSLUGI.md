@@ -20,6 +20,7 @@ Po zalogowaniu w prawym górnym rogu pojawia się Twój awatar/nick — kliknię
 ### 1.2 Strona główna — `/public`
 
 Lista wszystkich społeczności (serwerów Discord) korzystających z bota, wraz z:
+
 - statystykami platformy (liczba społeczności, otwartych eventów),
 - rankingiem TOP graczy,
 - sekcją **Popularne wydarzenia** — aktualnie aktywne eventy ze wszystkich społeczności.
@@ -36,6 +37,7 @@ To główna strona, na której typujesz mecze. Zawiera:
 - **Lista meczów** — filtrowanie po statusie (Wszystkie/Otwarte/Na żywo/Zakończone/Zablokowane), przełącznik **„Moje typy"** (pokazuje tylko mecze, które już otypowałeś).
 
 **Jak wpisać typ na mecz:**
+
 1. Kliknij **„Wpisz typ"** przy meczu (lub „Typuj ten mecz" na wyróżnionym meczu).
 2. **Krok 1 — Wynik serii**: wybierz jedną z opcji wyniku serii (np. „TeamA 2:1").
 3. **Krok 2 — Wyniki map**: dla każdej mapy wchodzącej w skład wybranego wyniku wpisz dokładny wynik rundowy (np. 13:9). Liczba pól zależy od formatu (BO1 = 1 mapa, BO3 = do 3 map, BO5 = do 5 map).
@@ -107,12 +109,14 @@ To centrum zarządzania pojedynczym turniejem. Sekcje od góry:
 **Podstawowe informacje** — nazwa, status, faza, statystyki (uczestnicy/mecze/typy), przyciski zmiany statusu i „Wstecz".
 
 **Panel administracyjny:**
+
 - **Przelicz wyniki** — ręcznie przelicza punkty wszystkich graczy na podstawie aktualnych wyników meczów i faz. Używaj po każdej zmianie wyniku, jeśli punkty nie zaktualizowały się automatycznie.
 - **Zmień fazę** — ustawia aktualną fazę turnieju (Nierozpoczęta / Play-In / Swiss / Playoffs / Zakończona).
 - **Zamknij event** — zmienia status na zamknięty.
 - **Eksportuj klasyfikację** — pobiera pełny eksport Excel (identyczny z tym dostępnym na Discordzie).
 
 **Oficjalne wyniki fazy** — cztery osobne panele, jeden na fazę turnieju. Wpisane tu wyniki są źródłem prawdy do liczenia punktów graczy (użyj potem „Przelicz wyniki"):
+
 - **Swiss** — osobno dla każdego etapu (zakładki Etap 1/2/3): drużyny z wynikiem 3-0 (max 2), 0-3 (max 2), awansujące (max 6).
 - **Playoffs** — półfinaliści (max 4), finaliści (max 2), zwycięzca (1), 3. miejsce (1).
 - **Double Elimination** — cztery sloty po 2 drużyny (Upper/Lower Final A/B).
@@ -121,6 +125,7 @@ To centrum zarządzania pojedynczym turniejem. Sekcje od góry:
 **Strefa zagrożenia — Wyczyść fazę** — trwale usuwa wszystkie mecze, typy, wyniki i punkty dla jednej wybranej fazy (Play-In/Swiss/Playoffs) tego konkretnego eventu. Przed skasowaniem pokazywany jest podgląd liczby rekordów do usunięcia, a potwierdzenie wymaga wpisania nazwy fazy. **Ta operacja jest nieodwracalna.**
 
 **Mecze:**
+
 - **Utwórz mecz** — wybór fazy, drużyny A/B (tylko aktywne drużyny), formatu (BO1/BO3/BO5) i opcjonalnie czasu rozpoczęcia.
 - Wyszukiwarka, sortowanie i filtry statusu dla listy meczów.
 - Przy każdym meczu: **Otwórz/Ukryj** (szczegóły i statystyki typów), **Zablokuj/Odblokuj** (blokada uniemożliwia dalsze typowanie tego meczu), **Wpisz wynik** (wynik serii, np. 2:1 — automatycznie przelicza punkty), **Dokładne wyniki** (wynik rundowy 0-99 dla każdej rozegranej mapy — również przelicza punkty).
@@ -129,6 +134,7 @@ To centrum zarządzania pojedynczym turniejem. Sekcje od góry:
 **Ranking** — podgląd aktualnej klasyfikacji eventu (ten sam ranking co na stronie publicznej).
 
 **MVP:**
+
 - **Dodaj / zastąp kandydatów** — wklej listę w formacie `nick | drużyna` (jeden wiersz na kandydata; drużyna opcjonalna) — zastępuje całą dotychczasową listę kandydatów.
 - **Ustaw oficjalnego MVP** — wybór jednego z aktywnych kandydatów jako oficjalnego zwycięzcy głosowania MVP.
 
@@ -139,6 +145,7 @@ Osobna od „Wpisz wynik" funkcja — dotyczy dokładnego wyniku rundowego pojed
 ### 2.6 Deadline'y — modal „Ustaw deadline'y" (z panelu serwera)
 
 Dwa niezależne typy deadline'u, ustawiane osobno:
+
 - **Deadline typowania** — termin, do którego gracze mogą zapisywać typy na daną fazę. Dla fazy Swiss trzeba dodatkowo wybrać etap (1/2/3).
 - **Deadline wyników meczów** — termin zamknięcia typowania wyników meczów. Dla Swiss **nie jest** rozbijany na etapy (to zachowanie odziedziczone z Discorda, nie błąd panelu).
 

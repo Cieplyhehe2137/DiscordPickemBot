@@ -73,16 +73,14 @@ module.exports = {
           if (!me) {
             embed.setDescription("Nie masz jeszcze żadnych punktów.");
           } else {
-            embed
-              .setDescription(`**#${rank}** miejsce`)
-              .addFields(
-                { name: "Nick", value: displayName, inline: true },
-                {
-                  name: "Punkty (łącznie)",
-                  value: String(me.total_points),
-                  inline: true,
-                },
-              );
+            embed.setDescription(`**#${rank}** miejsce`).addFields(
+              { name: "Nick", value: displayName, inline: true },
+              {
+                name: "Punkty (łącznie)",
+                value: String(me.total_points),
+                inline: true,
+              },
+            );
           }
 
           return interaction.editReply({ embeds: [embed] });
