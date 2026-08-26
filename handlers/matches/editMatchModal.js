@@ -305,7 +305,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 
       const editId = insertResult.insertId;
 
-      logInfo("matches", "Match edited", {
+      logInfo("matches", "Match edit pending confirmation", {
         guildId,
         eventId: match.event_id,
 

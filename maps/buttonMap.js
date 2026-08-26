@@ -8,8 +8,6 @@ module.exports = {
   clear_only_results_confirm: "clearDatabaseHandler",
   calculate_scores: "calculateScoresButton",
   export_ranking: "exportClassification",
-  export_full_summary: "buttonExportFullSummary",
-  submit_playin_results: "setPlayinResults",
   clear_db_yes: "clearDatabaseHandler",
   clear_db_no: "clearDatabaseHandler",
   clear_all_yes: "clearDatabaseHandler",
@@ -51,10 +49,6 @@ module.exports = {
   set_results_playin: "openPlayinResultsDropdown",
   confirm_playin_results: "submitPlayinResultsDropdown",
   clear_playin_results: "submitPlayinResultsDropdown",
-
-  // ===== RANKING =====
-  ranking_prev: "rankingPagination",
-  ranking_next: "rankingPagination",
 
   // ===== ADMIN PANEL =====
   "panel:open:results": "panelOpenMenu",
@@ -105,7 +99,7 @@ module.exports = {
   open_doubleelim_modal: "openDoubleElimDropdown",
 
   // ===== RESTORE =====
-  open_restore_dropdown: "openRestoreDropdown",
+  restore_backup: "restoreBackupButton",
   confirm_restore_backup: "confirmRestoreBackup",
   cancel_restore_backup: "confirmRestoreBackup",
 

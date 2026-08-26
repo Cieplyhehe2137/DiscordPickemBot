@@ -152,7 +152,7 @@ function buildPickemPanel({ event, eventId, phase }) {
   };
 }
 
-function buildSwissStageSelector(event) {
+function buildSwissStageSelector(event, eventId) {
   const embed = new EmbedBuilder()
     .setColor("Orange")
     .setTitle("📌 Typowanie fazy Swiss")
@@ -172,15 +172,15 @@ function buildSwissStageSelector(event) {
       .addOptions(
         {
           label: "Swiss Stage 1",
-          value: "swiss_stage1",
+          value: `swiss_stage1:${eventId}`,
         },
         {
           label: "Swiss Stage 2",
-          value: "swiss_stage2",
+          value: `swiss_stage2:${eventId}`,
         },
         {
           label: "Swiss Stage 3",
-          value: "swiss_stage3",
+          value: `swiss_stage3:${eventId}`,
         },
       ),
   );

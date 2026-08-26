@@ -90,7 +90,7 @@ module.exports = async (interaction) => {
       // ==================================================
 
       if (selected === "swiss") {
-        const payload = buildSwissStageSelector(event);
+        const payload = buildSwissStageSelector(event, eventId);
 
         return interaction.followUp({
           ...payload,

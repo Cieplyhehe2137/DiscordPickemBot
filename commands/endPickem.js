@@ -9,7 +9,6 @@ const {
   StringSelectMenuBuilder,
 } = require("discord.js");
 
-const pool = require("../db");
 const { withGuild } = require("../utils/guildContext");
 
 const ADMIN_USER_ID = process.env.PICKEM_ADMIN_ID || null;
@@ -105,7 +104,7 @@ module.exports = {
           });
         }
 
-        return withGuild(guildId, async () => {
+        return withGuild(guildId, async ({ pool }) => {
           try {
             await i.deferUpdate();
 
@@ -113,13 +112,17 @@ module.exports = {
 
             const [rows] = await pool.query(
               `
-              SELECT message_id, channel_id
-              FROM active_panels
-              WHERE phase = ? AND closed = 0
-              ORDER BY id DESC
-              LIMIT 1
-              `,
-              [phase],
+  SELECT
+    message_id,
+    channel_id
+  FROM active_panels
+  WHERE guild_id = ?
+    AND phase = ?
+    AND closed = 0
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+              [guildId, phase],
             );
 
             const messageId = rows?.[0]?.message_id;

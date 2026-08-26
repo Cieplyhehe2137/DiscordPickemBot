@@ -73,7 +73,7 @@ function splitSqlStatements(sqlText) {
 // Tabele celowo pomijane MIMO tego, że mają guild_id: to stan runtime
 // (aktywne panele z przyciskami na Discordzie), a nie dane turniejowe.
 // Odtwarzanie ich wskazywałoby na nieistniejące już wiadomości.
-const VOLATILE_TABLES = new Set(["active_panels"]);
+const VOLATILE_TABLES = new Set(["active_panels", "pending_match_edits"]);
 
 function shouldSkipStatement(stmt) {
   const s = stmt.trim();

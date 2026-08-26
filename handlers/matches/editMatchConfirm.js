@@ -1,5 +1,7 @@
 const isAdmin = require("../../utils/isAdmin");
+
 const { withGuild } = require("../../utils/guildContext");
+
 const { logInfo, logError } = require("../../utils/logger");
 
 function getEditId(interaction) {
@@ -43,18 +45,36 @@ module.exports = async function editMatchConfirm(interaction) {
 
     return withGuild(interaction, async ({ pool, guildId }) => {
       // ==================================================
+      // CLEANUP STARYCH PENDINGÓW
+      // ==================================================
+
+      await pool.query(
+        `
+            DELETE FROM pending_match_edits
+            WHERE created_at < DATE_SUB(
+              NOW(),
+              INTERVAL 1 HOUR
+            )
+            `,
+      );
+
+      // ==================================================
       // PENDING EDIT
       // ==================================================
 
       const [[edit]] = await pool.query(
         `
-          SELECT *
-          FROM pending_match_edits
-          WHERE id = ?
-            AND guild_id = ?
-            AND user_id = ?
-          LIMIT 1
-          `,
+              SELECT *
+              FROM pending_match_edits
+              WHERE id = ?
+                AND guild_id = ?
+                AND user_id = ?
+                AND created_at >= DATE_SUB(
+                  NOW(),
+                  INTERVAL 1 HOUR
+                )
+              LIMIT 1
+              `,
         [editId, guildId, interaction.user.id],
       );
 
@@ -72,24 +92,33 @@ module.exports = async function editMatchConfirm(interaction) {
 
       const [[match]] = await pool.query(
         `
-          SELECT
-            id,
-            event_id,
-            phase,
-            team_a,
-            team_b,
-            best_of,
-            match_no,
-            start_time_utc
-          FROM matches
-          WHERE guild_id = ?
-            AND id = ?
-          LIMIT 1
-          `,
+              SELECT
+                id,
+                event_id,
+                phase,
+                team_a,
+                team_b,
+                best_of,
+                match_no,
+                start_time_utc
+              FROM matches
+              WHERE guild_id = ?
+                AND id = ?
+              LIMIT 1
+              `,
         [guildId, edit.match_id],
       );
 
       if (!match) {
+        await pool.query(
+          `
+              DELETE FROM pending_match_edits
+              WHERE id = ?
+                AND guild_id = ?
+              `,
+          [editId, guildId],
+        );
+
         return interaction.editReply({
           content: "❌ Mecz już nie istnieje.",
           embeds: [],
@@ -103,18 +132,18 @@ module.exports = async function editMatchConfirm(interaction) {
 
       await pool.query(
         `
-          UPDATE matches
-          SET
-            phase = ?,
-            team_a = ?,
-            team_b = ?,
-            best_of = ?,
-            match_no = ?,
-            start_time_utc = ?
-          WHERE guild_id = ?
-            AND id = ?
-          LIMIT 1
-          `,
+            UPDATE matches
+            SET
+              phase = ?,
+              team_a = ?,
+              team_b = ?,
+              best_of = ?,
+              match_no = ?,
+              start_time_utc = ?
+            WHERE guild_id = ?
+              AND id = ?
+            LIMIT 1
+            `,
         [
           edit.phase,
           edit.team_a,
@@ -133,10 +162,12 @@ module.exports = async function editMatchConfirm(interaction) {
 
       await pool.query(
         `
-          DELETE FROM pending_match_edits
-          WHERE id = ?
-          `,
-        [editId],
+            DELETE FROM pending_match_edits
+            WHERE id = ?
+              AND guild_id = ?
+              AND user_id = ?
+            `,
+        [editId, guildId, interaction.user.id],
       );
 
       // ==================================================
@@ -145,25 +176,38 @@ module.exports = async function editMatchConfirm(interaction) {
 
       logInfo("matches", "Match edit confirmed", {
         guildId,
+
         eventId: match.event_id,
+
         matchId: match.id,
+
         userId: interaction.user.id,
 
         before: {
           phase: match.phase,
+
           teamA: match.team_a,
+
           teamB: match.team_b,
+
           bestOf: match.best_of,
+
           matchNo: match.match_no,
+
           startTime: match.start_time_utc,
         },
 
         after: {
           phase: edit.phase,
+
           teamA: edit.team_a,
+
           teamB: edit.team_b,
+
           bestOf: edit.best_of,
+
           matchNo: edit.match_no,
+
           startTime: edit.start_time_utc,
         },
       });
@@ -174,6 +218,7 @@ module.exports = async function editMatchConfirm(interaction) {
 
       return interaction.editReply({
         content: buildSuccessMessage(edit),
+
         embeds: [],
         components: [],
       });
@@ -181,7 +226,9 @@ module.exports = async function editMatchConfirm(interaction) {
   } catch (err) {
     logError("matches", "editMatchConfirm failed", {
       message: err.message,
+
       stack: err.stack,
+
       editId,
     });
 

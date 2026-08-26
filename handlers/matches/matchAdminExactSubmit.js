@@ -27,7 +27,7 @@ function requireGuild(interaction) {
         content: "❌ Ta akcja działa tylko na serwerze.",
         ephemeral: true,
       })
-      .catch(() => { });
+      .catch(() => {});
     return false;
   }
   return true;
@@ -202,13 +202,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         exact_a = VALUES(exact_a),
         exact_b = VALUES(exact_b)
       `,
-            [
-              guildId,
-              match.event_id,
-              match.id,
-              exactA,
-              exactB,
-            ],
+            [guildId, match.event_id, match.id, exactA, exactB],
           );
         } else {
           await conn.query(
@@ -231,14 +225,7 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         exact_b = VALUES(exact_b),
         updated_at = CURRENT_TIMESTAMP
       `,
-            [
-              guildId,
-              match.event_id,
-              match.id,
-              mapNo,
-              exactA,
-              exactB,
-            ],
+            [guildId, match.event_id, match.id, mapNo, exactA, exactB],
           );
         }
 
@@ -313,6 +300,6 @@ module.exports = async function matchAdminExactSubmit(interaction) {
         content: "❌ Nie udało się zapisać wyników.",
         ephemeral: true,
       })
-      .catch(() => { });
+      .catch(() => {});
   }
 };

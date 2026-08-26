@@ -809,6 +809,168 @@ function calculateContrarianStats(userRows, communityRows) {
   };
 }
 
+function calculateCommunityAnalysis(communityRows) {
+  const matches = new Map();
+  const teamPicks = new Map();
+  const seriesScores = new Map();
+
+  let totalWinnerPicks = 0;
+
+  // ======================================================
+  // ZBIERANIE DANYCH
+  // ======================================================
+
+  for (const row of communityRows) {
+    const matchId = String(row.match_id);
+
+    if (!matches.has(matchId)) {
+      matches.set(matchId, {
+        matchId,
+        matchNo: row.match_no,
+        teamA: row.team_a,
+        teamB: row.team_b,
+        teamAChoices: 0,
+        teamBChoices: 0,
+        total: 0,
+      });
+    }
+
+    const match = matches.get(matchId);
+
+    const side = winnerSide(row.pred_a, row.pred_b);
+
+    // =========================================
+    // PICK ZWYCIĘZCY
+    // =========================================
+
+    if (side === 1) {
+      match.teamAChoices += 1;
+      match.total += 1;
+
+      teamPicks.set(row.team_a, (teamPicks.get(row.team_a) || 0) + 1);
+
+      totalWinnerPicks += 1;
+    } else if (side === -1) {
+      match.teamBChoices += 1;
+      match.total += 1;
+
+      teamPicks.set(row.team_b, (teamPicks.get(row.team_b) || 0) + 1);
+
+      totalWinnerPicks += 1;
+    }
+
+    // =========================================
+    // NAJPOPULARNIEJSZY WYNIK SERII
+    //
+    // BO1 pomijamy, bo tam exact oznacza
+    // wynik rund mapy, a nie wynik serii.
+    // =========================================
+
+    if (Number(row.best_of) > 1 && row.pred_a != null && row.pred_b != null) {
+      const score = `${Number(row.pred_a)}:${Number(row.pred_b)}`;
+
+      seriesScores.set(score, (seriesScores.get(score) || 0) + 1);
+    }
+  }
+
+  // ======================================================
+  // ANALIZA MECZÓW
+  // ======================================================
+
+  const matchStats = [...matches.values()]
+    .filter((match) => match.total >= 2)
+    .map((match) => {
+      const teamAPercent = (match.teamAChoices / match.total) * 100;
+
+      const teamBPercent = (match.teamBChoices / match.total) * 100;
+
+      return {
+        ...match,
+
+        teamAPercent,
+        teamBPercent,
+
+        difference: Math.abs(teamAPercent - teamBPercent),
+
+        majorityPercent: Math.max(teamAPercent, teamBPercent),
+
+        majorityTeam: teamAPercent >= teamBPercent ? match.teamA : match.teamB,
+      };
+    });
+
+  // ======================================================
+  // NAJBARDZIEJ JEDNOSTRONNY
+  // ======================================================
+
+  const mostOneSided =
+    [...matchStats].sort((a, b) => b.difference - a.difference)[0] || null;
+
+  // ======================================================
+  // NAJBARDZIEJ WYRÓWNANY
+  // ======================================================
+
+  const mostDivided =
+    [...matchStats].sort((a, b) => a.difference - b.difference)[0] || null;
+
+  // ======================================================
+  // NAJCZĘŚCIEJ WYBIERANA DRUŻYNA
+  // ======================================================
+
+  let mostPopularTeam = null;
+
+  for (const [team, count] of teamPicks) {
+    if (!mostPopularTeam || count > mostPopularTeam.count) {
+      mostPopularTeam = {
+        team,
+        count,
+      };
+    }
+  }
+
+  if (mostPopularTeam) {
+    mostPopularTeam.percent = totalWinnerPicks
+      ? (mostPopularTeam.count / totalWinnerPicks) * 100
+      : 0;
+  }
+
+  // ======================================================
+  // NAJPOPULARNIEJSZY WYNIK BO3 / BO5
+  // ======================================================
+
+  let mostPopularScore = null;
+
+  let totalSeriesScores = 0;
+
+  for (const count of seriesScores.values()) {
+    totalSeriesScores += count;
+  }
+
+  for (const [score, count] of seriesScores) {
+    if (!mostPopularScore || count > mostPopularScore.count) {
+      mostPopularScore = {
+        score,
+        count,
+      };
+    }
+  }
+
+  if (mostPopularScore) {
+    mostPopularScore.percent = totalSeriesScores
+      ? (mostPopularScore.count / totalSeriesScores) * 100
+      : 0;
+  }
+
+  return {
+    mostOneSided,
+    mostDivided,
+    mostPopularTeam,
+    mostPopularScore,
+
+    totalWinnerPicks,
+    matchesAnalyzed: matchStats.length,
+  };
+}
+
 // ======================================================
 // EMBED: OGÓLNE
 // ======================================================
@@ -1240,8 +1402,21 @@ function buildComparisonEmbed({
 // EMBED: ANALIZA
 // ======================================================
 
-function buildAnalysisEmbed({ event, teamStats, mapAccuracy }) {
+function buildAnalysisEmbed({
+  event,
+  teamStats,
+  mapAccuracy,
+  communityAnalysis,
+}) {
   const { best, nemesis, mostPicked } = teamStats;
+
+  const {
+    mostOneSided,
+    mostDivided,
+    mostPopularTeam,
+    mostPopularScore,
+    matchesAnalyzed,
+  } = communityAnalysis;
 
   const formatTeam = (team) => {
     if (!team) {
@@ -1267,42 +1442,105 @@ function buildAnalysisEmbed({ event, teamStats, mapAccuracy }) {
     );
   };
 
+  const formatOneSided = (match) => {
+    if (!match) {
+      return "Brak wystarczającej liczby danych.";
+    }
+
+    const label = match.matchNo ? `#${match.matchNo} • ` : "";
+
+    return (
+      `${label}**${match.teamA} vs ${match.teamB}**\n` +
+      `👑 ${match.majorityTeam}: ` +
+      `**${match.majorityPercent.toFixed(1).replace(".0", "")}%** ` +
+      `(${match.total} typów)`
+    );
+  };
+
+  const formatDivided = (match) => {
+    if (!match) {
+      return "Brak wystarczającej liczby danych.";
+    }
+
+    const label = match.matchNo ? `#${match.matchNo} • ` : "";
+
+    return (
+      `${label}**${match.teamA} vs ${match.teamB}**\n` +
+      `${match.teamA}: **${match.teamAPercent
+        .toFixed(1)
+        .replace(".0", "")}%** • ` +
+      `${match.teamB}: **${match.teamBPercent.toFixed(1).replace(".0", "")}%**`
+    );
+  };
+
+  const popularTeamText = mostPopularTeam
+    ? `**${mostPopularTeam.team}**\n` +
+      `Wybrana **${mostPopularTeam.count} razy** ` +
+      `(${mostPopularTeam.percent
+        .toFixed(1)
+        .replace(".0", "")}% wszystkich picków)`
+    : "Brak danych.";
+
+  const popularScoreText = mostPopularScore
+    ? `**${mostPopularScore.score}**\n` +
+      `Wybrane **${mostPopularScore.count} razy** ` +
+      `(${mostPopularScore.percent.toFixed(1).replace(".0", "")}%)`
+    : "Brak danych BO3 / BO5.";
+
   return new EmbedBuilder()
-
     .setTitle(`🧠 Analiza — ${event.name}`)
-
     .setColor(0x9b59b6)
-
-    .setDescription("Trochę głębsze spojrzenie na Twój styl typowania.")
-
+    .setDescription(
+      "Głębsze spojrzenie na Twoje typowanie oraz wybory całej społeczności.",
+    )
     .addFields(
       {
         name: "🟢 Najlepiej typowana drużyna",
-
         value: formatTeam(best),
-
         inline: true,
       },
-
       {
         name: "😈 Nemesis",
-
         value: formatTeam(nemesis),
-
         inline: true,
       },
-
       {
         name: "❤️ Najczęściej wybierana",
-
         value: formatMostPicked(mostPicked),
-
         inline: true,
       },
+
+      // =====================================
+      // SPOŁECZNOŚĆ
+      // =====================================
+
+      {
+        name: "🔥 Najbardziej jednostronny mecz",
+        value: formatOneSided(mostOneSided),
+        inline: false,
+      },
+      {
+        name: "⚔️ Najbardziej podzielony mecz",
+        value: formatDivided(mostDivided),
+        inline: false,
+      },
+      {
+        name: "👥 Najpopularniejszy pick społeczności",
+        value: popularTeamText,
+        inline: true,
+      },
+      {
+        name: "🎯 Najpopularniejszy wynik serii",
+        value: popularScoreText,
+        inline: true,
+      },
+
+      // =====================================
+      // MAPY
+      // =====================================
 
       {
         name: "🗺️ Dokładność wyników map",
-
         value: mapAccuracy.total
           ? `💯 Exact: **${mapAccuracy.exact}/${mapAccuracy.total} ` +
             `(${pct(mapAccuracy.exact, mapAccuracy.total)})**\n` +
@@ -1313,23 +1551,20 @@ function buildAnalysisEmbed({ event, teamStats, mapAccuracy }) {
             `🔴 Błąd 3+: **${mapAccuracy.error3plus}/${mapAccuracy.total} ` +
             `(${pct(mapAccuracy.error3plus, mapAccuracy.total)})**`
           : "Brak danych.",
-
         inline: false,
       },
-
       {
         name: "📏 Średni błąd wyniku mapy",
-
         value: mapAccuracy.total
           ? `**${mapAccuracy.averageError.toFixed(2)} rundy**`
           : "Brak danych.",
-
         inline: true,
       },
     )
-
     .setFooter({
-      text: "Statystyki drużyn wymagają minimum 3 typów na daną drużynę.",
+      text:
+        `Analiza społeczności: ${matchesAnalyzed} meczów • ` +
+        "statystyki drużyn wymagają minimum 3 Twoich typów.",
     });
 }
 
@@ -1915,37 +2150,40 @@ module.exports = async function showMyStats(interaction) {
 
       const [communityRows] = await pool.query(
         `
-            SELECT
-              mp.user_id,
+  SELECT
+    mp.user_id,
 
-              m.id AS match_id,
-              m.best_of,
+    m.id AS match_id,
+    m.match_no,
+    m.team_a,
+    m.team_b,
+    m.best_of,
 
-              mp.pred_a,
-              mp.pred_b,
-              mp.pred_exact_a,
-              mp.pred_exact_b,
+    mp.pred_a,
+    mp.pred_b,
+    mp.pred_exact_a,
+    mp.pred_exact_b,
 
-              mr.res_a,
-              mr.res_b,
-              mr.exact_a,
-              mr.exact_b
+    mr.res_a,
+    mr.res_b,
+    mr.exact_a,
+    mr.exact_b
 
-            FROM match_predictions mp
+  FROM match_predictions mp
 
-            INNER JOIN matches m
-              ON m.id = mp.match_id
-             AND m.guild_id = mp.guild_id
-             AND m.event_id = mp.event_id
+  INNER JOIN matches m
+    ON m.id = mp.match_id
+   AND m.guild_id = mp.guild_id
+   AND m.event_id = mp.event_id
 
-            INNER JOIN match_results mr
-              ON mr.match_id = mp.match_id
-             AND mr.guild_id = mp.guild_id
-             AND mr.event_id = mp.event_id
+  INNER JOIN match_results mr
+    ON mr.match_id = mp.match_id
+   AND mr.guild_id = mp.guild_id
+   AND mr.event_id = mp.event_id
 
-            WHERE mp.guild_id = ?
-              AND mp.event_id = ?
-            `,
+  WHERE mp.guild_id = ?
+    AND mp.event_id = ?
+  `,
         [guildId, eventId],
       );
 
@@ -1963,6 +2201,8 @@ module.exports = async function showMyStats(interaction) {
         settledRows,
         communityRows,
       );
+
+      const communityAnalysis = calculateCommunityAnalysis(communityRows);
 
       const style = calculatePlayerStyle({
         settledMatches,
@@ -2163,6 +2403,7 @@ module.exports = async function showMyStats(interaction) {
           event,
           teamStats,
           mapAccuracy,
+          communityAnalysis,
         });
       } else if (activeTab === "style") {
         embed = buildStyleEmbed({
@@ -2182,6 +2423,11 @@ module.exports = async function showMyStats(interaction) {
         embed = buildGeneralEmbed({
           event,
 
+          playerName:
+            interaction.member?.displayName || interaction.user.username,
+
+          playerAvatar: interaction.user.displayAvatarURL(),
+
           totalPredictions,
           settledMatches,
 
@@ -2196,6 +2442,13 @@ module.exports = async function showMyStats(interaction) {
           seriesPoints,
           mapPoints,
           averagePoints,
+
+          rank,
+          participantCount,
+          topPercent,
+
+          style,
+          trends,
         });
       }
 

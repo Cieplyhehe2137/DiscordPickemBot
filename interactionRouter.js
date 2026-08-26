@@ -87,16 +87,6 @@ async function _handleInteraction(
     if (interaction.isButton()) {
       let customId = interaction.customId;
 
-      if (customId.startsWith("ranking:")) {
-        const rankingCmd = require("./commands/ranking.js");
-        return rankingCmd.handleComponent(interaction);
-      }
-
-      if (customId.startsWith("ranking_")) {
-        const handler = require("./handlers/admin/rankingPagination");
-        return handler(interaction, client);
-      }
-
       if (
         customId.startsWith("playoffs_mvp_prev_") ||
         customId.startsWith("playoffs_mvp_next_")
@@ -212,11 +202,6 @@ async function _handleInteraction(
 
     if (interaction.isStringSelectMenu()) {
       const customId = interaction.customId;
-
-      if (customId.startsWith("ranking:")) {
-        const rankingCmd = require("./commands/ranking.js");
-        return rankingCmd.handleComponent(interaction);
-      }
 
       const selectKey = selectMap?.[customId]
         ? customId

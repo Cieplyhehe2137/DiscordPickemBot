@@ -5,7 +5,9 @@ const { publishPickemPanel } = require("../../utils/pickemPanelPublisher");
 const { withGuild } = require("../../utils/guildContext");
 
 module.exports = async (interaction) => {
-  if (!interaction.isStringSelectMenu()) return;
+  if (!interaction.isStringSelectMenu()) {
+    return;
+  }
 
   if (interaction.customId !== "admin_select_swiss_stage") {
     return;
@@ -37,19 +39,27 @@ module.exports = async (interaction) => {
     });
   }
 
+  // ======================================================
+  // DANE Z SELECTA
+  // ======================================================
+
   const raw = String(interaction.values?.[0] || "");
 
-  if (!raw) {
-    return interaction.editReply({
-      content: "❌ Nie wybrano etapu.",
-    });
-  }
+  const [rawPhase, rawEventId] = raw.split(":");
 
-  const stageNumber = raw.match(/\d+/)?.[0];
+  const stageNumber = rawPhase.match(/\d+/)?.[0];
+
+  const eventId = Number(rawEventId);
 
   if (!stageNumber) {
     return interaction.editReply({
       content: "❌ Nie udało się rozpoznać numeru etapu Swiss.",
+    });
+  }
+
+  if (!eventId) {
+    return interaction.editReply({
+      content: "❌ Nieprawidłowe ID eventu.",
     });
   }
 
@@ -58,7 +68,7 @@ module.exports = async (interaction) => {
   try {
     return withGuild(guildId, async ({ pool }) => {
       // ==================================================
-      // AKTYWNY EVENT
+      // KONKRETNY EVENT
       // ==================================================
 
       const [[event]] = await pool.query(
@@ -67,21 +77,18 @@ module.exports = async (interaction) => {
               id,
               name
             FROM events
-            WHERE guild_id = ?
-              AND status = 'OPEN'
-            ORDER BY id DESC
+            WHERE id = ?
+              AND guild_id = ?
             LIMIT 1
             `,
-        [guildId],
+        [eventId, guildId],
       );
 
       if (!event) {
         return interaction.editReply({
-          content: "❌ Nie znaleziono aktywnego eventu.",
+          content: "❌ Nie znaleziono eventu.",
         });
       }
-
-      const eventId = Number(event.id);
 
       // ==================================================
       // PUBLIKACJA PANELU
