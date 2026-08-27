@@ -31,8 +31,6 @@ module.exports = async function eventAudit(interaction) {
   const isRefresh = interaction.customId === "panel:audit:refresh";
 
   try {
-    // Pierwsze otwarcie -> nowa ephemeral odpowiedź.
-    // Refresh -> aktualizujemy istniejący panel.
     if (isRefresh) {
       await interaction.deferUpdate();
     } else {
@@ -75,11 +73,144 @@ module.exports = async function eventAudit(interaction) {
         });
       }
 
-      /*
-       * =====================================================
-       * MECZE
-       * =====================================================
-       */
+      // =====================================================
+      // STAN SYSTEMU / PANELI
+      // =====================================================
+
+      const [[panelStats]] = await pool.query(
+        `
+        SELECT
+          COUNT(*) AS total,
+
+          SUM(
+            CASE
+              WHEN active = 1
+               AND COALESCE(closed, 0) = 0
+              THEN 1
+              ELSE 0
+            END
+          ) AS active_total,
+
+          SUM(
+            CASE
+              WHEN phase = ?
+               AND active = 1
+               AND COALESCE(closed, 0) = 0
+              THEN 1
+              ELSE 0
+            END
+          ) AS current_phase_active
+
+        FROM active_panels
+        WHERE guild_id = ?
+        `,
+        [event.phase, guildId],
+      );
+
+      const [[activePhasePanel]] = await pool.query(
+        `
+        SELECT
+          id,
+          channel_id,
+          message_id,
+          deadline
+        FROM active_panels
+        WHERE guild_id = ?
+          AND phase = ?
+          AND active = 1
+          AND COALESCE(closed, 0) = 0
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [guildId, event.phase],
+      );
+
+      const [[matchPanelStats]] = await pool.query(
+        `
+        SELECT
+          COUNT(*) AS total,
+
+          SUM(
+            CASE
+              WHEN panel_channel_id IS NOT NULL
+               AND panel_message_id IS NOT NULL
+              THEN 1
+              ELSE 0
+            END
+          ) AS with_panel
+
+        FROM matches
+        WHERE guild_id = ?
+          AND event_id = ?
+        `,
+        [guildId, eventId],
+      );
+
+      const [overdueUnlockedMatches] = await pool.query(
+        `
+        SELECT
+          id,
+          match_no,
+          team_a,
+          team_b,
+          best_of,
+          start_time_utc
+        FROM matches
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND start_time_utc IS NOT NULL
+          AND start_time_utc <= UTC_TIMESTAMP()
+          AND is_locked = 0
+        ORDER BY start_time_utc ASC, match_no ASC, id ASC
+        `,
+        [guildId, eventId],
+      );
+
+      const [[pendingEditStats]] = await pool.query(
+        `
+        SELECT
+          COUNT(*) AS total,
+
+          SUM(
+            CASE
+              WHEN created_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
+              THEN 1
+              ELSE 0
+            END
+          ) AS stale
+
+        FROM pending_match_edits
+        WHERE guild_id = ?
+        `,
+        [guildId],
+      );
+
+      let phasePanelMessageOk = false;
+      let phasePanelMessageChecked = false;
+
+      if (activePhasePanel?.channel_id && activePhasePanel?.message_id) {
+        phasePanelMessageChecked = true;
+
+        try {
+          const panelChannel = await interaction.client.channels.fetch(
+            String(activePhasePanel.channel_id),
+          );
+
+          if (panelChannel?.messages?.fetch) {
+            await panelChannel.messages.fetch(
+              String(activePhasePanel.message_id),
+            );
+
+            phasePanelMessageOk = true;
+          }
+        } catch (_) {
+          phasePanelMessageOk = false;
+        }
+      }
+
+      // =====================================================
+      // MECZE
+      // =====================================================
 
       const [[matchStats]] = await pool.query(
         `
@@ -118,11 +249,9 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId],
       );
 
-      /*
-       * =====================================================
-       * MECZE BEZ GODZINY
-       * =====================================================
-       */
+      // =====================================================
+      // MECZE BEZ GODZINY
+      // =====================================================
 
       const [matchesWithoutTime] = await pool.query(
         `
@@ -141,11 +270,9 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId],
       );
 
-      /*
-       * =====================================================
-       * NIEPOPRAWNE BO
-       * =====================================================
-       */
+      // =====================================================
+      // NIEPOPRAWNE BO
+      // =====================================================
 
       const [invalidBestOfMatches] = await pool.query(
         `
@@ -164,11 +291,9 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId],
       );
 
-      /*
-       * =====================================================
-       * WYNIKI MECZÓW
-       * =====================================================
-       */
+      // =====================================================
+      // WYNIKI MECZÓW
+      // =====================================================
 
       const [[resultStats]] = await pool.query(
         `
@@ -238,11 +363,9 @@ module.exports = async function eventAudit(interaction) {
         }
       }
 
-      /*
-       * =====================================================
-       * TYPY
-       * =====================================================
-       */
+      // =====================================================
+      // TYPY
+      // =====================================================
 
       const [[predictionStats]] = await pool.query(
         `
@@ -258,11 +381,9 @@ module.exports = async function eventAudit(interaction) {
         [guildId, eventId],
       );
 
-      /*
-       * =====================================================
-       * TYP SERII BO3/BO5 BEZ ŻADNYCH MAP
-       * =====================================================
-       */
+      // =====================================================
+      // TYP SERII BO3/BO5 BEZ ŻADNYCH MAP
+      // =====================================================
 
       const [missingMapPredictions] = await pool.query(
         `
@@ -294,25 +415,22 @@ module.exports = async function eventAudit(interaction) {
         GROUP BY
           p.user_id,
           p.match_id,
+          m.id,
           m.match_no,
           m.team_a,
           m.team_b,
           m.best_of
 
         HAVING COUNT(mp.id) = 0
-
-        ORDER BY m.match_no ASC
         `,
         [guildId, eventId],
       );
 
-      /*
-       * =====================================================
-       * WYNIKI MAP
-       * =====================================================
-       */
+      // =====================================================
+      // BRAKUJĄCE WYNIKI MAP
+      // =====================================================
 
-      const [finishedBoMatches] = await pool.query(
+      const [matchesWithResults] = await pool.query(
         `
         SELECT
           m.id,
@@ -321,7 +439,9 @@ module.exports = async function eventAudit(interaction) {
           m.team_b,
           m.best_of,
           r.res_a,
-          r.res_b
+          r.res_b,
+
+          COUNT(mmr.id) AS map_results
 
         FROM matches m
 
@@ -330,11 +450,24 @@ module.exports = async function eventAudit(interaction) {
          AND r.guild_id = m.guild_id
          AND r.event_id = m.event_id
 
+        LEFT JOIN match_map_results mmr
+          ON mmr.match_id = m.id
+         AND mmr.guild_id = m.guild_id
+         AND mmr.event_id = m.event_id
+
         WHERE m.guild_id = ?
           AND m.event_id = ?
-          AND m.best_of IN (3, 5)
           AND r.res_a IS NOT NULL
           AND r.res_b IS NOT NULL
+
+        GROUP BY
+          m.id,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          m.best_of,
+          r.res_a,
+          r.res_b
 
         ORDER BY m.match_no ASC, m.id ASC
         `,
@@ -343,25 +476,19 @@ module.exports = async function eventAudit(interaction) {
 
       const missingMapResults = [];
 
-      for (const match of finishedBoMatches) {
-        const expectedMaps = Number(match.res_a) + Number(match.res_b);
+      for (const match of matchesWithResults) {
+        const bestOf = Number(match.best_of);
 
-        const [[row]] = await pool.query(
-          `
-          SELECT COUNT(*) AS total
-          FROM match_map_results
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND match_id = ?
-            AND exact_a IS NOT NULL
-            AND exact_b IS NOT NULL
-          `,
-          [guildId, eventId, match.id],
-        );
+        if (bestOf === 1) {
+          continue;
+        }
 
-        const actualMaps = Number(row?.total || 0);
+        const expectedMaps =
+          Number(match.res_a || 0) + Number(match.res_b || 0);
 
-        if (actualMaps !== expectedMaps) {
+        const actualMaps = Number(match.map_results || 0);
+
+        if (expectedMaps !== actualMaps) {
           missingMapResults.push({
             ...match,
             expectedMaps,
@@ -370,11 +497,9 @@ module.exports = async function eventAudit(interaction) {
         }
       }
 
-      /*
-       * =====================================================
-       * PUNKTY
-       * =====================================================
-       */
+      // =====================================================
+      // BRAKUJĄCE PUNKTY
+      // =====================================================
 
       const [pointProblems] = await pool.query(
         `
@@ -384,15 +509,12 @@ module.exports = async function eventAudit(interaction) {
           m.team_a,
           m.team_b,
 
-          COUNT(
-            DISTINCT p.user_id
-          ) AS prediction_users,
+          COUNT(DISTINCT p.user_id) AS prediction_users,
 
           COUNT(
             DISTINCT CASE
               WHEN mp.source = 'series'
               THEN mp.user_id
-              ELSE NULL
             END
           ) AS point_users
 
@@ -403,7 +525,7 @@ module.exports = async function eventAudit(interaction) {
          AND r.guild_id = m.guild_id
          AND r.event_id = m.event_id
 
-        LEFT JOIN match_predictions p
+        INNER JOIN match_predictions p
           ON p.match_id = m.id
          AND p.guild_id = m.guild_id
          AND p.event_id = m.event_id
@@ -424,7 +546,7 @@ module.exports = async function eventAudit(interaction) {
           m.team_a,
           m.team_b
 
-        HAVING point_users < prediction_users
+        HAVING prediction_users <> point_users
 
         ORDER BY m.match_no ASC, m.id ASC
         `,
@@ -438,11 +560,22 @@ module.exports = async function eventAudit(interaction) {
           Number(match.prediction_users) - Number(match.point_users);
       }
 
-      /*
-       * =====================================================
-       * LICZENIE BŁĘDÓW
-       * =====================================================
-       */
+      // =====================================================
+      // LICZENIE BŁĘDÓW
+      // =====================================================
+
+      const activePhasePanelCount = Number(
+        panelStats?.current_phase_active || 0,
+      );
+
+      const stalePendingEdits = Number(pendingEditStats?.stale || 0);
+
+      const systemWarnings =
+        (activePhasePanelCount === 0 ? 1 : 0) +
+        (activePhasePanelCount > 1 ? 1 : 0) +
+        (phasePanelMessageChecked && !phasePanelMessageOk ? 1 : 0) +
+        overdueUnlockedMatches.length +
+        stalePendingEdits;
 
       const errors =
         invalidBestOfMatches.length +
@@ -450,7 +583,10 @@ module.exports = async function eventAudit(interaction) {
         missingMapResults.length +
         missingPointRows;
 
-      const warnings = matchesWithoutTime.length + missingMapPredictions.length;
+      const warnings =
+        matchesWithoutTime.length +
+        missingMapPredictions.length +
+        systemWarnings;
 
       let color;
       let status;
@@ -466,11 +602,9 @@ module.exports = async function eventAudit(interaction) {
         status = "✅ Wszystko wygląda poprawnie";
       }
 
-      /*
-       * =====================================================
-       * SZCZEGÓŁY PROBLEMÓW
-       * =====================================================
-       */
+      // =====================================================
+      // SZCZEGÓŁY PROBLEMÓW
+      // =====================================================
 
       const problemLines = [];
 
@@ -509,6 +643,39 @@ module.exports = async function eventAudit(interaction) {
         );
       }
 
+      if (activePhasePanelCount === 0) {
+        problemLines.push(
+          `⚠️ **Panel fazy ${event.phase}**\n` +
+            `└ Brak aktywnego panelu fazy w bazie`,
+        );
+      } else if (activePhasePanelCount > 1) {
+        problemLines.push(
+          `⚠️ **Panel fazy ${event.phase}**\n` +
+            `└ Aktywne panele: **${activePhasePanelCount}** (powinien być 1)`,
+        );
+      }
+
+      if (phasePanelMessageChecked && !phasePanelMessageOk) {
+        problemLines.push(
+          `⚠️ **Panel fazy ${event.phase}**\n` +
+            `└ Wpis istnieje w bazie, ale wiadomości nie znaleziono na Discordzie`,
+        );
+      }
+
+      for (const match of overdueUnlockedMatches) {
+        problemLines.push(
+          `⚠️ **${getMatchLabel(match)}**\n` +
+            `└ Mecz już się rozpoczął, ale nadal nie jest zablokowany`,
+        );
+      }
+
+      if (stalePendingEdits > 0) {
+        problemLines.push(
+          `⚠️ **Pending edycje meczów**\n` +
+            `└ Starsze niż 1 godzinę: **${stalePendingEdits}**`,
+        );
+      }
+
       for (const match of pointProblems) {
         const missing =
           Number(match.prediction_users) - Number(match.point_users);
@@ -519,11 +686,7 @@ module.exports = async function eventAudit(interaction) {
         );
       }
 
-      /*
-       * Discord ma limit 1024 znaków na wartość pola.
-       * Pokazujemy więc tyle problemów, ile się bezpiecznie mieści.
-       */
-
+      // Discord: limit 1024 znaków na value pola.
       const visibleProblems = [];
       let usedLength = 0;
 
@@ -544,11 +707,49 @@ module.exports = async function eventAudit(interaction) {
         problemsText += `\n\n…oraz **${hiddenProblems}** kolejnych problemów.`;
       }
 
-      /*
-       * =====================================================
-       * EMBED
-       * =====================================================
-       */
+      // =====================================================
+      // STAN SYSTEMU — FORMATOWANIE
+      // =====================================================
+
+      const activePanelsTotal = Number(panelStats?.active_total || 0);
+      const matchPanelsTotal = Number(matchPanelStats?.with_panel || 0);
+      const totalMatches = Number(matchPanelStats?.total || 0);
+      const pendingEditsTotal = Number(pendingEditStats?.total || 0);
+
+      let phasePanelText = "⚠️ brak aktywnego panelu";
+
+      if (activePhasePanelCount === 1) {
+        phasePanelText = phasePanelMessageChecked
+          ? phasePanelMessageOk
+            ? "✅ aktywny i dostępny"
+            : "⚠️ wpis w DB, brak wiadomości"
+          : "⚠️ aktywny, brak ID wiadomości";
+      } else if (activePhasePanelCount > 1) {
+        phasePanelText = `⚠️ ${activePhasePanelCount} aktywne panele`;
+      }
+
+      let deadlineText = "brak";
+
+      if (activePhasePanel?.deadline) {
+        const deadlineDate = new Date(activePhasePanel.deadline);
+
+        if (!Number.isNaN(deadlineDate.getTime())) {
+          deadlineText = new Intl.DateTimeFormat("pl-PL", {
+            timeZone: "Europe/Warsaw",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(deadlineDate);
+        } else {
+          deadlineText = String(activePhasePanel.deadline);
+        }
+      }
+
+      // =====================================================
+      // EMBED
+      // =====================================================
 
       const embed = new EmbedBuilder()
         .setColor(color)
@@ -587,6 +788,22 @@ module.exports = async function eventAudit(interaction) {
             value: `Brakujące wpisy: **${missingPointRows}**`,
             inline: true,
           },
+
+          {
+            name: "⚙️ Stan systemu",
+            value:
+              `🗄️ Baza danych: **✅ OK**\n` +
+              `📨 Panel fazy: **${phasePanelText}**\n` +
+              `📌 Aktywne panele: **${activePanelsTotal}**\n` +
+              `⏰ Deadline fazy: **${deadlineText}**\n` +
+              `🎮 Panele meczów: **${matchPanelsTotal}/${totalMatches}**\n` +
+              `🔓 Po czasie bez locka: **${overdueUnlockedMatches.length}**\n` +
+              `📝 Pending edits: **${pendingEditsTotal}**` +
+              (stalePendingEdits > 0
+                ? ` (stare: **${stalePendingEdits}**)`
+                : ""),
+            inline: false,
+          },
         );
 
       if (problemLines.length > 0) {
@@ -608,11 +825,9 @@ module.exports = async function eventAudit(interaction) {
           `Event ID: ${eventId}`,
       });
 
-      /*
-       * =====================================================
-       * PRZYCISKI
-       * =====================================================
-       */
+      // =====================================================
+      // PRZYCISKI
+      // =====================================================
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
