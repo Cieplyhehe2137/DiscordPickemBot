@@ -1,16 +1,33 @@
 // utils/ensureTournamentTables.js
 //
 // Self-heal tabel używanych przez bota.
-// Funkcje są bezpieczne do wielokrotnego uruchamiania,
-// ponieważ korzystają z CREATE TABLE IF NOT EXISTS.
+//
+// WAŻNE:
+// CREATE TABLE IF NOT EXISTS nie modyfikuje istniejących tabel.
+// Funkcje poniżej mają przede wszystkim zapewnić istnienie
+// tabel pomocniczych wymaganych przez aktualne funkcje bota.
 
 // ======================================================
 // TOURNAMENT STATE
 // ======================================================
+//
+// tournament_state jest tabelą legacy.
+//
+// W istniejącej bazie może posiadać kolumnę event_id
+// z FOREIGN KEY do events(id).
+//
+// Dlatego:
+// - NIE tworzymy automatycznie rekordu id = 1,
+// - NIE uruchamiamy tej funkcji w ensureTournamentTables(),
+// - zostawiamy ją jako osobny export dla starszego kodu.
+//
+// ======================================================
 
 async function ensureTournamentState(pool) {
-  // Bez CHECK dla kompatybilności
-  // z MariaDB / starszym MySQL.
+  if (!pool || typeof pool.query !== "function") {
+    throw new Error("ensureTournamentState: invalid database pool");
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tournament_state (
       id INT NOT NULL,
@@ -34,22 +51,14 @@ async function ensureTournamentState(pool) {
     DEFAULT CHARSET=utf8mb4;
   `);
 
-  // Zapewniamy jeden wiersz globalnego stanu.
-  await pool.query(`
-    INSERT INTO tournament_state (
-      id,
-      phase,
-      is_open
-    )
-    VALUES (
-      1,
-      'UNKNOWN',
-      0
-    )
-
-    ON DUPLICATE KEY UPDATE
-      id = id;
-  `);
+  // Celowo NIE wykonujemy:
+  //
+  // INSERT INTO tournament_state (id, phase, is_open)
+  // VALUES (1, 'UNKNOWN', 0)
+  //
+  // Produkcyjna tabela może posiadać event_id z FOREIGN KEY
+  // do events(id). Automatyczny seed mógłby wtedy próbować
+  // utworzyć rekord wskazujący na nieistniejący event.
 }
 
 // ======================================================
@@ -57,6 +66,10 @@ async function ensureTournamentState(pool) {
 // ======================================================
 
 async function ensureTournamentAuditLog(pool) {
+  if (!pool || typeof pool.query !== "function") {
+    throw new Error("ensureTournamentAuditLog: invalid database pool");
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tournament_audit_log (
       id INT NOT NULL AUTO_INCREMENT,
@@ -100,6 +113,10 @@ async function ensureTournamentAuditLog(pool) {
 // ======================================================
 
 async function ensureMvpTables(pool) {
+  if (!pool || typeof pool.query !== "function") {
+    throw new Error("ensureMvpTables: invalid database pool");
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS mvp_candidates (
       id INT
@@ -290,6 +307,10 @@ async function ensureMvpTables(pool) {
 // ======================================================
 
 async function ensurePendingMatchEditsTable(pool) {
+  if (!pool || typeof pool.query !== "function") {
+    throw new Error("ensurePendingMatchEditsTable: invalid database pool");
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pending_match_edits (
       id BIGINT UNSIGNED
@@ -352,13 +373,19 @@ async function ensurePendingMatchEditsTable(pool) {
 // ======================================================
 // ENSURE ALL
 // ======================================================
+//
+// Uruchamiane przy starcie bota.
+//
+// tournament_state jest tutaj CELOWO pominięte.
+// Jest to tabela legacy, której istniejący schemat może
+// zawierać zależność event_id -> events(id).
+//
+// ======================================================
 
 async function ensureTournamentTables(pool) {
   if (!pool || typeof pool.query !== "function") {
     throw new Error("ensureTournamentTables: invalid database pool");
   }
-
-  await ensureTournamentState(pool);
 
   await ensureTournamentAuditLog(pool);
 
@@ -371,17 +398,17 @@ async function ensureTournamentTables(pool) {
 // EXPORTS
 // ======================================================
 //
-// Eksportujemy funkcję jako główny export,
-// ale dokładamy też properties.
-//
-// Dzięki temu działają OBIE formy:
+// Obsługujemy obie formy:
 //
 // const ensureTournamentTables = require(...);
 //
 // oraz:
 //
 // const {
-//   ensureTournamentState
+//   ensureTournamentState,
+//   ensureTournamentAuditLog,
+//   ensureMvpTables,
+//   ensurePendingMatchEditsTable,
 // } = require(...);
 //
 // ======================================================
