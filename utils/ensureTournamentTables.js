@@ -7,59 +7,6 @@
 // Funkcje poniżej mają przede wszystkim zapewnić istnienie
 // tabel pomocniczych wymaganych przez aktualne funkcje bota.
 
-// ======================================================
-// TOURNAMENT STATE
-// ======================================================
-//
-// tournament_state jest tabelą legacy.
-//
-// W istniejącej bazie może posiadać kolumnę event_id
-// z FOREIGN KEY do events(id).
-//
-// Dlatego:
-// - NIE tworzymy automatycznie rekordu id = 1,
-// - NIE uruchamiamy tej funkcji w ensureTournamentTables(),
-// - zostawiamy ją jako osobny export dla starszego kodu.
-//
-// ======================================================
-
-async function ensureTournamentState(pool) {
-  if (!pool || typeof pool.query !== "function") {
-    throw new Error("ensureTournamentState: invalid database pool");
-  }
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS tournament_state (
-      id INT NOT NULL,
-
-      phase VARCHAR(50)
-        NOT NULL
-        DEFAULT 'UNKNOWN',
-
-      is_open TINYINT(1)
-        NOT NULL
-        DEFAULT 0,
-
-      updated_at TIMESTAMP
-        NULL
-        DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-      PRIMARY KEY (id)
-    )
-    ENGINE=InnoDB
-    DEFAULT CHARSET=utf8mb4;
-  `);
-
-  // Celowo NIE wykonujemy:
-  //
-  // INSERT INTO tournament_state (id, phase, is_open)
-  // VALUES (1, 'UNKNOWN', 0)
-  //
-  // Produkcyjna tabela może posiadać event_id z FOREIGN KEY
-  // do events(id). Automatyczny seed mógłby wtedy próbować
-  // utworzyć rekord wskazujący na nieistniejący event.
-}
 
 // ======================================================
 // TOURNAMENT AUDIT LOG
@@ -376,7 +323,6 @@ async function ensurePendingMatchEditsTable(pool) {
 //
 // Uruchamiane przy starcie bota.
 //
-// tournament_state jest tutaj CELOWO pominięte.
 // Jest to tabela legacy, której istniejący schemat może
 // zawierać zależność event_id -> events(id).
 //
@@ -405,7 +351,6 @@ async function ensureTournamentTables(pool) {
 // oraz:
 //
 // const {
-//   ensureTournamentState,
 //   ensureTournamentAuditLog,
 //   ensureMvpTables,
 //   ensurePendingMatchEditsTable,
@@ -416,8 +361,6 @@ async function ensureTournamentTables(pool) {
 module.exports = ensureTournamentTables;
 
 module.exports.ensureTournamentTables = ensureTournamentTables;
-
-module.exports.ensureTournamentState = ensureTournamentState;
 
 module.exports.ensureTournamentAuditLog = ensureTournamentAuditLog;
 

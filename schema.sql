@@ -597,19 +597,6 @@ CREATE TABLE `tournament_settings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- tournament_state
--- ============================================================
-CREATE TABLE `tournament_state` (
-  `id` int NOT NULL DEFAULT '1',
-  `phase` varchar(50) NOT NULL DEFAULT 'UNKNOWN',
-  `is_open` tinyint(1) NOT NULL DEFAULT '0',
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `event_id` int NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_event_state` (`event_id`),
-  CONSTRAINT `fk_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `single_row` CHECK ((`id` = 1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- user_total_scores
