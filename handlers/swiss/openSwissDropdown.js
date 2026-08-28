@@ -140,8 +140,7 @@ module.exports = async (interaction) => {
       if (!gate.allowed) {
         return interaction.editReply({
           content:
-            gate.message ||
-            "❌ Typowanie tej fazy jest aktualnie niedostępne.",
+            gate.message || "❌ Typowanie tej fazy jest aktualnie niedostępne.",
           embeds: [],
           components: [],
         });
@@ -169,8 +168,7 @@ module.exports = async (interaction) => {
 
       const existingDraft = getDraft(NAMESPACE, cacheKey);
 
-      const sameEvent =
-        Number(existingDraft?.eventId) === Number(eventId);
+      const sameEvent = Number(existingDraft?.eventId) === Number(eventId);
 
       const sameStage =
         String(existingDraft?.stage || "").toLowerCase() === stage;
@@ -214,9 +212,7 @@ module.exports = async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setTitle(`📋 Typowanie – SWISS (${stage.toUpperCase()})`)
-        .setDescription(
-          "Wybierz swoje typy i kliknij **Zatwierdź typy**.",
-        )
+        .setDescription("Wybierz swoje typy i kliknij **Zatwierdź typy**.")
         .addFields({
           name: "📌 Dostępne drużyny:",
           value: teamList,

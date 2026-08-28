@@ -33,16 +33,18 @@ module.exports = async function autoStartScheduleSubmit(interaction) {
     return withGuild(interaction.guildId, async ({ pool, guildId }) => {
       const [events] = await pool.query(
         `
-              SELECT
-                id,
-                name,
-                status,
-                is_archived
-              FROM events
-              WHERE id = ?
-                AND guild_id = ?
-              LIMIT 1
-              `,
+        SELECT
+          id,
+          name,
+          status,
+          is_open,
+          is_active,
+          is_archived
+        FROM events
+        WHERE id = ?
+          AND guild_id = ?
+        LIMIT 1
+        `,
         [eventId, guildId],
       );
 
@@ -55,7 +57,11 @@ module.exports = async function autoStartScheduleSubmit(interaction) {
         });
       }
 
-      if (event.status === "FINISHED" || Number(event.is_archived) === 1) {
+      if (
+        event.status === "FINISHED" ||
+        event.status === "ARCHIVED" ||
+        Number(event.is_archived) === 1
+      ) {
         return interaction.reply({
           content:
             "❌ Nie można zaplanować startu dla zakończonego/archiwalnego eventu.",
@@ -63,19 +69,59 @@ module.exports = async function autoStartScheduleSubmit(interaction) {
         });
       }
 
-      await pool.query(
-        `
-            UPDATE events
-            SET
-              auto_start_at = ?,
-              auto_start_phase = ?,
-              auto_start_channel_id = ?,
-              auto_started_at = NULL
-            WHERE id = ?
-              AND guild_id = ?
-            `,
-        [parsed.utcSql, phase, channelId, eventId, guildId],
-      );
+      // ==================================================
+      // LIFECYCLE
+      // ==================================================
+      //
+      // Zaplanowanie auto-startu NIE aktywuje eventu.
+      //
+      // Jeżeli event nie jest aktualnie aktywnym eventem:
+      //
+      // status    = UPCOMING
+      // is_open   = 0
+      // is_active = 0
+      //
+      // Jeżeli z jakiegoś powodu planujemy auto-start
+      // dla już aktywnego eventu, nie zamykamy go tutaj.
+      // ==================================================
+
+      const isCurrentlyActive =
+        event.status === "OPEN" &&
+        Number(event.is_open) === 1 &&
+        Number(event.is_active) === 1;
+
+      if (isCurrentlyActive) {
+        await pool.query(
+          `
+          UPDATE events
+          SET
+            auto_start_at = ?,
+            auto_start_phase = ?,
+            auto_start_channel_id = ?,
+            auto_started_at = NULL
+          WHERE id = ?
+            AND guild_id = ?
+          `,
+          [parsed.utcSql, phase, channelId, eventId, guildId],
+        );
+      } else {
+        await pool.query(
+          `
+          UPDATE events
+          SET
+            status = 'UPCOMING',
+            is_open = 0,
+            is_active = 0,
+            auto_start_at = ?,
+            auto_start_phase = ?,
+            auto_start_channel_id = ?,
+            auto_started_at = NULL
+          WHERE id = ?
+            AND guild_id = ?
+          `,
+          [parsed.utcSql, phase, channelId, eventId, guildId],
+        );
+      }
 
       const unix = Math.floor(parsed.utc.toSeconds());
 

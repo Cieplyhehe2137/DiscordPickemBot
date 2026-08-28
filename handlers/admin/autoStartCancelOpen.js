@@ -8,19 +8,22 @@ module.exports = async function autoStartCancelOpen(interaction) {
   return withGuild(interaction.guildId, async ({ pool, guildId }) => {
     const [events] = await pool.query(
       `
-            SELECT
-              id,
-              name,
-              auto_start_at,
-              auto_start_phase
-            FROM events
-            WHERE guild_id = ?
-              AND auto_start_at IS NOT NULL
-              AND auto_started_at IS NULL
-              AND status <> 'FINISHED'
-            ORDER BY auto_start_at ASC
-            LIMIT 25
-            `,
+  SELECT
+    id,
+    name,
+    auto_start_at,
+    auto_start_phase
+  FROM events
+  WHERE guild_id = ?
+    AND status = 'UPCOMING'
+    AND is_open = 0
+    AND is_active = 0
+    AND COALESCE(is_archived, 0) = 0
+    AND auto_start_at IS NOT NULL
+    AND auto_started_at IS NULL
+  ORDER BY auto_start_at ASC
+  LIMIT 25
+  `,
       [guildId],
     );
 

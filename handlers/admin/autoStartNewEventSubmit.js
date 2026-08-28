@@ -66,7 +66,6 @@ module.exports = async function autoStartNewEventSubmit(interaction) {
     // ==================================================
     // NOWY EVENT
     // ==================================================
-
     else {
       const [result] = await pool.query(
         `

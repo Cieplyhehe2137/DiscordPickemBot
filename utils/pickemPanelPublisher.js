@@ -310,20 +310,13 @@ async function publishPickemPanel({
           active = 1,
           deadline = NULL
         `,
-        [
-          guildId,
-          phase,
-          config.stage,
-          message.id,
-          channel.id,
-        ],
+        [guildId, phase, config.stage, message.id, channel.id],
       );
     }
 
     // ==================================================
     // OTHER PHASES
     // ==================================================
-
     else {
       await connection.query(
         `
@@ -351,12 +344,7 @@ async function publishPickemPanel({
           closed_at = NULL,
           deadline = NULL
         `,
-        [
-          guildId,
-          phase,
-          channel.id,
-          message.id,
-        ],
+        [guildId, phase, channel.id, message.id],
       );
     }
 

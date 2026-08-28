@@ -27,52 +27,95 @@ function startPickemAutoStartWatcher(client, guildId) {
 
     try {
       await withGuild(guildId, async ({ pool }) => {
+        // ==================================================
+        // EVENTY GOTOWE DO AUTO-STARTU
+        // ==================================================
+        //
+        // Auto-start może podnieść tylko event:
+        //
+        // status    = UPCOMING
+        // is_open   = 0
+        // is_active = 0
+        //
+        // Sam watcher NIE aktywuje eventu.
+        // Robi to publishPickemPanel() dopiero po
+        // poprawnym opublikowaniu panelu na Discordzie.
+        // ==================================================
+
         const [rows] = await pool.query(
           `
-            SELECT
-              id,
-              name,
-              auto_start_phase,
-              auto_start_channel_id,
-              auto_start_at
-            FROM events
-            WHERE guild_id = ?
-              AND auto_start_at IS NOT NULL
-              AND auto_start_phase IS NOT NULL
-              AND auto_start_channel_id IS NOT NULL
-              AND auto_started_at IS NULL
-              AND auto_start_at <= UTC_TIMESTAMP()
-              AND status <> 'FINISHED'
-            ORDER BY auto_start_at ASC, id ASC
-            `,
+          SELECT
+            id,
+            name,
+            auto_start_phase,
+            auto_start_channel_id,
+            auto_start_at
+          FROM events
+          WHERE guild_id = ?
+            AND status = 'UPCOMING'
+            AND is_open = 0
+            AND is_active = 0
+            AND COALESCE(is_archived, 0) = 0
+            AND auto_start_at IS NOT NULL
+            AND auto_start_phase IS NOT NULL
+            AND auto_start_channel_id IS NOT NULL
+            AND auto_started_at IS NULL
+            AND auto_start_at <= UTC_TIMESTAMP()
+          ORDER BY auto_start_at ASC, id ASC
+          `,
           [guildId],
         );
 
         for (const event of rows) {
           try {
+            // ================================================
+            // PUBLIKACJA + AKTYWACJA EVENTU
+            // ================================================
+            //
+            // publishPickemPanel() jest jedynym miejscem,
+            // które przeprowadza:
+            //
+            // UPCOMING / 0 / 0
+            //       ↓
+            // OPEN / 1 / 1
+            // ================================================
+
             await publishPickemPanel({
               client,
               pool,
               guildId,
-              eventId: event.id,
+              eventId: Number(event.id),
               phase: event.auto_start_phase,
               channelId: event.auto_start_channel_id,
             });
 
-            await pool.query(
+            // ================================================
+            // OZNACZ AUTO-START JAKO WYKONANY
+            // ================================================
+
+            const [updateResult] = await pool.query(
               `
-                UPDATE events
-                SET auto_started_at = UTC_TIMESTAMP()
-                WHERE id = ?
-                  AND guild_id = ?
-                  AND auto_started_at IS NULL
-                `,
+              UPDATE events
+              SET auto_started_at = UTC_TIMESTAMP()
+              WHERE id = ?
+                AND guild_id = ?
+                AND status = 'OPEN'
+                AND is_open = 1
+                AND is_active = 1
+                AND auto_started_at IS NULL
+              `,
               [event.id, guildId],
             );
 
+            if (updateResult.affectedRows !== 1) {
+              throw new Error(
+                `Event ${event.id} został opublikowany, ale nie udało się oznaczyć auto-startu jako wykonanego.`,
+              );
+            }
+
             logInfo("PickEm started automatically", {
               guildId,
-              eventId: event.id,
+              eventId: Number(event.id),
               eventName: event.name,
               phase: event.auto_start_phase,
               channelId: event.auto_start_channel_id,
@@ -87,7 +130,9 @@ function startPickemAutoStartWatcher(client, guildId) {
         }
       });
     } catch (err) {
-      logError("PickEm auto-start watcher tick failed", err, { guildId });
+      logError("PickEm auto-start watcher tick failed", err, {
+        guildId,
+      });
     } finally {
       runningGuilds.delete(key);
     }

@@ -161,27 +161,30 @@ module.exports = {
             // utworzeniu publicznego panelu.
             // --------------------------------------------
 
-            await conn.query(
-              `
-              UPDATE events
-              SET
-                status = CASE
-                  WHEN status = 'OPEN' THEN 'UPCOMING'
-                  ELSE status
-                END,
-                is_open = 0,
-                is_active = 0
-              WHERE id = ?
-                AND guild_id = ?
-              `,
-              [eventId, guildId],
-            );
+            const isCurrentlyActive =
+              event.status === "OPEN" &&
+              Number(event.is_open) === 1 &&
+              Number(event.is_active) === 1;
+
+            if (!isCurrentlyActive) {
+              await conn.query(
+                `
+    UPDATE events
+    SET
+      status = 'UPCOMING',
+      is_open = 0,
+      is_active = 0
+    WHERE id = ?
+      AND guild_id = ?
+    `,
+                [eventId, guildId],
+              );
+            }
           }
 
           // ==============================================
           // NEW EVENT
           // ==============================================
-
           else {
             const [result] = await conn.query(
               `
@@ -196,15 +199,7 @@ module.exports = {
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
               `,
-              [
-                guildId,
-                slug,
-                eventName,
-                "NOT_STARTED",
-                "UPCOMING",
-                0,
-                0,
-              ],
+              [guildId, slug, eventName, "NOT_STARTED", "UPCOMING", 0, 0],
             );
 
             eventId = Number(result.insertId);
