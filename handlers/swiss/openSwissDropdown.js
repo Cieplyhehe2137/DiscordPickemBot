@@ -30,12 +30,11 @@ const VALID_STAGES = new Set(["stage1", "stage2", "stage3"]);
 // TEAMS
 // ======================================================
 
-async function loadTeamsWithFlags(pool, guildId) {
+async function loadTeams(pool, guildId) {
   const [rows] = await pool.query(
     `
     SELECT
-      name,
-      flag
+      name
     FROM teams
     WHERE guild_id = ?
       AND active = 1
@@ -48,7 +47,7 @@ async function loadTeamsWithFlags(pool, guildId) {
     .filter((row) => row.name)
     .map((row) => ({
       name: row.name,
-      label: `${row.flag || ""} ${row.name}`.trim(),
+      label: row.name,
     }));
 }
 
@@ -110,11 +109,6 @@ module.exports = async (interaction) => {
       // ==============================================
       // ACTIVE PUBLIC PANEL GUARD
       // ==============================================
-      //
-      // Ten guard sprawdza PUBLICZNY panel Discorda.
-      // Nie używamy go później na ephemeral selectach,
-      // bo tam message_id jest już inne.
-      // ==============================================
 
       const panelGate = await assertActivePredictionPanel({
         pool,
@@ -146,7 +140,8 @@ module.exports = async (interaction) => {
       if (!gate.allowed) {
         return interaction.editReply({
           content:
-            gate.message || "❌ Typowanie tej fazy jest aktualnie niedostępne.",
+            gate.message ||
+            "❌ Typowanie tej fazy jest aktualnie niedostępne.",
           embeds: [],
           components: [],
         });
@@ -174,13 +169,12 @@ module.exports = async (interaction) => {
 
       const existingDraft = getDraft(NAMESPACE, cacheKey);
 
-      const sameEvent = Number(existingDraft?.eventId) === Number(eventId);
+      const sameEvent =
+        Number(existingDraft?.eventId) === Number(eventId);
 
       const sameStage =
         String(existingDraft?.stage || "").toLowerCase() === stage;
 
-      // Zachowujemy draft tylko wtedy, gdy pochodzi
-      // dokładnie z tego samego eventu i stage'a.
       if (!sameEvent || !sameStage) {
         setDraft(NAMESPACE, cacheKey, {
           eventId: Number(eventId),
@@ -192,7 +186,7 @@ module.exports = async (interaction) => {
       // TEAMS
       // ==============================================
 
-      const teams = await loadTeamsWithFlags(pool, guildId);
+      const teams = await loadTeams(pool, guildId);
 
       if (!teams.length) {
         return interaction.editReply({
@@ -204,7 +198,9 @@ module.exports = async (interaction) => {
 
       if (teams.length > 25) {
         return interaction.editReply({
-          content: `⚠️ Jest **${teams.length} drużyn**, a Discord pozwala maksymalnie **25 opcji** w jednym dropdownie.`,
+          content:
+            `⚠️ Jest **${teams.length} drużyn**, ` +
+            "a Discord pozwala maksymalnie **25 opcji** w jednym dropdownie.",
           embeds: [],
           components: [],
         });
@@ -218,7 +214,9 @@ module.exports = async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setTitle(`📋 Typowanie – SWISS (${stage.toUpperCase()})`)
-        .setDescription("Wybierz swoje typy i kliknij **Zatwierdź typy**.")
+        .setDescription(
+          "Wybierz swoje typy i kliknij **Zatwierdź typy**.",
+        )
         .addFields({
           name: "📌 Dostępne drużyny:",
           value: teamList,
@@ -239,7 +237,6 @@ module.exports = async (interaction) => {
       // ==============================================
 
       const rows = [
-        // 3-0
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_3_0:${stage}`)
@@ -249,7 +246,6 @@ module.exports = async (interaction) => {
             .addOptions(options),
         ),
 
-        // 0-3
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_0_3:${stage}`)
@@ -259,7 +255,6 @@ module.exports = async (interaction) => {
             .addOptions(options),
         ),
 
-        // ADVANCING
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_advancing:${stage}`)
@@ -269,7 +264,6 @@ module.exports = async (interaction) => {
             .addOptions(options),
         ),
 
-        // CONFIRM
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`confirm_swiss:${stage}`)
@@ -288,10 +282,6 @@ module.exports = async (interaction) => {
       });
     });
   } catch (err) {
-    // ==================================================
-    // ERROR
-    // ==================================================
-
     logError("swiss", "openSwissDropdown failed", {
       guildId: interaction.guildId,
       message: err?.message,
