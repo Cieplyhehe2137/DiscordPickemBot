@@ -9,7 +9,21 @@ const {
 const { withGuild } = require("../../utils/guildContext");
 const { logError } = require("../../utils/logger");
 
+const {
+  assertPredictionsAllowed,
+  assertActivePredictionPanel,
+} = require("../../utils/protectionsGuards");
+
+const { getDraft, setDraft } = require("../../utils/predictionDraftCache");
+
+const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { setMvpSession } = require("../../utils/mvpFlowSession");
+
 const MVP_PAGE_SIZE = 25;
+
+// ======================================================
+// TEAMS
+// ======================================================
 
 async function loadTeamsFromDB(pool, guildId) {
   const [rows] = await pool.query(
@@ -19,12 +33,16 @@ async function loadTeamsFromDB(pool, guildId) {
     WHERE guild_id = ?
       AND active = 1
     ORDER BY sort_order ASC, name ASC
-  `,
+    `,
     [guildId],
   );
 
   return rows.map((r) => r.name).filter(Boolean);
 }
+
+// ======================================================
+// MVP
+// ======================================================
 
 async function loadMvpCandidates(pool, guildId) {
   const [rows] = await pool.query(
@@ -34,7 +52,7 @@ async function loadMvpCandidates(pool, guildId) {
     WHERE guild_id = ?
       AND is_active = 1
     ORDER BY nickname ASC
-  `,
+    `,
     [guildId],
   );
 
@@ -56,9 +74,11 @@ function buildMvpRows(mvpCandidates, page = 0) {
       .setMinValues(1)
       .setMaxValues(1)
       .addOptions(
-        pageCandidates.map((c) => ({
-          label: c.team_name ? `${c.nickname} (${c.team_name})` : c.nickname,
-          value: String(c.id),
+        pageCandidates.map((candidate) => ({
+          label: candidate.team_name
+            ? `${candidate.nickname} (${candidate.team_name})`
+            : candidate.nickname,
+          value: String(candidate.id),
         })),
       ),
   );
@@ -84,8 +104,16 @@ function buildMvpRows(mvpCandidates, page = 0) {
   return [mvpSelectRow, mvpPaginationRow];
 }
 
+// ======================================================
+// HANDLER
+// ======================================================
+
 module.exports = async function openPlayoffsDropdown(interaction) {
   try {
+    // ==================================================
+    // GUILD
+    // ==================================================
+
     if (!interaction.guildId) {
       return interaction.reply({
         content: "❌ Brak guildId.",
@@ -93,20 +121,143 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       });
     }
 
+    // ==================================================
+    // DEFER
+    // ==================================================
+
     if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({
+        ephemeral: true,
+      });
     }
 
-    await withGuild(interaction, async ({ pool, guildId }) => {
+    // ==================================================
+    // GUILD CONTEXT
+    // ==================================================
+
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      // ================================================
+      // ACTIVE PANEL GUARD
+      // ================================================
+      //
+      // Sprawdza message_id publicznego panelu.
+      // Dzięki temu panel poprzedniego eventu nie
+      // otworzy formularza nawet wtedy, gdy nowy event
+      // również znajduje się w fazie Playoffs.
+      // ================================================
+
+      const panelGate = await assertActivePredictionPanel({
+        pool,
+        guildId,
+        messageId: interaction.message?.id,
+        phase: "playoffs",
+      });
+
+      if (!panelGate.allowed) {
+        return interaction.editReply({
+          content: panelGate.message,
+          embeds: [],
+          components: [],
+        });
+      }
+
+      // ================================================
+      // PHASE GUARD
+      // ================================================
+
+      const gate = await assertPredictionsAllowed({
+        guildId,
+        kind: "PLAYOFFS",
+      });
+
+      if (!gate.allowed) {
+        return interaction.editReply({
+          content:
+            gate.message ||
+            "❌ Typowanie fazy Playoffs jest aktualnie niedostępne.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      // ================================================
+      // CURRENT EVENT
+      // ================================================
+
+      const eventId = await getOpenEventId(pool, guildId);
+
+      if (!eventId) {
+        return interaction.editReply({
+          content: "❌ Nie znaleziono aktywnego eventu.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      // ================================================
+      // EVENT-BOUND DRAFT
+      // ================================================
+      //
+      // Draft zostaje przypisany do konkretnego eventu.
+      //
+      // Jeśli gracz ponownie otworzy panel tego samego
+      // eventu, nie resetujemy jego dotychczasowych
+      // wyborów.
+      //
+      // Jeśli rozpoczął się inny event, stary draft
+      // zostaje zastąpiony nowym.
+      // ================================================
+
+      const draftKey = `${guildId}:${interaction.user.id}`;
+
+      const existingDraft = getDraft("playoffs", draftKey);
+
+      if (!existingDraft || Number(existingDraft.eventId) !== Number(eventId)) {
+        setDraft("playoffs", draftKey, {
+          eventId,
+        });
+      }
+
+      // ==================================================
+      // MVP FLOW SESSION
+      // ==================================================
+
+      setMvpSession(guildId, interaction.user.id, eventId);
+
+      // ================================================
+      // TEAMS
+      // ================================================
+
       const teams = await loadTeamsFromDB(pool, guildId);
 
       if (!teams.length) {
         return interaction.editReply({
           content: "❌ Brak drużyn w bazie.",
+          embeds: [],
+          components: [],
         });
       }
 
+      if (teams.length > 25) {
+        return interaction.editReply({
+          content:
+            `⚠️ Jest **${teams.length} drużyn**, ` +
+            "a Discord pozwala na maksymalnie " +
+            "**25 opcji** w jednym dropdownie.",
+          embeds: [],
+          components: [],
+        });
+      }
+
+      // ================================================
+      // MVP
+      // ================================================
+
       const mvpCandidates = await loadMvpCandidates(pool, guildId);
+
+      // ================================================
+      // EMBED
+      // ================================================
 
       const embed = new EmbedBuilder()
         .setColor("#f1c40f")
@@ -120,11 +271,19 @@ module.exports = async function openPlayoffsDropdown(interaction) {
             (mvpCandidates.length ? "⭐ 1 MVP turnieju\n" : ""),
         );
 
+      // ================================================
+      // OPTIONS
+      // ================================================
+
       const makeOptions = () =>
-        teams.map((t) => ({
-          label: t,
-          value: t,
+        teams.map((team) => ({
+          label: team,
+          value: team,
         }));
+
+      // ================================================
+      // SEMIFINALISTS
+      // ================================================
 
       const row1 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -135,6 +294,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .addOptions(makeOptions()),
       );
 
+      // ================================================
+      // FINALISTS
+      // ================================================
+
       const row2 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playoffs_finalists")
@@ -143,6 +306,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .setMaxValues(2)
           .addOptions(makeOptions()),
       );
+
+      // ================================================
+      // WINNER
+      // ================================================
 
       const row3 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
@@ -153,6 +320,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .addOptions(makeOptions()),
       );
 
+      // ================================================
+      // THIRD PLACE
+      // ================================================
+
       const row4 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playoffs_third_place")
@@ -162,10 +333,18 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .addOptions(makeOptions()),
       );
 
+      // ================================================
+      // MAIN RESPONSE
+      // ================================================
+
       await interaction.editReply({
         embeds: [embed],
         components: [row1, row2, row3, row4],
       });
+
+      // ================================================
+      // MVP RESPONSE
+      // ================================================
 
       if (mvpCandidates.length) {
         await interaction.followUp({
@@ -175,6 +354,10 @@ module.exports = async function openPlayoffsDropdown(interaction) {
         });
       }
 
+      // ================================================
+      // CONFIRM
+      // ================================================
+
       const confirmRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("confirm_playoffs")
@@ -182,7 +365,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
           .setStyle(ButtonStyle.Success),
       );
 
-      await interaction.followUp({
+      return interaction.followUp({
         content: "Gdy skończysz wybierać wszystkie typy, kliknij poniżej:",
         components: [confirmRow],
         ephemeral: true,
@@ -191,13 +374,24 @@ module.exports = async function openPlayoffsDropdown(interaction) {
   } catch (err) {
     logError("playoffs", "openPlayoffsDropdown failed", {
       guildId: interaction.guildId,
-      message: err.message,
-      stack: err.stack,
+      message: err?.message,
+      stack: err?.stack,
     });
 
+    if (interaction.deferred || interaction.replied) {
+      return interaction
+        .editReply({
+          content: "❌ Błąd otwierania Pick'Em Playoffs.",
+          embeds: [],
+          components: [],
+        })
+        .catch(() => {});
+    }
+
     return interaction
-      .editReply({
+      .reply({
         content: "❌ Błąd otwierania Pick'Em Playoffs.",
+        ephemeral: true,
       })
       .catch(() => {});
   }

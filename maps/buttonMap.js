@@ -17,7 +17,6 @@ module.exports = {
   clear_db_confirm: "clearDatabaseHandler",
   clear_db_with_results: "clearDatabaseHandler",
   backup_database: "backupDatabase",
-  restore_backup: "restoreBackupButton",
   "match_pick_back:": "matchPickBack",
   "my_predictions:": "showMyPredictions",
   "my_stats:": "showMyStats",

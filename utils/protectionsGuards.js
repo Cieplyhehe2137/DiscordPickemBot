@@ -384,12 +384,72 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   };
 }
 
+async function assertActivePredictionPanel({
+  pool,
+  guildId,
+  messageId,
+  phase,
+  stage = null,
+}) {
+  if (!guildId || !messageId) {
+    return {
+      allowed: false,
+      message: "❌ Nie udało się zweryfikować panelu Pick'Em.",
+    };
+  }
+
+  const params = [guildId, String(messageId), phase];
+
+  let stageCondition = "";
+
+  if (stage) {
+    stageCondition = "AND stage = ?";
+    params.push(stage);
+  }
+
+  const [rows] = await pool.query(
+    `
+    SELECT
+      message_id,
+      channel_id,
+      phase,
+      stage,
+      active,
+      closed
+    FROM active_panels
+    WHERE guild_id = ?
+      AND message_id = ?
+      AND phase = ?
+      ${stageCondition}
+      AND active = 1
+      AND closed = 0
+    LIMIT 1
+    `,
+    params,
+  );
+
+  if (!rows.length) {
+    return {
+      allowed: false,
+      message:
+        "❌ Ten panel Pick'Em nie jest już aktywny.\n" +
+        "Użyj najnowszego panelu opublikowanego na serwerze.",
+    };
+  }
+
+  return {
+    allowed: true,
+    panel: rows[0],
+  };
+}
+
 // ======================================================
 // EXPORTS
 // ======================================================
 
 module.exports = {
   assertPredictionsAllowed,
+  assertActivePredictionPanel,
   getPredictionEventState,
   swissStageToPhase,
   normalizePhase,

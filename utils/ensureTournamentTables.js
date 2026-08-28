@@ -7,7 +7,6 @@
 // Funkcje poniżej mają przede wszystkim zapewnić istnienie
 // tabel pomocniczych wymaganych przez aktualne funkcje bota.
 
-
 // ======================================================
 // TOURNAMENT AUDIT LOG
 // ======================================================

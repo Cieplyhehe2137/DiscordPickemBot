@@ -17,67 +17,85 @@ module.exports = async function autoStartNewEventSubmit(interaction) {
   return withGuild(interaction.guildId, async ({ pool, guildId }) => {
     const slug = makeSlug(eventName) || `event-${Date.now()}`;
 
+    // ==================================================
+    // SPRAWDŹ, CZY EVENT JUŻ ISTNIEJE
+    // ==================================================
+
     const [existing] = await pool.query(
       `
-            SELECT
-              id,
-              name,
-              status,
-              is_archived
-            FROM events
-            WHERE guild_id = ?
-              AND slug = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        name,
+        status,
+        is_archived
+      FROM events
+      WHERE guild_id = ?
+        AND slug = ?
+      LIMIT 1
+      `,
       [guildId, slug],
     );
 
     let eventId;
     let finalName = eventName;
 
+    // ==================================================
+    // ISTNIEJĄCY EVENT
+    // ==================================================
+
     if (existing.length) {
+      const existingEvent = existing[0];
+
       if (
-        existing[0].status === "FINISHED" ||
-        Number(existing[0].is_archived) === 1
+        existingEvent.status === "FINISHED" ||
+        Number(existingEvent.is_archived) === 1
       ) {
         return interaction.reply({
           content:
-            "❌ Event o takiej nazwie istnieje już w archiwum. Użyj trochę innej nazwy.",
+            "❌ Event o takiej nazwie istnieje już w archiwum. " +
+            "Użyj trochę innej nazwy.",
           ephemeral: true,
         });
       }
 
-      eventId = existing[0].id;
+      eventId = existingEvent.id;
+      finalName = existingEvent.name;
+    }
 
-      finalName = existing[0].name;
-    } else {
+    // ==================================================
+    // NOWY EVENT
+    // ==================================================
+    else {
       const [result] = await pool.query(
         `
-              INSERT INTO events
-              (
-                guild_id,
-                slug,
-                name,
-                phase,
-                status,
-                is_open,
-                is_active
-              )
-              VALUES (
-                ?,
-                ?,
-                ?,
-                'NOT_STARTED',
-                'UPCOMING',
-                0,
-                1
-              )
-              `,
+        INSERT INTO events (
+          guild_id,
+          slug,
+          name,
+          phase,
+          status,
+          is_open,
+          is_active
+        )
+        VALUES (
+          ?,
+          ?,
+          ?,
+          'NOT_STARTED',
+          'UPCOMING',
+          0,
+          0
+        )
+        `,
         [guildId, slug, eventName],
       );
 
       eventId = result.insertId;
     }
+
+    // ==================================================
+    // WYBÓR FAZY
+    // ==================================================
 
     return interaction.reply({
       content:
