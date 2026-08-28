@@ -15,6 +15,8 @@ const sendArchivePanel = require("../utils/sendArchivePanel");
 
 const { withGuild } = require("../utils/guildContext");
 
+const { getOpenEventId } = require("../utils/getOpenEventId");
+
 const { getGuildConfig } = require("../utils/guildRegistry");
 
 const { logTournamentAction } = require("../utils/logTournamentAction");
@@ -79,37 +81,49 @@ module.exports = {
         // ==================================================
         // AKTYWNY EVENT
         // ==================================================
+        //
+        // Single source of truth:
+        //
+        // status    = OPEN
+        // is_open   = 1
+        // is_active = 1
+        //
+        // Nie używamy już fallbacku:
+        //
+        // is_active = 1 OR is_open = 1 OR status = 'OPEN'
+        // ==================================================
 
-        const [[event]] = await pool.query(
-          `
-              SELECT
-                id,
-                name,
-                slug,
-                phase,
-                status,
-                is_open,
-                is_active
-              FROM events
-              WHERE guild_id = ?
-                AND (
-                  is_active = 1
-                  OR is_open = 1
-                  OR status = 'OPEN'
-                )
-              ORDER BY id DESC
-              LIMIT 1
-              `,
-          [guildId],
-        );
+        const eventId = await getOpenEventId(pool, guildId);
 
-        if (!event) {
+        if (!eventId) {
           return interaction.editReply(
             "❌ Nie znaleziono aktywnego eventu do zakończenia.",
           );
         }
 
-        const eventId = Number(event.id);
+        const [[event]] = await pool.query(
+          `
+          SELECT
+            id,
+            name,
+            slug,
+            phase,
+            status,
+            is_open,
+            is_active
+          FROM events
+          WHERE guild_id = ?
+            AND id = ?
+          LIMIT 1
+          `,
+          [guildId, eventId],
+        );
+
+        if (!event) {
+          return interaction.editReply(
+            "❌ Nie znaleziono danych aktywnego eventu.",
+          );
+        }
 
         // ==================================================
         // NAZWA PLIKU
@@ -148,14 +162,14 @@ module.exports = {
 
         await pool.query(
           `
-            UPDATE active_panels
-            SET
-              closed = 1,
-              closed_at = NOW(),
-              active = 0
-            WHERE guild_id = ?
-              AND closed = 0
-            `,
+          UPDATE active_panels
+          SET
+            closed = 1,
+            closed_at = NOW(),
+            active = 0
+          WHERE guild_id = ?
+            AND closed = 0
+          `,
           [guildId],
         );
 
@@ -176,13 +190,13 @@ module.exports = {
 
         await pool.query(
           `
-            INSERT INTO archive_files (
-              guild_id,
-              filename,
-              path
-            )
-            VALUES (?, ?, ?)
-            `,
+          INSERT INTO archive_files (
+            guild_id,
+            filename,
+            path
+          )
+          VALUES (?, ?, ?)
+          `,
           [guildId, filename, filePath],
         );
 
@@ -236,9 +250,9 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM active_panels
-            WHERE guild_id = ?
-            `,
+          DELETE FROM active_panels
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -248,33 +262,33 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM swiss_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM swiss_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playoffs_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playoffs_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM doubleelim_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM doubleelim_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playin_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playin_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -284,33 +298,33 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM swiss_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM swiss_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playoffs_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playoffs_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM doubleelim_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM doubleelim_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playin_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playin_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -320,9 +334,9 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM match_points
-            WHERE guild_id = ?
-            `,
+          DELETE FROM match_points
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -332,17 +346,17 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM match_map_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM match_map_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM match_map_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM match_map_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -352,25 +366,25 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM match_predictions
-            WHERE guild_id = ?
-            `,
+          DELETE FROM match_predictions
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM match_results
-            WHERE guild_id = ?
-            `,
+          DELETE FROM match_results
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM matches
-            WHERE guild_id = ?
-            `,
+          DELETE FROM matches
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
@@ -380,61 +394,74 @@ module.exports = {
 
         await conn.query(
           `
-            DELETE FROM user_total_scores
-            WHERE guild_id = ?
-            `,
+          DELETE FROM user_total_scores
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM swiss_scores
-            WHERE guild_id = ?
-            `,
+          DELETE FROM swiss_scores
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playoffs_scores
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playoffs_scores
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM doubleelim_scores
-            WHERE guild_id = ?
-            `,
+          DELETE FROM doubleelim_scores
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         await conn.query(
           `
-            DELETE FROM playin_scores
-            WHERE guild_id = ?
-            `,
+          DELETE FROM playin_scores
+          WHERE guild_id = ?
+          `,
           [guildId],
         );
 
         // ================================================
         // ZAMKNIĘCIE EVENTU
         // ================================================
+        //
+        // Canonical lifecycle:
+        //
+        // FINISHED
+        // is_open   = 0
+        // is_active = 0
+        // ================================================
 
-        await conn.query(
+        const [eventUpdate] = await conn.query(
           `
-            UPDATE events
-            SET
-              status = 'FINISHED',
-              is_open = 0,
-              is_active = 0
-            WHERE id = ?
-              AND guild_id = ?
-            LIMIT 1
-            `,
+          UPDATE events
+          SET
+            status = 'FINISHED',
+            is_open = 0,
+            is_active = 0
+          WHERE id = ?
+            AND guild_id = ?
+          LIMIT 1
+          `,
           [eventId, guildId],
         );
+
+        if (eventUpdate.affectedRows !== 1) {
+          throw new Error(
+            `Nie udało się zakończyć eventu ${eventId} dla guild ${guildId}`,
+          );
+        }
 
         // ================================================
         // COMMIT

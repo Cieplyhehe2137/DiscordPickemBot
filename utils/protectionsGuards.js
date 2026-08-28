@@ -1,5 +1,4 @@
 const { withGuild } = require("./guildContext");
-
 const { logError } = require("./logger");
 
 // ======================================================
@@ -38,6 +37,13 @@ function normalizePhase(phase) {
     doubleelim: "DOUBLEELIM",
     double_elim: "DOUBLEELIM",
     double_elimination: "DOUBLEELIM",
+
+    // MATCHES
+    matches: "MATCHES",
+    match: "MATCHES",
+
+    // Generic Swiss identifier.
+    swiss: "SWISS",
   };
 
   return aliases[value] || value.toUpperCase();
@@ -71,7 +77,7 @@ function normalizeStage(stage) {
       "swiss2",
       "swiss_2",
       "swiss_stage2",
-      "swiss_stage_2",
+      "swiss_stage_1".replace("1", "2"),
     ].includes(value)
   ) {
     return "STAGE2";
@@ -113,6 +119,43 @@ function swissStageToPhase(stage) {
 }
 
 // ======================================================
+// ACTIVE PANEL PHASE
+// ======================================================
+//
+// active_panels.phase przechowuje faktyczne wartości:
+//
+// swiss_stage1
+// swiss_stage2
+// swiss_stage3
+// playoffs
+// doubleelim
+// playin
+//
+// Publiczny handler Swiss może natomiast przekazać:
+//
+// phase = "swiss"
+// stage = "stage1"
+//
+// dlatego tutaj tłumaczymy to na właściwą fazę DB.
+// ======================================================
+
+function resolvePanelPhase(phase, stage = null) {
+  const normalizedPhase = normalizePhase(phase);
+
+  if (normalizedPhase === "SWISS") {
+    const swissPhase = swissStageToPhase(stage);
+
+    if (!swissPhase) {
+      return null;
+    }
+
+    return swissPhase.toLowerCase();
+  }
+
+  return normalizedPhase.toLowerCase();
+}
+
+// ======================================================
 // EVENT STATE
 // ======================================================
 
@@ -121,6 +164,7 @@ async function getPredictionEventState(guildId) {
     return {
       exists: false,
       isOpen: false,
+      isActive: false,
       phase: "UNKNOWN",
       eventId: null,
       eventName: null,
@@ -131,28 +175,40 @@ async function getPredictionEventState(guildId) {
 
   try {
     return await withGuild(guildId, async ({ pool }) => {
+      // ================================================
+      // SINGLE SOURCE OF TRUTH
+      // ================================================
+      //
+      // Event jest aktywny tylko wtedy, gdy wszystkie
+      // trzy pola lifecycle są zgodne.
+      //
+      // Nie stosujemy już:
+      //
+      // is_active = 1
+      // OR is_open = 1
+      // OR status = 'OPEN'
+      //
+      // ponieważ taki fallback mógł wybrać event ze
+      // starym / niespójnym stanem.
+      // ================================================
+
       const [[event]] = await pool.query(
         `
-            SELECT
-              id,
-              name,
-              phase,
-              status,
-              is_open,
-              is_active
-            FROM events
-            WHERE guild_id = ?
-              AND (
-                is_active = 1
-                OR is_open = 1
-                OR status = 'OPEN'
-              )
-            ORDER BY
-              is_active DESC,
-              is_open DESC,
-              id DESC
-            LIMIT 1
-            `,
+        SELECT
+          id,
+          name,
+          phase,
+          status,
+          is_open,
+          is_active
+        FROM events
+        WHERE guild_id = ?
+          AND status = 'OPEN'
+          AND is_open = 1
+          AND is_active = 1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
         [guildId],
       );
 
@@ -160,18 +216,13 @@ async function getPredictionEventState(guildId) {
         return {
           exists: false,
           isOpen: false,
+          isActive: false,
           phase: "UNKNOWN",
           eventId: null,
           eventName: null,
           status: null,
         };
       }
-
-      const phase = normalizePhase(event.phase);
-
-      const status = String(event.status || "").toUpperCase();
-
-      const isOpen = Number(event.is_open) === 1 || status === "OPEN";
 
       return {
         exists: true,
@@ -180,13 +231,14 @@ async function getPredictionEventState(guildId) {
 
         eventName: event.name || null,
 
-        phase,
+        phase: normalizePhase(event.phase),
 
-        status,
+        status: String(event.status || "").toUpperCase(),
 
-        isOpen,
+        // Query już wymusił te warunki.
+        isOpen: true,
 
-        isActive: Number(event.is_active) === 1,
+        isActive: true,
       };
     });
   } catch (err) {
@@ -196,9 +248,11 @@ async function getPredictionEventState(guildId) {
       stack: err?.stack,
     });
 
+    // Fail closed.
     return {
       exists: false,
       isOpen: false,
+      isActive: false,
       phase: "UNKNOWN",
       eventId: null,
       eventName: null,
@@ -209,14 +263,14 @@ async function getPredictionEventState(guildId) {
 }
 
 // ======================================================
-// CORE
+// CORE PREDICTION GUARD
 // ======================================================
 
 async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   const state = await getPredictionEventState(guildId);
 
   // ==================================================
-  // BRAK AKTYWNEGO EVENTU
+  // NO ACTIVE EVENT
   // ==================================================
 
   if (!state.exists) {
@@ -229,10 +283,16 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   }
 
   // ==================================================
-  // EVENT ZAMKNIĘTY
+  // EXTRA FAIL-CLOSED CHECK
+  // ==================================================
+  //
+  // Normalnie ten przypadek nie powinien wystąpić,
+  // ponieważ getPredictionEventState() już wymaga:
+  //
+  // OPEN + is_open=1 + is_active=1
   // ==================================================
 
-  if (!state.isOpen) {
+  if (!state.isOpen || !state.isActive) {
     return {
       allowed: false,
       state,
@@ -246,11 +306,13 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   const requestedKind = normalizePhase(kind);
 
   // ==================================================
-  // MECZE
+  // MATCHES
   // ==================================================
   //
-  // Typy meczowe mają własny lock/deadline.
-  // Tutaj sprawdzamy tylko, czy event jest otwarty.
+  // Typy meczowe mają własny lock / deadline.
+  //
+  // Tutaj pilnujemy tylko tego, żeby istniał prawidłowo
+  // aktywny event.
   // ==================================================
 
   if (requestedKind === "MATCHES") {
@@ -266,6 +328,17 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
 
   if (requestedKind === "SWISS") {
     const expectedPhase = swissStageToPhase(stage);
+
+    // Jeśli handler Swiss przekazał stage, ale jest on
+    // nieprawidłowy, blokujemy akcję.
+    if (stage && !expectedPhase) {
+      return {
+        allowed: false,
+        state,
+
+        message: "❌ Nieprawidłowy etap Swiss.",
+      };
+    }
 
     if (!currentPhase.startsWith("SWISS_STAGE")) {
       return {
@@ -362,11 +435,7 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   }
 
   // ==================================================
-  // NIEZNANY TYP
-  // ==================================================
-  //
-  // Fail closed — lepiej odrzucić nieznany typ,
-  // niż przypadkiem pozwolić na zapis.
+  // UNKNOWN TYPE
   // ==================================================
 
   logError("protections", "Unknown prediction kind", {
@@ -384,6 +453,17 @@ async function assertPredictionsAllowed({ guildId, kind, stage = null }) {
   };
 }
 
+// ======================================================
+// ACTIVE PUBLIC PANEL GUARD
+// ======================================================
+//
+// Ten guard jest przeznaczony WYŁĄCZNIE dla publicznego
+// panelu opublikowanego przez pickemPanelPublisher.
+//
+// Nie używamy go na ephemeral dropdownach / confirmach,
+// ponieważ mają inne message_id.
+// ======================================================
+
 async function assertActivePredictionPanel({
   pool,
   guildId,
@@ -391,25 +471,63 @@ async function assertActivePredictionPanel({
   phase,
   stage = null,
 }) {
-  if (!guildId || !messageId) {
+  if (!pool || !guildId || !messageId || !phase) {
     return {
       allowed: false,
+
       message: "❌ Nie udało się zweryfikować panelu Pick'Em.",
     };
   }
 
-  const params = [guildId, String(messageId), phase];
+  // ==================================================
+  // RESOLVE DB PHASE
+  // ==================================================
+
+  const dbPhase = resolvePanelPhase(phase, stage);
+
+  if (!dbPhase) {
+    return {
+      allowed: false,
+
+      message: "❌ Nie udało się rozpoznać fazy tego panelu.",
+    };
+  }
+
+  // ==================================================
+  // STAGE
+  // ==================================================
+
+  const normalizedStage = stage ? normalizeStage(stage) : null;
+
+  if (stage && !normalizedStage) {
+    return {
+      allowed: false,
+
+      message: "❌ Nieprawidłowy etap Swiss.",
+    };
+  }
+
+  // W active_panels.stage publisher przechowuje
+  // config.stage, czyli np. "stage1".
+  const dbStage = normalizedStage ? normalizedStage.toLowerCase() : null;
+
+  // ==================================================
+  // QUERY
+  // ==================================================
+
+  const params = [guildId, String(messageId), dbPhase];
 
   let stageCondition = "";
 
-  if (stage) {
+  if (dbStage) {
     stageCondition = "AND stage = ?";
-    params.push(stage);
+    params.push(dbStage);
   }
 
   const [rows] = await pool.query(
     `
     SELECT
+      id,
       message_id,
       channel_id,
       phase,
@@ -422,7 +540,7 @@ async function assertActivePredictionPanel({
       AND phase = ?
       ${stageCondition}
       AND active = 1
-      AND closed = 0
+      AND COALESCE(closed, 0) = 0
     LIMIT 1
     `,
     params,
@@ -431,6 +549,7 @@ async function assertActivePredictionPanel({
   if (!rows.length) {
     return {
       allowed: false,
+
       message:
         "❌ Ten panel Pick'Em nie jest już aktywny.\n" +
         "Użyj najnowszego panelu opublikowanego na serwerze.",
@@ -439,6 +558,7 @@ async function assertActivePredictionPanel({
 
   return {
     allowed: true,
+
     panel: rows[0],
   };
 }
@@ -452,5 +572,7 @@ module.exports = {
   assertActivePredictionPanel,
   getPredictionEventState,
   swissStageToPhase,
+  normalizeStage,
   normalizePhase,
+  resolvePanelPhase,
 };

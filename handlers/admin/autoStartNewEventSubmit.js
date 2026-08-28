@@ -48,23 +48,25 @@ module.exports = async function autoStartNewEventSubmit(interaction) {
 
       if (
         existingEvent.status === "FINISHED" ||
+        existingEvent.status === "ARCHIVED" ||
         Number(existingEvent.is_archived) === 1
       ) {
         return interaction.reply({
           content:
-            "❌ Event o takiej nazwie istnieje już w archiwum. " +
+            "❌ Event o takiej nazwie jest już zakończony lub zarchiwizowany. " +
             "Użyj trochę innej nazwy.",
           ephemeral: true,
         });
       }
 
-      eventId = existingEvent.id;
+      eventId = Number(existingEvent.id);
       finalName = existingEvent.name;
     }
 
     // ==================================================
     // NOWY EVENT
     // ==================================================
+
     else {
       const [result] = await pool.query(
         `
@@ -90,7 +92,7 @@ module.exports = async function autoStartNewEventSubmit(interaction) {
         [guildId, slug, eventName],
       );
 
-      eventId = result.insertId;
+      eventId = Number(result.insertId);
     }
 
     // ==================================================

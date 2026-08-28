@@ -70,7 +70,7 @@ module.exports = {
     }
 
     // ==================================================
-    // NAZWA EVENTU
+    // EVENT NAME
     // ==================================================
 
     const eventName = interaction.options.getString("event", true).trim();
@@ -90,22 +90,17 @@ module.exports = {
       return withGuild(guildId, async ({ pool }) => {
         const slug = makeSlug(eventName) || `event-${Date.now()}`;
 
-        // ==================================================
-        // TRANSAKCJA
-        // ==================================================
-        //
-        // Zmiana aktywnego eventu musi być atomowa.
-        // Nie chcemy sytuacji, w której dwa eventy zostaną
-        // jednocześnie oznaczone jako aktywne.
-        // ==================================================
-
         const conn = await pool.getConnection();
+
+        let eventId;
+        let finalEventName = eventName;
+        let wasExistingEvent = false;
 
         try {
           await conn.beginTransaction();
 
           // ==============================================
-          // SZUKAMY EVENTU O TYM SLUGU
+          // FIND EXISTING EVENT
           // ==============================================
 
           const [existing] = await conn.query(
@@ -117,7 +112,8 @@ module.exports = {
               phase,
               status,
               is_open,
-              is_active
+              is_active,
+              is_archived
             FROM events
             WHERE guild_id = ?
               AND slug = ?
@@ -127,54 +123,54 @@ module.exports = {
             [guildId, slug],
           );
 
-          let eventId;
-          let finalEventName = eventName;
-          let wasExistingEvent = false;
-
           // ==============================================
-          // DEZAKTYWUJ POPRZEDNIE EVENTY
-          // ==============================================
-          //
-          // CLOSED/FINISHED pozostawiamy jako status
-          // historyczny.
-          //
-          // Jeżeli jakiś event był OPEN, zamykamy go.
-          // Wszystkim odbieramy is_open/is_active.
-          // ==============================================
-
-          await conn.query(
-            `
-            UPDATE events
-            SET
-              status = CASE
-                WHEN status = 'OPEN' THEN 'CLOSED'
-                ELSE status
-              END,
-              is_open = 0,
-              is_active = 0
-            WHERE guild_id = ?
-            `,
-            [guildId],
-          );
-
-          // ==============================================
-          // ISTNIEJĄCY EVENT
+          // EXISTING EVENT
           // ==============================================
 
           if (existing.length) {
             const event = existing[0];
 
+            // Nie wznawiamy eventów zakończonych/archiwalnych
+            // przez przypadkowe użycie tego samego sluga.
+            if (
+              event.status === "FINISHED" ||
+              event.status === "ARCHIVED" ||
+              Number(event.is_archived) === 1
+            ) {
+              await conn.rollback();
+
+              return interaction.editReply({
+                content:
+                  "❌ Event o tej nazwie jest już zakończony lub zarchiwizowany.\n" +
+                  "Użyj innej nazwy eventu.",
+                embeds: [],
+                components: [],
+              });
+            }
+
             eventId = Number(event.id);
             finalEventName = event.name;
             wasExistingEvent = true;
+
+            // --------------------------------------------
+            // PREPARE ONLY
+            // --------------------------------------------
+            //
+            // Nie aktywujemy eventu tutaj.
+            // Publisher zrobi to dopiero po poprawnym
+            // utworzeniu publicznego panelu.
+            // --------------------------------------------
 
             await conn.query(
               `
               UPDATE events
               SET
-                status = 'OPEN',
-                is_open = 1,
-                is_active = 1
+                status = CASE
+                  WHEN status = 'OPEN' THEN 'UPCOMING'
+                  ELSE status
+                END,
+                is_open = 0,
+                is_active = 0
               WHERE id = ?
                 AND guild_id = ?
               `,
@@ -183,8 +179,9 @@ module.exports = {
           }
 
           // ==============================================
-          // NOWY EVENT
+          // NEW EVENT
           // ==============================================
+
           else {
             const [result] = await conn.query(
               `
@@ -199,68 +196,21 @@ module.exports = {
               )
               VALUES (?, ?, ?, ?, ?, ?, ?)
               `,
-              [guildId, slug, eventName, "NOT_STARTED", "OPEN", 1, 1],
+              [
+                guildId,
+                slug,
+                eventName,
+                "NOT_STARTED",
+                "UPCOMING",
+                0,
+                0,
+              ],
             );
 
             eventId = Number(result.insertId);
           }
 
           await conn.commit();
-
-          // ==============================================
-          // EMBED WYBORU FAZY
-          // ==============================================
-
-          const embed = new EmbedBuilder()
-            .setTitle("📌 Wybierz fazę turnieju, którą chcesz rozpocząć:")
-            .setDescription(
-              `🏆 Event: **${finalEventName}**\n` +
-                `🔗 Slug: \`${slug}\`\n` +
-                `🆔 ID eventu: \`${eventId}\`\n\n` +
-                `${
-                  wasExistingEvent
-                    ? "♻️ Używam istniejącego eventu."
-                    : "🆕 Utworzono nowy event."
-                }`,
-            )
-            .setColor("Orange");
-
-          // ==============================================
-          // SELECT FAZY
-          // ==============================================
-
-          const selectMenu = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-              .setCustomId("select_pickem_phase")
-              .setPlaceholder("Wybierz fazę turnieju")
-              .addOptions(
-                {
-                  label: "Swiss",
-                  value: `swiss:${eventId}`,
-                },
-                {
-                  label: "Playoffs",
-                  value: `playoffs:${eventId}`,
-                },
-                {
-                  label: "Double Elimination",
-                  value: `doubleelim:${eventId}`,
-                },
-                {
-                  label: "Play-In",
-                  value: `playin:${eventId}`,
-                },
-              ),
-          );
-
-          // ==============================================
-          // RESPONSE
-          // ==============================================
-
-          return interaction.editReply({
-            embeds: [embed],
-            components: [selectMenu],
-          });
         } catch (err) {
           try {
             await conn.rollback();
@@ -272,6 +222,62 @@ module.exports = {
         } finally {
           conn.release();
         }
+
+        // ==================================================
+        // PHASE SELECT EMBED
+        // ==================================================
+
+        const embed = new EmbedBuilder()
+          .setTitle("📌 Wybierz fazę turnieju, którą chcesz rozpocząć:")
+          .setDescription(
+            `🏆 Event: **${finalEventName}**\n` +
+              `🔗 Slug: \`${slug}\`\n` +
+              `🆔 ID eventu: \`${eventId}\`\n\n` +
+              `${
+                wasExistingEvent
+                  ? "♻️ Przygotowano istniejący event."
+                  : "🆕 Utworzono nowy event."
+              }\n\n` +
+              "ℹ️ Event zostanie aktywowany dopiero po opublikowaniu panelu fazy.",
+          )
+          .setColor("Orange");
+
+        // ==================================================
+        // PHASE SELECT
+        // ==================================================
+
+        const selectMenu = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId("select_pickem_phase")
+            .setPlaceholder("Wybierz fazę turnieju")
+            .addOptions(
+              {
+                label: "Swiss",
+                value: `swiss:${eventId}`,
+              },
+              {
+                label: "Playoffs",
+                value: `playoffs:${eventId}`,
+              },
+              {
+                label: "Double Elimination",
+                value: `doubleelim:${eventId}`,
+              },
+              {
+                label: "Play-In",
+                value: `playin:${eventId}`,
+              },
+            ),
+        );
+
+        // ==================================================
+        // RESPONSE
+        // ==================================================
+
+        return interaction.editReply({
+          embeds: [embed],
+          components: [selectMenu],
+        });
       });
     } catch (err) {
       console.error("[PICKEM] execute error", err);

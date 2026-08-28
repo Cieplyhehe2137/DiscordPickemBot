@@ -1,37 +1,28 @@
 // utils/getOpenEventId.js
 //
-// Resolves the currently OPEN event for a guild - used when saving a
-// prediction, where we specifically want "the event accepting picks right
-// now" and nothing else.
+// Single source of truth for the currently active Pick'Em event.
+//
+// Event is considered active only when all lifecycle flags agree:
+//
+//   status    = 'OPEN'
+//   is_open   = 1
+//   is_active = 1
+//
+// This prevents stale, scheduled or partially closed events
+// from being used when saving predictions.
 
 async function getOpenEventId(pool, guildId) {
+  if (!pool || !guildId) {
+    return null;
+  }
+
   const [[eventRow]] = await pool.query(
     `
     SELECT id
     FROM events
     WHERE guild_id = ?
       AND status = 'OPEN'
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [guildId],
-  );
-
-  return eventRow?.id || null;
-}
-
-// Separate from getOpenEventId: some older call sites key off `is_active`
-// rather than `status = 'OPEN'`. Kept as its own function rather than
-// merged with getOpenEventId, since the two flags may not always agree
-// (schema drift flagged for a future DB cleanup pass) - this preserves
-// existing behavior for those call sites rather than guessing which flag
-// is "more correct".
-async function getActiveEventId(pool, guildId) {
-  const [[eventRow]] = await pool.query(
-    `
-    SELECT id
-    FROM events
-    WHERE guild_id = ?
+      AND is_open = 1
       AND is_active = 1
     ORDER BY id DESC
     LIMIT 1
@@ -42,4 +33,16 @@ async function getActiveEventId(pool, guildId) {
   return eventRow?.id || null;
 }
 
-module.exports = { getOpenEventId, getActiveEventId };
+// Backwards-compatible alias.
+//
+// Older parts of the bot still call getActiveEventId().
+// Both functions intentionally resolve the exact same event,
+// so there is only one definition of "active event".
+async function getActiveEventId(pool, guildId) {
+  return getOpenEventId(pool, guildId);
+}
+
+module.exports = {
+  getOpenEventId,
+  getActiveEventId,
+};

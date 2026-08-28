@@ -18,8 +18,21 @@ async function publishPickemPanel({
     throw new Error(`Unknown Pick'Em phase: ${phase}`);
   }
 
+  eventId = Number(eventId);
+
+  if (!eventId) {
+    throw new Error("Invalid eventId");
+  }
+
   // ====================================================
-  // EVENT
+  // EVENT PRECHECK
+  // ====================================================
+  //
+  // Pobieramy event przed wysłaniem wiadomości,
+  // ponieważ jego dane są potrzebne do zbudowania panelu.
+  //
+  // Później, już wewnątrz transakcji, sprawdzimy go
+  // ponownie pod blokadą FOR UPDATE.
   // ====================================================
 
   const [events] = await pool.query(
@@ -31,7 +44,8 @@ async function publishPickemPanel({
       status,
       phase,
       is_open,
-      is_active
+      is_active,
+      is_archived
     FROM events
     WHERE id = ?
       AND guild_id = ?
@@ -44,6 +58,18 @@ async function publishPickemPanel({
 
   if (!event) {
     throw new Error(`Event ${eventId} not found for guild ${guildId}`);
+  }
+
+  // ====================================================
+  // DO NOT REOPEN FINISHED / ARCHIVED EVENTS
+  // ====================================================
+
+  if (
+    event.status === "FINISHED" ||
+    event.status === "ARCHIVED" ||
+    Number(event.is_archived) === 1
+  ) {
+    throw new Error(`Event ${eventId} is finished or archived`);
   }
 
   // ====================================================
@@ -71,6 +97,15 @@ async function publishPickemPanel({
   // ====================================================
   // SEND DISCORD MESSAGE
   // ====================================================
+  //
+  // Najpierw Discord, potem DB.
+  //
+  // Nie chcemy trzymać blokady DB podczas oczekiwania
+  // na Discord API.
+  //
+  // Jeżeli późniejsza transakcja DB się nie powiedzie,
+  // wiadomość zostanie usunięta.
+  // ====================================================
 
   const message = await channel.send({
     content: "@everyone",
@@ -92,11 +127,13 @@ async function publishPickemPanel({
     await connection.beginTransaction();
 
     // ==================================================
-    // LOCK EVENT ROWS FOR THIS GUILD
+    // LOCK ALL EVENTS FOR THIS GUILD
     // ==================================================
     //
-    // Dzięki temu dwa równoległe publishery nie powinny
-    // aktywować dwóch eventów jednocześnie.
+    // Serializujemy zmianę aktywnego eventu.
+    //
+    // Dwa publishery uruchomione niemal jednocześnie
+    // nie powinny pozostawić dwóch aktywnych eventów.
     // ==================================================
 
     await connection.query(
@@ -110,13 +147,60 @@ async function publishPickemPanel({
     );
 
     // ==================================================
+    // REVALIDATE TARGET EVENT
+    // ==================================================
+    //
+    // Stan eventu mógł zmienić się od wcześniejszego
+    // SELECT-a do momentu rozpoczęcia transakcji.
+    //
+    // Dlatego sprawdzamy go ponownie już pod blokadą.
+    // ==================================================
+
+    const [lockedEvents] = await connection.query(
+      `
+      SELECT
+        id,
+        name,
+        slug,
+        status,
+        phase,
+        is_open,
+        is_active,
+        is_archived
+      FROM events
+      WHERE id = ?
+        AND guild_id = ?
+      LIMIT 1
+      `,
+      [eventId, guildId],
+    );
+
+    const lockedEvent = lockedEvents[0];
+
+    if (!lockedEvent) {
+      throw new Error(
+        `Event ${eventId} disappeared before activation for guild ${guildId}`,
+      );
+    }
+
+    if (
+      lockedEvent.status === "FINISHED" ||
+      lockedEvent.status === "ARCHIVED" ||
+      Number(lockedEvent.is_archived) === 1
+    ) {
+      throw new Error(
+        `Event ${eventId} became finished or archived before activation`,
+      );
+    }
+
+    // ==================================================
     // DEACTIVATE OTHER EVENTS
     // ==================================================
     //
-    // Tylko aktualnie OPEN dostają CLOSED.
+    // Dotychczasowy OPEN event staje się CLOSED.
     //
-    // UPCOMING / FINISHED / inne statusy zachowują swój
-    // status, ale tracą is_open / is_active.
+    // UPCOMING / FINISHED / ARCHIVED zachowują swój
+    // status historyczny, ale nie mogą być aktywne.
     // ==================================================
 
     await connection.query(
@@ -138,6 +222,17 @@ async function publishPickemPanel({
     // ==================================================
     // ACTIVATE TARGET EVENT
     // ==================================================
+    //
+    // To jest właściwy moment aktywacji eventu.
+    //
+    // /start_pickem jedynie przygotowuje event jako
+    // UPCOMING. Dopiero poprawnie opublikowany panel
+    // zmienia go na:
+    //
+    // status    = OPEN
+    // is_open   = 1
+    // is_active = 1
+    // ==================================================
 
     const [eventUpdate] = await connection.query(
       `
@@ -149,6 +244,8 @@ async function publishPickemPanel({
         is_active = 1
       WHERE id = ?
         AND guild_id = ?
+        AND is_archived = 0
+        AND status NOT IN ('FINISHED', 'ARCHIVED')
       `,
       [phase, eventId, guildId],
     );
@@ -160,14 +257,14 @@ async function publishPickemPanel({
     }
 
     // ==================================================
-    // DISABLE ALL OLD PANELS
+    // DISABLE OLD PUBLIC PANELS
     // ==================================================
     //
-    // Nie tylko panel tej samej fazy.
+    // Tylko jeden publiczny Pick'Em panel powinien być
+    // aktualnie aktywny na guildzie.
     //
-    // Skoro tylko jeden event/faza może być aktualnie
-    // aktywna, stary panel Playoffs/Swiss/etc. również
-    // nie powinien pozostać active=1.
+    // To jest również podstawa dla
+    // assertActivePredictionPanel().
     // ==================================================
 
     await connection.query(
@@ -213,13 +310,20 @@ async function publishPickemPanel({
           active = 1,
           deadline = NULL
         `,
-        [guildId, phase, config.stage, message.id, channel.id],
+        [
+          guildId,
+          phase,
+          config.stage,
+          message.id,
+          channel.id,
+        ],
       );
     }
 
     // ==================================================
     // OTHER PHASES
     // ==================================================
+
     else {
       await connection.query(
         `
@@ -247,7 +351,12 @@ async function publishPickemPanel({
           closed_at = NULL,
           deadline = NULL
         `,
-        [guildId, phase, channel.id, message.id],
+        [
+          guildId,
+          phase,
+          channel.id,
+          message.id,
+        ],
       );
     }
 
@@ -256,6 +365,24 @@ async function publishPickemPanel({
     // ==================================================
 
     await connection.commit();
+
+    // ==================================================
+    // RETURN
+    // ==================================================
+
+    return {
+      event: {
+        ...lockedEvent,
+
+        phase,
+        status: "OPEN",
+        is_open: 1,
+        is_active: 1,
+      },
+
+      message,
+      config,
+    };
   } catch (error) {
     // ==================================================
     // ROLLBACK
@@ -267,9 +394,10 @@ async function publishPickemPanel({
     // DELETE ORPHAN DISCORD PANEL
     // ==================================================
     //
-    // Wiadomość Discord została wysłana przed transakcją.
-    // Jeśli zapis DB się nie udał, próbujemy ją usunąć,
-    // żeby nie został publiczny panel bez stanu w DB.
+    // Discord message powstała przed transakcją.
+    //
+    // Jeżeli DB nie zaakceptowała aktywacji eventu,
+    // publiczny panel nie może pozostać na serwerze.
     // ==================================================
 
     await message.delete().catch(() => {});
@@ -278,23 +406,6 @@ async function publishPickemPanel({
   } finally {
     connection.release();
   }
-
-  // ====================================================
-  // RETURN
-  // ====================================================
-
-  return {
-    event: {
-      ...event,
-      phase,
-      status: "OPEN",
-      is_open: 1,
-      is_active: 1,
-    },
-
-    message,
-    config,
-  };
 }
 
 module.exports = {
