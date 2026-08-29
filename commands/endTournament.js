@@ -21,6 +21,10 @@ const { getGuildConfig } = require("../utils/guildRegistry");
 
 const { logTournamentAction } = require("../utils/logTournamentAction");
 
+const ensurePlayerEventHistory = require("../utils/ensurePlayerEventHistory");
+
+const archivePlayerEventStats = require("../utils/archivePlayerEventStats");
+
 // ======================================================
 // BLOKADA PER GUILD
 // ======================================================
@@ -237,12 +241,35 @@ module.exports = {
         });
 
         // ==================================================
+        // TABELA HISTORII KARIERY
+        // ==================================================
+
+        await ensurePlayerEventHistory(pool);
+
+        // ==================================================
         // SPRZĄTANIE — TRANSAKCJA
         // ==================================================
 
         conn = await pool.getConnection();
 
         await conn.beginTransaction();
+
+        // ================================================
+        // SNAPSHOT KARIERY GRACZY
+        // ================================================
+
+        const archiveResult = await archivePlayerEventStats({
+          conn,
+          guildId,
+          eventId,
+          eventName: event.name,
+        });
+
+        logInfo("tournament", "Career snapshot created", {
+          guildId,
+          eventId,
+          archivedPlayers: archiveResult.archivedPlayers,
+        });
 
         // ================================================
         // PANELE
