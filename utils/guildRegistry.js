@@ -10,6 +10,37 @@ function _configDir() {
   return path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
 }
 
+// Plik ze wspólnymi wartościami. Nie jest configiem gildii - nie ma
+// GUILD_ID i nie może trafić na listę serwerów.
+const PLIK_BAZOWY = "_base.env";
+
+function _jestBazowy(filePath) {
+  return path.basename(filePath).toLowerCase() === PLIK_BAZOWY;
+}
+
+// Wspólne wartości dla wszystkich gildii: dane bazy, token bota, client id.
+// Wcześniej każdy plik gildii musiał je powtarzać, więc jedna wartość żyła
+// w kilku miejscach naraz i rotacja hasła wymagała trafienia we wszystkie.
+//
+// Plik gildii nadal może nadpisać dowolny klucz - np. gdyby któryś serwer
+// miał kiedyś własną bazę. Brak _base.env to zachowanie sprzed zmiany.
+function _wczytajBaze() {
+  const sciezka = path.join(_configDir(), PLIK_BAZOWY);
+
+  if (!fs.existsSync(sciezka)) return {};
+
+  const baza = dotenv.parse(fs.readFileSync(sciezka, "utf8"));
+
+  if (baza.GUILD_ID) {
+    throw new Error(
+      `${PLIK_BAZOWY} nie może zawierać GUILD_ID - to plik wspólny dla ` +
+        `wszystkich serwerów, a nie config pojedynczego.`,
+    );
+  }
+
+  return baza;
+}
+
 function _listEnvFiles() {
   const configDir = _configDir();
   const explicit = (process.env.GUILD_ENV_FILES || "").trim();
@@ -30,7 +61,7 @@ function _listEnvFiles() {
       .map((f) => path.join(configDir, f));
   }
 
-  return files.filter((f) => fs.existsSync(f));
+  return files.filter((f) => fs.existsSync(f) && !_jestBazowy(f));
 }
 
 function _normalize(cfg) {
@@ -48,7 +79,9 @@ function _validate(cfg, filePath) {
   if (missing.length) {
     const where = filePath ? ` (${path.basename(filePath)})` : "";
     throw new Error(
-      `Brak wymaganych kluczy w configu guild${where}: ${missing.join(", ")}`,
+      `Brak wymaganych kluczy w configu guild${where}: ${missing.join(", ")}.
+` +
+        `Klucz może być w pliku serwera albo we wspólnym ${PLIK_BAZOWY}.`,
     );
   }
 
@@ -102,9 +135,21 @@ function loadGuildConfigsOnce() {
     );
   }
 
+  const baza = _wczytajBaze();
+
   for (const filePath of files) {
     const raw = fs.readFileSync(filePath, "utf8");
-    const parsed = dotenv.parse(raw);
+
+    // Gildia nadpisuje bazę, nie odwrotnie. Pusta wartość w pliku gildii
+    // jest traktowana jak brak, żeby zostawiona pusta linia nie kasowała
+    // wartości wspólnej.
+    const wlasne = dotenv.parse(raw);
+
+    const parsed = { ...baza };
+
+    for (const [klucz, wartosc] of Object.entries(wlasne)) {
+      if (String(wartosc).trim() !== "") parsed[klucz] = wartosc;
+    }
 
     parsed.DB_PASS = parsed.DB_PASS || parsed.DB_PASSWORD;
 

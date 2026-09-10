@@ -9,7 +9,10 @@ dist/
 build/
 coverage/
 .DS_Store
-config/
+# Wykluczamy zawartość, nie sam katalog - git nie wchodzi do
+# wykluczonego katalogu, więc przy 'config/' późniejsze
+# !config/*.env.example nie miało żadnego efektu.
+config/*
 .md
 config/*.env
 *.env
