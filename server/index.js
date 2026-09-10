@@ -31,6 +31,10 @@ const applyMatchResult = require("../services/applyMatchResult");
 // nie zostało zaimportowane - zmiana statusu turnieju zapisywała się w bazie,
 // a potem wywalała się na ReferenceError i zwracała 500.
 const { setIo, emitDashboardRefresh } = require("../utils/socket");
+const {
+  zarejestrujZamykanie,
+  zamknijZCallbackiem,
+} = require("../utils/gracefulShutdown");
 const resultProposalsStore = require("../utils/resultProposalsStore");
 const { getResultProvider } = require("../utils/resultProviders");
 const { runInTransaction } = require("../utils/runInTransaction");
@@ -9846,7 +9850,7 @@ httpServer.listen(PORT, () => {
   console.log(`WEB SERWER DZIAŁA NA http://localhost:${PORT}`);
 });
 
-startCs2LogReceiver({
+const cs2Receiver = startCs2LogReceiver({
   port: Number(process.env.CS2_LOG_PORT || 27500),
   onLine(raw) {
     const parsed = parseCs2LogLine(raw);
@@ -9855,6 +9859,53 @@ startCs2LogReceiver({
 
     console.log("[CS2 PARSED]", parsed);
   },
+});
+
+zarejestrujZamykanie({
+  nazwa: "serwer",
+  kroki: [
+    {
+      // Najpierw odcinamy dopływ: rozłączamy klientów socket.io i przestajemy
+      // przyjmować nowe żądania HTTP.
+      opis: "rozłączenie klientów socket.io",
+      zrob() {
+        return new Promise((resolve) => {
+          io.close(() => resolve());
+        });
+      },
+    },
+    {
+      opis: "zamknięcie serwera HTTP",
+      async zrob() {
+        // io.close() zamyka też serwer HTTP pod spodem, więc domykamy go tylko
+        // wtedy, gdy z jakiegoś powodu nadal nasłuchuje.
+        if (!httpServer.listening) return;
+
+        await zamknijZCallbackiem(httpServer);
+      },
+    },
+    {
+      opis: "zamknięcie odbiornika logów CS2",
+      async zrob() {
+        await zamknijZCallbackiem(cs2Receiver);
+      },
+    },
+    {
+      // Store dostał gotową pulę, więc jego close() tylko kasuje interwał
+      // czyszczenia wygasłych sesji - puli nie rusza (endConnectionOnClose
+      // jest wtedy false). Pulę zamykamy sami, krok niżej.
+      opis: "zatrzymanie czyszczenia sesji",
+      async zrob() {
+        await sessionStore.close();
+      },
+    },
+    {
+      opis: "zamknięcie puli MySQL",
+      async zrob() {
+        await pool.end();
+      },
+    },
+  ],
 });
 
 app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
