@@ -175,6 +175,17 @@ export function setAdminEventPhase(slug, phase) {
   });
 }
 
+// Uruchamia typowanie tak, jak robi to komenda na Discordzie: zapisuje stan
+// w bazie i zleca botowi opublikowanie panelu na kanale. Bot podnosi zlecenie
+// w ciągu ~30 s, bo API i bot to osobne procesy - serwer nie ma klienta
+// Discorda i nie może wysłać wiadomości sam.
+export function startEventPickem(slug, faza, channelId) {
+  return apiRequest(`/events/${encodeURIComponent(slug)}/pickem/start`, {
+    method: "POST",
+    body: JSON.stringify(channelId ? { faza, channelId } : { faza }),
+  });
+}
+
 export function getAdminEvents(guildId) {
   return apiRequest(`/guilds/${encodeURIComponent(guildId)}/events`);
 }

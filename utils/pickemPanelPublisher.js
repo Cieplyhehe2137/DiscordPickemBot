@@ -1,4 +1,10 @@
-const { phasesConfig, buildPickemPanel } = require("./pickemPanelBuilder");
+const {
+  phasesConfig,
+  buildPickemPanel,
+  FAZA_KONFIGURACJI,
+} = require("./pickemPanelBuilder");
+
+const { getPhaseLimits } = require("./eventPickemConfig");
 
 // ======================================================
 // PUBLISH PICK'EM PANEL
@@ -88,10 +94,21 @@ async function publishPickemPanel({
 
   const isSwiss = phase.startsWith("swiss_stage");
 
+  // Opis panelu ogłasza liczby drużyn, więc musi je wziąć z konfiguracji
+  // tego eventu. Wcześniej były wpisane na sztywno w builderze i panel
+  // reklamował 2/2/6 nawet dla turnieju o innym formacie.
+  const limity = await getPhaseLimits(
+    pool,
+    guildId,
+    eventId,
+    FAZA_KONFIGURACJI[phase],
+  );
+
   const payload = buildPickemPanel({
     event,
     eventId,
     phase,
+    limity,
   });
 
   // ====================================================

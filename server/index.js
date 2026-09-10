@@ -68,6 +68,11 @@ const {
   sprawdzTyp,
   FAZY: FAZY_PICKEM,
 } = require("../utils/eventPickemConfig");
+
+const {
+  phasesConfig: FAZY_PANELU_CONFIG,
+  FAZA_PANELU,
+} = require("../utils/pickemPanelBuilder");
 const fs = require("fs");
 
 const restoreBackup = require("../utils/restoreBackup");
@@ -5606,6 +5611,139 @@ app.post(
       res.status(500).json({
         error: "Błąd bazy danych.",
       });
+    }
+  },
+);
+
+// Start typowania spoza Discorda.
+//
+// Panel na Discordzie publikuje wyłącznie publishPickemPanel() - ta sama
+// funkcja dla komendy, auto-startu i tego endpointu. API nie może wywołać jej
+// wprost, bo bot i serwer to dwa osobne procesy PM2 dzielące tylko bazę:
+// serwer nie ma klienta Discorda, więc nie ma czym wysłać wiadomości.
+//
+// Dlatego zapisujemy tu intencję w kolumnach auto_start_*, a bot podnosi ją
+// w ciągu ~30 s swoim watcherem i publikuje panel. Intencja jest trwała, więc
+// restart bota w złym momencie niczego nie gubi, a każdy kolejny klient
+// (aplikacja mobilna) dostaje tę samą ścieżkę za darmo.
+app.post(
+  "/api/events/:slug/pickem/start",
+  requireGuildAdmin(guildIdFromEventSlug),
+  async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const { guildId } = req;
+
+      // Przyjmujemy oba zapisy fazy: panelowy ('swiss_stage1') i ten
+      // z events.phase ('SWISS_STAGE_1'), żeby front mógł podać to, co ma.
+      const surowa = String(req.body?.faza || req.body?.phase || "").trim();
+
+      const faza = FAZY_PANELU_CONFIG[surowa]
+        ? surowa
+        : FAZA_PANELU[surowa.toUpperCase()];
+
+      if (!faza) {
+        return res.status(400).json({
+          error: "Nieznana faza typowania.",
+          dozwolone: Object.keys(FAZY_PANELU_CONFIG),
+        });
+      }
+
+      const [[event]] = await pool.query(
+        `SELECT id, name, status, is_open, is_active, is_archived,
+                auto_started_at
+           FROM events
+          WHERE guild_id = ? AND slug = ?
+          LIMIT 1`,
+        [guildId, slug],
+      );
+
+      if (!event) {
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      if (Number(event.is_archived) === 1 || event.status === "FINISHED") {
+        return res.status(409).json({
+          error: "Ten turniej jest już zakończony.",
+        });
+      }
+
+      // Bot podnosi z kolejki tylko eventy w stanie UPCOMING / 0 / 0 - ten
+      // warunek chroni trwający turniej przed przejęciem przez zaplanowany
+      // start. Przełączanie faz w już otwartym evencie idzie inną ścieżką.
+      const gotowy =
+        event.status === "UPCOMING" &&
+        Number(event.is_open) === 0 &&
+        Number(event.is_active) === 0;
+
+      if (!gotowy) {
+        return res.status(409).json({
+          error:
+            "Typowanie tego turnieju zostało już uruchomione. " +
+            "Zmiana fazy trwającego turnieju idzie przez panel na Discordzie.",
+          stan: {
+            status: event.status,
+            is_open: Number(event.is_open),
+            is_active: Number(event.is_active),
+          },
+        });
+      }
+
+      // Kanał: jawnie podany wygrywa, w przeciwnym razie PICKEM_CHANNEL_ID
+      // z configu gildii. Na Discordzie kanał bierze się z tego, gdzie admin
+      // wpisał komendę - z WWW nie ma takiego odpowiednika.
+      const kanalZConfigu =
+        guildRegistry.getGuildConfig(guildId)?.PICKEM_CHANNEL_ID;
+
+      const channelId = String(req.body?.channelId || kanalZConfigu || "").trim();
+
+      if (!channelId) {
+        return res.status(400).json({
+          error:
+            "Nie wiadomo, na którym kanale opublikować panel. " +
+            "Ustaw PICKEM_CHANNEL_ID w configu serwera albo podaj channelId.",
+        });
+      }
+
+      const [wynik] = await pool.query(
+        `UPDATE events
+            SET auto_start_at = UTC_TIMESTAMP(),
+                auto_start_phase = ?,
+                auto_start_channel_id = ?,
+                auto_started_at = NULL
+          WHERE id = ? AND guild_id = ?
+            AND status = 'UPCOMING' AND is_open = 0 AND is_active = 0
+          LIMIT 1`,
+        [faza, channelId, event.id, guildId],
+      );
+
+      if (wynik.affectedRows === 0) {
+        return res.status(409).json({
+          error: "Stan turnieju zmienił się w trakcie. Odśwież i spróbuj ponownie.",
+        });
+      }
+
+      logInfo("pickem", "Pick'Em start queued from web", {
+        guildId,
+        eventId: event.id,
+        by: req.session?.user?.id,
+        extra: { faza, channelId },
+      });
+
+      emitDashboardRefresh({ slug, guildId, reason: "pickem_start_queued" });
+
+      return res.json({
+        ok: true,
+        slug,
+        faza,
+        channelId,
+        // Watcher bota tyka co 30 s - front ma co pokazać zamiast
+        // sugerować, że panel jest już na Discordzie.
+        opoznienieSekundy: 30,
+      });
+    } catch (err) {
+      console.error("PICKEM START:", err);
+      return res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );

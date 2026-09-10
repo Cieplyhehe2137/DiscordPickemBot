@@ -14,6 +14,7 @@ import {
   backupDownloadUrl,
   classificationExportUrl,
   endTournament,
+  startEventPickem,
 } from "../../lib/api.js";
 
 // Operacje turniejowe, które po przepisaniu frontu zostały wyłącznie
@@ -436,6 +437,86 @@ function Backupy({ guildId }) {
 
 /* ---------------- Zamknięcie turnieju ---------------- */
 
+// Uruchomienie typowania z WWW ma dać dokładnie to samo, co komenda na
+// Discordzie: przestawienie stanu turnieju i panel na kanale. Robi to jedna
+// funkcja po stronie bota (publishPickemPanel), a że bot i serwer to osobne
+// procesy, API zapisuje zlecenie w bazie i bot podnosi je swoim watcherem.
+function UruchomTypowanie({ slug }) {
+  const [faza, setFaza] = useState("swiss_stage1");
+  const [kanal, setKanal] = useState("");
+  const [pracuje, setPracuje] = useState(false);
+  const [ok, setOk] = useState("");
+  const [blad, setBlad] = useState("");
+
+  const etykieta =
+    FAZY_MECZOWE.find((f) => f.klucz === faza)?.etykieta ?? faza;
+
+  async function uruchom() {
+    if (
+      !window.confirm(
+        `Uruchomić typowanie fazy ${etykieta}? ` +
+          "Bot opublikuje panel na Discordzie i oznaczy ten turniej jako " +
+          "aktywny — dotychczasowy otwarty turniej zostanie zamknięty.",
+      )
+    ) {
+      return;
+    }
+
+    setPracuje(true);
+    setOk("");
+    setBlad("");
+
+    try {
+      const odpowiedz = await startEventPickem(slug, faza, kanal.trim() || null);
+
+      setOk(
+        `Zlecono start fazy ${etykieta}. Bot opublikuje panel na kanale ` +
+          `${odpowiedz.channelId} w ciągu ~${odpowiedz.opoznienieSekundy} s.`,
+      );
+    } catch (err) {
+      setBlad(err.message || "Nie udało się uruchomić typowania.");
+    } finally {
+      setPracuje(false);
+    }
+  }
+
+  return (
+    <div className="ops-block">
+      <h4>Uruchom typowanie</h4>
+
+      <p className="ops-hint">
+        To samo, co komenda na Discordzie: turniej staje się aktywny, a bot
+        publikuje panel typowania na kanale. Kanał domyślny bierze się
+        z <code>PICKEM_CHANNEL_ID</code> w configu serwera — poniżej możesz go
+        nadpisać. Działa dla turnieju, który nie został jeszcze uruchomiony.
+      </p>
+
+      <div className="ops-row">
+        <select value={faza} onChange={(e) => setFaza(e.target.value)}>
+          {FAZY_MECZOWE.map((f) => (
+            <option key={f.klucz} value={f.klucz}>
+              {f.etykieta}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          value={kanal}
+          onChange={(e) => setKanal(e.target.value)}
+          placeholder="ID kanału (opcjonalnie)"
+        />
+
+        <button type="button" onClick={uruchom} disabled={pracuje}>
+          {pracuje ? "Zlecanie..." : "Uruchom typowanie"}
+        </button>
+      </div>
+
+      <Komunikaty ok={ok} blad={blad} />
+    </div>
+  );
+}
+
 function ZamknijTurniej({ slug }) {
   const [nazwa, setNazwa] = useState("");
   const [cleanup, setCleanup] = useState(false);
@@ -514,6 +595,7 @@ function ZamknijTurniej({ slug }) {
 function TournamentOpsPanel({ guildId, slug }) {
   return (
     <div className="ops-panel">
+      <UruchomTypowanie slug={slug} />
       <HurtoweMecze guildId={guildId} slug={slug} />
       <PropozycjeWynikow slug={slug} />
       <Backupy guildId={guildId} />
