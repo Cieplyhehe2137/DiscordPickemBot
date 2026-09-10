@@ -13,7 +13,7 @@
 // WEB_ORIGIN przyjmuje liste po przecinku. Kazdy wpis jest przycinany i
 // pozbawiany koncowych ukosnikow, zeby "https://a.pl/" i "https://a.pl"
 // znaczyly to samo - inaczej jeden zapis w konfiguracji dziala, a drugi nie.
-export function zbudujDozwoloneOriginy(webOrigin) {
+export function buildAllowedOrigins(webOrigin) {
   return String(webOrigin || "")
     .split(",")
     .map((o) => o.trim().replace(/\/+$/, ""))
@@ -25,19 +25,19 @@ export function zbudujDozwoloneOriginy(webOrigin) {
 //
 // `sufiks` istnieje dla Cloudflare Pages: kazdy podglad dostaje wlasny adres
 // <hash>.<projekt>.pages.dev, wiec pojedynczy wpis na liscie nie wystarcza.
-export function utworzSprawdzanieOriginu({ dozwolone = [], sufiks = "" } = {}) {
-  const lista = dozwolone;
-  const koncowka = String(sufiks || "").trim();
+export function createOriginCheck({ allowed = [], suffix = "" } = {}) {
+  const list = allowed;
+  const suffixValue = String(suffix || "").trim();
 
-  return function czyDozwolonyOrigin(origin) {
+  return function isAllowedOrigin(origin) {
     // Brak naglowka Origin to zadanie nie z przegladarki (curl, health check)
     // albo same-origin - nie ma czego blokowac.
     if (!origin) return true;
 
-    const czysty = String(origin).replace(/\/+$/, "");
+    const cleaned = String(origin).replace(/\/+$/, "");
 
-    if (lista.includes(czysty)) return true;
+    if (list.includes(cleaned)) return true;
 
-    return Boolean(koncowka) && czysty.endsWith(koncowka);
+    return Boolean(suffixValue) && cleaned.endsWith(suffixValue);
   };
 }

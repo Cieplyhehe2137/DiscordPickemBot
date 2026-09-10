@@ -1,14 +1,14 @@
 import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
-import { zbudujDozwoloneOriginy, utworzSprawdzanieOriginu } from "./lib/origin.js";
+import { buildAllowedOrigins, createOriginCheck } from "./lib/origin.js";
 import {
   assertSafeBackupFileName,
   safeFileBase,
   sqlEscape,
   validateCs2Score,
   validateSeriesMapOrder,
-} from "./lib/walidacja.js";
+} from "./lib/validation.js";
 import { createRequire } from "module";
 import dotenv from "dotenv";
 dotenv.config();
@@ -120,16 +120,16 @@ const CROSS_ORIGIN_WEB = process.env.CROSS_ORIGIN_WEB === "1";
 // WEB_ORIGIN przyjmuje listę po przecinku. Cloudflare Pages daje każdemu
 // podglądowi własny adres <hash>.<projekt>.pages.dev, więc pojedynczy wpis
 // nie wystarcza - WEB_ORIGIN_SUFFIX dopuszcza całą domenę projektu.
-const DOZWOLONE_ORIGINY = zbudujDozwoloneOriginy(WEB_ORIGIN);
+const ALLOWED_ORIGINS = buildAllowedOrigins(WEB_ORIGIN);
 
-const czyDozwolonyOrigin = utworzSprawdzanieOriginu({
-  dozwolone: DOZWOLONE_ORIGINY,
-  sufiks: process.env.WEB_ORIGIN_SUFFIX,
+const isAllowedOrigin = createOriginCheck({
+  allowed: ALLOWED_ORIGINS,
+  suffix: process.env.WEB_ORIGIN_SUFFIX,
 });
 
 // Pierwszy wpis zostaje adresem, na który wraca logowanie przez Discorda -
 // podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
-const WEB_ORIGIN_GLOWNY = DOZWOLONE_ORIGINY[0] || "http://localhost:5173";
+const WEB_ORIGIN_GLOWNY = ALLOWED_ORIGINS[0] || "http://localhost:5173";
 const ADMINISTRATOR_PERMISSION = 0x8n;
 
 async function getDatabaseTablesAndColumns(cfg) {
@@ -291,8 +291,8 @@ const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) =>
       callback(
-        czyDozwolonyOrigin(origin) ? null : new Error("Origin niedozwolony"),
-        czyDozwolonyOrigin(origin),
+        isAllowedOrigin(origin) ? null : new Error("Origin niedozwolony"),
+        isAllowedOrigin(origin),
       ),
     credentials: true,
   },
@@ -330,7 +330,7 @@ if (IS_PRODUCTION) {
 app.use(
   cors({
     origin: (origin, callback) =>
-      czyDozwolonyOrigin(origin)
+      isAllowedOrigin(origin)
         ? callback(null, true)
         : callback(new Error(`Origin niedozwolony: ${origin}`)),
     credentials: true,

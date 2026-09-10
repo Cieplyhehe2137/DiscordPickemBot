@@ -3,7 +3,7 @@
 // Wyciagniete z app.js przy jego rozbijaniu. Nie chodzilo o same linie:
 // dopoki te funkcje siedzialy w srodku 12-tysiecznego pliku obok tras, nie
 // dalo sie ich przetestowac inaczej niz przez uruchomienie calego serwera.
-// Tutaj sa zwyklymi funkcjami i maja testy w test/walidacjaSerwera.test.js.
+// Tutaj sa zwyklymi funkcjami i maja testy w test/serverValidation.test.js.
 //
 // Modul celowo nie ma zadnych zaleznosci - dzieki temu testy w katalogu
 // glownym uruchamiaja sie bez instalowania server/node_modules.

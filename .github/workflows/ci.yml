@@ -79,7 +79,7 @@ jobs:
       # Zmienne sa atrapami - pula MySQL laczy sie dopiero przy pierwszym
       # zapytaniu, a samo listowanie tras zadnego nie wykonuje.
       - name: Sprawdzenie tras
-        run: npm run trasy
+        run: npm run routes
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: "3306"

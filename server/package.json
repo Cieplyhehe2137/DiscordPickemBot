@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "trasy": "node tools/sprawdzTrasy.mjs",
-    "trasy:zapisz": "node tools/sprawdzTrasy.mjs --zapisz"
+    "routes": "node tools/checkRoutes.mjs",
+    "routes:save": "node tools/checkRoutes.mjs --save"
   },
   "keywords": [],
   "author": "",

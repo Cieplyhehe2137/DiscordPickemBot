@@ -10,30 +10,30 @@ import fs from "fs";
 
 import { app, sessionStore } from "../app.js";
 
-const cel = process.argv[2];
+const target = process.argv[2];
 
-if (!cel) {
-  console.error("uzycie: node tools/wypiszTrasy.mjs <plik-wyjsciowy>");
+if (!target) {
+  console.error("uzycie: node tools/dumpRoutes.mjs <plik-wyjsciowy>");
   process.exit(2);
 }
 
-const stos = app.router?.stack ?? app._router?.stack ?? [];
+const stack = app.router?.stack ?? app._router?.stack ?? [];
 
-const trasy = [];
+const routes = [];
 
-for (const warstwa of stos) {
-  if (!warstwa.route) continue;
+for (const layer of stack) {
+  if (!layer.route) continue;
 
-  const metody = Object.keys(warstwa.route.methods)
+  const methods = Object.keys(layer.route.methods)
     .map((m) => m.toUpperCase())
     .sort();
 
   // Kolejnosc rejestracji ma znaczenie - w Expressie wygrywa pierwsza
   // pasujaca trasa - wiec listy NIE sortujemy.
-  for (const m of metody) trasy.push(`${m} ${String(warstwa.route.path)}`);
+  for (const m of methods) routes.push(`${m} ${String(layer.route.path)}`);
 }
 
-fs.writeFileSync(cel, JSON.stringify(trasy, null, 2) + "\n", "utf8");
+fs.writeFileSync(target, JSON.stringify(routes, null, 2) + "\n", "utf8");
 
 try {
   await sessionStore.close();
