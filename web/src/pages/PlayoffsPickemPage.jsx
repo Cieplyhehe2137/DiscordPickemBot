@@ -45,7 +45,6 @@ function PlayoffsPickemPage() {
 
         const response = await getPlayoffsPickem(slug);
 
-        console.log("PLAYOFFS PICKEM:", response);
         setData(response);
         if (response.prediction) {
           setSemifinalists(response.prediction.semifinalists || []);

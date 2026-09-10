@@ -32,7 +32,6 @@ function PlayinPickemPage() {
 
         const response = await getPlayinPickem(slug);
 
-        console.log("PLAY-IN PICKEM:", response);
         setData(response);
         if (response.prediction) {
           setSelectedTeams(response.prediction.teams || []);
