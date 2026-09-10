@@ -78,6 +78,12 @@ jobs:
       #
       # Zmienne sa atrapami - pula MySQL laczy sie dopiero przy pierwszym
       # zapytaniu, a samo listowanie tras zadnego nie wykonuje.
+      # no-undef lapie klase bledu, ktorej kontrola tras nie widzi: trasa moze
+      # sie zarejestrowac, a handler wywalic sie na nieistniejacej nazwie
+      # dopiero przy zapytaniu. Zadnych regul stylu - tylko to jedno.
+      - name: Nieznane nazwy (no-undef)
+        run: npm run lint
+
       - name: Sprawdzenie tras
         run: npm run routes
         env:

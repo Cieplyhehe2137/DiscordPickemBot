@@ -73,6 +73,9 @@ const {
   setEventPickemConfig,
   getPhaseLimits,
   sprawdzTyp,
+  // sprawdzWynik bylo wolane w czterech trasach zapisu wynikow fazy, ale nigdy
+  // nie zostalo zaimportowane - kazdy taki zapis konczyl sie ReferenceError.
+  sprawdzWynik,
   FAZY: FAZY_PICKEM,
 } = require("../utils/eventPickemConfig");
 

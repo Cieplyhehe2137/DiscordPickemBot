@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "routes": "node tools/checkRoutes.mjs",
-    "routes:save": "node tools/checkRoutes.mjs --save"
+    "routes:save": "node tools/checkRoutes.mjs --save",
+    "lint": "eslint --no-config-lookup --config tools/noUndef.config.mjs ."
   },
   "keywords": [],
   "author": "",
@@ -27,5 +28,8 @@
     "mysqldump": {
       "mysql2": "^3.22.5"
     }
+  },
+  "devDependencies": {
+    "eslint": "^10.10.0"
   }
 }
