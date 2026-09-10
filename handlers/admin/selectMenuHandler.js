@@ -1,6 +1,7 @@
 const isAdmin = require("../../utils/isAdmin");
 
 const { buildSwissStageSelector } = require("../../utils/pickemPanelBuilder");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 
 const { publishPickemPanel } = require("../../utils/pickemPanelPublisher");
 
@@ -90,7 +91,9 @@ module.exports = async (interaction) => {
       // ==================================================
 
       if (selected === "swiss") {
-        const payload = buildSwissStageSelector(event, eventId);
+        const limity = await getPhaseLimits(pool, guildId, eventId, "stage1");
+
+        const payload = buildSwissStageSelector(event, eventId, limity);
 
         return interaction.followUp({
           ...payload,

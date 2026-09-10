@@ -6,6 +6,31 @@ const {
   StringSelectMenuBuilder,
 } = require("discord.js");
 
+const { odmien, druzyny } = require("./odmiana");
+
+// Trzeci słownik nazw faz w tym projekcie. Panel mówi 'swiss_stage1',
+// konfiguracja typowania drużyn - 'stage1', a events.phase - 'SWISS_STAGE_1'.
+// Tłumaczenie trzymamy w jednym miejscu, bo przy poprzednim rozjeździe
+// (faza vs phase) wpisy były po cichu pomijane, a endpoint odpowiadał 200.
+const FAZA_KONFIGURACJI = {
+  swiss_stage1: "stage1",
+  swiss_stage2: "stage2",
+  swiss_stage3: "stage3",
+  playin: "playin",
+  playoffs: "playoffs",
+  doubleelim: "doubleelim",
+};
+
+// events.phase -> faza panelu. Tego używa start typowania spoza Discorda.
+const FAZA_PANELU = {
+  SWISS_STAGE_1: "swiss_stage1",
+  SWISS_STAGE_2: "swiss_stage2",
+  SWISS_STAGE_3: "swiss_stage3",
+  PLAY_IN: "playin",
+  PLAYOFFS: "playoffs",
+  DOUBLE_ELIM: "doubleelim",
+};
+
 const phasesConfig = {
   swiss_stage1: {
     label: "Swiss Stage 1",
@@ -13,10 +38,12 @@ const phasesConfig = {
     stage: "stage1",
     stageNumber: 1,
     color: "#ff9900",
-    description:
-      "• 🆙 **2 drużyny na 3-0**\n" +
-      "• 🆘 **2 drużyny na 0-3**\n" +
-      "• 🏅 **6 drużyn awansujących**",
+    opis: (l) =>
+      `• 🆙 **${l.x3_0} ${druzyny(l.x3_0)} na 3-0**\n` +
+      `• 🆘 **${l.x0_3} ${druzyny(l.x0_3)} na 0-3**\n` +
+      `• 🏅 **${l.advancing} ${druzyny(l.advancing)} ` +
+      odmien(l.advancing, "awansująca", "awansujące", "awansujących") +
+      "**",
     buttonId: "start_swiss_stage1",
     buttonLabel: "Typuj Swiss 1",
   },
@@ -27,10 +54,12 @@ const phasesConfig = {
     stage: "stage2",
     stageNumber: 2,
     color: "#ff9900",
-    description:
-      "• 🆙 **2 drużyny na 3-0**\n" +
-      "• 🆘 **2 drużyny na 0-3**\n" +
-      "• 🏅 **6 drużyn awansujących**",
+    opis: (l) =>
+      `• 🆙 **${l.x3_0} ${druzyny(l.x3_0)} na 3-0**\n` +
+      `• 🆘 **${l.x0_3} ${druzyny(l.x0_3)} na 0-3**\n` +
+      `• 🏅 **${l.advancing} ${druzyny(l.advancing)} ` +
+      odmien(l.advancing, "awansująca", "awansujące", "awansujących") +
+      "**",
     buttonId: "start_swiss_stage2",
     buttonLabel: "Typuj Swiss 2",
   },
@@ -41,10 +70,12 @@ const phasesConfig = {
     stage: "stage3",
     stageNumber: 3,
     color: "#ff9900",
-    description:
-      "• 🆙 **2 drużyny na 3-0**\n" +
-      "• 🆘 **2 drużyny na 0-3**\n" +
-      "• 🏅 **6 drużyn awansujących**",
+    opis: (l) =>
+      `• 🆙 **${l.x3_0} ${druzyny(l.x3_0)} na 3-0**\n` +
+      `• 🆘 **${l.x0_3} ${druzyny(l.x0_3)} na 0-3**\n` +
+      `• 🏅 **${l.advancing} ${druzyny(l.advancing)} ` +
+      odmien(l.advancing, "awansująca", "awansujące", "awansujących") +
+      "**",
     buttonId: "start_swiss_stage3",
     buttonLabel: "Typuj Swiss 3",
   },
@@ -53,11 +84,15 @@ const phasesConfig = {
     label: "Playoffs",
     title: "📌 Typowanie fazy Playoffs",
     color: "Green",
-    description:
-      "• 🏆 **4 półfinalistów**\n" +
-      "• 🥈 **2 finalistów**\n" +
-      "• 👑 **Zwycięzcę turnieju**\n" +
-      "• 🥉 **3. miejsce (opcjonalnie)**",
+    opis: (l) =>
+      `• 🏆 **${l.semifinalists} ` +
+      odmien(l.semifinalists, "półfinalistę", "półfinalistów", "półfinalistów") +
+      "**\n" +
+      `• 🥈 **${l.finalists} ` +
+      odmien(l.finalists, "finalistę", "finalistów", "finalistów") +
+      "**\n" +
+      "• 👑 **Zwycięzcę turnieju**" +
+      (l.third > 0 ? "\n• 🥉 **3. miejsce (opcjonalnie)**" : ""),
     buttonId: "open_playoffs_dropdown",
     buttonLabel: "Typuj Playoffs",
   },
@@ -66,11 +101,11 @@ const phasesConfig = {
     label: "Double Elimination",
     title: "📌 Typowanie fazy Double Elim",
     color: "Purple",
-    description:
-      "• 🔝 **Upper Final A (2)**\n" +
-      "• 🔻 **Lower Final A (2)**\n" +
-      "• 🔝 **Upper Final B (2)**\n" +
-      "• 🔻 **Lower Final B (2)**",
+    opis: (l) =>
+      `• 🔝 **Upper Final A (${l.upperFinalA})**\n` +
+      `• 🔻 **Lower Final A (${l.lowerFinalA})**\n` +
+      `• 🔝 **Upper Final B (${l.upperFinalB})**\n` +
+      `• 🔻 **Lower Final B (${l.lowerFinalB})**`,
     buttonId: "open_doubleelim_modal",
     buttonLabel: "Typuj Double Elim",
   },
@@ -79,7 +114,10 @@ const phasesConfig = {
     label: "Play-In",
     title: "📌 Typowanie fazy Play-In",
     color: "Blue",
-    description: "• 🎯 **8 drużyn awansujących**",
+    opis: (l) =>
+      `• 🎯 **${l.teams} ${druzyny(l.teams)} ` +
+      odmien(l.teams, "awansująca", "awansujące", "awansujących") +
+      "**",
     buttonId: "open_playin_dropdown",
     buttonLabel: "Typuj Play-In",
   },
@@ -97,17 +135,21 @@ function buildDescription(eventName, description) {
   );
 }
 
-function buildPickemPanel({ event, eventId, phase }) {
+function buildPickemPanel({ event, eventId, phase, limity }) {
   const config = phasesConfig[phase];
 
   if (!config) {
     throw new Error(`Unknown Pick'Em phase: ${phase}`);
   }
 
+  if (!limity) {
+    throw new Error(`Missing Pick'Em limits for phase: ${phase}`);
+  }
+
   const embed = new EmbedBuilder()
     .setColor(config.color)
     .setTitle(config.title)
-    .setDescription(buildDescription(event.name, config.description));
+    .setDescription(buildDescription(event.name, config.opis(limity)));
 
   if (phase.startsWith("swiss_stage")) {
     embed.setFooter({
@@ -152,16 +194,22 @@ function buildPickemPanel({ event, eventId, phase }) {
   };
 }
 
-function buildSwissStageSelector(event, eventId) {
+// Selektor etapu pokazuje się przed wyborem etapu, więc opis bierzemy
+// z limitów Stage 1. W praktyce wszystkie etapy Swiss mają ten sam format,
+// a gdyby się różniły, właściwe liczby i tak trafią do panelu
+// opublikowanego dla konkretnego etapu.
+function buildSwissStageSelector(event, eventId, limity) {
   const embed = new EmbedBuilder()
     .setColor("Orange")
     .setTitle("📌 Typowanie fazy Swiss")
     .setDescription(
       `🏆 **Event:** ${event.name}\n\n` +
         `🎯 **Typujesz:**\n` +
-        `• 🆙 **2 drużyny na 3-0**\n` +
-        `• 🆘 **2 drużyny na 0-3**\n` +
-        `• 🏅 **6 drużyn awansujących**\n\n` +
+        `• 🆙 **${limity.x3_0} ${druzyny(limity.x3_0)} na 3-0**\n` +
+        `• 🆘 **${limity.x0_3} ${druzyny(limity.x0_3)} na 0-3**\n` +
+        `• 🏅 **${limity.advancing} ${druzyny(limity.advancing)} ` +
+        odmien(limity.advancing, "awansująca", "awansujące", "awansujących") +
+        "**\n\n" +
         `🔽 **Wybierz etap fazy Swiss:**`,
     );
 
@@ -195,4 +243,6 @@ module.exports = {
   phasesConfig,
   buildPickemPanel,
   buildSwissStageSelector,
+  FAZA_KONFIGURACJI,
+  FAZA_PANELU,
 };

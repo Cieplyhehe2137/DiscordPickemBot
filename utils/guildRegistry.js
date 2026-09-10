@@ -76,6 +76,15 @@ function loadGuildConfigsOnce() {
             EXPORT_PANEL_CHANNEL_ID: process.env.EXPORT_PANEL_CHANNEL_ID,
             ARCHIVE_CHANNEL_ID: process.env.ARCHIVE_CHANNEL_ID,
             LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID,
+
+            // Kanał, na którym ląduje panel typowania uruchomiony spoza
+            // Discorda. Przy komendzie na Discordzie kanał bierze się z tego,
+            // gdzie admin ją wpisał - z WWW nie ma takiego odpowiednika.
+            //
+            // Configi w config/*.env są parsowane w całości, więc tam ten
+            // klucz działa bez wpisywania go tutaj; ta lista dotyczy wyłącznie
+            // trybu jednogildiowego z korzeniowego .env.
+            PICKEM_CHANNEL_ID: process.env.PICKEM_CHANNEL_ID,
           },
           ".env",
         ),
