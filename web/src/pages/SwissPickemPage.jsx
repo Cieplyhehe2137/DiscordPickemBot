@@ -7,6 +7,7 @@ import PhaseResults from "../components/PhaseResults.jsx";
 
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
+import PhaseFormat from "../components/PhaseFormat.jsx";
 
 function SwissPickemPage() {
   const { slug, stage } = useParams();
@@ -104,6 +105,8 @@ function SwissPickemPage() {
       <p>
         Etap: <strong>{stageLabel}</strong>
       </p>
+
+      <PhaseFormat faza={stage} limity={limity} />
 
       <nav className="swiss-pickem__stages">
         {["stage1", "stage2", "stage3"].map((stageName, index) => (

@@ -5,6 +5,7 @@ import { getDoubleElimPickem, saveDoubleElimPickem } from "../lib/api.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
+import PhaseFormat from "../components/PhaseFormat.jsx";
 
 function DoubleElimPickemPage() {
   const { slug } = useParams();
@@ -118,6 +119,8 @@ function DoubleElimPickemPage() {
       <p>
         Event: <strong>{slug}</strong>
       </p>
+
+      <PhaseFormat faza="doubleelim" limity={data?.limity} />
 
       {data?.lock && !data.lock.allowed && (
         <p className="doubleelim-pickem__lock-message">

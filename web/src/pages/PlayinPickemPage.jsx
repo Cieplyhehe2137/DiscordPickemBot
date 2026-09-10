@@ -4,6 +4,7 @@ import { useAuth } from "../auth/useAuth.js";
 
 import { getPlayinPickem, savePlayinPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
+import PhaseFormat from "../components/PhaseFormat.jsx";
 import PhaseResults from "../components/PhaseResults.jsx";
 
 function PlayinPickemPage() {
@@ -69,6 +70,8 @@ function PlayinPickemPage() {
       <p>
         Event: <strong>{slug}</strong>
       </p>
+
+      <PhaseFormat faza="playin" limity={data?.limity} />
       <p className="playin-pickem__counter">
         Wybrano: <strong>{selectedTeams.length}/{limitDruzyn}</strong>
       </p>

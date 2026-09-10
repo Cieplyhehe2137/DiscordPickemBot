@@ -2889,6 +2889,89 @@ app.get("/api/public/events/:slug/phase-results/:phase", async (req, res) => {
 //
 // Brak zapisanej konfiguracji = wartości domyślne, więc turnieje sprzed tej
 // funkcji działają dalej bez żadnej migracji danych.
+// Które fazy typowania drużyn są już zamrożone dla danego eventu.
+//
+// Limity fazy wolno zmieniać tylko dopóki nikt nie oddał w niej typu i nie ma
+// wpisanego wyniku. Później zapisane typy były sprawdzane wobec INNYCH liczb -
+// zmiana limitu nie unieważnia ich ani nie przelicza, tylko sprawia, że turniej
+// przestaje się zgadzać sam ze sobą, a strony faz pokazują historię, której
+// nigdy nie było.
+//
+// Zakończony lub zarchiwizowany event jest zamrożony w całości, także w fazach,
+// w których nikt nie typował - inaczej dałoby się zmienić opis formatu
+// rozegranego turnieju.
+async function zamrozoneFazy(eventId) {
+  const [[event]] = await pool.query(
+    "SELECT status, is_archived FROM events WHERE id = ? LIMIT 1",
+    [eventId],
+  );
+
+  const poEvencie =
+    String(event?.status || "").toUpperCase() === "FINISHED" ||
+    Number(event?.is_archived) === 1;
+
+  if (poEvencie) {
+    return Object.fromEntries(
+      FAZY_PICKEM.map((faza) => [faza, "event zakończony"]),
+    );
+  }
+
+  const [[swissStages], [inne]] = await Promise.all([
+    pool
+      .query(
+        `
+        SELECT DISTINCT stage FROM swiss_predictions
+         WHERE event_id = ? AND stage IS NOT NULL
+        UNION
+        SELECT DISTINCT stage FROM swiss_results
+         WHERE event_id = ? AND stage IS NOT NULL
+        `,
+        [eventId, eventId],
+      )
+      .then(([rows]) => [rows]),
+    pool
+      .query(
+        `
+        SELECT
+          (SELECT COUNT(*) FROM playoffs_predictions WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM playoffs_results     WHERE event_id = ?) AS playoffs,
+          (SELECT COUNT(*) FROM playin_predictions   WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM playin_results       WHERE event_id = ?) AS playin,
+          (SELECT COUNT(*) FROM doubleelim_predictions WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM doubleelim_results     WHERE event_id = ?) AS doubleelim
+        `,
+        [eventId, eventId, eventId, eventId, eventId, eventId],
+      )
+      .then(([rows]) => [rows[0]]),
+  ]);
+
+  const zamrozone = {};
+
+  // normalizePhase() zwraca 'SWISS_STAGE1', a konfiguracja kluczuje po
+  // 'stage1' - bez tego przełożenia żaden etap Swiss nigdy by nie trafił.
+  const KLUCZ_ETAPU = {
+    SWISS_STAGE1: "stage1",
+    SWISS_STAGE2: "stage2",
+    SWISS_STAGE3: "stage3",
+  };
+
+  for (const wiersz of swissStages || []) {
+    const faza = KLUCZ_ETAPU[normalizePhase(wiersz.stage)];
+
+    if (faza) {
+      zamrozone[faza] = "są już typy lub wynik";
+    }
+  }
+
+  for (const faza of ["playoffs", "playin", "doubleelim"]) {
+    if (Number(inne?.[faza] || 0) > 0) {
+      zamrozone[faza] = "są już typy lub wynik";
+    }
+  }
+
+  return zamrozone;
+}
+
 app.get(
   "/api/events/:slug/pickem-config",
   requireGuildAdmin(guildIdFromEventSlug),
@@ -2906,6 +2989,7 @@ app.get(
       }
 
       const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
+      const zamrozone = await zamrozoneFazy(event.id);
 
       return res.json({
         event: { id: event.id, name: event.name },
@@ -2914,6 +2998,8 @@ app.get(
           faza,
           enabled: konfiguracja.fazy[faza].enabled,
           limity: konfiguracja.fazy[faza].limity,
+          zamrozona: Boolean(zamrozone[faza]),
+          powodZamrozenia: zamrozone[faza] || null,
         })),
       });
     } catch (err) {
@@ -2963,6 +3049,37 @@ app.put(
         });
       }
 
+      // Zamrożonej fazy nie wolno przestawić - zapisane typy były sprawdzane
+      // wobec innych liczb, a zakończony turniej musi zostać opisany tak, jak
+      // faktycznie został rozegrany.
+      const zamrozone = await zamrozoneFazy(event.id);
+      const biezaca = await getEventPickemConfig(pool, guildId, event.id);
+
+      const naruszenia = doZapisu.filter((wpis) => {
+        if (!zamrozone[wpis.phase]) return false;
+
+        const stare = biezaca.fazy[wpis.phase];
+
+        if (Boolean(stare.enabled) !== Boolean(wpis.enabled)) return true;
+
+        return Object.entries(stare.limity || {}).some(
+          ([grupa, wartosc]) =>
+            Number(wpis.limity?.[grupa] ?? wartosc) !== Number(wartosc),
+        );
+      });
+
+      if (naruszenia.length) {
+        return res.status(409).json({
+          error:
+            "Nie można zmienić tych faz: " +
+            naruszenia
+              .map((w) => `${w.phase} (${zamrozone[w.phase]})`)
+              .join(", ") +
+            ".",
+          zamrozone: naruszenia.map((w) => w.phase),
+        });
+      }
+
       await setEventPickemConfig(pool, guildId, event.id, doZapisu);
 
       const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
@@ -2982,12 +3099,16 @@ app.put(
         reason: "pickem_config_updated",
       });
 
+      const poZapisie = await zamrozoneFazy(event.id);
+
       return res.json({
         ok: true,
         fazy: FAZY_PICKEM.map((faza) => ({
           faza,
           enabled: konfiguracja.fazy[faza].enabled,
           limity: konfiguracja.fazy[faza].limity,
+          zamrozona: Boolean(poZapisie[faza]),
+          powodZamrozenia: poZapisie[faza] || null,
         })),
       });
     } catch (err) {
