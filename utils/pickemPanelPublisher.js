@@ -280,6 +280,11 @@ async function publishPickemPanel({
     // Tylko jeden publiczny Pick'Em panel powinien być
     // aktualnie aktywny na guildzie.
     //
+    // Zasięg celowo pozostaje gildią, a nie eventem: bot dopuszcza jeden
+    // otwarty event na gildię (utils/getOpenEventId.js), więc panel
+    // poprzedniego turnieju ma tu zgasnąć. Od 0004 nie jest już przy tym
+    // nadpisywany - dostaje własny wiersz i zostaje w historii.
+    //
     // To jest również podstawa dla
     // assertActivePredictionPanel().
     // ==================================================
@@ -303,6 +308,7 @@ async function publishPickemPanel({
         `
         INSERT INTO active_panels (
           guild_id,
+          event_id,
           phase,
           stage,
           message_id,
@@ -313,7 +319,7 @@ async function publishPickemPanel({
           deadline
         )
         VALUES (
-          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?,
           0, 0, 1, NULL
         )
 
@@ -327,7 +333,7 @@ async function publishPickemPanel({
           active = 1,
           deadline = NULL
         `,
-        [guildId, phase, config.stage, message.id, channel.id],
+        [guildId, eventId, phase, config.stage, message.id, channel.id],
       );
     }
 
@@ -339,6 +345,7 @@ async function publishPickemPanel({
         `
         INSERT INTO active_panels (
           guild_id,
+          event_id,
           phase,
           channel_id,
           message_id,
@@ -348,7 +355,7 @@ async function publishPickemPanel({
           deadline
         )
         VALUES (
-          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
           1, 0, 0, NULL
         )
 
@@ -361,7 +368,7 @@ async function publishPickemPanel({
           closed_at = NULL,
           deadline = NULL
         `,
-        [guildId, phase, channel.id, message.id],
+        [guildId, eventId, phase, channel.id, message.id],
       );
     }
 
