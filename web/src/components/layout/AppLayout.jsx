@@ -1,105 +1,122 @@
-import { NavLink, Link, Outlet } from "react-router-dom";
-import { useApp } from "../../context/AppContext";
-import { usePublicAuth } from "../../context/PublicAuthContext";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
-export default function AppLayout() {
-  const { selectedGuild, selectedEvent } = useApp();
+import { useAuth } from "../../auth/useAuth.js";
+import socket from "../../lib/socket.js";
+import { isAdminAnywhere } from "../../lib/permissions.js";
 
-  const { user } = usePublicAuth();
-  const displayName = user?.global_name || user?.username || "";
+function AppLayout() {
+  const { user, authLoading, logout } = useAuth();
+
+  const [realtimeRefresh, setRealtimeRefresh] = useState({
+    version: 0,
+    payload: null,
+  });
+
+  useEffect(() => {
+    function handleDashboardRefresh(payload) {
+      console.log("DASHBOARD REFRESH:", payload);
+
+      setRealtimeRefresh((current) => ({
+        version: current.version + 1,
+        payload: payload ?? null,
+      }));
+    }
+
+    socket.on("dashboard:refresh", handleDashboardRefresh);
+
+    return () => {
+      socket.off("dashboard:refresh", handleDashboardRefresh);
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-white/10 bg-black/30 p-6 backdrop-blur-xl lg:block">
-        <h1 className="text-2xl font-black tracking-widest">PICKEMBOT</h1>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-header__inner">
+          <Link className="app-logo" to="/">
+            PickEmBot
+          </Link>
 
-        <p className="mt-1 text-sm text-white/40">Panel Pick&apos;Em</p>
-
-        <nav className="mt-10 grid gap-3">
-          <NavLink
-            to="/app/guilds"
-            className={({ isActive }) =>
-              `rounded-2xl border px-5 py-4 font-bold transition ${
-                isActive
-                  ? "border-violet-400/40 bg-violet-500/20 text-violet-200"
-                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-              }`
-            }
-          >
-            Serwery
-          </NavLink>
-
-          <NavLink
-            to="/app"
-            end
-            className={({ isActive }) =>
-              `rounded-2xl border px-5 py-4 font-bold transition ${
-                isActive
-                  ? "border-violet-400/40 bg-violet-500/20 text-violet-200"
-                  : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-              }`
-            }
-          >
-            Eventy
-          </NavLink>
-        </nav>
-        <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <p className="text-xs uppercase tracking-[0.2em] text-white/40">
-            Aktualny serwer
-          </p>
-
-          <h3 className="mt-2 text-xl font-black">
-            {selectedGuild?.name || "Brak serwera"}
-          </h3>
-
-          {selectedGuild?.id && (
-            <Link
-              to={`/app/guilds/${selectedGuild.id}`}
-              className="mt-3 inline-flex text-sm font-bold text-violet-300 transition hover:text-violet-200"
+          <nav className="app-nav">
+            <NavLink
+              to="/"
+              className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Otwórz serwer
-            </Link>
-          )}
+              Start
+            </NavLink>
 
-          <p className="mt-4 text-xs uppercase tracking-[0.2em] text-white/40">
-            Aktualny event
-          </p>
-
-          <h3 className="mt-2 text-lg font-black">
-            {selectedEvent?.name || "Brak eventu"}
-          </h3>
-          {selectedEvent?.slug && (
-            <Link
-              to={`/app/events/${selectedEvent.slug}`}
-              className="mt-3 inline-flex text-sm font-bold text-violet-300 transition hover:text-violet-200"
+            <NavLink
+              to="/events"
+              className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Otwórz event
-            </Link>
-          )}
-        </div>
-      </aside>
+              Eventy
+            </NavLink>
 
-      <div className="lg:pl-72">
-        <header className="sticky top-0 z-40 border-b border-white/10 bg-black/30 backdrop-blur-xl">
-          <div className="flex items-center justify-between px-6 py-5">
-            <div>
-              <p className="text-sm uppercase tracking-[0.25em] text-violet-300">
-                PickemBot
-              </p>
+            {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
+                nawet dla kont z uprawnieniami. Widoczność to sama wygoda;
+                dostęp i tak pilnuje requireGuildAdmin na serwerze. */}
+            {isAdminAnywhere(user) && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) => (isActive ? "active" : "")}
+              >
+                Panel
+              </NavLink>
+            )}
+          </nav>
 
-              <h2 className="text-xl font-black">Panel Administracyjny</h2>
-            </div>
+          <div className="app-user">
+            {authLoading ? (
+              <span>Ładowanie...</span>
+            ) : user ? (
+              <>
+                {user.avatar && (
+                  <img
+                    src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`}
+                    alt=""
+                  />
+                )}
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-bold text-white/70">
-              {displayName}
-            </div>
+                <span>{user.global_name ?? user.username}</span>
+
+                <button
+                  type="button"
+                  className="app-logout"
+                  onClick={async () => {
+                    try {
+                      await logout();
+                    } catch (err) {
+                      console.error("LOGOUT ERROR:", err);
+                    }
+                  }}
+                >
+                  Wyloguj
+                </button>
+              </>
+            ) : (
+              <a
+                className="app-login"
+                href={`/api/auth/discord?returnTo=${encodeURIComponent(
+                  window.location.pathname + window.location.search,
+                )}`}
+              >
+                Zaloguj
+              </a>
+            )}
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main>
-          <Outlet />
-        </main>
+      <div className="app-content">
+        <Outlet
+          context={{
+            realtimeRefresh,
+          }}
+        />
       </div>
     </div>
   );
 }
+
+export default AppLayout;
