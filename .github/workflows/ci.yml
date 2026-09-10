@@ -45,11 +45,47 @@ jobs:
       # literówki, które inaczej wychodzą dopiero przy restarcie procesu.
       - name: node --check na każdym pliku
         run: |
-          find . -name '*.js' \
+          find . \( -name '*.js' -o -name '*.mjs' \) \
             -not -path './node_modules/*' \
             -not -path './server/node_modules/*' \
             -not -path './web/*' \
             -print0 | xargs -0 -n1 node --check
+
+  trasy:
+    name: Tablica tras serwera
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Instalacja
+        run: npm ci
+
+      # Buduje aplikacje (bez nasluchiwania) i porownuje zarejestrowane trasy
+      # ze wzorcem. To jedyna automatyczna kontrola nad rozbijaniem app.js:
+      # plik ma ponad 12 tysiecy linii, trasy sa w nim przeplecione, a serwera
+      # nie da sie w CI uruchomic naprawde.
+      #
+      # Zmienne sa atrapami - pula MySQL laczy sie dopiero przy pierwszym
+      # zapytaniu, a samo listowanie tras zadnego nie wykonuje.
+      - name: Sprawdzenie tras
+        run: npm run trasy
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_USER: ci
+          DB_PASS: ci
+          DB_NAME: ci
 
   front:
     name: Front
