@@ -1,6 +1,7 @@
 // interactionRouter.js
 const { logInfo, logWarn, logError } = require("./utils/logger");
 const { withGuild } = require("./utils/guildContext.js");
+const { rememberUser } = require("./utils/rememberUser");
 
 async function safeDeferUpdate(interaction) {
   if (interaction.replied || interaction.deferred) return;
@@ -58,6 +59,11 @@ async function _handleInteraction(
     selectMap = {},
     dropdownMap = {},
   } = maps;
+
+  // Jedno miejsce, przez które przechodzi każda interakcja - stąd nick
+  // i awatar trafiają do user_profiles, z którego korzysta strona.
+  // Nie czekamy na wynik: to zapis poboczny, a gracz czeka na odpowiedź.
+  rememberUser(interaction);
 
   try {
     logInfo("INTERACTION_RECEIVED", {
