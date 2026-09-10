@@ -9,6 +9,16 @@ function LeaderboardPage() {
   const { realtimeRefresh } = useOutletContext();
   const [leaderboard, setLeaderboard] = useState([]);
   const [uczestnicy, setUczestnicy] = useState(0);
+  const [strony, setStrony] = useState(null);
+
+  // Numer strony trzymamy razem z turniejem, dla którego go wybrano.
+  // Dzięki temu wejście na inny turniej wraca na stronę 1 samo, bez
+  // zerowania stanu w efekcie (to wywołuje kaskadę renderów).
+  const [wybranaStrona, setWybranaStrona] = useState({ slug, numer: 1 });
+
+  const strona = wybranaStrona.slug === slug ? wybranaStrona.numer : 1;
+
+  const idzDoStrony = (numer) => setWybranaStrona({ slug, numer });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,10 +28,11 @@ function LeaderboardPage() {
         setLoading(true);
         setError(null);
 
-        const data = await getEventLeaderboard(slug);
+        const data = await getEventLeaderboard(slug, { strona });
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
+        setStrony(data.strony ?? null);
       } catch (err) {
         console.error("LEADERBOARD ERROR:", err);
         setError(err.message);
@@ -31,7 +42,7 @@ function LeaderboardPage() {
     }
 
     loadLeaderboard();
-  }, [slug]);
+  }, [slug, strona]);
 
   useEffect(() => {
     if (!realtimeRefresh?.version) {
@@ -46,10 +57,11 @@ function LeaderboardPage() {
 
     async function refreshLeaderboard() {
       try {
-        const data = await getEventLeaderboard(slug);
+        const data = await getEventLeaderboard(slug, { strona });
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
+        setStrony(data.strony ?? null);
         setError(null);
       } catch (err) {
         console.error("LEADERBOARD REALTIME REFRESH ERROR:", err);
@@ -57,7 +69,7 @@ function LeaderboardPage() {
     }
 
     refreshLeaderboard();
-  }, [realtimeRefresh, slug]);
+  }, [realtimeRefresh, slug, strona]);
 
   if (loading) {
     return <p>Ładowanie rankingu...</p>;
@@ -100,27 +112,31 @@ function LeaderboardPage() {
             )}
           </div>
         ) : (
-          leaderboard.map((player, index) => (
+          leaderboard.map((player) => (
+            // Miejsce bierzemy z pola rank, policzonego po stronie serwera na
+            // pełnej liście. Wcześniej szło z indeksu w tablicy, więc każda
+            // strona zaczynała się od pierwszego miejsca i medali - na drugiej
+            // stronie gracz z 51. miejsca dostawał złoto.
             <div
               className={`leaderboard-row ${
-                index === 0
+                player.rank === 1
                   ? "leaderboard-row--gold"
-                  : index === 1
+                  : player.rank === 2
                     ? "leaderboard-row--silver"
-                    : index === 2
+                    : player.rank === 3
                       ? "leaderboard-row--bronze"
                       : ""
               }`}
               key={player.user_id}
             >
               <strong className="leaderboard-rank">
-                {index === 0
+                {player.rank === 1
                   ? "🥇"
-                  : index === 1
+                  : player.rank === 2
                     ? "🥈"
-                    : index === 2
+                    : player.rank === 3
                       ? "🥉"
-                      : `#${index + 1}`}
+                      : `#${player.rank}`}
               </strong>
 
               <Link
@@ -160,6 +176,36 @@ function LeaderboardPage() {
           ))
         )}
       </div>
+
+      {/* Pasek stron pokazuje się dopiero, gdy jest co przewijać. */}
+      {strony && strony.ile > 1 && (
+        <nav className="leaderboard-strony" aria-label="Strony rankingu">
+          <button
+            type="button"
+            disabled={strona <= 1}
+            onClick={() => idzDoStrony(strona - 1)}
+          >
+            ← Poprzednia
+          </button>
+
+          <span className="leaderboard-strony__opis">
+            Strona <strong>{strony.numer}</strong> z {strony.ile}
+            <em>
+              {" · "}
+              {strony.wszystkich}{" "}
+              {odmien(strony.wszystkich, "gracz", "gracze", "graczy")}
+            </em>
+          </span>
+
+          <button
+            type="button"
+            disabled={strona >= strony.ile}
+            onClick={() => idzDoStrony(strona + 1)}
+          >
+            Następna →
+          </button>
+        </nav>
+      )}
     </main>
   );
 }

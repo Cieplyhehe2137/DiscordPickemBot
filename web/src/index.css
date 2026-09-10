@@ -6656,3 +6656,75 @@ main > .matches-page__back {
     width: min(100% - 24px, 1200px);
   }
 }
+
+/* =========================================================
+   STRONICOWANIE RANKINGU
+   ========================================================= */
+
+.leaderboard-strony {
+  align-self: stretch;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin-top: 20px;
+  padding: 14px 16px;
+
+  border: 1px solid var(--linia);
+  border-radius: var(--r-srednia);
+  background: var(--tlo-podniesione);
+}
+
+.leaderboard-strony button {
+  min-height: 40px;
+  padding: 0 16px;
+
+  border: 1px solid var(--przycisk-linia);
+  border-radius: var(--r-mala);
+  background: var(--przycisk);
+
+  color: var(--tekst);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.leaderboard-strony button:hover:not(:disabled) {
+  border-color: var(--przycisk-linia-hover);
+  background: var(--przycisk-hover);
+}
+
+.leaderboard-strony button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.leaderboard-strony__opis {
+  color: var(--tekst-drugi);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.leaderboard-strony__opis strong {
+  color: var(--tekst-jasny);
+}
+
+/* Liczba graczy to informacja poboczna - na wąskim ekranie schodzi
+   do osobnej linii, żeby nie ściskać numeru strony. */
+.leaderboard-strony__opis em {
+  font-style: normal;
+  color: var(--tekst-slaby);
+}
+
+@media (max-width: 480px) {
+  .leaderboard-strony__opis em {
+    display: block;
+  }
+}
