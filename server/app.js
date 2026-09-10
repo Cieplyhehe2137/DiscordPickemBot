@@ -1,6 +1,14 @@
 import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
+import { zbudujDozwoloneOriginy, utworzSprawdzanieOriginu } from "./lib/origin.js";
+import {
+  assertSafeBackupFileName,
+  safeFileBase,
+  sqlEscape,
+  validateCs2Score,
+  validateSeriesMapOrder,
+} from "./lib/walidacja.js";
 import { createRequire } from "module";
 import dotenv from "dotenv";
 dotenv.config();
@@ -112,111 +120,17 @@ const CROSS_ORIGIN_WEB = process.env.CROSS_ORIGIN_WEB === "1";
 // WEB_ORIGIN przyjmuje listę po przecinku. Cloudflare Pages daje każdemu
 // podglądowi własny adres <hash>.<projekt>.pages.dev, więc pojedynczy wpis
 // nie wystarcza - WEB_ORIGIN_SUFFIX dopuszcza całą domenę projektu.
-const DOZWOLONE_ORIGINY = WEB_ORIGIN.split(",")
-  .map((o) => o.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
+const DOZWOLONE_ORIGINY = zbudujDozwoloneOriginy(WEB_ORIGIN);
 
-const SUFIKS_ORIGINU = String(process.env.WEB_ORIGIN_SUFFIX || "").trim();
-
-function czyDozwolonyOrigin(origin) {
-  // Brak nagłówka Origin to żądanie nie z przeglądarki (curl, health check)
-  // albo same-origin - nie ma czego blokować.
-  if (!origin) return true;
-
-  const czysty = String(origin).replace(/\/+$/, "");
-
-  if (DOZWOLONE_ORIGINY.includes(czysty)) return true;
-
-  return Boolean(SUFIKS_ORIGINU) && czysty.endsWith(SUFIKS_ORIGINU);
-}
+const czyDozwolonyOrigin = utworzSprawdzanieOriginu({
+  dozwolone: DOZWOLONE_ORIGINY,
+  sufiks: process.env.WEB_ORIGIN_SUFFIX,
+});
 
 // Pierwszy wpis zostaje adresem, na który wraca logowanie przez Discorda -
 // podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
 const WEB_ORIGIN_GLOWNY = DOZWOLONE_ORIGINY[0] || "http://localhost:5173";
 const ADMINISTRATOR_PERMISSION = 0x8n;
-
-function sqlEscape(value) {
-  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-}
-
-function safeFileBase(value, fallback = "pickem_export") {
-  const safe = String(value || fallback)
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]/g, "_")
-    .replace(/_+/g, "_");
-
-  return safe || fallback;
-}
-
-function assertSafeBackupFileName(fileName) {
-  const name = String(fileName || "");
-
-  if (!/^backup_[a-zA-Z0-9_-]+_\d{4}-\d{2}-\d{2}T[\d-]+Z\.sql$/.test(name)) {
-    throw new Error("Invalid backup file name");
-  }
-
-  return name;
-}
-
-function validateCs2Score(scoreA, scoreB) {
-  const a = Number(scoreA);
-  const b = Number(scoreB);
-
-  if (!Number.isInteger(a) || !Number.isInteger(b)) {
-    return false;
-  }
-
-  if (a < 0 || b < 0) {
-    return false;
-  }
-
-  if (a === b) {
-    return false;
-  }
-
-  const winner = Math.max(a, b);
-  const loser = Math.min(a, b);
-
-  if (winner === 13) {
-    return loser >= 0 && loser <= 11;
-  }
-
-  if (winner >= 16 && (winner - 16) % 3 === 0) {
-    return loser >= winner - 4 && loser <= winner - 2;
-  }
-
-  return false;
-}
-
-function validateSeriesMapOrder(mapPicks, bestOf) {
-  const winsNeeded = Math.ceil(bestOf / 2);
-
-  let winsA = 0;
-  let winsB = 0;
-
-  for (let index = 0; index < mapPicks.length; index += 1) {
-    const map = mapPicks[index];
-
-    const scoreA = Number(map.pred_exact_a);
-    const scoreB = Number(map.pred_exact_b);
-
-    if (scoreA > scoreB) {
-      winsA += 1;
-    } else if (scoreB > scoreA) {
-      winsB += 1;
-    } else {
-      return false;
-    }
-
-    const seriesFinished = winsA === winsNeeded || winsB === winsNeeded;
-
-    if (seriesFinished && index !== mapPicks.length - 1) {
-      return false;
-    }
-  }
-
-  return winsA === winsNeeded || winsB === winsNeeded;
-}
 
 async function getDatabaseTablesAndColumns(cfg) {
   const connection = await mysql2.createConnection({
