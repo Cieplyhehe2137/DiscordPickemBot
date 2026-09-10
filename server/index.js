@@ -1606,7 +1606,11 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
       `
   SELECT
     lb.user_id,
-    COALESCE(up.displayname, up.username, lb.user_id) AS displayname,
+    -- user_profiles ma wiersz tylko dla osób, które logowały się na stronie.
+    -- Gracze typujący wyłącznie na Discordzie go nie mają, więc w rankingu
+    -- zakończonego turnieju wychodziło im surowe user_id zamiast nicku.
+    -- Ich nazwy leżą w tabelach faz, zapisane przy oddawaniu typu.
+    COALESCE(up.displayname, up.username, nazwy.nazwa, lb.user_id) AS displayname,
     up.avatar,
 
     COALESCE(lb.total_points, 0) AS total_points,
@@ -1629,6 +1633,50 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
   LEFT JOIN user_profiles up
     ON up.user_id COLLATE utf8mb4_unicode_ci
      = lb.user_id COLLATE utf8mb4_unicode_ci
+
+  -- Nazwa zapamiętana przy typowaniu, z dowolnej fazy tego eventu.
+  -- CAST + COLLATE musi objąć OBIE kolumny w KAŻDEJ gałęzi UNION - user_id
+  -- i nazwę - bo kolacje różnią się między tabelami i inaczej leci
+  -- ER_CANT_AGGREGATE_NCOLLATIONS.
+  LEFT JOIN (
+    SELECT user_id, MAX(nazwa) AS nazwa
+    FROM (
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS nazwa
+        FROM swiss_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM swiss_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playoffs_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playoffs_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playin_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playin_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM doubleelim_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+             CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM doubleelim_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+    ) zrodla
+    GROUP BY user_id
+  ) nazwy
+    ON nazwy.user_id
+     = CAST(lb.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
 
   LEFT JOIN (
     SELECT
@@ -1699,8 +1747,14 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
   LIMIT 100
   `,
       [
+        // nazwy z faz (8 tabel) - to zlaczenie stoi w SQL jako pierwsze
+        event.id, event.id, event.id, event.id,
+        event.id, event.id, event.id, event.id,
+        // rozbicie punktow na fazy (6 tabel)
         event.id, event.id, event.id, event.id, event.id, event.id,
+        // statystyki meczowe
         event.id,
+        // WHERE lb.event_id
         event.id,
       ],
     );
