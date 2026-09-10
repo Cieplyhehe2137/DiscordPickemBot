@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
 import { buildAllowedOrigins, createOriginCheck } from "./lib/origin.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import {
   assertSafeBackupFileName,
   safeFileBase,
@@ -129,7 +130,7 @@ const isAllowedOrigin = createOriginCheck({
 
 // Pierwszy wpis zostaje adresem, na który wraca logowanie przez Discorda -
 // podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
-const WEB_ORIGIN_GLOWNY = ALLOWED_ORIGINS[0] || "http://localhost:5173";
+const PRIMARY_WEB_ORIGIN = ALLOWED_ORIGINS[0] || "http://localhost:5173";
 const ADMINISTRATOR_PERMISSION = 0x8n;
 
 async function getDatabaseTablesAndColumns(cfg) {
@@ -722,186 +723,15 @@ async function guildIdFromProposalId(req) {
   return row?.guild_id || null;
 }
 
-app.get("/api/auth/me", (req, res) => {
-  res.json({
-    user: req.session?.user || null,
-  });
-});
-
-app.get("/api/auth/discord", (req, res) => {
-  console.log("[AUTH] Discord login start");
-
-  req.session.returnTo = req.query.returnTo || "/public";
-
-  req.session.save((err) => {
-    if (err) {
-      console.error("Session save error:", err);
-      return res.status(500).send("Session save failed");
-    }
-
-    const params = new URLSearchParams({
-      client_id: process.env.DISCORD_CLIENT_ID,
-      redirect_uri: process.env.DISCORD_REDIRECT_URI,
-      response_type: "code",
-      scope: "identify guilds",
-    });
-
-    const url = `https://discord.com/oauth2/authorize?${params.toString()}`;
-
-    console.log("[AUTH] returnTo query:", req.query.returnTo);
-    console.log("[AUTH] returnTo saved:", req.session.returnTo);
-
-    res.redirect(url);
-  });
-});
-
-app.get("/api/auth/discord/callback", async (req, res) => {
-  try {
-    const { code } = req.query;
-
-    if (!code) {
-      return res.status(400).send("Missing code");
-    }
-
-    const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID,
-        client_secret: process.env.DISCORD_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: process.env.DISCORD_REDIRECT_URI,
-      }),
-    });
-
-    const tokenData = await tokenResponse.json();
-
-    if (!tokenResponse.ok) {
-      console.error("Discord token error:", tokenData);
-      return res.status(401).send("Discord OAuth failed");
-    }
-
-    const userResponse = await fetch("https://discord.com/api/users/@me", {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
-    });
-
-    const discordUser = await userResponse.json();
-
-    if (!userResponse.ok) {
-      console.error("Discord user error:", discordUser);
-      return res.status(401).send("Discord user fetch failed");
-    }
-
-    // Needed to know which guilds the user can administer (used by hasAdminPermission/isGuildMember).
-    const guildsResponse = await fetch(
-      "https://discord.com/api/users/@me/guilds",
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      },
-    );
-
-    const discordGuilds = guildsResponse.ok ? await guildsResponse.json() : [];
-
-    if (!guildsResponse.ok) {
-      console.error(
-        "Discord guilds fetch failed:",
-        await guildsResponse.text().catch(() => ""),
-      );
-    }
-
-    req.session.user = {
-      id: discordUser.id,
-      username: discordUser.username,
-      global_name: discordUser.global_name,
-      avatar: discordUser.avatar,
-      guilds: Array.isArray(discordGuilds)
-        ? discordGuilds.map((g) => ({
-          id: g.id,
-          name: g.name,
-          permissions: g.permissions,
-        }))
-        : [],
-    };
-
-    await pool.query(
-      `
-  INSERT INTO user_profiles (
-    user_id,
-    username,
-    displayname,
-    avatar
-  )
-  VALUES (?, ?, ?, ?)
-  ON DUPLICATE KEY UPDATE
-    username = VALUES(username),
-    displayname = VALUES(displayname),
-    avatar = VALUES(avatar),
-    updated_at = CURRENT_TIMESTAMP
-  `,
-      [
-        discordUser.id,
-        discordUser.username,
-        discordUser.global_name || discordUser.username,
-        discordUser.avatar,
-      ],
-    );
-
-    req.session.save((err) => {
-      if (err) {
-        console.error("Session save error:", err);
-        return res.status(500).send("Session save failed");
-      }
-
-      const returnTo = req.session.returnTo || "/public";
-      delete req.session.returnTo;
-
-      res.redirect(`${WEB_ORIGIN_GLOWNY}${returnTo}`);
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("OAuth callback failed");
-  }
-});
-
-if (!IS_PRODUCTION) {
-  // Dev-only login shortcut. Never enable in production - it logs anyone in as a real Discord account with no credentials.
-  app.get("/api/auth/dev-login", (req, res) => {
-    req.session.user = {
-      id: "461851082570596352",
-      username: "cieplyhehe",
-      global_name: "cieplyhehe",
-      avatar: null,
-      guilds: guildRegistry.getAllGuildIds().map((id) => ({
-        id,
-        name: id,
-        permissions: String(ADMINISTRATOR_PERMISSION),
-      })),
-    };
-
-    req.session.save((err) => {
-      if (err) {
-        console.error("Session save error:", err);
-        return res.status(500).send("Session save failed");
-      }
-
-      res.redirect(`${WEB_ORIGIN_GLOWNY}/public`);
-    });
-  });
-}
-
-app.post("/api/auth/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({
-      ok: true,
-    });
-  });
+// Trasy logowania siedza w server/routes/auth.js. Wywolanie stoi dokladnie
+// tam, gdzie wczesniej byly te trasy - kolejnosc rejestracji jest czescia
+// zachowania, bo Express bierze pierwsza pasujaca.
+registerAuthRoutes(app, {
+  pool,
+  guildRegistry,
+  isProduction: IS_PRODUCTION,
+  webOrigin: PRIMARY_WEB_ORIGIN,
+  administratorPermission: ADMINISTRATOR_PERMISSION,
 });
 
 app.get("/api/events/active", async (req, res) => {
