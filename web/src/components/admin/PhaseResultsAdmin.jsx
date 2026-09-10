@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Ladowanie from "../../components/Ladowanie.jsx";
 
 import {
   getSwissResults,
@@ -244,7 +245,7 @@ function PhaseResultsAdmin({ slug, teams }) {
         ))}
       </div>
 
-      {ladowanie && <p>Wczytywanie wyników...</p>}
+      {ladowanie && <Ladowanie>Wczytywanie wyników...</Ladowanie>}
 
       {!ladowanie &&
         konfiguracja.grupy.map((grupa) => {

@@ -8,6 +8,7 @@ import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function SwissPickemPage() {
   const { slug, stage } = useParams();
@@ -61,7 +62,7 @@ function SwissPickemPage() {
   if (loading) {
     return (
       <main className="swiss-pickem-page">
-        <p>Ładowanie Swiss Pick'Em...</p>
+        <Ladowanie>Ładowanie Swiss Pick'Em...</Ladowanie>
       </main>
     );
   }

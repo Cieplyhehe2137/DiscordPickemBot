@@ -11,6 +11,7 @@ import {
 import BackLink from "../components/BackLink.jsx";
 import { phaseRouteLabel, humanPhase } from "../lib/phaseLabels.js";
 import { odmien, gracze, typy } from "../lib/odmiana.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function formatMatchesCount(count) {
   const number = Number(count) || 0;
@@ -401,7 +402,7 @@ function EventPage() {
             )}
           </section>
 
-          {loadingEventStats && <p>Ładowanie statystyk eventu...</p>}
+          {loadingEventStats && <Ladowanie>Ładowanie statystyk eventu...</Ladowanie>}
 
           {eventStatsError && (
             <p className="admin-feedback admin-feedback--error">

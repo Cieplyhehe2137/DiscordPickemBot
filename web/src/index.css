@@ -6836,3 +6836,89 @@ main > .matches-page__back {
 .leaderboard-szukaj__wynik strong {
   color: var(--tekst-jasny);
 }
+
+/* =========================================================
+   STAN LADOWANIA
+   ========================================================= */
+
+.ladowanie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  margin: 0 auto;
+  padding: 56px 24px;
+
+  color: var(--tekst-drugi);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Pierscien z jednym jasnym wycinkiem - obraca sie, wiec od razu widac,
+   ze cos trwa, a nie ze strona zawisla. */
+.ladowanie__kolko {
+  flex: none;
+  width: 26px;
+  height: 26px;
+
+  border: 3px solid var(--linia-mocna);
+  border-top-color: var(--akcent);
+  border-radius: 50%;
+
+  animation: ladowanie-obrot 0.8s linear infinite;
+}
+
+.ladowanie__tekst {
+  animation: ladowanie-puls 1.6s ease-in-out infinite;
+}
+
+@keyframes ladowanie-obrot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ladowanie-puls {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Ruch potrafi przeszkadzac - przy wylaczonych animacjach zostaje sam
+   pierscien, statyczny, ale nadal czytelny jako wskaznik. */
+@media (prefers-reduced-motion: reduce) {
+  .ladowanie__kolko,
+  .ladowanie__tekst {
+    animation: none;
+  }
+}
+
+/* Gdy ladowanie zastepuje cala strone, a nie fragment sekcji, dostaje
+   wysokosc - inaczej wskaznik wisi przy gornej krawedzi nad pustka.
+   Strony zwracaja go wprost do .app-content, sekcje maja go glebiej. */
+.app-content > .ladowanie {
+  min-height: 45vh;
+  flex-direction: column;
+  gap: 18px;
+
+  font-size: 1.25rem;
+}
+
+.app-content > .ladowanie .ladowanie__kolko {
+  width: 40px;
+  height: 40px;
+  border-width: 4px;
+}
+
+@media (max-width: 640px) {
+  .ladowanie {
+    padding: 40px 16px;
+  }
+
+  .app-content > .ladowanie {
+    min-height: 38vh;
+    font-size: 1.1rem;
+  }
+}

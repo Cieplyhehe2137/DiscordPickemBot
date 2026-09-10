@@ -4,6 +4,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { getEventLeaderboard } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
 import { useAuth } from "../auth/useAuth.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function LeaderboardPage() {
   const { slug } = useParams();
@@ -105,7 +106,7 @@ function LeaderboardPage() {
   }, [realtimeRefresh, slug, strona, szukaj]);
 
   if (loading) {
-    return <p>Ładowanie rankingu...</p>;
+    return <Ladowanie>Ładowanie rankingu...</Ladowanie>;
   }
 
   if (error) {
