@@ -80,7 +80,9 @@ CREATE TABLE `community_stats_posts` (
   `stats_type` varchar(64) NOT NULL,
   `posted_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_stats_post` (`guild_id`,`match_id`,`stats_type`)
+  UNIQUE KEY `uniq_stats_post` (`guild_id`,`match_id`,`stats_type`),
+  KEY `fk_community_stats_posts_match` (`match_id`),
+  CONSTRAINT `fk_community_stats_posts_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
@@ -101,8 +103,10 @@ CREATE TABLE `doubleelim_predictions` (
   `event_id` int NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_doubleelim_prediction` (`guild_id`,`event_id`,`user_id`),
-  KEY `idx_doubleelim_predictions_user_time` (`user_id`,`submitted_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_doubleelim_predictions_user_time` (`user_id`,`submitted_at`),
+  KEY `fk_doubleelim_predictions_event` (`event_id`),
+  CONSTRAINT `fk_doubleelim_predictions_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=150 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- doubleelim_results
@@ -120,8 +124,10 @@ CREATE TABLE `doubleelim_results` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_doubleelim_results_event` (`guild_id`,`event_id`),
   KEY `idx_doubleelim_results_active_id` (`active`,`id`),
-  KEY `idx_doubleelim_results_event_active` (`guild_id`,`event_id`,`active`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_doubleelim_results_event_active` (`guild_id`,`event_id`,`active`),
+  KEY `fk_doubleelim_results_event` (`event_id`),
+  CONSTRAINT `fk_doubleelim_results_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- doubleelim_scores
@@ -136,12 +142,29 @@ CREATE TABLE `doubleelim_scores` (
   `active` tinyint(1) DEFAULT '1',
   `event_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_doubleelim_scores_scope` (`guild_id`,`event_id`,`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1475 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uniq_doubleelim_scores_scope` (`guild_id`,`event_id`,`user_id`),
+  KEY `fk_doubleelim_scores_event` (`event_id`),
+  CONSTRAINT `fk_doubleelim_scores_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=1542 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- events
 -- ============================================================
+CREATE TABLE `event_pickem_phases` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `guild_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `event_id` int NOT NULL,
+  `phase` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enabled` tinyint(1) NOT NULL DEFAULT '1',
+  `config` json NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_event_phase` (`event_id`,`phase`),
+  KEY `idx_epp_guild_event` (`guild_id`,`event_id`),
+  CONSTRAINT `fk_event_pickem_phases_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `events` (
   `id` int NOT NULL AUTO_INCREMENT,
   `guild_id` varchar(32) NOT NULL,
@@ -227,6 +250,24 @@ CREATE TABLE `match_map_results` (
 -- ============================================================
 -- match_points
 -- ============================================================
+CREATE TABLE `match_maps` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `guild_id` varchar(32) NOT NULL,
+  `event_id` int NOT NULL,
+  `match_id` int NOT NULL,
+  `map_no` int NOT NULL,
+  `map_name` varchar(64) NOT NULL,
+  `picked_by` enum('TEAM_A','TEAM_B','DECIDER') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_match_map` (`guild_id`,`event_id`,`match_id`,`map_no`),
+  KEY `idx_match_maps_match` (`match_id`),
+  KEY `idx_match_maps_event` (`event_id`),
+  CONSTRAINT `fk_match_maps_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_match_maps_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `match_points` (
   `guild_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
   `match_id` int NOT NULL,
@@ -237,6 +278,8 @@ CREATE TABLE `match_points` (
   `event_id` int NOT NULL,
   PRIMARY KEY (`match_id`,`user_id`,`source`),
   UNIQUE KEY `uniq_match_points_src` (`guild_id`,`match_id`,`user_id`,`source`),
+  KEY `fk_match_points_event` (`event_id`),
+  CONSTRAINT `fk_match_points_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_pts_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -256,6 +299,8 @@ CREATE TABLE `match_predictions` (
   PRIMARY KEY (`match_id`,`user_id`),
   KEY `idx_user` (`user_id`),
   KEY `idx_match_predictions_match` (`match_id`),
+  KEY `fk_match_predictions_event` (`event_id`),
+  CONSTRAINT `fk_match_predictions_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_pred_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -273,6 +318,8 @@ CREATE TABLE `match_results` (
   `exact_b` int DEFAULT NULL,
   PRIMARY KEY (`match_id`),
   UNIQUE KEY `uniq_match_results_match` (`match_id`),
+  KEY `fk_match_results_event` (`event_id`),
+  CONSTRAINT `fk_match_results_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_res_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -371,6 +418,24 @@ CREATE TABLE `mvp_scores` (
 -- ============================================================
 -- phase_schedule_state
 -- ============================================================
+CREATE TABLE `pending_match_edits` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `guild_id` varchar(32) NOT NULL,
+  `user_id` varchar(32) NOT NULL,
+  `match_id` int NOT NULL,
+  `phase` varchar(50) DEFAULT NULL,
+  `team_a` varchar(100) NOT NULL,
+  `team_b` varchar(100) NOT NULL,
+  `best_of` int NOT NULL,
+  `match_no` int DEFAULT NULL,
+  `start_time_utc` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_pending_match_edit_user` (`guild_id`,`user_id`),
+  KEY `idx_pending_match_edit_match` (`match_id`),
+  CONSTRAINT `fk_pending_match_edits_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `phase_schedule_state` (
   `id` int NOT NULL AUTO_INCREMENT,
   `guild_id` varchar(64) NOT NULL,
@@ -379,12 +444,40 @@ CREATE TABLE `phase_schedule_state` (
   `schedule_complete` tinyint(1) NOT NULL DEFAULT '0',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_phase_schedule` (`guild_id`,`event_id`,`phase`)
+  UNIQUE KEY `uniq_phase_schedule` (`guild_id`,`event_id`,`phase`),
+  KEY `fk_phase_schedule_state_event` (`event_id`),
+  CONSTRAINT `fk_phase_schedule_state_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- playin_predictions
 -- ============================================================
+CREATE TABLE `player_event_history` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `guild_id` varchar(32) NOT NULL,
+  `event_id` bigint unsigned NOT NULL,
+  `user_id` varchar(32) NOT NULL,
+  `event_name` varchar(255) NOT NULL,
+  `final_rank` int DEFAULT NULL,
+  `participant_count` int NOT NULL DEFAULT '0',
+  `total_points` int NOT NULL DEFAULT '0',
+  `series_points` int NOT NULL DEFAULT '0',
+  `map_points` int NOT NULL DEFAULT '0',
+  `predictions` int NOT NULL DEFAULT '0',
+  `settled_matches` int NOT NULL DEFAULT '0',
+  `winner_hits` int NOT NULL DEFAULT '0',
+  `series_exacts` int NOT NULL DEFAULT '0',
+  `settled_maps` int NOT NULL DEFAULT '0',
+  `map_winner_hits` int NOT NULL DEFAULT '0',
+  `exact_maps` int NOT NULL DEFAULT '0',
+  `best_streak` int NOT NULL DEFAULT '0',
+  `finished_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_player_event` (`guild_id`,`event_id`,`user_id`),
+  KEY `idx_player_history` (`guild_id`,`user_id`),
+  KEY `idx_event_history` (`guild_id`,`event_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `playin_predictions` (
   `id` int NOT NULL AUTO_INCREMENT,
   `guild_id` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -397,8 +490,10 @@ CREATE TABLE `playin_predictions` (
   `displayname` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_playin_prediction` (`guild_id`,`event_id`,`user_id`),
-  KEY `idx_playin_predictions_active` (`active`)
-) ENGINE=InnoDB AUTO_INCREMENT=446 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_playin_predictions_active` (`active`),
+  KEY `fk_playin_predictions_event` (`event_id`),
+  CONSTRAINT `fk_playin_predictions_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=888 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- playin_results
@@ -411,8 +506,10 @@ CREATE TABLE `playin_results` (
   `active` tinyint DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_guild_result` (`guild_id`),
-  KEY `idx_playin_results_active` (`active`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_playin_results_active` (`active`),
+  KEY `fk_playin_results_event` (`event_id`),
+  CONSTRAINT `fk_playin_results_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- playin_scores
@@ -427,8 +524,10 @@ CREATE TABLE `playin_scores` (
   `active` tinyint(1) DEFAULT '1',
   `event_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_playin_scores_scope` (`guild_id`,`event_id`,`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13482 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uniq_playin_scores_scope` (`guild_id`,`event_id`,`user_id`),
+  KEY `fk_playin_scores_event` (`event_id`),
+  CONSTRAINT `fk_playin_scores_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=13924 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- playoffs_predictions
@@ -448,8 +547,10 @@ CREATE TABLE `playoffs_predictions` (
   `submitted_at` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_playoffs_prediction` (`guild_id`,`event_id`,`user_id`),
-  KEY `idx_playoffs_predictions_active` (`active`)
-) ENGINE=InnoDB AUTO_INCREMENT=589 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `idx_playoffs_predictions_active` (`active`),
+  KEY `fk_playoffs_predictions_event` (`event_id`),
+  CONSTRAINT `fk_playoffs_predictions_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=2363 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================================
 -- playoffs_results
@@ -466,8 +567,10 @@ CREATE TABLE `playoffs_results` (
   `active` tinyint DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_playoffs_results_event` (`guild_id`,`event_id`),
-  KEY `idx_playoffs_results_active_id` (`active`,`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_playoffs_results_active_id` (`active`,`id`),
+  KEY `fk_playoffs_results_event` (`event_id`),
+  CONSTRAINT `fk_playoffs_results_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- playoffs_scores
@@ -483,8 +586,10 @@ CREATE TABLE `playoffs_scores` (
   `active` tinyint(1) DEFAULT '1',
   `event_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_playoffs_scores_scope` (`guild_id`,`event_id`,`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3425 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uniq_playoffs_scores_scope` (`guild_id`,`event_id`,`user_id`),
+  KEY `fk_playoffs_scores_event` (`event_id`),
+  CONSTRAINT `fk_playoffs_scores_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=5201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- swiss_predictions
@@ -505,8 +610,9 @@ CREATE TABLE `swiss_predictions` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_swiss_prediction` (`guild_id`,`event_id`,`user_id`,`stage`),
   KEY `idx_swiss_predictions_stage` (`stage`),
-  KEY `idx_swiss_event` (`event_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1739 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_swiss_event` (`event_id`),
+  CONSTRAINT `fk_swiss_predictions_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=9125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- swiss_results
@@ -523,8 +629,10 @@ CREATE TABLE `swiss_results` (
   `active` tinyint DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_swiss_results_event_stage` (`guild_id`,`event_id`,`stage`),
-  KEY `idx_swiss_results_active` (`active`)
-) ENGINE=InnoDB AUTO_INCREMENT=76 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_swiss_results_active` (`active`),
+  KEY `fk_swiss_results_event` (`event_id`),
+  CONSTRAINT `fk_swiss_results_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=114 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- swiss_scores
@@ -541,8 +649,10 @@ CREATE TABLE `swiss_scores` (
   `active` tinyint(1) DEFAULT '1',
   `event_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_swiss_scores_scope` (`guild_id`,`event_id`,`user_id`,`stage`)
-) ENGINE=InnoDB AUTO_INCREMENT=58972 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uniq_swiss_scores_scope` (`guild_id`,`event_id`,`user_id`,`stage`),
+  KEY `fk_swiss_scores_event` (`event_id`),
+  CONSTRAINT `fk_swiss_scores_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=66014 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- teams
@@ -603,6 +713,15 @@ CREATE TABLE `tournament_settings` (
 -- ============================================================
 -- user_total_scores
 -- ============================================================
+CREATE TABLE `user_profiles` (
+  `user_id` varchar(32) NOT NULL,
+  `username` varchar(255) NOT NULL,
+  `displayname` varchar(255) DEFAULT NULL,
+  `avatar` varchar(255) DEFAULT NULL,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `user_total_scores` (
   `guild_id` varchar(32) NOT NULL,
   `user_id` varchar(32) NOT NULL,
@@ -651,5 +770,9 @@ CREATE TABLE `match_result_proposals` (
   `resolved_by` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_proposal_match_source` (`guild_id`,`match_id`,`source`),
-  KEY `idx_proposals_pending` (`guild_id`,`event_id`,`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  KEY `idx_proposals_pending` (`guild_id`,`event_id`,`status`),
+  KEY `fk_match_result_proposals_event` (`event_id`),
+  KEY `fk_match_result_proposals_match` (`match_id`),
+  CONSTRAINT `fk_match_result_proposals_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_match_result_proposals_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
