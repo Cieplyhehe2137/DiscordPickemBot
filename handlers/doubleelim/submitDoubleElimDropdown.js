@@ -17,6 +17,21 @@ const {
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 
+const {
+  getPhaseLimits,
+  sprawdzTyp,
+} = require("../../utils/eventPickemConfig");
+
+const { druzyny } = require("../../utils/odmiana");
+
+// Sloty w draftcie mają nazwy z podkreśleniami, konfiguracja - camelCase.
+const GRUPA_SLOTU = {
+  upper_final_a: "upperFinalA",
+  lower_final_a: "lowerFinalA",
+  upper_final_b: "upperFinalB",
+  lower_final_b: "lowerFinalB",
+};
+
 const uniq = (arr) => Array.from(new Set(arr));
 
 const NAMESPACE = "doubleelim";
@@ -148,9 +163,20 @@ module.exports = async (interaction) => {
 
       const values = uniq((interaction.values || []).map(String));
 
-      if (values.length !== 2) {
+      const limity = await getPhaseLimits(
+        pool,
+        guildId,
+        currentEventId,
+        "doubleelim",
+      );
+
+      const oczekiwane = Number(limity?.[GRUPA_SLOTU[key]] ?? 0);
+
+      if (values.length !== oczekiwane) {
         return interaction.editReply({
-          content: "⚠️ Wybierz dokładnie **2 różne drużyny**.",
+          content:
+            `⚠️ Wybierz dokładnie **${oczekiwane} różne ` +
+            `${druzyny(oczekiwane)}**.`,
         });
       }
 
@@ -288,9 +314,7 @@ module.exports = async (interaction) => {
     // COMPLETENESS
     // ================================================
 
-    const missing = required.filter(
-      (key) => !Array.isArray(picks[key]) || picks[key].length !== 2,
-    );
+    const missing = required.filter((key) => !Array.isArray(picks[key]));
 
     if (missing.length) {
       return interaction.editReply({
@@ -301,16 +325,31 @@ module.exports = async (interaction) => {
     }
 
     // ================================================
-    // DUPLICATES
+    // LICZBY I DUPLIKATY
     // ================================================
 
-    const all = required.flatMap((key) => picks[key]);
+    // Liczby w slotach oraz brak powtórzeń - wewnątrz slotu i między
+    // slotami - sprawdza konfiguracja eventu, ta sama, z której korzysta
+    // strona. Wcześniej było tu wpisane na sztywno 2 na slot.
+    const limity = await getPhaseLimits(
+      pool,
+      guildId,
+      currentEventId,
+      "doubleelim",
+    );
 
-    if (new Set(all).size !== all.length) {
-      return interaction.editReply({
-        content: "⚠️ Te same drużyny nie mogą się powtarzać między slotami.",
-      });
+    const wynik = sprawdzTyp("doubleelim", limity, {
+      upperFinalA: picks.upper_final_a,
+      lowerFinalA: picks.lower_final_a,
+      upperFinalB: picks.upper_final_b,
+      lowerFinalB: picks.lower_final_b,
+    });
+
+    if (!wynik.ok) {
+      return interaction.editReply({ content: `⚠️ ${wynik.blad}` });
     }
+
+    const all = required.flatMap((key) => picks[key]);
 
     // ================================================
     // ACTIVE TEAMS

@@ -9,6 +9,8 @@ const {
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 
 module.exports = async (interaction) => {
   if (interaction.customId !== "open_results_playoffs") return;
@@ -50,23 +52,35 @@ module.exports = async (interaction) => {
         )
         .setColor("#ffcc00");
 
+      // Sufity kategorii bierzemy z konfiguracji eventu. Przy wynikach to
+      // maksimum, nie liczba wymagana - admin wpisuje wynik etapami.
+      const eventId = await getOpenEventId(pool, guildId);
+
+      if (!eventId) {
+        return interaction.editReply({
+          content: "❌ Nie znaleziono aktywnego eventu.",
+        });
+      }
+
+      const limity = await getPhaseLimits(pool, guildId, eventId, "playoffs");
+
       const makeOptions = () => teams.map((t) => ({ label: t, value: t }));
 
       const rows = [
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId("results_playoffs_semifinalists")
-            .setPlaceholder("Półfinaliści (max 4)")
+            .setPlaceholder(`Półfinaliści (max ${limity.semifinalists})`)
             .setMinValues(0)
-            .setMaxValues(4)
+            .setMaxValues(limity.semifinalists)
             .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId("results_playoffs_finalists")
-            .setPlaceholder("Finaliści (max 2)")
+            .setPlaceholder(`Finaliści (max ${limity.finalists})`)
             .setMinValues(0)
-            .setMaxValues(2)
+            .setMaxValues(limity.finalists)
             .addOptions(makeOptions()),
         ),
         new ActionRowBuilder().addComponents(
@@ -74,17 +88,21 @@ module.exports = async (interaction) => {
             .setCustomId("results_playoffs_winner")
             .setPlaceholder("Zwycięzca")
             .setMinValues(0)
-            .setMaxValues(1)
+            .setMaxValues(limity.winner)
             .addOptions(makeOptions()),
         ),
-        new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId("results_playoffs_third_place_winner")
-            .setPlaceholder("3. miejsce (opcjonalnie)")
-            .setMinValues(0)
-            .setMaxValues(1)
-            .addOptions(makeOptions()),
-        ),
+        ...(limity.third > 0
+          ? [
+            new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId("results_playoffs_third_place_winner")
+                .setPlaceholder("3. miejsce (opcjonalnie)")
+                .setMinValues(0)
+                .setMaxValues(limity.third)
+                .addOptions(makeOptions()),
+            ),
+          ]
+          : []),
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId("confirm_playoffs_results")

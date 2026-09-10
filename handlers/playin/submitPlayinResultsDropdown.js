@@ -17,6 +17,8 @@ const {
 } = require("../../utils/predictionDraftCache");
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { druzyny } = require("../../utils/odmiana");
 const { runInTransaction } = require("../../utils/runInTransaction");
 
 const uniq = (arr) => Array.from(new Set(arr));
@@ -61,19 +63,33 @@ module.exports = async (interaction) => {
       const incoming = interaction.values.map(String);
       const merged = uniq([...data.teams, ...incoming]);
 
-      if (merged.length > 8) {
-        return interaction.reply({
-          content: "❌ Play-In może mieć maksymalnie 8 drużyn.",
-          ephemeral: true,
-        });
-      }
-
-      setCache(cacheKey, { teams: merged });
-
       await withGuild(interaction, async ({ pool }) => {
+        // Ile drużyn awansuje - z konfiguracji eventu, nie na sztywno.
+        const eventId = await getOpenEventId(pool, guildId);
+
+        if (!eventId) {
+          return interaction.reply({
+            content: "❌ Nie znaleziono aktywnego eventu.",
+            ephemeral: true,
+          });
+        }
+
+        const limity = await getPhaseLimits(pool, guildId, eventId, "playin");
+
+        if (merged.length > limity.teams) {
+          return interaction.reply({
+            content:
+              `❌ Play-In może mieć maksymalnie ${limity.teams} ` +
+              `${druzyny(limity.teams)}.`,
+            ephemeral: true,
+          });
+        }
+
+        setCache(cacheKey, { teams: merged });
+
         const allTeams = await loadActiveTeams(pool, guildId);
 
-        const left = 8 - merged.length;
+        const left = limity.teams - merged.length;
 
         const available = allTeams.filter((t) => !merged.includes(t));
 
@@ -81,7 +97,7 @@ module.exports = async (interaction) => {
           .setColor("#00b0f4")
           .setTitle("📌 Oficjalne wyniki – Play-In")
           .setDescription(
-            `Wybrano **${merged.length}/8** drużyn.\n\n` +
+            `Wybrano **${merged.length}/${limity.teams}** drużyn.\n\n` +
               (merged.length
                 ? `Obecne wybory:\n${merged.join(", ")}`
                 : "Nie wybrano jeszcze żadnej drużyny.") +
@@ -92,8 +108,8 @@ module.exports = async (interaction) => {
           .setCustomId("official_playin_teams")
           .setPlaceholder(
             left > 0
-              ? `Wybierz drużyny (${merged.length}/8)`
-              : "Uzupełniono 8/8",
+              ? `Wybierz drużyny (${merged.length}/${limity.teams})`
+              : `Uzupełniono ${limity.teams}/${limity.teams}`,
           )
           .setMinValues(0)
           .setMaxValues(left > 0 ? Math.min(left, available.length) : 1)
@@ -151,10 +167,8 @@ module.exports = async (interaction) => {
     ) {
       await interaction.deferReply({ ephemeral: true });
 
-      if (!data.teams || data.teams.length !== 8) {
-        return interaction.editReply(
-          `❌ Wybrano ${data.teams?.length || 0}/8 drużyn.`,
-        );
+      if (!data.teams) {
+        return interaction.editReply("❌ Najpierw wybierz drużyny.");
       }
 
       await withGuild(interaction, async ({ pool }) => {
@@ -171,6 +185,17 @@ module.exports = async (interaction) => {
 
         if (!eventId) {
           return interaction.editReply("❌ Nie znaleziono aktywnego eventu.");
+        }
+
+        // Komplet sprawdzamy dopiero tutaj, bo liczba drużyn należy do
+        // eventu - wcześniej nie wiadomo, którego eventu dotyczy formularz.
+        const limity = await getPhaseLimits(pool, guildId, eventId, "playin");
+
+        if (data.teams.length !== limity.teams) {
+          return interaction.editReply(
+            `❌ Wybrano ${data.teams.length}/${limity.teams} ` +
+              `${druzyny(limity.teams)}.`,
+          );
         }
 
         try {

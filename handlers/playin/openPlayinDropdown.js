@@ -14,6 +14,8 @@ const {
 } = require("../../utils/protectionsGuards");
 const { setDraft } = require("../../utils/predictionDraftCache");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { druzyny } = require("../../utils/odmiana");
 
 // ======================================================
 // HANDLER
@@ -95,6 +97,9 @@ module.exports = async (interaction) => {
         });
       }
 
+      // Ile drużyn awansuje - z konfiguracji tego eventu, nie na sztywno.
+      const limity = await getPhaseLimits(pool, guildId, eventId, "playin");
+
       const cacheKey = `${guildId}:${interaction.user.id}`;
 
       setDraft("playin", cacheKey, {
@@ -127,13 +132,12 @@ module.exports = async (interaction) => {
         });
       }
 
-      // Potrzebujemy minimum 8 drużyn,
-      // bo użytkownik musi wybrać dokładnie 8.
-      if (teamNames.length < 8) {
+      // W bazie musi być co najmniej tyle drużyn, ile trzeba wytypować.
+      if (teamNames.length < limity.teams) {
         return interaction.editReply({
           content:
             `❌ W bazie jest tylko **${teamNames.length} aktywnych drużyn**.\n` +
-            `Do typowania Play-In potrzeba minimum **8**.`,
+            `Do typowania Play-In potrzeba minimum **${limity.teams}**.`,
           embeds: [],
           components: [],
         });
@@ -158,7 +162,8 @@ module.exports = async (interaction) => {
         .setTitle("📌 Pick'Em – Play-In")
         .setDescription(
           [
-            "Wybierz **dokładnie 8 drużyn**, które według Ciebie awansują z fazy Play-In.",
+            `Wybierz **dokładnie ${limity.teams} ${druzyny(limity.teams)}**, ` +
+              "które według Ciebie awansują z fazy Play-In.",
             "",
             "Po dokonaniu wyboru kliknij **Zatwierdź typy**.",
           ].join("\n"),
@@ -180,9 +185,11 @@ module.exports = async (interaction) => {
       const selectRow = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playin_select")
-          .setPlaceholder("Wybierz dokładnie 8 drużyn")
-          .setMinValues(8)
-          .setMaxValues(8)
+          .setPlaceholder(
+            `Wybierz dokładnie ${limity.teams} ${druzyny(limity.teams)}`,
+          )
+          .setMinValues(limity.teams)
+          .setMaxValues(limity.teams)
           .addOptions(options),
       );
 

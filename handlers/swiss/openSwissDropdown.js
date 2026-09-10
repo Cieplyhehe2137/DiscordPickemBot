@@ -17,6 +17,8 @@ const {
 const { getDraft, setDraft } = require("../../utils/predictionDraftCache");
 
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { druzyny } = require("../../utils/odmiana");
 
 // ======================================================
 // CONSTANTS
@@ -184,6 +186,11 @@ module.exports = async (interaction) => {
       // TEAMS
       // ==============================================
 
+      // Ile drużyn w której kategorii - z konfiguracji tego eventu, nie
+      // z liczb wpisanych na sztywno. Event bez własnej konfiguracji dostaje
+      // wartości domyślne, czyli to samo, co było tu wcześniej.
+      const limity = await getPhaseLimits(pool, guildId, eventId, stage);
+
       const teams = await loadTeams(pool, guildId);
 
       if (!teams.length) {
@@ -236,27 +243,33 @@ module.exports = async (interaction) => {
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_3_0:${stage}`)
-            .setPlaceholder("🔥 Wybierz 2 drużyny 3-0")
-            .setMinValues(2)
-            .setMaxValues(2)
+            .setPlaceholder(
+              `🔥 Wybierz ${limity.x3_0} ${druzyny(limity.x3_0)} 3-0`,
+            )
+            .setMinValues(limity.x3_0)
+            .setMaxValues(limity.x3_0)
             .addOptions(options),
         ),
 
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_0_3:${stage}`)
-            .setPlaceholder("💀 Wybierz 2 drużyny 0-3")
-            .setMinValues(2)
-            .setMaxValues(2)
+            .setPlaceholder(
+              `💀 Wybierz ${limity.x0_3} ${druzyny(limity.x0_3)} 0-3`,
+            )
+            .setMinValues(limity.x0_3)
+            .setMaxValues(limity.x0_3)
             .addOptions(options),
         ),
 
         new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder()
             .setCustomId(`swiss_advancing:${stage}`)
-            .setPlaceholder("🚀 Wybierz 6 drużyn 3-1 / 3-2")
-            .setMinValues(6)
-            .setMaxValues(6)
+            .setPlaceholder(
+              `🚀 Wybierz ${limity.advancing} ${druzyny(limity.advancing)} 3-1 / 3-2`,
+            )
+            .setMinValues(limity.advancing)
+            .setMaxValues(limity.advancing)
             .addOptions(options),
         ),
 

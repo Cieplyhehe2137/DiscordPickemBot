@@ -17,6 +17,8 @@ const {
 const { getDraft, setDraft } = require("../../utils/predictionDraftCache");
 
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { odmien, druzyny } = require("../../utils/odmiana");
 const { setMvpSession } = require("../../utils/mvpFlowSession");
 
 const MVP_PAGE_SIZE = 25;
@@ -259,15 +261,26 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       // EMBED
       // ================================================
 
+      // Liczby z konfiguracji tego eventu, nie wpisane na sztywno.
+      const limity = await getPhaseLimits(pool, guildId, eventId, "playoffs");
+
       const embed = new EmbedBuilder()
         .setColor("#f1c40f")
         .setTitle("📌 Pick'Em – Playoffs")
         .setDescription(
           "Wybierz drużyny dla fazy play-off:\n\n" +
-            "🏅 4 półfinalistów\n" +
-            "🥈 2 finalistów\n" +
-            "🥇 1 zwycięzcę\n" +
-            "🥉 (opcjonalnie) 1 drużynę na 3. miejscu\n" +
+            `🏅 ${limity.semifinalists} ` +
+            odmien(limity.semifinalists, "półfinalistę", "półfinalistów", "półfinalistów") +
+            "\n" +
+            `🥈 ${limity.finalists} ` +
+            odmien(limity.finalists, "finalistę", "finalistów", "finalistów") +
+            "\n" +
+            `🥇 ${limity.winner} ` +
+            odmien(limity.winner, "zwycięzcę", "zwycięzców", "zwycięzców") +
+            "\n" +
+            (limity.third > 0
+              ? `🥉 (opcjonalnie) ${limity.third} ${druzyny(limity.third)} na 3. miejscu\n`
+              : "") +
             (mvpCandidates.length ? "⭐ 1 MVP turnieju\n" : ""),
         );
 
@@ -288,9 +301,17 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       const row1 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playoffs_semifinalists")
-          .setPlaceholder("Wybierz 4 półfinalistów")
-          .setMinValues(4)
-          .setMaxValues(4)
+          .setPlaceholder(
+            `Wybierz ${limity.semifinalists} ` +
+              odmien(
+                limity.semifinalists,
+                "półfinalistę",
+                "półfinalistów",
+                "półfinalistów",
+              ),
+          )
+          .setMinValues(limity.semifinalists)
+          .setMaxValues(limity.semifinalists)
           .addOptions(makeOptions()),
       );
 
@@ -301,9 +322,17 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       const row2 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playoffs_finalists")
-          .setPlaceholder("Wybierz 2 finalistów")
-          .setMinValues(2)
-          .setMaxValues(2)
+          .setPlaceholder(
+            `Wybierz ${limity.finalists} ` +
+              odmien(
+                limity.finalists,
+                "finalistę",
+                "finalistów",
+                "finalistów",
+              ),
+          )
+          .setMinValues(limity.finalists)
+          .setMaxValues(limity.finalists)
           .addOptions(makeOptions()),
       );
 
@@ -314,9 +343,13 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       const row3 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("playoffs_winner")
-          .setPlaceholder("Wybierz zwycięzcę")
-          .setMinValues(1)
-          .setMaxValues(1)
+          .setPlaceholder(
+            limity.winner === 1
+              ? "Wybierz zwycięzcę"
+              : `Wybierz ${limity.winner} zwycięzców`,
+          )
+          .setMinValues(limity.winner)
+          .setMaxValues(limity.winner)
           .addOptions(makeOptions()),
       );
 
@@ -324,14 +357,20 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       // THIRD PLACE
       // ================================================
 
-      const row4 = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("playoffs_third_place")
-          .setPlaceholder("(Opcjonalnie) Wybierz 3. miejsce")
-          .setMinValues(0)
-          .setMaxValues(1)
-          .addOptions(makeOptions()),
-      );
+      // Turniej może nie mieć meczu o 3. miejsce - wtedy limit wynosi 0
+      // i wiersz w ogóle się nie pojawia. Discord nie przyjmuje selecta
+      // z maxValues = 0, więc nie da się go tylko wyłączyć.
+      const row4 =
+        limity.third > 0
+          ? new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+              .setCustomId("playoffs_third_place")
+              .setPlaceholder("(Opcjonalnie) Wybierz 3. miejsce")
+              .setMinValues(0)
+              .setMaxValues(limity.third)
+              .addOptions(makeOptions()),
+          )
+          : null;
 
       // ================================================
       // MAIN RESPONSE
@@ -339,7 +378,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
 
       await interaction.editReply({
         embeds: [embed],
-        components: [row1, row2, row3, row4],
+        components: [row1, row2, row3, row4].filter(Boolean),
       });
 
       // ================================================
