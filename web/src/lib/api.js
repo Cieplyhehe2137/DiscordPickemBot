@@ -81,8 +81,19 @@ export function getPublicMatch(matchId) {
   return apiRequest(`/public/matches/${encodeURIComponent(matchId)}`);
 }
 
-export function getEventLeaderboard(slug) {
-  return apiRequest(`/events/${slug}/leaderboard`);
+// Ranking bywa duży - największy turniej ma ponad 500 graczy, a wcześniej
+// endpoint ucinał go twardo na setce. Bez argumentów zwraca pierwszą stronę.
+export function getEventLeaderboard(slug, { strona, naStronie } = {}) {
+  const parametry = new URLSearchParams();
+
+  if (strona) parametry.set("strona", String(strona));
+  if (naStronie) parametry.set("naStronie", String(naStronie));
+
+  const zapytanie = parametry.toString();
+
+  return apiRequest(
+    `/events/${slug}/leaderboard${zapytanie ? `?${zapytanie}` : ""}`,
+  );
 }
 
 export function saveMatchPrediction(matchId, prediction) {

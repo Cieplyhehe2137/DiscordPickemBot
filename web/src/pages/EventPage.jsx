@@ -500,7 +500,11 @@ function EventPage() {
                 className={`event-podium__grid event-podium__grid--${topPlayers.length}`}
               >
                 {topPlayers.map((player, index) => {
-                  const position = index + 1;
+                  // Miejsce z serwera; indeks tylko wtedy, gdy go zabraknie.
+                  // Dziś podium bierze zawsze pierwszą stronę rankingu, więc
+                  // wychodzi to samo - ale liczenie z indeksu przestaje być
+                  // prawdą, jak tylko dane przyjdą z innego wycinka listy.
+                  const position = Number(player.rank) || index + 1;
 
                   return (
                     <Link

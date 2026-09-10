@@ -1743,8 +1743,6 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
     total_points DESC,
     correct_winners DESC,
     lb.user_id ASC
-
-  LIMIT 100
   `,
       [
         // nazwy z faz (8 tabel) - to zlaczenie stoi w SQL jako pierwsze
@@ -1932,10 +1930,35 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
       return String(a.user_id).localeCompare(String(b.user_id));
     });
 
-    const leaderboard = leaderboardData.map((player, index) => ({
+    // Miejsce liczymy PRZED podziałem na strony, bo o kolejności decyduje
+    // sortowanie w JS (punkty, potem trafieni zwycięzcy, mapy, exacty),
+    // a nie ORDER BY z zapytania - te dwa porządki rozstrzygają remisy
+    // inaczej. Gdyby strony wycinał SQL, gracz na granicy potrafiłby
+    // pojawić się dwa razy albo zniknąć.
+    const wszystkie = leaderboardData.map((player, index) => ({
       ...player,
       rank: index + 1,
     }));
+
+    const NA_STRONIE_DOMYSLNIE = 50;
+    const NA_STRONIE_MAKS = 200;
+
+    const naStronie = Math.min(
+      NA_STRONIE_MAKS,
+      Math.max(1, Number(req.query.naStronie) || NA_STRONIE_DOMYSLNIE),
+    );
+
+    const stron = Math.max(1, Math.ceil(wszystkie.length / naStronie));
+
+    const numer = Math.min(
+      stron,
+      Math.max(1, Number(req.query.strona) || 1),
+    );
+
+    const leaderboard = wszystkie.slice(
+      (numer - 1) * naStronie,
+      numer * naStronie,
+    );
 
     // Ranking bierze sie z tabeli `leaderboard`, a ta zapelnia sie dopiero po
     // naliczeniu punktow. Dopoki nic nie jest rozliczone, lista jest pusta,
@@ -1946,6 +1969,12 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
     res.json({
       leaderboard,
       uczestnicy,
+      strony: {
+        numer,
+        naStronie,
+        wszystkich: wszystkie.length,
+        ile: stron,
+      },
     });
   } catch (err) {
     console.error(err);
