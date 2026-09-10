@@ -5,6 +5,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
 const { withGuild } = require("../../utils/guildContext");
 const { getMatchById } = require("../../utils/matchesStore");
+const applyMatchResult = require("../../services/applyMatchResult");
 
 module.exports = async function matchScoreSelect(interaction) {
   try {
@@ -79,16 +80,25 @@ module.exports = async function matchScoreSelect(interaction) {
           });
         }
 
+        if (!match.event_id) {
+          return interaction.update({
+            content: "❌ Ten mecz nie ma przypisanego eventu.",
+            components: [],
+          });
+        }
+
+        // match_predictions.event_id jest NOT NULL - bez niego INSERT rzuca,
+        // a typ i tak nie wpiąłby się w scoring (joiny idą po event_id).
         await pool.query(
           `
-          INSERT INTO match_predictions (guild_id, match_id, user_id, pred_a, pred_b)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO match_predictions (guild_id, event_id, match_id, user_id, pred_a, pred_b)
+          VALUES (?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             pred_a = VALUES(pred_a),
             pred_b = VALUES(pred_b),
             updated_at = CURRENT_TIMESTAMP
           `,
-          [guildId, matchId, interaction.user.id, a, b],
+          [guildId, match.event_id, matchId, interaction.user.id, a, b],
         );
 
         userState.set(guildId, interaction.user.id, {
@@ -113,17 +123,24 @@ module.exports = async function matchScoreSelect(interaction) {
       }
 
       // ================= ADMIN =================
-      await pool.query(
-        `
-        INSERT INTO match_results (guild_id, match_id, res_a, res_b)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          res_a = VALUES(res_a),
-          res_b = VALUES(res_b),
-          finished_at = CURRENT_TIMESTAMP
-        `,
-        [guildId, matchId, a, b],
-      );
+
+      // Bez event_id wynik nie wpina się w scoring - wszystkie zapytania
+      // punktowe joinują po (guild_id, event_id, match_id).
+      if (!match.event_id) {
+        return interaction.update({
+          content: "❌ Ten mecz nie ma przypisanego eventu.",
+          components: [],
+        });
+      }
+
+      // Upsert wyniku + przeliczenie punktów idzie przez applyMatchResult,
+      // tak samo jak w panelu WWW i przy zatwierdzaniu propozycji wyniku.
+      await applyMatchResult(pool, {
+        guildId,
+        match,
+        resA: a,
+        resB: b,
+      });
 
       await pool.query(
         `
@@ -145,7 +162,7 @@ module.exports = async function matchScoreSelect(interaction) {
       return interaction.update({
         content:
           `✅ Ustawiono wynik: **${match.team_a} ${a}:${b} ${match.team_b}**\n` +
-          `➡️ Punkty zostaną przeliczone przez **calculateScores**.`,
+          `⭐ Punkty zostały przeliczone.`,
         components: [],
       });
     });

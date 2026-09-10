@@ -76,9 +76,6 @@ function loadGuildConfigsOnce() {
             EXPORT_PANEL_CHANNEL_ID: process.env.EXPORT_PANEL_CHANNEL_ID,
             ARCHIVE_CHANNEL_ID: process.env.ARCHIVE_CHANNEL_ID,
             LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID,
-            PREDICTIONS_CHANNEL_ID: process.env.PREDICTIONS_CHANNEL_ID,
-            SWISS_PREDICTIONS_CHANNEL_ID:
-              process.env.SWISS_PREDICTIONS_CHANNEL_ID,
           },
           ".env",
         ),

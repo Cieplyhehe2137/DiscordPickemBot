@@ -1,5 +1,6 @@
 const { withGuild } = require("./guildContext");
 const { logError } = require("./logger");
+const { isPickDeadlinePassed } = require("./deadlineRepository");
 
 // ======================================================
 // NORMALIZACJE
@@ -564,11 +565,63 @@ async function assertActivePredictionPanel({
 }
 
 // ======================================================
+// PHASE GATE + DEADLINE
+// ======================================================
+//
+// Odpowiednik pickemGate() z server/index.js, do użycia w handlerach bota.
+//
+// assertPredictionsAllowed() sprawdza wyłącznie stan eventu i fazę - NIE
+// deadline. Na Discordzie deadline egzekwował dotąd tylko poller, gasząc
+// komponenty panelu (closeExpiredPanels). Formularz otwarty jako ephemeral
+// PRZED deadline'em zostawał jednak sprawny: przyciski "Zatwierdź typy"
+// sprawdzały samą fazę, więc dawało się zapisać typ już po terminie.
+// Panel WWW blokował to od początku (pickemGate).
+
+// kind (po normalizePhase) -> active_panels.phase
+const PICKEM_PANEL_PHASE = {
+  SWISS: "swiss",
+  SWISS_STAGE1: "swiss",
+  SWISS_STAGE2: "swiss",
+  SWISS_STAGE3: "swiss",
+  PLAYIN: "playin",
+  PLAYOFFS: "playoffs",
+  DOUBLEELIM: "doubleelim",
+};
+
+async function assertPickemOpen({ pool, guildId, kind, stage = null }) {
+  const gate = await assertPredictionsAllowed({ guildId, kind, stage });
+
+  if (!gate.allowed) return gate;
+
+  const panelPhase = PICKEM_PANEL_PHASE[normalizePhase(kind)];
+
+  if (!pool || !panelPhase) return gate;
+
+  const { passed } = await isPickDeadlinePassed(
+    pool,
+    guildId,
+    panelPhase,
+    stage,
+  );
+
+  if (passed) {
+    return {
+      allowed: false,
+      state: gate.state,
+      message: "⏰ Deadline typowania dla tej fazy już minął.",
+    };
+  }
+
+  return gate;
+}
+
+// ======================================================
 // EXPORTS
 // ======================================================
 
 module.exports = {
   assertPredictionsAllowed,
+  assertPickemOpen,
   assertActivePredictionPanel,
   getPredictionEventState,
   swissStageToPhase,

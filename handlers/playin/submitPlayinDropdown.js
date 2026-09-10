@@ -2,7 +2,10 @@
 
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logger } = require("../../utils/logger");
-const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  assertPredictionsAllowed,
+  assertPickemOpen,
+} = require("../../utils/protectionsGuards");
 
 const {
   getDraft,
@@ -169,7 +172,8 @@ module.exports = async (interaction) => {
     // PHASE GATE
     // ==================================================
 
-    const gate = await assertPredictionsAllowed({
+    const gate = await assertPickemOpen({
+      pool,
       guildId,
       kind: "PLAYIN",
     });

@@ -10,7 +10,8 @@ const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const userState = require("../../utils/matchUserState");
 const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
-const { getMatchById } = require("../../utils/matchesStore");
+const { getMatchById, hasOfficialResult } = require("../../utils/matchesStore");
+const { isMatchLocked } = require("../../utils/matchLock");
 
 /* ===============================
    HELPERS
@@ -112,9 +113,19 @@ module.exports = async function matchUserExactOpen(interaction) {
         });
       }
 
-      if (match.is_locked) {
+      // isMatchLocked(), a nie samo match.is_locked - to drugie pomija
+      // start_time_utc i lock_override, więc modal otwierał się dla meczu,
+      // który już się zaczął, a odmowa przychodziła dopiero przy zapisie.
+      if (isMatchLocked(match)) {
         return interaction.reply({
           content: "🔒 Ten mecz jest zablokowany.",
+          ephemeral: true,
+        });
+      }
+
+      if (await hasOfficialResult(pool, guildId, match.event_id, match.id)) {
+        return interaction.reply({
+          content: "🏁 Ten mecz został już zakończony — typowanie zamknięte.",
           ephemeral: true,
         });
       }

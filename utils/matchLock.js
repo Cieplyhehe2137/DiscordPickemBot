@@ -49,12 +49,11 @@ function isMatchLocked(
   // ===============================
 
   // wymuszone otwarcie
-  if (Number(match.lock_override) === 0) {
+  if (match.lock_override !== null && Number(match.lock_override) === 0) {
     return false;
   }
 
-  // wymuszona blokada
-  if (Number(match.lock_override) === 1) {
+  if (match.lock_override !== null && Number(match.lock_override) === 1) {
     return true;
   }
 

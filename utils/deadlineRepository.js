@@ -50,7 +50,14 @@ async function findPanelForDeadline(pool, guildId, phase, stage) {
     }
 
     const [rows] = await pool.query(
-      `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND stage_key = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
+      `SELECT id, deadline
+   FROM active_panels
+   WHERE guild_id = ?
+     AND phase = ?
+     AND stage_key = ?
+     AND active = 1
+   ORDER BY id DESC
+   LIMIT 1`,
       [guildId, resolved.dbPhase, resolved.dbStageKey],
     );
 
@@ -62,16 +69,42 @@ async function findPanelForDeadline(pool, guildId, phase, stage) {
   }
 
   const [rows] = await pool.query(
-    `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
+    `SELECT id, deadline
+   FROM active_panels
+   WHERE guild_id = ?
+     AND phase = ?
+     AND active = 1
+   ORDER BY id DESC
+   LIMIT 1`,
     [guildId, phase],
   );
 
   return { row: rows[0] || null, lookupPhase: phase, lookupStageKey: null };
 }
 
-// Match-results deadline lookup (mirrors commands/setMatchDeadline.js) -
-// deliberately does not transform swiss + stage into a stage-specific phase.
+// Match-results deadline lookup.
+//
+// Wcześniej szukało panelu po surowym `phase`, więc dla phase='swiss'
+// nie znajdowało niczego: publisher zapisuje w active_panels.phase wartości
+// 'swiss_stage1' / 'swiss_stage2' / 'swiss_stage3', a nie 'swiss'. Ustawienie
+// deadline'u meczowego dla Swiss zawsze kończyło się 404.
+//
+// Deadline meczowy nadal NIE jest stage-specyficzny (jeden na całą fazę
+// Swiss, tak jak w bocie) - bierzemy więc najnowszy panel dowolnego etapu.
 async function findPanelForMatchDeadline(pool, guildId, phase) {
+  if (phase === "swiss") {
+    const [rows] = await pool.query(
+      `SELECT id, phase FROM active_panels
+        WHERE guild_id = ?
+          AND phase IN ('swiss_stage1', 'swiss_stage2', 'swiss_stage3')
+          AND active = 1
+        ORDER BY id DESC LIMIT 1`,
+      [guildId],
+    );
+
+    return { row: rows[0] || null, lookupPhase: rows[0]?.phase || "swiss" };
+  }
+
   const [rows] = await pool.query(
     `SELECT id FROM active_panels WHERE guild_id = ? AND phase = ? AND active = 1 ORDER BY id DESC LIMIT 1`,
     [guildId, phase],
@@ -117,12 +150,24 @@ async function isPickDeadlinePassed(pool, guildId, phase, stage) {
 }
 
 async function isMatchDeadlinePassed(pool, guildId, phase) {
+  // Strona odczytu musi patrzeć na te same wiersze co zapis - dla Swiss
+  // deadline siedzi na panelu 'swiss_stageN', nie na 'swiss'.
+  // Jak w isPickDeadlinePassed: BEZ filtra `active`, bo po minięciu deadline'u
+  // poller bota gasi panel (active = 0) i zapytanie tylko po aktywnych
+  // uznałoby "deadline minął" za "deadline'u nie ma".
+  const phaseCondition =
+    phase === "swiss"
+      ? "phase IN ('swiss_stage1', 'swiss_stage2', 'swiss_stage3')"
+      : "phase = ?";
+
+  const params = phase === "swiss" ? [guildId] : [guildId, phase];
+
   const [rows] = await pool.query(
     `SELECT match_deadline, (match_deadline IS NOT NULL AND UTC_TIMESTAMP() >= match_deadline) AS passed
      FROM active_panels
-     WHERE guild_id = ? AND phase = ?
+     WHERE guild_id = ? AND ${phaseCondition}
      ORDER BY id DESC LIMIT 1`,
-    [guildId, phase],
+    params,
   );
 
   const row = rows[0];
