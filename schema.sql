@@ -11,6 +11,7 @@
 CREATE TABLE `active_panels` (
   `id` int NOT NULL AUTO_INCREMENT,
   `guild_id` varchar(32) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `event_id` int NOT NULL,
   `phase` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `channel_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `message_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -23,9 +24,10 @@ CREATE TABLE `active_panels` (
   `stage_key` varchar(50) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (ifnull(`stage`,_utf8mb4'')) STORED,
   `match_deadline` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_phase_stagekey_channel` (`phase`,`stage_key`,`channel_id`),
-  KEY `idx_active_panels_lookup` (`guild_id`,`phase`,`stage`,`active`,`closed`,`deadline`)
-) ENGINE=InnoDB AUTO_INCREMENT=577 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uniq_panel_event_phase_stage_channel` (`event_id`,`phase`,`stage_key`,`channel_id`),
+  KEY `idx_active_panels_lookup` (`guild_id`,`phase`,`stage`,`active`,`closed`,`deadline`),
+  CONSTRAINT `fk_active_panels_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=620 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- admin_logs
