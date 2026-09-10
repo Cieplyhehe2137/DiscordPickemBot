@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
-    "deploy-commands": "node registerCommands.js"
+    "deploy-commands": "node registerCommands.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "discord.js": "^14.26.4",

@@ -1,0 +1,78 @@
+# Uruchamiane przy każdym PR i po scaleniu do main.
+#
+# Do tej pory jedyną bramką przed wdrożeniem było to, że ktoś pamiętał
+# uruchomić lint i build u siebie. Ten plik sprawdza to samo automatycznie,
+# zanim zmiana trafi na produkcję w trakcie turnieju.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  testy:
+    name: Testy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Bez npm ci celowo: testy dotykają wyłącznie czystej logiki i nie
+      # wymagają żadnego pakietu spoza standardowej biblioteki Node. Gdyby
+      # kiedyś zaczęły, ten krok się wywali i będzie to widać od razu.
+      - name: Testy jednostkowe
+        run: npm test
+
+  skladnia:
+    name: Składnia bota i serwera
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Bot i serwer nie mają ESLinta - ta warstwa nie jest objęta niczym
+      # poza uruchomieniem. Parsowanie każdego pliku łapie przynajmniej
+      # literówki, które inaczej wychodzą dopiero przy restarcie procesu.
+      - name: node --check na każdym pliku
+        run: |
+          find . -name '*.js' \
+            -not -path './node_modules/*' \
+            -not -path './server/node_modules/*' \
+            -not -path './web/*' \
+            -print0 | xargs -0 -n1 node --check
+
+  front:
+    name: Front
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Instalacja
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
