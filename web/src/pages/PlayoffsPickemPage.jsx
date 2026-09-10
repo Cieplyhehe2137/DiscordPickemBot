@@ -6,6 +6,7 @@ import { getPlayoffsPickem, savePlayoffsPickem } from "../lib/api.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function PlayoffsPickemPage() {
   const { slug } = useParams();
@@ -99,7 +100,7 @@ function PlayoffsPickemPage() {
   }
 
   if (loading) {
-    return <p>Ładowanie Playoffs Pick'Em...</p>;
+    return <Ladowanie>Ładowanie Playoffs Pick'Em...</Ladowanie>;
   }
 
   if (error) {

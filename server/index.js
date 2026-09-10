@@ -1995,14 +1995,38 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
       Math.max(1, Number(req.query.naStronie) || NA_STRONIE_DOMYSLNIE),
     );
 
-    const stron = Math.max(1, Math.ceil(wszystkie.length / naStronie));
+    // Szukanie po nicku. Filtrujemy PEŁNĄ listę, nie bieżącą stronę - przy
+    // 11 stronach szukanie tylko w widocznym wycinku byłoby bezużyteczne.
+    // Miejsce (rank) jest już przypisane, więc wynik zachowuje pozycję
+    // z pełnego rankingu, a nie numer w obrębie wyników wyszukiwania.
+    const szukaj = String(req.query.szukaj || "").trim().toLowerCase();
 
-    const numer = Math.min(
-      stron,
-      Math.max(1, Number(req.query.strona) || 1),
-    );
+    const znalezione = szukaj
+      ? wszystkie.filter(
+        (gracz) =>
+          String(gracz.displayname || "").toLowerCase().includes(szukaj) ||
+          String(gracz.user_id).includes(szukaj),
+      )
+      : wszystkie;
 
-    const leaderboard = wszystkie.slice(
+    const stron = Math.max(1, Math.ceil(znalezione.length / naStronie));
+
+    // ?znajdz=<userId> otwiera stronę, na której stoi ten gracz. Inaczej
+    // przy 509 osobach trzeba by klikać "Następna" dziewięć razy, żeby
+    // zobaczyć własne miejsce.
+    const znajdz = String(req.query.znajdz || "").trim();
+
+    let numer = Math.min(stron, Math.max(1, Number(req.query.strona) || 1));
+
+    if (znajdz) {
+      const pozycja = znalezione.findIndex(
+        (gracz) => String(gracz.user_id) === znajdz,
+      );
+
+      if (pozycja >= 0) numer = Math.floor(pozycja / naStronie) + 1;
+    }
+
+    const leaderboard = znalezione.slice(
       (numer - 1) * naStronie,
       numer * naStronie,
     );
@@ -2019,8 +2043,12 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
       strony: {
         numer,
         naStronie,
-        wszystkich: wszystkie.length,
+        // `wszystkich` to wynik bieżącego filtra, `wRankingu` cały ranking -
+        // front pokazuje "znaleziono X z Y", więc potrzebuje obu.
+        wszystkich: znalezione.length,
+        wRankingu: wszystkie.length,
         ile: stron,
+        szukano: szukaj || null,
       },
     });
   } catch (err) {

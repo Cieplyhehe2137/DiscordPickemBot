@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Ladowanie from "../../components/Ladowanie.jsx";
 
 import {
   getEventPickemConfig,
@@ -133,7 +134,7 @@ function PickemConfigPanel({ slug }) {
   }
 
   if (!zaladowane) {
-    return <p>Wczytywanie konfiguracji...</p>;
+    return <Ladowanie>Wczytywanie konfiguracji...</Ladowanie>;
   }
 
   return (

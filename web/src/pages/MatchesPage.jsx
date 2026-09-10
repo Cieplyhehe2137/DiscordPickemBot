@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 
 import { getEventMatches } from "../lib/api.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function MatchesPage() {
   const { slug } = useParams();
@@ -167,7 +168,7 @@ function MatchesPage() {
           </div>
         )}
 
-        {loading && <p>Ładowanie meczów...</p>}
+        {loading && <Ladowanie>Ładowanie meczów...</Ladowanie>}
 
         {!loading && error && <p>{error}</p>}
 

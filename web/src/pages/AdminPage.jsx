@@ -30,6 +30,7 @@ import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 export default function AdminPage() {
   const { user, authLoading } = useAuth();
   const [servers, setServers] = useState([]);
@@ -786,7 +787,7 @@ export default function AdminPage() {
       <section className="admin-servers">
         <h2>Twoje serwery</h2>
 
-        {loadingServers && <p>Ładowanie serwerów...</p>}
+        {loadingServers && <Ladowanie>Ładowanie serwerów...</Ladowanie>}
 
         {serversError && <p>{serversError}</p>}
 
@@ -819,7 +820,7 @@ export default function AdminPage() {
         <section className="admin-events">
           <h2>Eventy</h2>
 
-          {loadingEvents && <p>Ładowanie eventów...</p>}
+          {loadingEvents && <Ladowanie>Ładowanie eventów...</Ladowanie>}
 
           {eventsError && <p>{eventsError}</p>}
 
@@ -1112,7 +1113,7 @@ export default function AdminPage() {
               <option value="DOUBLE_ELIM">DOUBLE_ELIM</option>
             </select>
 
-            {loadingTeams && <p>Ładowanie drużyn...</p>}
+            {loadingTeams && <Ladowanie>Ładowanie drużyn...</Ladowanie>}
 
             {teamsError && <p>{teamsError}</p>}
 
@@ -1205,7 +1206,7 @@ export default function AdminPage() {
               </p>
             )}
 
-            {loadingMatches && <p>Ładowanie meczów...</p>}
+            {loadingMatches && <Ladowanie>Ładowanie meczów...</Ladowanie>}
 
             {matchesError && <p>{matchesError}</p>}
 
@@ -1604,7 +1605,7 @@ export default function AdminPage() {
           </p>
 
           <div className="admin-matches-list">
-            {loadingMatches && <p>Ładowanie meczów...</p>}
+            {loadingMatches && <Ladowanie>Ładowanie meczów...</Ladowanie>}
 
             {matchesError && <p>{matchesError}</p>}
 
@@ -1760,7 +1761,7 @@ export default function AdminPage() {
           )}
 
           <div className="admin-teams-list">
-            {loadingTeams && <p>Ładowanie drużyn...</p>}
+            {loadingTeams && <Ladowanie>Ładowanie drużyn...</Ladowanie>}
 
             {teamsError && <p>{teamsError}</p>}
 
@@ -1858,7 +1859,7 @@ export default function AdminPage() {
         <section className="admin-section">
           <h2>Ranking eventu</h2>
 
-          {loadingLeaderboard && <p>Ładowanie rankingu...</p>}
+          {loadingLeaderboard && <Ladowanie>Ładowanie rankingu...</Ladowanie>}
 
           {leaderboardError && (
             <p className="admin-feedback admin-feedback--error">

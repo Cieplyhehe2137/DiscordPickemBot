@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getMvp, saveMvpCandidates, saveMvpResult } from "../../lib/api.js";
+import Ladowanie from "../../components/Ladowanie.jsx";
 
 // MVP turnieju: lista kandydatów i wskazanie zwycięzcy.
 //
@@ -122,7 +123,7 @@ function MvpAdminPanel({ slug }) {
       <div className="mvp-admin__block">
         <h4>Kandydaci</h4>
 
-        {ladowanie && <p>Wczytywanie...</p>}
+        {ladowanie && <Ladowanie>Wczytywanie...</Ladowanie>}
 
         {!ladowanie && kandydaci.length === 0 && (
           <p className="mvp-admin__empty">Brak kandydatów.</p>

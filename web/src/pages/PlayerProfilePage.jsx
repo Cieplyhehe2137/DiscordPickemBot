@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventPlayerProfile } from "../lib/api.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function PlayerProfilePage() {
   const { slug, userId } = useParams();
@@ -58,7 +59,7 @@ function PlayerProfilePage() {
   }, [realtimeRefresh, slug, userId]);
 
   if (loading) {
-    return <p>Ładowanie profilu...</p>;
+    return <Ladowanie>Ładowanie profilu...</Ladowanie>;
   }
 
   if (error) {

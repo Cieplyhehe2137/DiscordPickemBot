@@ -6,6 +6,7 @@ import { getPlayinPickem, savePlayinPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PhaseResults from "../components/PhaseResults.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function PlayinPickemPage() {
   const { slug } = useParams();
@@ -51,7 +52,7 @@ function PlayinPickemPage() {
   }, [slug]);
 
   if (loading) {
-    return <p>Ładowanie Play-In Pick'Em...</p>;
+    return <Ladowanie>Ładowanie Play-In Pick'Em...</Ladowanie>;
   }
 
   if (error) {

@@ -13,6 +13,7 @@ import {
 } from "../lib/api.js";
 import { getMapLabel } from "../lib/mapLabels.js";
 import BackLink from "../components/BackLink.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function validateCs2Score(a, b) {
   const scoreA = Number(a);
@@ -863,7 +864,7 @@ function MatchPage() {
 
         <h1>Typowanie meczu</h1>
 
-        {loading && <p>Ładowanie meczu...</p>}
+        {loading && <Ladowanie>Ładowanie meczu...</Ladowanie>}
 
         {!loading && error && <p>{error}</p>}
 

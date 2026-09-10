@@ -4,6 +4,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { getMyEventPredictions } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import { getMapLabel } from "../lib/mapLabels.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 const PHASES = [
   {
@@ -118,7 +119,7 @@ function MyPicksPage() {
         ))}
       </div>
 
-      {loading && <p>Ładowanie typów...</p>}
+      {loading && <Ladowanie>Ładowanie typów...</Ladowanie>}
 
       {error && <p className="admin-feedback admin-feedback--error">{error}</p>}
 

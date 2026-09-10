@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { getMyStats } from "../lib/api.js";
 import socket from "../lib/socket.js";
 import BackLink from "../components/BackLink.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 const TABS = [
   { key: "general", label: "📊 Ogólne" },
@@ -83,7 +84,7 @@ function MyStatsPage() {
   if (loading) {
     return (
       <main className="my-stats-page">
-        <p>Ładowanie statystyk...</p>
+        <Ladowanie>Ładowanie statystyk...</Ladowanie>
       </main>
     );
   }

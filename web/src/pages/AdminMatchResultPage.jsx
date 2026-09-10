@@ -5,6 +5,7 @@ import { apiRequest, getMatch, getMatchExactResult } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import { isAdminAnywhere } from "../lib/permissions.js";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function validateCs2Score(a, b) {
   const scoreA = Number(a);
@@ -328,7 +329,7 @@ function AdminMatchResultPage() {
   if (mozeBycAdmin && dostep === "sprawdzanie") {
     return (
       <main className="admin-result-page">
-        <p>Ładowanie meczu...</p>
+        <Ladowanie>Ładowanie meczu...</Ladowanie>
       </main>
     );
   }

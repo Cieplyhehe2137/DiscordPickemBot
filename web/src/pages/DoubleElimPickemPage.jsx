@@ -6,6 +6,7 @@ import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
+import Ladowanie from "../components/Ladowanie.jsx";
 
 function DoubleElimPickemPage() {
   const { slug } = useParams();
@@ -104,7 +105,7 @@ function DoubleElimPickemPage() {
   }
 
   if (loading) {
-    return <p>Ładowanie Double Elimination Pick'Em...</p>;
+    return <Ladowanie>Ładowanie Double Elimination Pick'Em...</Ladowanie>;
   }
 
   if (error) {
