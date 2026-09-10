@@ -5465,6 +5465,14 @@ p {
   color: #fde047;
 }
 
+/* Mecz jest juz po czasie, a typu nie ma - stan neutralny, nie wezwanie
+   do dzialania, bo nie da sie juz nic wytypowac. */
+.match-card__prediction-status--missed {
+  border: 1px solid var(--linia);
+  background: var(--tlo-mocniejsze);
+  color: var(--tekst-slaby);
+}
+
 .match-card__prediction-status--empty {
   border: 1px solid rgba(124, 58, 237, 0.28);
   background: rgba(124, 58, 237, 0.08);

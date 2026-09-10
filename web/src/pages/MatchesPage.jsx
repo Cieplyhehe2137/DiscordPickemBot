@@ -103,12 +103,17 @@ function MatchesPage() {
           className: "partial",
         };
 
-      default:
-        return {
-          icon: "🎮",
-          label: "Do wytypowania",
-          className: "empty",
-        };
+      default: {
+        // Brak typu znaczy co innego przed meczem i po nim. Plakietka patrzyła
+        // wyłącznie na prediction_status, więc na rozstrzygniętym meczu wołała
+        // "Do wytypowania" tuż nad stopką z napisem "Mecz zakończony".
+        const juzPoCzasie =
+          match.ui_status === "FINAL" || match.predictions_allowed === false;
+
+        return juzPoCzasie
+          ? { icon: "➖", label: "Bez typu", className: "missed" }
+          : { icon: "🎮", label: "Do wytypowania", className: "empty" };
+      }
     }
   }
 
