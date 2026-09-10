@@ -1049,6 +1049,53 @@ app.get("/api/events/active", async (req, res) => {
 //
 // CAST + COLLATE w kazdej galezi UNION, bo user_id ma rozne kolacje
 // w roznych tabelach i inaczej leci ER_CANT_AGGREGATE_NCOLLATIONS.
+//
+// Nazwa gracza zapamietana przy typowaniu.
+//
+// user_profiles ma wiersz tylko dla osob, ktore logowaly sie na stronie.
+// Kto typowal wylacznie z Discorda, tam go nie ma - i bez tego zapasu
+// zamiast nicku wychodzi surowe user_id. Tabele faz zapisuja nazwe razem
+// z typem i przezywaja archiwizacje turnieju.
+//
+// Tu chodzi o jednego gracza, wiec kazda galaz ma LIMIT 1 - w rankingu
+// to samo robi zlaczenie po calej liscie.
+async function nazwaZTypow(eventId, userId) {
+  const TABELE = [
+    "swiss_predictions",
+    "swiss_scores",
+    "playoffs_predictions",
+    "playoffs_scores",
+    "playin_predictions",
+    "playin_scores",
+    "doubleelim_predictions",
+    "doubleelim_scores",
+  ];
+
+  // Kazda galaz w nawiasach - bez nich MySQL nie przyjmuje LIMIT wewnatrz
+  // skladnika UNION i wywala blad skladni.
+  const galezie = TABELE.map(
+    (tabela) => `
+      (SELECT CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4)
+                COLLATE utf8mb4_unicode_ci AS nazwa
+         FROM \`${tabela}\`
+        WHERE event_id = ?
+          AND CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci = ?
+          AND COALESCE(displayname, username) IS NOT NULL
+        LIMIT 1)`,
+  ).join(" UNION ALL ");
+
+  const parametry = [];
+
+  for (const _ of TABELE) parametry.push(eventId, String(userId));
+
+  const [wiersze] = await pool.query(
+    `SELECT nazwa FROM ( ${galezie} ) zrodla WHERE nazwa IS NOT NULL LIMIT 1`,
+    parametry,
+  );
+
+  return wiersze[0]?.nazwa || null;
+}
+
 async function policzUczestnikow(eventId) {
   const [[wiersz]] = await pool.query(
     `
@@ -9820,6 +9867,13 @@ app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
       [userId],
     );
 
+    // Dopiero gdy profilu nie ma - nie ma po co odpytywac osmiu tabel faz
+    // dla kogos, kto logowal sie na stronie i ma tam swoja nazwe.
+    const nazwaZapasowa =
+      userProfile?.displayname || userProfile?.username
+        ? null
+        : await nazwaZTypow(event.id, userId);
+
     /*
      * Punkty dla tego eventu.
      * match_points może mieć kilka rekordów dla jednego meczu,
@@ -9972,11 +10026,13 @@ app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
      */
     const [[rankRow]] = await pool.query(
       `
-  SELECT ranked.rank_position
+  SELECT ranked.rank_position, ranked.total_points
   FROM (
     SELECT
       CAST(user_id AS CHAR CHARACTER SET utf8mb4)
         COLLATE utf8mb4_unicode_ci AS user_id,
+
+      COALESCE(total_points, 0) AS total_points,
 
       ROW_NUMBER() OVER (
         ORDER BY
@@ -9994,6 +10050,10 @@ app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
   `,
       [event.id, userId],
     );
+
+    // Miejsce i punkty musza pochodzic z tego samego zrodla, inaczej
+    // sasiadujace kafelki potrafia sobie zaprzeczyc.
+    const punktyKlasyfikacji = rankRow ? Number(rankRow.total_points || 0) : 0;
 
     const totalPredictions = Number(predictionStats?.finished_predictions || 0);
 
@@ -10672,7 +10732,10 @@ app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
         }),
 
         displayname:
-          userProfile?.displayname || userProfile?.username || userId,
+          userProfile?.displayname ||
+          userProfile?.username ||
+          nazwaZapasowa ||
+          userId,
 
         avatar: userProfile?.avatar || null,
 
@@ -10680,7 +10743,12 @@ app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
         // co front pokazuje jako "-", zamiast zmyslac pozycje.
         rank: rankRow ? Number(rankRow.rank_position) : null,
 
-        total_points: Number(pointsStats?.total_points || 0),
+        // Suma z tabeli `leaderboard`, czyli ta sama, ktora pokazuje ranking
+        // i ktora decyduje o miejscu tuz obok. Wczesniej szla tu wylacznie
+        // suma match_points, wiec gracz z turnieju bez typowania meczow
+        // ogladal "Ranking #193" nad "Punkty 0", choc w rankingu mial 15.
+        // Rozbicie na serie i mapy nizej zostaje meczowe - tam to ma sens.
+        total_points: punktyKlasyfikacji,
 
         series_points: Number(pointsStats?.series_points || 0),
 
