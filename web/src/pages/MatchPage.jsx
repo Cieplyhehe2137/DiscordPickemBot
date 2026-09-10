@@ -844,9 +844,8 @@ function MatchPage() {
     try {
       setSaving(true);
 
-      const data = await saveMatchPrediction(match.id, payload);
+      await saveMatchPrediction(match.id, payload);
 
-      console.log(`BO${bestOf} SAVE RESPONSE:`, data);
       setSaveMessage("Typ zapisany.");
     } catch (err) {
       console.error(`BO${bestOf} SAVE ERROR:`, err);

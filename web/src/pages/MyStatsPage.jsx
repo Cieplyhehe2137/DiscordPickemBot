@@ -64,8 +64,6 @@ function MyStatsPage() {
     loadStats();
 
     function handleStatsUpdate(payload) {
-      console.log("DASHBOARD REFRESH -> MY STATS:", payload);
-
       if (payload?.event_slug && payload.event_slug !== slug) {
         return;
       }

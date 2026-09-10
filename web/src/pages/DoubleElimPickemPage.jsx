@@ -48,7 +48,6 @@ function DoubleElimPickemPage() {
 
         const response = await getDoubleElimPickem(slug);
 
-        console.log("DOUBLE ELIM PICKEM:", response);
         setData(response);
         if (response.prediction) {
           setUpperFinalA(response.prediction.upper_final_a || []);

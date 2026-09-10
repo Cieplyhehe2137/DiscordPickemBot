@@ -15,8 +15,6 @@ function AppLayout() {
 
   useEffect(() => {
     function handleDashboardRefresh(payload) {
-      console.log("DASHBOARD REFRESH:", payload);
-
       setRealtimeRefresh((current) => ({
         version: current.version + 1,
         payload: payload ?? null,

@@ -37,7 +37,6 @@ function SwissPickemPage() {
 
         const response = await getSwissPickem(slug, stage);
 
-        console.log("SWISS PICKEM:", response);
         setData(response);
         if (response.prediction) {
           setThreeZero(response.prediction.three_zero || []);

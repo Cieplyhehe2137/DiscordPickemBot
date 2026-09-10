@@ -31,8 +31,6 @@ function PlayerProfilePage() {
     loadProfile();
   }, [slug, userId]);
 
-  console.log("PLAYER PROFILE:", profile);
-
   useEffect(() => {
     if (!realtimeRefresh?.version) {
       return;
