@@ -1,0 +1,6 @@
+# Cloudflare Pages: każda ścieżka, która nie jest plikiem, ma dostać
+# index.html, bo trasy obsługuje React Router po stronie klienta.
+# Bez tego wejście wprost na /events/cos albo odświeżenie daje 404.
+#
+# Kod 200, nie 301 - adres w pasku ma zostać, żeby router go odczytał.
+/*    /index.html   200

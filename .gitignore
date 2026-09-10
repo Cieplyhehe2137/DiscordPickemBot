@@ -38,6 +38,7 @@ config/*.local*
 config/*.env
 !config/*.env.example
 !server/.env.example
+!web/.env.example
 
 
 .env
