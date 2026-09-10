@@ -3,6 +3,8 @@ const {
   computeMapPoints,
 } = require("../utils/matchScoring");
 
+const rebuildEventLeaderboard = require("./rebuildEventLeaderboard");
+
 module.exports = async function recalculateMatchPoints(
   pool,
   guildId,
@@ -165,28 +167,38 @@ module.exports = async function recalculateMatchPoints(
     values.push([guildId, eventId, matchId, userId, points, "map"]);
   }
 
-  if (!values.length) return;
-
   /* =========================
      SAVE
   ========================= */
 
-  await pool.query(
-    `
-    INSERT INTO match_points
-      (
-        guild_id,
-        event_id,
-        match_id,
-        user_id,
-        points,
-        source
-      )
-    VALUES ?
-    ON DUPLICATE KEY UPDATE
-      points = VALUES(points),
-      computed_at = CURRENT_TIMESTAMP
-    `,
-    [values],
-  );
+  if (values.length) {
+    await pool.query(
+      `
+      INSERT INTO match_points
+        (
+          guild_id,
+          event_id,
+          match_id,
+          user_id,
+          points,
+          source
+        )
+      VALUES ?
+      ON DUPLICATE KEY UPDATE
+        points = VALUES(points),
+        computed_at = CURRENT_TIMESTAMP
+      `,
+      [values],
+    );
+  }
+
+  /* =========================
+     LEADERBOARD
+  ========================= */
+
+  // Musi być poza `if (values.length)`: skasowanie wyniku albo cofnięcie typów
+  // zeruje match_points dla meczu i wtedy `values` jest puste, a klasyfikacja
+  // i tak wymaga odświeżenia - inaczej zostałaby z punktami, których już nic
+  // nie pokrywa.
+  await rebuildEventLeaderboard(pool, guildId, eventId);
 };

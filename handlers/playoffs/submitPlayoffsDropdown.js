@@ -2,9 +2,11 @@
 
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo } = require("../../utils/logger");
-const sendPredictionEmbed = require("../../utils/sendPredictionEmbeds");
 
-const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  assertPredictionsAllowed,
+  assertPickemOpen,
+} = require("../../utils/protectionsGuards");
 
 const {
   getDraft,
@@ -173,7 +175,8 @@ module.exports = async (interaction) => {
     // PHASE GATE
     // ==================================================
 
-    const gate = await assertPredictionsAllowed({
+    const gate = await assertPickemOpen({
+      pool,
       guildId,
       kind: "PLAYOFFS",
     });
@@ -380,16 +383,16 @@ module.exports = async (interaction) => {
       userId,
     });
 
-    // ==================================================
-    // PREDICTION EMBED
-    // ==================================================
-
-    await sendPredictionEmbed(interaction.client, guildId, "playoffs", userId, {
-      semifinalists: picks.semifinalists,
-      finalists: picks.finalists,
-      winner,
-      third_place_winner: thirdPick[0] || null,
-    });
+    // Publikacja typu na kanale została usunięta świadomie.
+    //
+    // Robiły to wyłącznie Playoffs - Swiss, Play-In i Double Elim nigdy nie
+    // publikowały, a panel WWW nie ma jak (serwer API nie trzyma klienta
+    // Discorda). Ten sam typ zapisany przez WWW nie pojawiał się więc nigdzie,
+    // a zapisany na Discordzie owszem. Teraz żadna faza nie publikuje i obie
+    // strony zachowują się tak samo.
+    //
+    // Przy okazji: wysyłanie cudzych typów na kanał przed deadline'em pozwala
+    // je po prostu przepisać.
 
     return interaction.editReply({
       content: "✅ Twoje typy Playoffs zostały zapisane!",

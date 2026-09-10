@@ -10,6 +10,8 @@ const {
   computeMapPoints,
 } = require("../../utils/matchScoring");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
+const rebuildEventLeaderboard = require("../../services/rebuildEventLeaderboard");
+const SCORING = require("../../rules/scoring");
 
 function logInfo(scope, message, meta = {}) {
   baseLogInfo(message, {
@@ -263,15 +265,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           let score = 0;
 
           cleanList(p.pick_3_0).forEach((t) => {
-            if (correct30.includes(t)) score += 4;
+            if (correct30.includes(t)) score += SCORING.SWISS.PICK_3_0;
           });
 
           cleanList(p.pick_0_3).forEach((t) => {
-            if (correct03.includes(t)) score += 4;
+            if (correct03.includes(t)) score += SCORING.SWISS.PICK_0_3;
           });
 
           cleanList(p.advancing).forEach((t) => {
-            if (correctAdv.includes(t)) score += 2;
+            if (correctAdv.includes(t)) score += SCORING.SWISS.ADVANCING;
           });
 
           scoreRows.push([
@@ -351,16 +353,26 @@ module.exports = async function calculateScores(guildId, eventId) {
 
           cleanList(p.semifinalists).forEach((t) => {
             if (cleanList(correct.correct_semifinalists).includes(t))
-              score += 1;
+              score += SCORING.PLAYOFFS.SEMIFINALIST;
           });
 
           cleanList(p.finalists).forEach((t) => {
-            if (cleanList(correct.correct_finalists).includes(t)) score += 2;
+            if (cleanList(correct.correct_finalists).includes(t))
+              score += SCORING.PLAYOFFS.FINALIST;
           });
 
-          if (p.winner === correct.correct_winner) score += 3;
-          if (p.third_place_winner === correct.correct_third_place_winner)
-            score += 2;
+          if (p.winner === correct.correct_winner)
+            score += SCORING.PLAYOFFS.WINNER;
+
+          // Obie kolumny są NULL-owalne, a typ na 3. miejsce jest opcjonalny.
+          // Bez sprawdzenia oficjalnego wyniku porównanie NULL === NULL wypada
+          // prawdziwe i każdy, kto NIE wytypował 3. miejsca, dostawał 2 pkt w
+          // turnieju, w którym admin 3. miejsca nie wpisał.
+          if (
+            correct.correct_third_place_winner &&
+            p.third_place_winner === correct.correct_third_place_winner
+          )
+            score += SCORING.PLAYOFFS.THIRD_PLACE;
 
           scoreRows.push([
             guildId,
@@ -446,19 +458,23 @@ module.exports = async function calculateScores(guildId, eventId) {
           let score = 0;
 
           cleanList(p.upper_final_a).forEach((t) => {
-            if (cleanList(correct.upper_final_a).includes(t)) score += 1;
+            if (cleanList(correct.upper_final_a).includes(t))
+              score += SCORING.DOUBLE_ELIM.CORRECT_PICK;
           });
 
           cleanList(p.lower_final_a).forEach((t) => {
-            if (cleanList(correct.lower_final_a).includes(t)) score += 1;
+            if (cleanList(correct.lower_final_a).includes(t))
+              score += SCORING.DOUBLE_ELIM.CORRECT_PICK;
           });
 
           cleanList(p.upper_final_b).forEach((t) => {
-            if (cleanList(correct.upper_final_b).includes(t)) score += 1;
+            if (cleanList(correct.upper_final_b).includes(t))
+              score += SCORING.DOUBLE_ELIM.CORRECT_PICK;
           });
 
           cleanList(p.lower_final_b).forEach((t) => {
-            if (cleanList(correct.lower_final_b).includes(t)) score += 1;
+            if (cleanList(correct.lower_final_b).includes(t))
+              score += SCORING.DOUBLE_ELIM.CORRECT_PICK;
           });
 
           scoreRows.push([
@@ -553,7 +569,7 @@ module.exports = async function calculateScores(guildId, eventId) {
           let score = 0;
 
           cleanList(p.teams).forEach((t) => {
-            if (correctTeams.includes(t)) score += 1;
+            if (correctTeams.includes(t)) score += SCORING.PLAY_IN.CORRECT_PICK;
           });
 
           scoreRows.push([
@@ -811,7 +827,10 @@ module.exports = async function calculateScores(guildId, eventId) {
         const scoreRows = [];
 
         for (const p of preds) {
-          const points = Number(p.candidate_id) === correctCandidateId ? 5 : 0;
+          const points =
+            Number(p.candidate_id) === correctCandidateId
+              ? SCORING.MVP.CORRECT
+              : 0;
 
           scoreRows.push([
             guildId,
@@ -855,92 +874,15 @@ module.exports = async function calculateScores(guildId, eventId) {
        GLOBAL LEADERBOARD
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM leaderboard
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId],
-      );
-
-      const [rows] = await pool.query(
-        `
-        SELECT user_id, SUM(points) AS total_points
-        FROM (
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM swiss_scores
-          WHERE guild_id = ? AND event_id = ?
-
-          UNION ALL
-
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM playoffs_scores
-          WHERE guild_id = ? AND event_id = ?
-
-          UNION ALL
-
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM doubleelim_scores
-          WHERE guild_id = ? AND event_id = ?
-
-          UNION ALL
-
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM playin_scores
-          WHERE guild_id = ? AND event_id = ?
-
-          UNION ALL
-
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM match_points
-          WHERE guild_id = ? AND event_id = ?
-
-          UNION ALL
-
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, points
-          FROM mvp_scores
-          WHERE guild_id = ? AND event_id = ?
-        ) all_points
-        GROUP BY user_id
-        `,
-        [
-          guildId,
-          eventId,
-          guildId,
-          eventId,
-          guildId,
-          eventId,
-          guildId,
-          eventId,
-          guildId,
-          eventId,
-          guildId,
-          eventId,
-        ],
-      );
-
-      if (rows.length) {
-        const insertRows = rows.map((r) => [
-          guildId,
-          eventId,
-          r.user_id,
-          r.total_points,
-        ]);
-
-        await pool.query(
-          `
-          INSERT INTO leaderboard
-            (guild_id, event_id, user_id, total_points)
-          VALUES ?
-          `,
-          [insertRows],
-        );
-      }
+      // Ta sama funkcja, którą po każdym wpisanym wyniku woła
+      // recalculateMatchPoints - dzięki temu klasyfikacja po pełnym
+      // przeliczeniu i po pojedynczym wyniku powstaje z jednego kodu.
+      const wynik = await rebuildEventLeaderboard(pool, guildId, eventId);
 
       logInfo("scores", "Leaderboard rebuilt", {
         guildId,
         eventId,
+        extra: { rows: wynik.rows ?? 0, skipped: wynik.skipped },
       });
     } catch (e) {
       logError("scores", "Leaderboard rebuild failed", {

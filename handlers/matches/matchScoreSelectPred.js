@@ -4,7 +4,7 @@ const { isMatchLocked } = require("../../utils/matchLock");
 const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
 const { withGuild } = require("../../utils/guildContext");
 const { maxMapsFromBo } = require("../../utils/mapLabels");
-const { getMatchById } = require("../../utils/matchesStore");
+const { getMatchById, hasOfficialResult } = require("../../utils/matchesStore");
 
 module.exports = async function matchScoreSelectPred(interaction) {
   try {
@@ -73,6 +73,17 @@ module.exports = async function matchScoreSelectPred(interaction) {
       if (isMatchLocked(match)) {
         return interaction.update({
           content: "🔒 Ten mecz jest zablokowany (nie można już typować).",
+          components: [],
+        });
+      }
+
+      // Ten sam warunek co w panelu WWW - mecz z oficjalnym wynikiem nie
+      // przyjmuje typów, nawet jeśli formalnie nie jest zablokowany.
+      // Sprawdzamy tu, a nie dopiero przy zapisie, żeby gracz nie wypełniał
+      // wyników map na darmo.
+      if (await hasOfficialResult(pool, guildId, match.event_id, match.id)) {
+        return interaction.update({
+          content: "🏁 Ten mecz został już zakończony — typowanie zamknięte.",
           components: [],
         });
       }

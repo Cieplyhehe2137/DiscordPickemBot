@@ -1,6 +1,5 @@
 const {
   ActionRowBuilder,
-  StringSelectMenuBuilder,
   ButtonBuilder,
   ButtonStyle,
   PermissionFlagsBits,
@@ -8,54 +7,34 @@ const {
 
 const { withGuild } = require("../../utils/guildContext");
 const adminState = require("../../utils/matchAdminState");
-const { logInfo, logWarn, logError } = require("../../utils/logger");
+const { logError } = require("../../utils/logger");
 const { getMatchById } = require("../../utils/matchesStore");
-
-function safeLabel(str) {
-  const s = String(str || "opcja");
-  return s.length > 100 ? s.slice(0, 97) + "…" : s;
-}
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
+
   return (
     perms?.has(PermissionFlagsBits.Administrator) ||
     perms?.has(PermissionFlagsBits.ManageGuild)
   );
 }
 
-function buildScoreOptions(bestOf) {
-  if (bestOf === 1)
-    return [
-      { a: 1, b: 0 },
-      { a: 0, b: 1 },
-    ];
-  if (bestOf === 3) {
-    return [
-      { a: 2, b: 0 },
-      { a: 2, b: 1 },
-      { a: 1, b: 2 },
-      { a: 0, b: 2 },
-    ];
-  }
-  return [
-    { a: 3, b: 0 },
-    { a: 3, b: 1 },
-    { a: 3, b: 2 },
-    { a: 2, b: 3 },
-    { a: 1, b: 3 },
-    { a: 0, b: 3 },
-  ];
-}
-
 module.exports = async function matchAdminMatchSelect(interaction) {
   try {
+    // ============================================
+    // GUILD
+    // ============================================
+
     if (!interaction.guildId) {
       return interaction.reply({
         content: "❌ Ta akcja działa tylko na serwerze.",
         ephemeral: true,
       });
     }
+
+    // ============================================
+    // PERMISSIONS
+    // ============================================
 
     if (!hasAdminPerms(interaction)) {
       return interaction.reply({
@@ -64,8 +43,13 @@ module.exports = async function matchAdminMatchSelect(interaction) {
       });
     }
 
+    // ============================================
+    // MATCH ID
+    // ============================================
+
     const raw = interaction.values?.[0];
     const matchId = Number(raw);
+
     if (!Number.isInteger(matchId) || matchId <= 0) {
       return interaction.update({
         content: "❌ Niepoprawny identyfikator meczu.",
@@ -73,49 +57,76 @@ module.exports = async function matchAdminMatchSelect(interaction) {
       });
     }
 
-    await withGuild(interaction, async ({ pool, guildId }) => {
-      const m = await getMatchById(pool, guildId, matchId);
+    // ============================================
+    // MATCH
+    // ============================================
 
-      if (!m) {
+    return withGuild(interaction, async ({ pool, guildId }) => {
+      const match = await getMatchById(pool, guildId, matchId);
+
+      if (!match) {
         return interaction.update({
           content: "❌ Nie znaleziono meczu lub nie należy do tego serwera.",
           components: [],
         });
       }
 
+      if (!match.event_id) {
+        return interaction.update({
+          content: "❌ Ten mecz nie ma przypisanego eventu.",
+          components: [],
+        });
+      }
+
+      const bestOf = Number(match.best_of);
+
+      if (![1, 3, 5].includes(bestOf)) {
+        return interaction.update({
+          content: `❌ Nieobsługiwany format BO${bestOf}.`,
+          components: [],
+        });
+      }
+
+      // ============================================
+      // ADMIN STATE
+      // ============================================
+
       adminState.set(guildId, interaction.user.id, {
-        matchId: m.id,
-        teamA: m.team_a,
-        teamB: m.team_b,
-        bestOf: Number(m.best_of),
+        matchId: match.id,
+        teamA: match.team_a,
+        teamB: match.team_b,
+        bestOf,
         mapNo: 1,
       });
 
-      const seriesOptions = buildScoreOptions(Number(m.best_of)).map((s) => ({
-        label: safeLabel(`${m.team_a} ${s.a}:${s.b} ${m.team_b}`),
-        value: `${m.id}|${s.a}|${s.b}`,
-      }));
+      // ============================================
+      // EXACT BUTTON
+      // ============================================
 
-      const rowSeries = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("match_admin_result_select")
-          .setPlaceholder("Wybierz oficjalny wynik serii (maps)…")
-          .addOptions(seriesOptions),
-      );
-
-      const rowExact = new ActionRowBuilder().addComponents(
+      const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId("match_admin_exact_open")
-          .setLabel("✍️ Wpisz dokładny wynik mapy (np. 13:8)")
-          .setStyle(ButtonStyle.Secondary),
+          .setLabel(
+            bestOf === 1
+              ? "✍️ Wpisz oficjalny wynik"
+              : "✍️ Wpisz wynik mapy #1",
+          )
+          .setStyle(ButtonStyle.Primary),
       );
+
+      // ============================================
+      // RESPONSE
+      // ============================================
 
       return interaction.update({
         content:
-          `🎯 Ustaw wyniki dla: **${m.team_a} vs ${m.team_b}** (BO${m.best_of})\n` +
-          `• Dropdown = **wynik serii (maps)**\n` +
-          `• Przycisk = **dokładny wynik mapy (rundy)**`,
-        components: [rowSeries, rowExact],
+          `🎯 **${match.team_a} vs ${match.team_b}** ` +
+          `(BO${bestOf})\n\n` +
+          (bestOf === 1
+            ? "Wpisz dokładny oficjalny wynik meczu, np. **13:8**."
+            : "Wpisuj dokładne wyniki map po kolei. " +
+              "Wynik całej serii zostanie wyliczony **automatycznie**."),
+        components: [row],
       });
     });
   } catch (err) {
@@ -124,11 +135,20 @@ module.exports = async function matchAdminMatchSelect(interaction) {
       stack: err.stack,
     });
 
-    return interaction
-      .reply({
+    try {
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply({
+          content: "❌ Wystąpił błąd przy wyborze meczu.",
+          components: [],
+        });
+      }
+
+      return interaction.reply({
         content: "❌ Wystąpił błąd przy wyborze meczu.",
         ephemeral: true,
-      })
-      .catch(() => {});
+      });
+    } catch (_) {
+      return null;
+    }
   }
 };

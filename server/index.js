@@ -18,16 +18,40 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const calculateScores = require("../handlers/matches/calculateScores");
-const { assertPredictionsAllowed } = require("../utils/protectionsGuards");
+const {
+  assertPredictionsAllowed,
+  normalizePhase,
+} = require("../utils/protectionsGuards");
 const guildRegistry = require("../utils/guildRegistry");
 const teamsStore = require("../utils/teamsStore");
 const matchesStore = require("../utils/matchesStore");
 const recalculateMatchPoints = require("../services/recalculateMatchPoints");
 const applyMatchResult = require("../services/applyMatchResult");
+// emitDashboardRefresh było używane w /api/events/:slug/status, ale nigdy
+// nie zostało zaimportowane - zmiana statusu turnieju zapisywała się w bazie,
+// a potem wywalała się na ReferenceError i zwracała 500.
+const { setIo, emitDashboardRefresh } = require("../utils/socket");
 const resultProposalsStore = require("../utils/resultProposalsStore");
 const { getResultProvider } = require("../utils/resultProviders");
 const { runInTransaction } = require("../utils/runInTransaction");
 const { parseMatchList } = require("../utils/parseMatchList");
+const {
+  isWinnerCorrect,
+  isSeriesExact,
+  isMapWinnerCorrect,
+  isMapExact,
+  calculateStreaks,
+  calculateRecentForm,
+  getBoStats,
+  calculateMapAccuracy,
+  calculateTeamStats,
+  calculateContrarianStats,
+  calculateCommunityAnalysis,
+  calculateTrendStats,
+  calculatePlayerStyle,
+  percentageNumber,
+} = require("../utils/playerStats");
+const { getOpenEventId } = require("../utils/getOpenEventId");
 const exportClassification = require("../handlers/admin/exportClassification");
 const { loadActiveTeams } = require("../utils/loadActiveTeams");
 const { getCurrentSwissResults } = require("../utils/swissRepository");
@@ -37,12 +61,24 @@ const {
 } = require("../utils/doubleelimRepository");
 const { getCurrentPlayinResults } = require("../utils/playinRepository");
 const { maxMapsFromBo } = require("../utils/mapLabels");
+const {
+  getEventPickemConfig,
+  setEventPickemConfig,
+  getPhaseLimits,
+  sprawdzTyp,
+  FAZY: FAZY_PICKEM,
+} = require("../utils/eventPickemConfig");
 const fs = require("fs");
 
 const restoreBackup = require("../utils/restoreBackup");
 const mysqldump = require("mysqldump");
 const { logInfo, logWarn, logError } = require("../utils/logger");
 const mysql2 = require("mysql2/promise");
+const {
+  getLockBeforeSec,
+  isMatchStarted,
+  isMatchLocked,
+} = require("../utils/matchLock");
 
 const {
   VALID_PHASES,
@@ -78,6 +114,66 @@ function assertSafeBackupFileName(fileName) {
   }
 
   return name;
+}
+
+function validateCs2Score(scoreA, scoreB) {
+  const a = Number(scoreA);
+  const b = Number(scoreB);
+
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    return false;
+  }
+
+  if (a < 0 || b < 0) {
+    return false;
+  }
+
+  if (a === b) {
+    return false;
+  }
+
+  const winner = Math.max(a, b);
+  const loser = Math.min(a, b);
+
+  if (winner === 13) {
+    return loser >= 0 && loser <= 11;
+  }
+
+  if (winner >= 16 && (winner - 16) % 3 === 0) {
+    return loser >= winner - 4 && loser <= winner - 2;
+  }
+
+  return false;
+}
+
+function validateSeriesMapOrder(mapPicks, bestOf) {
+  const winsNeeded = Math.ceil(bestOf / 2);
+
+  let winsA = 0;
+  let winsB = 0;
+
+  for (let index = 0; index < mapPicks.length; index += 1) {
+    const map = mapPicks[index];
+
+    const scoreA = Number(map.pred_exact_a);
+    const scoreB = Number(map.pred_exact_b);
+
+    if (scoreA > scoreB) {
+      winsA += 1;
+    } else if (scoreB > scoreA) {
+      winsB += 1;
+    } else {
+      return false;
+    }
+
+    const seriesFinished = winsA === winsNeeded || winsB === winsNeeded;
+
+    if (seriesFinished && index !== mapPicks.length - 1) {
+      return false;
+    }
+  }
+
+  return winsA === winsNeeded || winsB === winsNeeded;
 }
 
 async function getDatabaseTablesAndColumns(cfg) {
@@ -242,6 +338,8 @@ const io = new Server(httpServer, {
   },
 });
 
+setIo(io);
+
 io.on("connection", (socket) => {
   console.log("Frontend connected:", socket.id);
 
@@ -326,27 +424,27 @@ function requireGuildAdmin(resolveGuildId) {
     const user = req.session?.user;
 
     if (!user) {
-      return res.status(401).json({ error: "Login required" });
+      return res.status(401).json({ error: "Musisz być zalogowany." });
     }
 
     try {
       const guildId = await resolveGuildId(req);
 
       if (!guildId) {
-        return res.status(404).json({ error: "Not found" });
+        return res.status(404).json({ error: "Nie znaleziono." });
       }
 
       if (!hasAdminPermission(user, guildId)) {
         return res
           .status(403)
-          .json({ error: "Admin permission required for this server" });
+          .json({ error: "Wymagane uprawnienia administratora na tym serwerze." });
       }
 
       req.guildId = String(guildId);
       next();
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Authorization check failed" });
+      res.status(500).json({ error: "Nie udało się zweryfikować uprawnień." });
     }
   };
 }
@@ -362,13 +460,253 @@ const PICKEM_PANEL_PHASE = {
 };
 
 // matches.phase values -> active_panels.phase strings for match panels
-// (what /set_match_deadline writes; not stage-specific, same as the bot).
+// (what the match-deadline endpoint writes; not stage-specific, same as the bot).
+//
+// Kluczujemy po WYNIKU normalizePhase(), nie po surowej wartości kolumny.
+// matches.phase trzyma 'swiss_stage1' / 'playoffs' / 'doubleelim' / 'playin',
+// a wcześniejsze klucze ('SWISS', 'PLAY_IN', 'PLAYOFFS', 'DOUBLE_ELIM') nie
+// pasowały do żadnej z nich - odczyt zawsze dawał undefined, więc warunek
+// `if (matchPanelPhase)` nie wchodził w ŻADNYM z pięciu miejsc i deadline
+// meczowy nie blokował niczego po stronie WWW, mimo że na Discordzie
+// closeExpiredPanels wyłączał wtedy komponenty panelu.
 const MATCH_PANEL_PHASE = {
   SWISS: "swiss",
-  PLAY_IN: "playin",
+  SWISS_STAGE1: "swiss",
+  SWISS_STAGE2: "swiss",
+  SWISS_STAGE3: "swiss",
+  PLAYIN: "playin",
   PLAYOFFS: "playoffs",
-  DOUBLE_ELIM: "doubleelim",
+  DOUBLEELIM: "doubleelim",
 };
+
+// normalizePhase() zbija warianty zapisu ('playin' / 'play_in' / 'PLAY-IN',
+// 'doubleelim' / 'double_elim') do jednej postaci, więc stare wiersze z
+// legacy zapisem fazy trafiają tu tak samo jak nowe.
+function matchPanelPhaseFor(phase) {
+  if (!phase) return null;
+  return MATCH_PANEL_PHASE[normalizePhase(phase)] || null;
+}
+
+// ======================================================
+// KOMUNIKATY GUARDA -> WWW
+// ======================================================
+//
+// Guardy w utils/protectionsGuards.js piszą komunikaty pod Discorda: emoji na
+// początku i **pogrubienie** markdownem. API oddawało je bez zmian, a React
+// renderuje tekst dosłownie, więc gracz widział na ekranie:
+//
+//   ❌ ❌ Aktualna faza to **SWISS_STAGE1** — typowanie Play-In jest niedostępne.
+//
+// (drugie ❌ dokleja frontend). Do tego SWISS_STAGE1 to surowa wartość kolumny.
+//
+// Nie zmieniamy tekstów w guardzie, bo Discord renderuje je poprawnie -
+// czyścimy je dopiero na granicy HTTP.
+
+const NAZWY_FAZ_WWW = {
+  SWISS: "Swiss",
+  SWISS_STAGE1: "Swiss Stage 1",
+  SWISS_STAGE2: "Swiss Stage 2",
+  SWISS_STAGE3: "Swiss Stage 3",
+  PLAYOFFS: "Playoffs",
+  PLAYIN: "Play-In",
+  DOUBLEELIM: "Double Elimination",
+  MATCHES: "mecze",
+  NOT_STARTED: "nierozpoczęty",
+  UNKNOWN: "nieznana",
+};
+
+function komunikatNaWWW(tekst, zapasowy = null) {
+  if (!tekst) return zapasowy;
+
+  return (
+    String(tekst)
+      // identyfikatory faz -> nazwy czytelne dla gracza
+      .replace(/\*\*([A-Z0-9_]+)\*\*/g, (dopasowanie, faza) =>
+        NAZWY_FAZ_WWW[faza] ? NAZWY_FAZ_WWW[faza] : faza,
+      )
+      // reszta pogrubień markdownem
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      // emoji statusu na początku (Discord je potrzebuje, WWW ma własne style)
+      .replace(/^[\s\p{Extended_Pictographic}️]+/u, "")
+      .trim() || zapasowy
+  );
+}
+
+// ======================================================
+// MECZ + STAN TYPOWANIA - WSPOLNE DLA LISTY I POJEDYNCZEGO MECZU
+// ======================================================
+//
+// Strona meczu na WWW pobierala CALA liste meczow turnieju i wyszukiwala
+// w niej jeden po id, bo nie bylo publicznego endpointu pojedynczego meczu
+// (/api/matches/:matchId jest adminowy). Przy 4 meczach to niewidoczne,
+// przy 106 - kazde wejscie w mecz i kazde odswiezenie po zdarzeniu realtime
+// ciagnie pelna liste razem z per-meczowa kontrola deadline'u.
+//
+// Zapytanie i wyliczanie stanu siedza tutaj, zeby lista i pojedynczy mecz
+// nie mogly sie rozjechac - inaczej mecz otwarty na liscie moglby byc
+// zablokowany na swojej stronie albo odwrotnie.
+
+function sqlMeczeZTypem(warunek) {
+  return `
+      SELECT
+        m.id,
+        m.event_id,
+        m.guild_id,
+        m.phase,
+        m.match_no,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        m.start_time_utc,
+        m.is_locked,
+        m.lock_override,
+
+        mp.pred_a,
+        mp.pred_b,
+        mp.pred_exact_a,
+        mp.pred_exact_b,
+
+        COALESCE(mmp.saved_maps, 0) AS saved_maps,
+
+        CASE
+          WHEN mr.match_id IS NOT NULL THEN 'FINAL'
+          WHEN m.lock_override = 1 THEN 'LOCKED'
+          WHEN m.lock_override = 0 THEN 'OPEN'
+          WHEN m.is_locked = 1 THEN 'LOCKED'
+          ELSE 'OPEN'
+        END AS ui_status,
+
+        CASE
+          WHEN ? IS NULL THEN 'empty'
+
+          WHEN m.best_of = 1
+            AND mp.match_id IS NOT NULL
+            AND mp.pred_exact_a IS NOT NULL
+            AND mp.pred_exact_b IS NOT NULL
+          THEN 'complete'
+
+          WHEN m.best_of > 1
+            AND mp.match_id IS NOT NULL
+            AND COALESCE(mmp.saved_maps, 0) >= (mp.pred_a + mp.pred_b)
+          THEN 'complete'
+
+          WHEN mp.match_id IS NOT NULL
+            OR COALESCE(mmp.saved_maps, 0) > 0
+          THEN 'partial'
+
+          ELSE 'empty'
+        END AS prediction_status
+
+      FROM matches m
+
+      LEFT JOIN match_results mr
+        ON mr.match_id = m.id
+       AND mr.event_id = m.event_id
+       AND mr.guild_id = m.guild_id
+
+      LEFT JOIN match_predictions mp
+        ON mp.guild_id = m.guild_id
+       AND mp.event_id = m.event_id
+       AND mp.match_id = m.id
+       AND mp.user_id = ?
+
+      LEFT JOIN (
+        SELECT
+          guild_id,
+          event_id,
+          match_id,
+          user_id,
+          COUNT(*) AS saved_maps
+        FROM match_map_predictions
+        GROUP BY
+          guild_id,
+          event_id,
+          match_id,
+          user_id
+      ) mmp
+        ON mmp.guild_id = m.guild_id
+       AND mmp.event_id = m.event_id
+       AND mmp.match_id = m.id
+       AND mmp.user_id = ?
+
+      WHERE ${warunek}
+
+      ORDER BY
+        m.match_no ASC,
+        m.id ASC
+      `;
+}
+
+// Dolicza do wiersza meczu to, czego nie da sie policzyc w SQL:
+// globalny gate turnieju, blokade meczu i deadline meczowy fazy.
+//
+// deadlineCache trzyma obietnice per faza panelu - lista 106 meczow pyta
+// wtedy o deadline raz na faze, a nie raz na mecz.
+async function stanTypowaniaMeczu({ match, gate, guildId, deadlineCache }) {
+  const base = {
+    ...match,
+    saved_maps: Number(match.saved_maps || 0),
+  };
+
+  if (match.ui_status === "FINAL") {
+    return {
+      ...base,
+      predictions_allowed: false,
+      lock_reason: "Mecz został zakończony.",
+      ui_status: "FINAL",
+    };
+  }
+
+  if (!gate.allowed) {
+    return {
+      ...base,
+      predictions_allowed: false,
+      lock_reason: komunikatNaWWW(
+        gate.message,
+        "Typowanie meczów jest aktualnie zamknięte.",
+      ),
+      ui_status: "LOCKED",
+    };
+  }
+
+  if (isMatchLocked(match)) {
+    return {
+      ...base,
+      predictions_allowed: false,
+      lock_reason: "Mecz jest zablokowany.",
+      ui_status: "LOCKED",
+    };
+  }
+
+  const matchPanelPhase = matchPanelPhaseFor(match.phase);
+
+  if (matchPanelPhase) {
+    if (!deadlineCache.has(matchPanelPhase)) {
+      deadlineCache.set(
+        matchPanelPhase,
+        isMatchDeadlinePassed(pool, guildId, matchPanelPhase),
+      );
+    }
+
+    const { passed } = await deadlineCache.get(matchPanelPhase);
+
+    if (passed) {
+      return {
+        ...base,
+        predictions_allowed: false,
+        lock_reason: "Deadline typowania wyników meczów dla tej fazy minął.",
+        ui_status: "LOCKED",
+      };
+    }
+  }
+
+  return {
+    ...base,
+    predictions_allowed: true,
+    lock_reason: null,
+    ui_status: "OPEN",
+  };
+}
 
 // Tournament-state gate + panel deadline gate in one place. Discord only
 // enforces deadlines by disabling message components, which the web API
@@ -520,12 +858,35 @@ app.get("/api/auth/discord/callback", async (req, res) => {
       avatar: discordUser.avatar,
       guilds: Array.isArray(discordGuilds)
         ? discordGuilds.map((g) => ({
-            id: g.id,
-            name: g.name,
-            permissions: g.permissions,
-          }))
+          id: g.id,
+          name: g.name,
+          permissions: g.permissions,
+        }))
         : [],
     };
+
+    await pool.query(
+      `
+  INSERT INTO user_profiles (
+    user_id,
+    username,
+    displayname,
+    avatar
+  )
+  VALUES (?, ?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    username = VALUES(username),
+    displayname = VALUES(displayname),
+    avatar = VALUES(avatar),
+    updated_at = CURRENT_TIMESTAMP
+  `,
+      [
+        discordUser.id,
+        discordUser.username,
+        discordUser.global_name || discordUser.username,
+        discordUser.avatar,
+      ],
+    );
 
     req.session.save((err) => {
       if (err) {
@@ -622,9 +983,45 @@ app.get("/api/events/active", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "DB error" });
+    res.status(500).json({ error: "Błąd bazy danych." });
   }
 });
+
+// Ilu graczy w ogole wzielo udzial w evencie.
+//
+// Wczesniej liczyla to sama tabela match_predictions, wiec ktos, kto typowal
+// tylko druzyny (Swiss, Playoffs, Play-In, Double Elim), a nie typowal
+// meczow, nie liczyl sie jako uczestnik. Odkad typowanie druzyn jest osobnym
+// bytem podpietym do eventu, to juz nie jest przypadek brzegowy.
+//
+// CAST + COLLATE w kazdej galezi UNION, bo user_id ma rozne kolacje
+// w roznych tabelach i inaczej leci ER_CANT_AGGREGATE_NCOLLATIONS.
+async function policzUczestnikow(eventId) {
+  const [[wiersz]] = await pool.query(
+    `
+    SELECT COUNT(DISTINCT user_id) AS uczestnicy
+    FROM (
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id
+        FROM match_predictions WHERE event_id = ?
+      UNION
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM swiss_predictions WHERE event_id = ?
+      UNION
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playoffs_predictions WHERE event_id = ?
+      UNION
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM playin_predictions WHERE event_id = ?
+      UNION
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+        FROM doubleelim_predictions WHERE event_id = ?
+    ) typujacy
+    `,
+    [eventId, eventId, eventId, eventId, eventId],
+  );
+
+  return Number(wiersz?.uczestnicy || 0);
+}
 
 app.get("/api/events/:slug/summary", async (req, res) => {
   try {
@@ -648,7 +1045,7 @@ app.get("/api/events/:slug/summary", async (req, res) => {
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
@@ -664,23 +1061,74 @@ app.get("/api/events/:slug/summary", async (req, res) => {
 
     const [[predictionStats]] = await pool.query(
       `
-      SELECT
-        COUNT(DISTINCT user_id) AS participants,
-        COUNT(*) AS predictions
+      SELECT COUNT(*) AS predictions
       FROM match_predictions
       WHERE event_id = ?
       `,
       [event.id],
     );
 
+    const uczestnicy = await policzUczestnikow(event.id);
+
+    const user = req.session?.user;
+
+    let myPredictions = 0;
+
+    if (user) {
+      const [[myPredictionStats]] = await pool.query(
+        `
+    SELECT COUNT(*) AS predictions
+    FROM match_predictions
+    WHERE event_id = ?
+      AND user_id = ?
+    `,
+        [event.id, user.id],
+      );
+
+      myPredictions = myPredictionStats?.predictions || 0;
+    }
+
     const [[statusStats]] = await pool.query(
       `
   SELECT
     COUNT(*) AS total,
-    SUM(is_locked = 1) AS locked_matches,
-    SUM(is_locked = 0) AS scheduled_matches
-  FROM matches
-  WHERE event_id = ?
+
+    SUM(
+      mr.match_id IS NOT NULL
+    ) AS finished_matches,
+
+    SUM(
+      mr.match_id IS NULL
+      AND m.start_time_utc IS NOT NULL
+      AND m.start_time_utc <= UTC_TIMESTAMP()
+    ) AS live_matches,
+
+SUM(
+  mr.match_id IS NULL
+  AND m.is_locked = 1
+  AND (
+    m.start_time_utc IS NULL
+    OR m.start_time_utc > UTC_TIMESTAMP()
+  )
+) AS locked_matches,
+
+    SUM(
+      mr.match_id IS NULL
+      AND m.is_locked = 0
+      AND (
+        m.start_time_utc IS NULL
+        OR m.start_time_utc > UTC_TIMESTAMP()
+      )
+    ) AS scheduled_matches
+
+  FROM matches m
+
+  LEFT JOIN match_results mr
+    ON mr.match_id = m.id
+   AND mr.event_id = m.event_id
+   AND mr.guild_id = m.guild_id
+
+  WHERE m.event_id = ?
   `,
       [event.id],
     );
@@ -688,34 +1136,250 @@ app.get("/api/events/:slug/summary", async (req, res) => {
     const [[nextMatch]] = await pool.query(
       `
   SELECT
-    id,
-    phase,
-    team_a,
-    team_b,
-    best_of,
-    start_time_utc,
-    is_locked
-  FROM matches
-  WHERE event_id = ?
-    AND start_time_utc IS NOT NULL
-    AND start_time_utc >= UTC_TIMESTAMP()
-  ORDER BY start_time_utc ASC
+    m.id,
+    m.phase,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    m.start_time_utc,
+    m.is_locked
+  FROM matches m
+  LEFT JOIN match_results mr
+    ON mr.match_id = m.id
+   AND mr.event_id = m.event_id
+   AND mr.guild_id = m.guild_id
+  WHERE m.event_id = ?
+    AND m.start_time_utc IS NOT NULL
+    AND m.start_time_utc >= UTC_TIMESTAMP()
+    AND mr.match_id IS NULL
+  ORDER BY m.start_time_utc ASC
   LIMIT 1
   `,
       [event.id],
     );
 
+    const [phaseRows] = await pool.query(
+      `
+  SELECT DISTINCT phase
+  FROM matches
+  WHERE event_id = ?
+    AND phase IS NOT NULL
+  `,
+      [event.id],
+    );
+
+    // Które fazy Pick'Em ten turniej FAKTYCZNIE ma.
+    //
+    // Strona eventu linkowała na sztywno wszystkie sześć (Swiss 1/2/3,
+    // Play-In, Playoffs, Double Elim) niezależnie od formatu, więc turniej
+    // bez Play-In i tak go pokazywał, a kliknięcie prowadziło na stronę
+    // z komunikatem o niedostępności.
+    //
+    // active_panels nie nadaje się na źródło - nie ma event_id, jest per
+    // gildia, a po zamknięciu panelu wiersz i tak przestaje być aktywny.
+    // Bierzemy więc ślady w danych: mecze, typy graczy i wpisane wyniki.
+    // Dzięki temu zakończony turniej nadal pokazuje swoje fazy.
+    // Kto pyta - potrzebne, żeby powiedzieć "już wytypowałeś tę fazę".
+    const userId = req.session?.user?.id || null;
+
+    const [
+      [swissStages],
+      [pozostaleFazy],
+      [swissZWynikiem],
+      [inneZWynikiem],
+      [swissMojeTypy],
+      [inneMojeTypy],
+    ] = await Promise.all([
+      pool.query(
+        `
+        SELECT DISTINCT stage FROM swiss_predictions
+         WHERE event_id = ? AND stage IS NOT NULL
+        UNION
+        SELECT DISTINCT stage FROM swiss_results
+         WHERE event_id = ? AND stage IS NOT NULL
+        `,
+        [event.id, event.id],
+      ),
+      pool.query(
+        `
+        SELECT
+          (SELECT COUNT(*) FROM playoffs_predictions WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM playoffs_results     WHERE event_id = ?) AS playoffs,
+          (SELECT COUNT(*) FROM playin_predictions   WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM playin_results       WHERE event_id = ?) AS playin,
+          (SELECT COUNT(*) FROM doubleelim_predictions WHERE event_id = ?)
+        + (SELECT COUNT(*) FROM doubleelim_results     WHERE event_id = ?) AS doubleelim
+        `,
+        [event.id, event.id, event.id, event.id, event.id, event.id],
+      ),
+
+      // Które fazy mają już OPUBLIKOWANY oficjalny wynik (nie tylko typy).
+      pool.query(
+        `SELECT DISTINCT stage FROM swiss_results
+          WHERE event_id = ? AND active = 1 AND stage IS NOT NULL`,
+        [event.id],
+      ),
+      pool.query(
+        `SELECT
+           (SELECT COUNT(*) FROM playoffs_results   WHERE event_id = ? AND active = 1) AS playoffs,
+           (SELECT COUNT(*) FROM playin_results     WHERE event_id = ? AND active = 1) AS playin,
+           (SELECT COUNT(*) FROM doubleelim_results WHERE event_id = ? AND active = 1) AS doubleelim`,
+        [event.id, event.id, event.id],
+      ),
+
+      // Czy pytający ma już zapisany typ w danej fazie.
+      userId
+        ? pool.query(
+            `SELECT DISTINCT stage FROM swiss_predictions
+              WHERE event_id = ? AND user_id = ? AND stage IS NOT NULL`,
+            [event.id, userId],
+          )
+        : Promise.resolve([[]]),
+      userId
+        ? pool.query(
+            `SELECT
+               (SELECT COUNT(*) FROM playoffs_predictions   WHERE event_id = ? AND user_id = ?) AS playoffs,
+               (SELECT COUNT(*) FROM playin_predictions     WHERE event_id = ? AND user_id = ?) AS playin,
+               (SELECT COUNT(*) FROM doubleelim_predictions WHERE event_id = ? AND user_id = ?) AS doubleelim`,
+            [event.id, userId, event.id, userId, event.id, userId],
+          )
+        : Promise.resolve([[{}]]),
+    ]);
+
+    const fazyPickem = new Set();
+
+    // Fazy wynikające z meczów (matches.phase -> klucz trasy frontu).
+    for (const row of phaseRows) {
+      const znormalizowana = normalizePhase(row.phase);
+
+      // Starsze mecze mają fazę "SWISS" bez numeru etapu - z czasów sprzed
+      // podziału na stage1/2/3. Traktujemy je jak Stage 1, bo tam trafiały
+      // ich typy; inaczej stary turniej nie pokazałby żadnej fazy Swiss.
+      if (znormalizowana === "SWISS") fazyPickem.add("stage1");
+
+      if (znormalizowana === "SWISS_STAGE1") fazyPickem.add("stage1");
+      if (znormalizowana === "SWISS_STAGE2") fazyPickem.add("stage2");
+      if (znormalizowana === "SWISS_STAGE3") fazyPickem.add("stage3");
+      if (znormalizowana === "PLAYOFFS") fazyPickem.add("playoffs");
+      if (znormalizowana === "PLAYIN") fazyPickem.add("playin");
+      if (znormalizowana === "DOUBLEELIM") fazyPickem.add("doubleelim");
+    }
+
+    for (const row of swissStages) {
+      if (["stage1", "stage2", "stage3"].includes(row.stage)) {
+        fazyPickem.add(row.stage);
+      }
+    }
+
+    const liczniki = pozostaleFazy[0] || {};
+    if (Number(liczniki.playoffs) > 0) fazyPickem.add("playoffs");
+    if (Number(liczniki.playin) > 0) fazyPickem.add("playin");
+    if (Number(liczniki.doubleelim) > 0) fazyPickem.add("doubleelim");
+
+    // Faza, w której turniej jest teraz - nawet jeśli nikt jeszcze nie typował
+    // i nie ma jeszcze meczów. Bez tego świeżo otwarta faza nie miałaby linku.
+    const biezaca = normalizePhase(event.phase);
+    const MAPA_BIEZACEJ = {
+      SWISS_STAGE1: "stage1",
+      SWISS_STAGE2: "stage2",
+      SWISS_STAGE3: "stage3",
+      PLAYOFFS: "playoffs",
+      PLAYIN: "playin",
+      DOUBLEELIM: "doubleelim",
+    };
+    if (MAPA_BIEZACEJ[biezaca]) fazyPickem.add(MAPA_BIEZACEJ[biezaca]);
+
+    const KOLEJNOSC = [
+      "stage1",
+      "stage2",
+      "stage3",
+      "playin",
+      "playoffs",
+      "doubleelim",
+    ];
+
+    // Konfiguracja typowania DRUŻYN dla tego eventu.
+    //
+    // Gdy admin ją zapisał, ona decyduje o zestawie faz. Gdy nie (starsze
+    // turnieje), zostaje wyznaczenie po śladach w danych - inaczej event
+    // sprzed tej funkcji nagle nie miałby żadnej fazy.
+    const konfiguracja = await getEventPickemConfig(pool, event.guild_id, event.id);
+
+    if (konfiguracja.skonfigurowany) {
+      fazyPickem.clear();
+
+      for (const faza of KOLEJNOSC) {
+        if (konfiguracja.fazy[faza]?.enabled) fazyPickem.add(faza);
+      }
+    }
+
+    // Które fazy mają opublikowany wynik i w których pytający już typował.
+    const zWynikiem = new Set(
+      swissZWynikiem.map((r) => r.stage).filter(Boolean),
+    );
+    const licznikiWynikow = inneZWynikiem[0] || {};
+    if (Number(licznikiWynikow.playoffs) > 0) zWynikiem.add("playoffs");
+    if (Number(licznikiWynikow.playin) > 0) zWynikiem.add("playin");
+    if (Number(licznikiWynikow.doubleelim) > 0) zWynikiem.add("doubleelim");
+
+    const mojeTypy = new Set(swissMojeTypy.map((r) => r.stage).filter(Boolean));
+    const licznikiTypow = inneMojeTypy[0] || {};
+    if (Number(licznikiTypow.playoffs) > 0) mojeTypy.add("playoffs");
+    if (Number(licznikiTypow.playin) > 0) mojeTypy.add("playin");
+    if (Number(licznikiTypow.doubleelim) > 0) mojeTypy.add("doubleelim");
+
+    const fazaAktywna = MAPA_BIEZACEJ[biezaca] || null;
+
+    // Typowanie drużyn jest otwarte tylko w bieżącej fazie i tylko przed
+    // deadline'em - pickemGate sprawdza jedno i drugie, tak samo jak zapis.
+    let typowanieOtwarte = false;
+
+    // pickemGate pyta o AKTUALNIE OTWARTY event gildii, nie o ten z URL-a.
+    // Bez tego porównania zamknięty turniej, którego faza zgadza się z fazą
+    // trwającego turnieju, raportował "typowanie otwarte" i front pokazywałby
+    // na historycznym evencie przycisk "Typuj teraz".
+    const otwartyEventId = await getOpenEventId(pool, event.guild_id);
+    const toBiezacyEvent =
+      otwartyEventId && Number(otwartyEventId) === Number(event.id);
+
+    if (toBiezacyEvent && fazaAktywna && fazyPickem.has(fazaAktywna)) {
+      const rodzaj = fazaAktywna.startsWith("stage")
+        ? "SWISS"
+        : fazaAktywna.toUpperCase();
+
+      const bramka = await pickemGate(
+        event.guild_id,
+        rodzaj,
+        fazaAktywna.startsWith("stage") ? fazaAktywna : null,
+      );
+
+      typowanieOtwarte = Boolean(bramka.allowed);
+    }
+
+    const fazyZeStatusem = KOLEJNOSC.filter((faza) => fazyPickem.has(faza)).map(
+      (faza) => ({
+        faza,
+        aktywna: faza === fazaAktywna,
+        // "otwarta" = da się teraz zapisać typ. Tylko bieżąca faza i tylko
+        // przed deadline'em; reszta jest do oglądania.
+        otwarta: faza === fazaAktywna && typowanieOtwarte,
+        wynikOpublikowany: zWynikiem.has(faza),
+        mamTyp: mojeTypy.has(faza),
+        limity: konfiguracja.fazy[faza]?.limity || null,
+      }),
+    );
+
     res.json({
       event,
       stats: {
-        participants: predictionStats?.participants || 0,
+        participants: uczestnicy,
         predictions: predictionStats?.predictions || 0,
         matches: matchStats?.total_matches || 0,
       },
       match_status: {
         total: statusStats?.total || 0,
-        live: 0,
-        finished: 0,
+        live: statusStats?.live_matches || 0,
+        finished: statusStats?.finished_matches || 0,
         locked: statusStats?.locked_matches || 0,
         scheduled: statusStats?.scheduled_matches || 0,
       },
@@ -724,13 +1388,28 @@ app.get("/api/events/:slug/summary", async (req, res) => {
       phase_info: {
         current: event.phase,
         status: event.status,
+        available: phaseRows.map((row) => row.phase),
+
+        // Klucze tras frontu (stage1 / playin / playoffs / doubleelim)
+        // dla faz, które ten turniej realnie ma.
+        pickem: KOLEJNOSC.filter((faza) => fazyPickem.has(faza)),
+      },
+
+      // Typowanie DRUŻYN - osobny byt od typowania meczów, przypisany
+      // do tego eventu. Front używa tego, żeby prowadzić gracza do fazy,
+      // w której faktycznie można teraz typować.
+      pickem_druzyn: {
+        skonfigurowany: konfiguracja.skonfigurowany,
+        faza_aktywna: fazaAktywna,
+        typowanie_otwarte: typowanieOtwarte,
+        fazy: fazyZeStatusem,
       },
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "Błąd bazy danych.",
     });
   }
 });
@@ -738,10 +1417,11 @@ app.get("/api/events/:slug/summary", async (req, res) => {
 app.get("/api/events/:slug/matches", async (req, res) => {
   try {
     const { slug } = req.params;
+    const userId = req.session?.user?.id || null;
 
     const [[event]] = await pool.query(
       `
-      SELECT id, name, slug
+      SELECT id, name, slug, guild_id
       FROM events
       WHERE slug = ?
       LIMIT 1
@@ -750,38 +1430,90 @@ app.get("/api/events/:slug/matches", async (req, res) => {
     );
 
     if (!event) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
     }
 
+    // ============================================
+    // MECZE
+    // ============================================
+
     const [matches] = await pool.query(
-      `
-  SELECT
-    id,
-    phase,
-    match_no,
-    team_a,
-    team_b,
-    best_of,
-    start_time_utc,
-    is_locked,
-
-    CASE
-      WHEN is_locked = 1 THEN 'LOCKED'
-      ELSE 'OPEN'
-    END AS ui_status
-
-  FROM matches
-  WHERE event_id = ?
-  ORDER BY match_no ASC, id ASC
-  LIMIT 8
-  `,
-      [event.id],
+      sqlMeczeZTypem("m.event_id = ?"),
+      [userId, userId, userId, event.id],
     );
 
-    res.json({ event, matches });
+    // ============================================
+    // GLOBALNY GATE
+    // ============================================
+
+    const gate = await assertPredictionsAllowed({
+      guildId: event.guild_id,
+      kind: "MATCHES",
+    });
+
+    const deadlineCache = new Map();
+
+    // ============================================
+    // LOCK STATE
+    // ============================================
+
+    const matchesWithPredictionState = await Promise.all(
+      matches.map((match) =>
+        stanTypowaniaMeczu({
+          match,
+          gate,
+          guildId: event.guild_id,
+          deadlineCache,
+        }),
+      ),
+    );
+
+    // ============================================
+    // PROGRESS PER FAZA
+    // ============================================
+
+    const progress = {};
+
+    for (const match of matchesWithPredictionState) {
+      const phase = match.phase || "other";
+
+      if (!progress[phase]) {
+        progress[phase] = {
+          total: 0,
+          complete: 0,
+          partial: 0,
+          empty: 0,
+        };
+      }
+
+      progress[phase].total += 1;
+
+      if (match.prediction_status === "complete") {
+        progress[phase].complete += 1;
+      } else if (match.prediction_status === "partial") {
+        progress[phase].partial += 1;
+      } else {
+        progress[phase].empty += 1;
+      }
+    }
+
+    // ============================================
+    // RESPONSE
+    // ============================================
+
+    res.json({
+      event,
+      matches: matchesWithPredictionState,
+      progress,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Database error" });
+    console.error("EVENT MATCHES ERROR:", err);
+
+    res.status(500).json({
+      error: "Błąd bazy danych.",
+    });
   }
 });
 
@@ -801,51 +1533,322 @@ app.get("/api/events/:slug/leaderboard", async (req, res) => {
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
+    // Klasyfikacja idzie z tabeli `leaderboard`, a nie z sumy match_points.
+    //
+    // Dwa powody. Po pierwsze `total_points` ma być tym samym, co pokazuje bot
+    // i co ląduje w eksporcie klasyfikacji - wcześniej ten endpoint sumował
+    // WYŁĄCZNIE punkty meczowe, więc strona "Ranking graczy" pomijała Swiss,
+    // Playoffs, Play-In, Double Elim i MVP. Po drugie wiersze brały się z
+    // `match_predictions`, przez co gracz, który typował tylko fazy Pick'Em,
+    // a nie typował meczów, w ogóle nie pojawiał się w rankingu.
+    //
+    // Statystyki meczowe (skuteczność, trafieni zwycięzcy) zostają jako
+    // uzupełnienie i są teraz doklejane LEFT JOIN-em, więc brak typów
+    // meczowych daje zera zamiast wypadnięcia z listy.
     const [rows] = await pool.query(
       `
   SELECT
+    lb.user_id,
+    COALESCE(up.displayname, up.username, lb.user_id) AS displayname,
+    up.avatar,
+
+    COALESCE(lb.total_points, 0) AS total_points,
+
+    COALESCE(stats.total_predictions, 0) AS total_predictions,
+    COALESCE(stats.correct_winners, 0) AS correct_winners,
+
+    -- Rozbicie sumy na fazy. Wcześniej dawał je osobny endpoint
+    -- /api/public/events/:slug/leaderboard, którego front nigdy nie wołał -
+    -- utrzymywaliśmy dwa rankingi, z czego jeden martwy.
+    COALESCE(fazy.swiss_points, 0) AS swiss_points,
+    COALESCE(fazy.playoffs_points, 0) AS playoffs_points,
+    COALESCE(fazy.playin_points, 0) AS playin_points,
+    COALESCE(fazy.doubleelim_points, 0) AS doubleelim_points,
+    COALESCE(fazy.match_points, 0) AS match_points,
+    COALESCE(fazy.mvp_points, 0) AS mvp_points
+
+  FROM leaderboard lb
+
+  LEFT JOIN user_profiles up
+    ON up.user_id COLLATE utf8mb4_unicode_ci
+     = lb.user_id COLLATE utf8mb4_unicode_ci
+
+  LEFT JOIN (
+    SELECT
+      user_id,
+      SUM(swiss_points) AS swiss_points,
+      SUM(playoffs_points) AS playoffs_points,
+      SUM(playin_points) AS playin_points,
+      SUM(doubleelim_points) AS doubleelim_points,
+      SUM(match_points) AS match_points,
+      SUM(mvp_points) AS mvp_points
+    FROM (
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, COALESCE(points,0) swiss_points, 0 playoffs_points, 0 playin_points, 0 doubleelim_points, 0 match_points, 0 mvp_points
+        FROM swiss_scores WHERE event_id = ?
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, COALESCE(points,0), 0, 0, 0, 0 FROM playoffs_scores WHERE event_id = ?
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, COALESCE(points,0), 0, 0, 0 FROM playin_scores WHERE event_id = ?
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, COALESCE(points,0), 0, 0 FROM doubleelim_scores WHERE event_id = ?
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, COALESCE(points,0), 0 FROM match_points WHERE event_id = ?
+      UNION ALL
+      SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, 0, COALESCE(points,0) FROM mvp_scores WHERE event_id = ?
+    ) skladowe
+    GROUP BY user_id
+  ) fazy
+    ON fazy.user_id = lb.user_id COLLATE utf8mb4_unicode_ci
+
+  LEFT JOIN (
+    SELECT
+      mp.user_id,
+
+      COUNT(DISTINCT mp.match_id) AS total_predictions,
+
+      COUNT(
+        DISTINCT CASE
+          WHEN mr.match_id IS NOT NULL
+           AND (
+             (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+             OR
+             (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+           )
+          THEN mp.match_id
+          ELSE NULL
+        END
+      ) AS correct_winners
+
+    FROM match_predictions mp
+
+    LEFT JOIN match_results mr
+      ON mr.event_id = mp.event_id
+     AND mr.match_id = mp.match_id
+
+    WHERE mp.event_id = ?
+
+    GROUP BY mp.user_id
+  ) stats
+    ON stats.user_id COLLATE utf8mb4_unicode_ci
+     = lb.user_id COLLATE utf8mb4_unicode_ci
+
+  WHERE lb.event_id = ?
+
+  ORDER BY
+    total_points DESC,
+    correct_winners DESC,
+    lb.user_id ASC
+
+  LIMIT 100
+  `,
+      [
+        event.id, event.id, event.id, event.id, event.id, event.id,
+        event.id,
+        event.id,
+      ],
+    );
+    const [pointBreakdownRows] = await pool.query(
+      `
+  SELECT
     user_id,
-    SUM(points) AS total_points
+    COALESCE(
+      SUM(
+        CASE
+          WHEN source = 'series'
+          THEN points
+          ELSE 0
+        END
+      ),
+      0
+    ) AS series_points,
+
+    COALESCE(
+      SUM(
+        CASE
+          WHEN source = 'map'
+          THEN points
+          ELSE 0
+        END
+      ),
+      0
+    ) AS map_points
+
   FROM match_points
+
   WHERE event_id = ?
+
   GROUP BY user_id
-  ORDER BY total_points DESC
-  LIMIT 10
   `,
       [event.id],
     );
 
+    const pointBreakdownByUser = new Map(
+      pointBreakdownRows.map((row) => [
+        String(row.user_id),
+        {
+          series_points: Number(row.series_points || 0),
+          map_points: Number(row.map_points || 0),
+        },
+      ]),
+    );
+
+    const [mapStatsRows] = await pool.query(
+      `
+  SELECT
+    mmp.user_id,
+
+    COUNT(*) AS predicted_maps,
+
+    SUM(
+      CASE
+        WHEN mmr.match_id IS NOT NULL
+         AND (
+          (
+            mmp.pred_exact_a > mmp.pred_exact_b
+            AND mmr.exact_a > mmr.exact_b
+          )
+          OR
+          (
+            mmp.pred_exact_b > mmp.pred_exact_a
+            AND mmr.exact_b > mmr.exact_a
+          )
+         )
+        THEN 1
+        ELSE 0
+      END
+    ) AS correct_maps,
+
+    SUM(
+      CASE
+        WHEN mmr.match_id IS NOT NULL
+         AND mmp.pred_exact_a = mmr.exact_a
+         AND mmp.pred_exact_b = mmr.exact_b
+        THEN 1
+        ELSE 0
+      END
+    ) AS exact_maps
+
+  FROM match_map_predictions mmp
+
+  LEFT JOIN match_map_results mmr
+    ON mmr.event_id = mmp.event_id
+   AND mmr.match_id = mmp.match_id
+   AND mmr.map_no = mmp.map_no
+
+  WHERE mmp.event_id = ?
+
+  GROUP BY mmp.user_id
+  `,
+      [event.id],
+    );
+
+    const mapStatsByUser = new Map(
+      mapStatsRows.map((row) => [
+        String(row.user_id),
+        {
+          predicted_maps: Number(row.predicted_maps || 0),
+          correct_maps: Number(row.correct_maps || 0),
+          exact_maps: Number(row.exact_maps || 0),
+        },
+      ]),
+    );
+
+    const leaderboardData = rows.map((row) => {
+      const totalPredictions = Number(row.total_predictions || 0);
+      const correctWinners = Number(row.correct_winners || 0);
+      const pointBreakdown = pointBreakdownByUser.get(String(row.user_id)) || {
+        series_points: 0,
+        map_points: 0,
+      };
+
+      const mapStats = mapStatsByUser.get(String(row.user_id)) || {
+        predicted_maps: 0,
+        correct_maps: 0,
+        exact_maps: 0,
+      };
+
+      return {
+        user_id: row.user_id,
+        displayname: row.displayname,
+        avatar: row.avatar,
+
+        total_points: Number(row.total_points || 0),
+
+        // Rozbicie na serie/mapy bierze się z match_points (pointBreakdown),
+        // bo główne zapytanie zwraca już tylko sumę końcową z `leaderboard`.
+        series_points: pointBreakdown.series_points,
+        map_points: pointBreakdown.map_points,
+
+        // Rozbicie na fazy turnieju.
+        swiss_points: Number(row.swiss_points || 0),
+        playoffs_points: Number(row.playoffs_points || 0),
+        playin_points: Number(row.playin_points || 0),
+        doubleelim_points: Number(row.doubleelim_points || 0),
+        phase_match_points: Number(row.match_points || 0),
+        mvp_points: Number(row.mvp_points || 0),
+
+        total_predictions: totalPredictions,
+        correct_winners: correctWinners,
+
+        predicted_maps: mapStats.predicted_maps,
+        correct_maps: mapStats.correct_maps,
+        exact_maps: mapStats.exact_maps,
+
+        accuracy:
+          totalPredictions > 0
+            ? Math.round((correctWinners / totalPredictions) * 100)
+            : 0,
+      };
+    });
+
+    leaderboardData.sort((a, b) => {
+      if (b.total_points !== a.total_points) {
+        return b.total_points - a.total_points;
+      }
+
+      if (b.correct_winners !== a.correct_winners) {
+        return b.correct_winners - a.correct_winners;
+      }
+
+      if (b.correct_maps !== a.correct_maps) {
+        return b.correct_maps - a.correct_maps;
+      }
+
+      if (b.exact_maps !== a.exact_maps) {
+        return b.exact_maps - a.exact_maps;
+      }
+
+      return String(a.user_id).localeCompare(String(b.user_id));
+    });
+
+    const leaderboard = leaderboardData.map((player, index) => ({
+      ...player,
+      rank: index + 1,
+    }));
+
+    // Ranking bierze sie z tabeli `leaderboard`, a ta zapelnia sie dopiero po
+    // naliczeniu punktow. Dopoki nic nie jest rozliczone, lista jest pusta,
+    // mimo ze gracze juz typuja - front musi umiec odroznic "nikt nie typowal"
+    // od "typuja, ale nie ma jeszcze za co przyznac punktow".
+    const uczestnicy = await policzUczestnikow(event.id);
+
     res.json({
-      leaderboard: rows,
+      leaderboard,
+      uczestnicy,
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "Błąd bazy danych.",
     });
   }
 });
 
-app.get("/api/debug/matches-columns", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SHOW COLUMNS FROM matches
-    `);
-
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: "Database error",
-    });
-  }
-});
 
 app.post(
   "/api/events/:slug/status",
@@ -854,6 +1857,7 @@ app.post(
     try {
       const { slug } = req.params;
       const { status } = req.body;
+      const { guildId } = req;
 
       // The UI sends OPEN / CLOSED / ARCHIVED. ARCHIVED is not a value of
       // the events.status enum ('UPCOMING','OPEN','CLOSED','FINISHED') -
@@ -874,36 +1878,43 @@ app.post(
 
       if (!action) {
         return res.status(400).json({
-          error: "Invalid status",
+          error: "Nieprawidłowy status.",
           allowedStatuses: Object.keys(STATUS_ACTIONS),
         });
       }
 
       const [result] = await pool.query(
         `
-      UPDATE events
-      SET status = ?,
-          is_open = ?,
-          is_active = ?,
-          is_archived = ?
-      WHERE slug = ?
-      LIMIT 1
-      `,
+  UPDATE events
+  SET
+    status = ?,
+    is_open = ?,
+    is_active = ?,
+    is_archived = ?
+  WHERE guild_id = ?
+    AND slug = ?
+  LIMIT 1
+  `,
         [
           action.status,
           action.is_open,
           action.is_active,
           action.is_archived,
+          guildId,
           slug,
         ],
       );
 
       if (result.affectedRows === 0) {
         return res.status(404).json({
-          error: "Event not found",
+          error: "Nie znaleziono turnieju.",
         });
       }
-      io.emit("dashboard:refresh", { slug });
+      emitDashboardRefresh({
+        slug,
+        guildId,
+        reason: "event_status_updated",
+      });
 
       // Broadcast the status actually stored, not the requested action -
       // "ARCHIVED" is persisted as FINISHED + is_archived, so echoing the
@@ -925,7 +1936,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -935,7 +1946,7 @@ app.get("/api/guilds", (req, res) => {
   const user = req.session?.user;
 
   if (!user) {
-    return res.status(401).json({ error: "Login required" });
+    return res.status(401).json({ error: "Musisz być zalogowany." });
   }
 
   const knownGuildIds = new Set(guildRegistry.getAllGuildIds());
@@ -1009,7 +2020,7 @@ ORDER BY e.id DESC
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1030,7 +2041,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1046,7 +2057,7 @@ app.post(
 
       if (!name || !String(name).trim()) {
         return res.status(400).json({
-          error: "Team name is required",
+          error: "Nazwa drużyny jest wymagana.",
         });
       }
 
@@ -1063,14 +2074,14 @@ app.post(
     } catch (err) {
       if (err?.code === "ER_DUP_ENTRY") {
         return res.status(409).json({
-          error: "A team with this name already exists on this server",
+          error: "Drużyna o tej nazwie już istnieje na tym serwerze.",
         });
       }
 
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1118,21 +2129,21 @@ app.patch(
       const team = teams.find((t) => String(t.id) === String(teamId));
 
       if (!team) {
-        return res.status(404).json({ error: "Team not found" });
+        return res.status(404).json({ error: "Nie znaleziono drużyny." });
       }
 
       res.json({ ok: true, team });
     } catch (err) {
       if (err?.code === "ER_DUP_ENTRY") {
         return res.status(409).json({
-          error: "A team with this name already exists on this server",
+          error: "Drużyna o tej nazwie już istnieje na tym serwerze.",
         });
       }
 
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1151,7 +2162,7 @@ app.delete(
       const team = teams.find((t) => String(t.id) === String(teamId));
 
       if (!team) {
-        return res.status(404).json({ error: "Team not found" });
+        return res.status(404).json({ error: "Nie znaleziono drużyny." });
       }
 
       const [[usage]] = await pool.query(
@@ -1177,7 +2188,7 @@ app.delete(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1215,7 +2226,54 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
+      });
+    }
+  },
+);
+
+app.get(
+  "/api/guilds/:guildId/deadline",
+  requireGuildAdmin((req) => req.params.guildId),
+  async (req, res) => {
+    try {
+      const { guildId } = req.params;
+      const { phase, stage } = req.query;
+
+      if (!VALID_PHASES.includes(phase)) {
+        return res.status(400).json({
+          error: `phase must be one of: ${VALID_PHASES.join(", ")}`,
+        });
+      }
+
+      if (phase === "swiss" && !stage) {
+        return res.status(400).json({
+          error: "Dla fazy Swiss wymagany jest etap (1, 2 albo 3).",
+        });
+      }
+
+      const lookup = await findPanelForDeadline(
+        pool,
+        guildId,
+        phase,
+        stage,
+      );
+
+      if (lookup.error) {
+        return res.status(400).json({
+          error: lookup.error,
+        });
+      }
+
+      return res.json({
+        ok: true,
+        deadline: lookup.row?.deadline ?? null,
+      });
+    } catch (err) {
+      console.error(err);
+
+      return res.status(500).json({
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1237,7 +2295,7 @@ app.post(
 
       if (phase === "swiss" && !stage) {
         return res.status(400).json({
-          error: "stage is required for phase=swiss (e.g. 1, 2, or 3)",
+          error: "Dla fazy Swiss wymagany jest etap (1, 2 albo 3).",
         });
       }
 
@@ -1269,7 +2327,83 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
+      });
+    }
+  },
+);
+
+app.delete(
+  "/api/guilds/:guildId/deadline",
+  requireGuildAdmin((req) => req.params.guildId),
+  async (req, res) => {
+    try {
+      const { guildId } = req.params;
+      const { phase, stage } = req.body ?? {};
+
+      if (!VALID_PHASES.includes(phase)) {
+        return res.status(400).json({
+          error: `phase must be one of: ${VALID_PHASES.join(", ")}`,
+        });
+      }
+
+      let result;
+
+      if (phase === "swiss") {
+        const stageNumber = String(stage || "").match(/\d+/)?.[0];
+
+        if (!stageNumber) {
+          return res.status(400).json({
+            error: "Dla fazy Swiss wymagany jest etap.",
+          });
+        }
+
+        const dbPhase = `swiss_stage${stageNumber}`;
+        const stageKey = `stage${stageNumber}`;
+
+        [result] = await pool.query(
+          `
+          UPDATE active_panels
+          SET deadline = NULL,
+              reminded = 0
+          WHERE guild_id = ?
+            AND phase = ?
+            AND stage_key = ?
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [guildId, dbPhase, stageKey],
+        );
+      } else {
+        [result] = await pool.query(
+          `
+          UPDATE active_panels
+          SET deadline = NULL,
+              reminded = 0
+          WHERE guild_id = ?
+            AND phase = ?
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [guildId, phase],
+        );
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          error: "No panel found for this phase.",
+        });
+      }
+
+      return res.json({
+        ok: true,
+        deadline: null,
+      });
+    } catch (err) {
+      console.error(err);
+
+      return res.status(500).json({
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1313,7 +2447,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1329,7 +2463,7 @@ app.post(
 
       if (!Array.isArray(orderedIds) || !orderedIds.length) {
         return res.status(400).json({
-          error: "orderedIds must be a non-empty array",
+          error: "orderedIds musi być niepustą tablicą.",
         });
       }
 
@@ -1344,7 +2478,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1420,6 +2554,449 @@ function buildPublicMatch(match) {
   };
 }
 
+// ======================================================
+// PUBLICZNA LISTA EVENTOW - AKTYWNE I ZAKONCZONE
+// ======================================================
+//
+// /api/events/active filtruje `is_active = 1 AND is_archived = 0`, wiec
+// zamkniety albo zarchiwizowany turniej wypadal z jedynej listy, jaka miala
+// strona. Same podstrony eventu dzialaly dalej (mecze, ranking, statystyki),
+// ale nie bylo do nich z UI zadnego linku - dane istnialy bez drogi dojscia.
+//
+// Ten endpoint nie filtruje po stanie: zwraca wszystko, oznaczajac czy event
+// jest otwarty na typowanie. Podzial na sekcje robi frontend.
+app.get("/api/public/events", async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        e.id,
+        e.guild_id,
+        e.name,
+        e.slug,
+        e.phase,
+        e.status,
+        e.is_open,
+        e.is_active,
+        e.is_archived,
+        e.created_at,
+
+        (e.status = 'OPEN' AND e.is_open = 1 AND e.is_active = 1) AS is_live,
+
+        (
+          SELECT COUNT(*)
+          FROM matches m
+          WHERE m.event_id = e.id
+        ) AS matches_count,
+
+        (
+          SELECT COUNT(DISTINCT lb.user_id)
+          FROM leaderboard lb
+          WHERE lb.event_id = e.id
+        ) AS participants
+
+      FROM events e
+      ORDER BY e.id DESC
+      `,
+    );
+
+    return res.json({
+      events: rows.map((row) => ({
+        id: Number(row.id),
+        guild_id: row.guild_id,
+        name: row.name,
+        slug: row.slug,
+        phase: row.phase,
+        status: row.status,
+        is_live: Boolean(Number(row.is_live)),
+        is_archived: Boolean(Number(row.is_archived)),
+        matches_count: Number(row.matches_count || 0),
+        participants: Number(row.participants || 0),
+        created_at: row.created_at,
+        guild: getKnownGuildInfo(row.guild_id),
+      })),
+    });
+  } catch (err) {
+    console.error("PUBLIC EVENTS ERROR:", err);
+
+    return res.status(500).json({
+      error: "Nie udalo sie pobrac listy turniejow.",
+    });
+  }
+});
+
+// ======================================================
+// PUBLICZNE WYNIKI FAZY + TYP GRACZA
+// ======================================================
+//
+// Wszystkie GET-y z wynikami faz (/api/events/:slug/{swiss,playoffs,playin,
+// doubleelim}-results) sa za requireGuildAdmin, wiec po zamknieciu fazy gracz
+// nie mial gdzie zobaczyc oficjalnego wyniku ani tego, czy trafil. Widzial
+// wylacznie swoj zapisany typ.
+//
+// Jeden endpoint na wszystkie fazy zamiast czterech blizniaczych - ksztalt
+// odpowiedzi jest wspolny: oficjalny wynik, typ gracza, punkty.
+const PHASE_RESULT_KINDS = {
+  stage1: "swiss",
+  stage2: "swiss",
+  stage3: "swiss",
+  playoffs: "playoffs",
+  playin: "playin",
+  doubleelim: "doubleelim",
+};
+
+// Typy trzymane sa jako tekst "A, B, C" - ta sama normalizacja co w
+// calculateScores (cleanList), zeby trafienia liczyly sie identycznie.
+function splitTeamList(value) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {
+    // zwykly CSV
+  }
+
+  return String(value)
+    .replace(/[[\]"]+/g, "")
+    .split(/[;,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+app.get("/api/public/events/:slug/phase-results/:phase", async (req, res) => {
+  try {
+    const { slug, phase } = req.params;
+    const userId = req.session?.user?.id || null;
+
+    const kind = PHASE_RESULT_KINDS[phase];
+
+    if (!kind) {
+      return res.status(400).json({
+        error: "Nieznana faza turnieju.",
+      });
+    }
+
+    const [[event]] = await pool.query(
+      "SELECT id, guild_id, name, slug FROM events WHERE slug = ? LIMIT 1",
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({ error: "Nie znaleziono turnieju." });
+    }
+
+    // Typ i punkty sa prywatne - pokazujemy je wylacznie zalogowanemu
+    // czlonkowi tej gildii. Sam oficjalny wynik jest publiczny.
+    const czlonek = Boolean(
+      userId && isGuildMember(req.session.user, event.guild_id),
+    );
+
+    let results = null;
+    let prediction = null;
+    let points = null;
+
+    if (kind === "swiss") {
+      const [[row]] = await pool.query(
+        `SELECT correct_3_0, correct_0_3, correct_advancing
+           FROM swiss_results
+          WHERE guild_id = ? AND event_id = ? AND stage = ? AND active = 1
+          ORDER BY id DESC LIMIT 1`,
+        [event.guild_id, event.id, phase],
+      );
+
+      if (row) {
+        results = {
+          three_zero: splitTeamList(row.correct_3_0),
+          zero_three: splitTeamList(row.correct_0_3),
+          advancing: splitTeamList(row.correct_advancing),
+        };
+      }
+
+      if (czlonek) {
+        const [[pred]] = await pool.query(
+          `SELECT pick_3_0, pick_0_3, advancing
+             FROM swiss_predictions
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? AND stage = ?
+            LIMIT 1`,
+          [event.guild_id, event.id, userId, phase],
+        );
+
+        if (pred) {
+          prediction = {
+            three_zero: splitTeamList(pred.pick_3_0),
+            zero_three: splitTeamList(pred.pick_0_3),
+            advancing: splitTeamList(pred.advancing),
+          };
+        }
+
+        const [[score]] = await pool.query(
+          `SELECT points FROM swiss_scores
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? AND stage = ?
+            LIMIT 1`,
+          [event.guild_id, event.id, userId, phase],
+        );
+
+        if (score) points = Number(score.points || 0);
+      }
+    }
+
+    if (kind === "playoffs") {
+      const [[row]] = await pool.query(
+        `SELECT correct_semifinalists, correct_finalists, correct_winner,
+                correct_third_place_winner
+           FROM playoffs_results
+          WHERE guild_id = ? AND event_id = ? AND active = 1
+          ORDER BY id DESC LIMIT 1`,
+        [event.guild_id, event.id],
+      );
+
+      if (row) {
+        results = {
+          semifinalists: splitTeamList(row.correct_semifinalists),
+          finalists: splitTeamList(row.correct_finalists),
+          winner: row.correct_winner || null,
+          third_place_winner: row.correct_third_place_winner || null,
+        };
+      }
+
+      if (czlonek) {
+        const [[pred]] = await pool.query(
+          `SELECT semifinalists, finalists, winner, third_place_winner
+             FROM playoffs_predictions
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (pred) {
+          prediction = {
+            semifinalists: splitTeamList(pred.semifinalists),
+            finalists: splitTeamList(pred.finalists),
+            winner: pred.winner || null,
+            third_place_winner: pred.third_place_winner || null,
+          };
+        }
+
+        const [[score]] = await pool.query(
+          `SELECT points FROM playoffs_scores
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (score) points = Number(score.points || 0);
+      }
+    }
+
+    if (kind === "playin") {
+      const [[row]] = await pool.query(
+        `SELECT correct_teams FROM playin_results
+          WHERE guild_id = ? AND event_id = ? AND active = 1
+          ORDER BY id DESC LIMIT 1`,
+        [event.guild_id, event.id],
+      );
+
+      if (row) results = { teams: splitTeamList(row.correct_teams) };
+
+      if (czlonek) {
+        const [[pred]] = await pool.query(
+          `SELECT teams FROM playin_predictions
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (pred) prediction = { teams: splitTeamList(pred.teams) };
+
+        const [[score]] = await pool.query(
+          `SELECT points FROM playin_scores
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (score) points = Number(score.points || 0);
+      }
+    }
+
+    if (kind === "doubleelim") {
+      const [[row]] = await pool.query(
+        `SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+           FROM doubleelim_results
+          WHERE guild_id = ? AND event_id = ? AND active = 1
+          ORDER BY id DESC LIMIT 1`,
+        [event.guild_id, event.id],
+      );
+
+      if (row) {
+        results = {
+          upper_final_a: splitTeamList(row.upper_final_a),
+          lower_final_a: splitTeamList(row.lower_final_a),
+          upper_final_b: splitTeamList(row.upper_final_b),
+          lower_final_b: splitTeamList(row.lower_final_b),
+        };
+      }
+
+      if (czlonek) {
+        const [[pred]] = await pool.query(
+          `SELECT upper_final_a, lower_final_a, upper_final_b, lower_final_b
+             FROM doubleelim_predictions
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (pred) {
+          prediction = {
+            upper_final_a: splitTeamList(pred.upper_final_a),
+            lower_final_a: splitTeamList(pred.lower_final_a),
+            upper_final_b: splitTeamList(pred.upper_final_b),
+            lower_final_b: splitTeamList(pred.lower_final_b),
+          };
+        }
+
+        const [[score]] = await pool.query(
+          `SELECT points FROM doubleelim_scores
+            WHERE guild_id = ? AND event_id = ? AND user_id = ? LIMIT 1`,
+          [event.guild_id, event.id, userId],
+        );
+
+        if (score) points = Number(score.points || 0);
+      }
+    }
+
+    return res.json({
+      event: { id: event.id, name: event.name, slug: event.slug },
+      phase,
+      kind,
+      published: Boolean(results),
+      results,
+      prediction,
+      points,
+    });
+  } catch (err) {
+    console.error("PHASE RESULTS ERROR:", err);
+
+    return res.status(500).json({
+      error: "Nie udalo sie pobrac wynikow fazy.",
+    });
+  }
+});
+
+// ======================================================
+// KONFIGURACJA TYPOWANIA DRUŻYN DLA EVENTU
+// ======================================================
+//
+// Typowanie drużyn jest osobnym bytem od typowania meczów i - tak jak mecze,
+// deadline'y i ranking - należy do konkretnego eventu. Tutaj admin ustala,
+// które fazy ten turniej ma i ile drużyn wchodzi w każdą kategorię.
+//
+// Brak zapisanej konfiguracji = wartości domyślne, więc turnieje sprzed tej
+// funkcji działają dalej bez żadnej migracji danych.
+app.get(
+  "/api/events/:slug/pickem-config",
+  requireGuildAdmin(guildIdFromEventSlug),
+  async (req, res) => {
+    try {
+      const { guildId } = req;
+
+      const [[event]] = await pool.query(
+        "SELECT id, name FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
+        [guildId, req.params.slug],
+      );
+
+      if (!event) {
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
+
+      return res.json({
+        event: { id: event.id, name: event.name },
+        skonfigurowany: konfiguracja.skonfigurowany,
+        fazy: FAZY_PICKEM.map((faza) => ({
+          faza,
+          enabled: konfiguracja.fazy[faza].enabled,
+          limity: konfiguracja.fazy[faza].limity,
+        })),
+      });
+    } catch (err) {
+      console.error("PICKEM CONFIG GET:", err);
+      return res.status(500).json({ error: "Błąd bazy danych." });
+    }
+  },
+);
+
+app.put(
+  "/api/events/:slug/pickem-config",
+  requireGuildAdmin(guildIdFromEventSlug),
+  async (req, res) => {
+    try {
+      const { guildId } = req;
+      const { fazy } = req.body || {};
+
+      if (!Array.isArray(fazy) || !fazy.length) {
+        return res
+          .status(400)
+          .json({ error: "fazy musi być niepustą tablicą." });
+      }
+
+      const [[event]] = await pool.query(
+        "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
+        [guildId, req.params.slug],
+      );
+
+      if (!event) {
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      // API i panel mówią o fazie "faza", moduł konfiguracji - "phase".
+      // Bez tego mapowania wpisy były po cichu pomijane (jestFaza(undefined)
+      // zwraca false), endpoint odpowiadał 200, a nic się nie zapisywało.
+      const doZapisu = fazy.map((wpis) => ({
+        phase: wpis?.phase ?? wpis?.faza,
+        enabled: Boolean(wpis?.enabled),
+        limity: wpis?.limity,
+      }));
+
+      const nieznane = doZapisu.filter((w) => !FAZY_PICKEM.includes(w.phase));
+
+      if (nieznane.length) {
+        return res.status(400).json({
+          error: `Nieznane fazy: ${nieznane.map((w) => w.phase).join(", ")}`,
+        });
+      }
+
+      await setEventPickemConfig(pool, guildId, event.id, doZapisu);
+
+      const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
+
+      logInfo("pickem", "Event pickem config saved", {
+        guildId,
+        eventId: event.id,
+        by: req.session?.user?.id,
+        extra: {
+          wlaczone: FAZY_PICKEM.filter((f) => konfiguracja.fazy[f].enabled),
+        },
+      });
+
+      emitDashboardRefresh({
+        slug: req.params.slug,
+        guildId,
+        reason: "pickem_config_updated",
+      });
+
+      return res.json({
+        ok: true,
+        fazy: FAZY_PICKEM.map((faza) => ({
+          faza,
+          enabled: konfiguracja.fazy[faza].enabled,
+          limity: konfiguracja.fazy[faza].limity,
+        })),
+      });
+    } catch (err) {
+      console.error("PICKEM CONFIG PUT:", err);
+      return res.status(500).json({ error: "Błąd bazy danych." });
+    }
+  },
+);
+
 app.get("/api/public/archives", async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -1439,7 +3016,7 @@ app.get("/api/public/archives", async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Failed to load archives",
+      error: "Nie udało się wczytać archiwum.",
     });
   }
 });
@@ -1520,7 +3097,7 @@ app.get("/api/public/servers", async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "Błąd bazy danych.",
     });
   }
 });
@@ -1599,7 +3176,7 @@ app.get("/api/public/:guildSlug", async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Błąd bazy danych." });
   }
 });
 
@@ -1625,7 +3202,7 @@ LIMIT 1
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
@@ -1724,7 +3301,7 @@ LIMIT 8
     console.error(err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "Błąd bazy danych.",
     });
   }
 });
@@ -1745,7 +3322,7 @@ app.get("/api/guilds/:guildId/meta", async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "Błąd bazy danych.",
     });
   }
 });
@@ -1764,6 +3341,18 @@ app.post(
         });
       }
 
+      // Nowy event powstaje jako UPCOMING / is_open = 0 / is_active = 0 -
+      // dokładnie tak jak w /start_pickem na Discordzie, gdzie event staje
+      // się aktywny dopiero po opublikowaniu panelu. Świadomie NIE otwieramy
+      // go od razu: getOpenEventId() bierze najnowszy otwarty event, więc
+      // utworzenie kolejnego przejęłoby trwający turniej.
+      //
+      // Wcześniej ten INSERT w ogóle nie wymieniał is_open / is_active
+      // (kolumna is_open ma DEFAULT 0), ale odpowiadał status: "OPEN".
+      // Panel pokazywał więc event jako otwarty, podczas gdy dla całego
+      // typowania - i na Discordzie, i na WWW - on nie istniał, i nic nie
+      // wskazywało przyczyny. Teraz stan jest jawny i zwracany zgodnie z
+      // prawdą; otwarcie eventu robi się przyciskiem (POST .../status).
       const [result] = await pool.query(
         `
       INSERT INTO events (
@@ -1771,9 +3360,12 @@ app.post(
         name,
         slug,
         phase,
-        status
+        status,
+        is_open,
+        is_active,
+        is_archived
       )
-      VALUES (?, ?, ?, 'NOT_STARTED', 'open')
+      VALUES (?, ?, ?, 'NOT_STARTED', 'UPCOMING', 0, 0, 0)
       `,
         [guildId, name, slug],
       );
@@ -1786,14 +3378,18 @@ app.post(
           name,
           slug,
           phase: "NOT_STARTED",
-          status: "OPEN",
+          status: "UPCOMING",
+          is_open: 0,
+          is_active: 0,
         },
+        // Dla UI: event trzeba jeszcze otworzyć, żeby przyjmował typy.
+        wymagaOtwarcia: true,
       });
     } catch (err) {
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -1831,7 +3427,7 @@ app.post(
         [guildId, slug],
       );
 
-      if (!event) return res.status(404).json({ error: "Event not found" });
+      if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
 
       const { mecze, bledy, duplikaty } = parseMatchList(text, {
         domyslneBo: Number(defaultBestOf),
@@ -1953,7 +3549,7 @@ app.post(
 
       if (teamA === teamB) {
         return res.status(400).json({
-          error: "Team A and Team B must be different",
+          error: "Drużyny muszą być różne.",
         });
       }
 
@@ -1963,7 +3559,7 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const [activeTeams] = await pool.query(
@@ -2028,7 +3624,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2051,14 +3647,14 @@ app.post(
         resB < 0
       ) {
         return res.status(400).json({
-          error: "resA and resB must be non-negative integers",
+          error: "Wyniki muszą być nieujemnymi liczbami całkowitymi.",
         });
       }
 
       const match = await matchesStore.getMatchById(pool, guildId, matchId);
 
       if (!match) {
-        return res.status(404).json({ error: "Match not found" });
+        return res.status(404).json({ error: "Nie znaleziono meczu." });
       }
 
       await applyMatchResult(pool, { guildId, match, resA, resB });
@@ -2077,7 +3673,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2113,7 +3709,7 @@ app.post(
         [req.params.slug, guildId],
       );
 
-      if (!event) return res.status(404).json({ error: "Event not found" });
+      if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
 
       const podsumowanie = await resultProposalsStore.syncProposals(pool, {
         guildId,
@@ -2169,7 +3765,7 @@ app.get(
         [req.params.slug, guildId],
       );
 
-      if (!event) return res.status(404).json({ error: "Event not found" });
+      if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
 
       res.json({
         proposals: await resultProposalsStore.listProposals(
@@ -2182,7 +3778,7 @@ app.get(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -2256,7 +3852,7 @@ app.post(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -2293,7 +3889,7 @@ app.post(
       res.json({ ok: true });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -2315,12 +3911,39 @@ app.patch(
       );
 
       if (!result.affectedRows)
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
 
       res.json({ ok: true, externalTournamentId: wartosc });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
+    }
+  },
+);
+
+app.get(
+  "/api/matches/:matchId",
+  requireGuildAdmin(guildIdFromMatchId),
+  async (req, res) => {
+    try {
+      const { matchId } = req.params;
+      const { guildId } = req;
+
+      const match = await matchesStore.getMatchById(pool, guildId, matchId);
+
+      if (!match) {
+        return res.status(404).json({
+          error: "Nie znaleziono meczu.",
+        });
+      }
+
+      res.json({ match });
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        error: "Błąd bazy danych.",
+      });
     }
   },
 );
@@ -2336,7 +3959,7 @@ app.get(
       const match = await matchesStore.getMatchById(pool, guildId, matchId);
 
       if (!match) {
-        return res.status(404).json({ error: "Match not found" });
+        return res.status(404).json({ error: "Nie znaleziono meczu." });
       }
 
       const maxMaps = maxMapsFromBo(match.best_of);
@@ -2376,11 +3999,174 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
 );
+
+// Pojedynczy mecz w tym samym ksztalcie co element listy.
+//
+// Bez tego strona meczu wolala /api/events/:slug/matches i szukala jednego
+// meczu w calej tablicy - przy 106 meczach kazde wejscie i kazde odswiezenie
+// po zdarzeniu realtime ciagnelo pelna liste.
+//
+// Publiczny, bo dokladnie te dane pokazuje lista meczow, ktora tez jest
+// publiczna. Typ gracza (pred_*) dokleja sie tylko dla zalogowanego -
+// zapytanie joinuje match_predictions po user_id z sesji.
+app.get("/api/public/matches/:matchId", async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.session?.user?.id || null;
+
+    const [wiersze] = await pool.query(sqlMeczeZTypem("m.id = ?"), [
+      userId,
+      userId,
+      userId,
+      matchId,
+    ]);
+
+    const match = wiersze[0];
+
+    if (!match) {
+      return res.status(404).json({ error: "Nie znaleziono meczu." });
+    }
+
+    const [[event]] = await pool.query(
+      "SELECT id, name, slug, guild_id FROM events WHERE id = ? LIMIT 1",
+      [match.event_id],
+    );
+
+    if (!event) {
+      return res.status(404).json({ error: "Nie znaleziono turnieju." });
+    }
+
+    const gate = await assertPredictionsAllowed({
+      guildId: event.guild_id,
+      kind: "MATCHES",
+    });
+
+    const wzbogacony = await stanTypowaniaMeczu({
+      match,
+      gate,
+      guildId: event.guild_id,
+      deadlineCache: new Map(),
+    });
+
+    return res.json({
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+      },
+      match: wzbogacony,
+    });
+  } catch (err) {
+    console.error("PUBLIC MATCH ERROR:", err);
+
+    return res.status(500).json({
+      error: "Nie udało się pobrać meczu.",
+    });
+  }
+});
+
+app.get("/api/public/matches/:matchId/result", async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const [[match]] = await pool.query(
+      `
+      SELECT
+        id,
+        guild_id,
+        event_id,
+        best_of
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [matchId],
+    );
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Nie znaleziono meczu.",
+      });
+    }
+
+    const [[result]] = await pool.query(
+      `
+      SELECT
+        res_a,
+        res_b,
+        exact_a,
+        exact_b
+      FROM match_results
+      WHERE match_id = ?
+        AND guild_id = ?
+        AND event_id = ?
+      LIMIT 1
+      `,
+      [match.id, match.guild_id, match.event_id],
+    );
+
+    if (!result) {
+      return res.status(404).json({
+        error: "Match result not found",
+      });
+    }
+
+    const maxMaps = maxMapsFromBo(match.best_of);
+    const maps = [];
+
+    if (maxMaps === 1) {
+      maps.push({
+        mapNo: 1,
+        exactA: result.exact_a ?? null,
+        exactB: result.exact_b ?? null,
+      });
+    } else {
+      const [rows] = await pool.query(
+        `
+        SELECT
+          map_no,
+          exact_a,
+          exact_b
+        FROM match_map_results
+        WHERE match_id = ?
+          AND guild_id = ?
+          AND event_id = ?
+        ORDER BY map_no ASC
+        `,
+        [match.id, match.guild_id, match.event_id],
+      );
+
+      const byMap = new Map(rows.map((row) => [Number(row.map_no), row]));
+
+      for (let i = 1; i <= maxMaps; i += 1) {
+        const row = byMap.get(i);
+
+        maps.push({
+          mapNo: i,
+          exactA: row?.exact_a ?? null,
+          exactB: row?.exact_b ?? null,
+        });
+      }
+    }
+
+    return res.json({
+      bestOf: Number(match.best_of),
+      maxMaps,
+      maps,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Błąd bazy danych.",
+    });
+  }
+});
 
 app.post(
   "/api/matches/:matchId/exact",
@@ -2390,99 +4176,380 @@ app.post(
       const { matchId } = req.params;
       const { guildId } = req;
 
-      const match = await matchesStore.getMatchById(pool, guildId, matchId);
+      const match = await matchesStore.getMatchById(
+        pool,
+        guildId,
+        matchId,
+      );
 
       if (!match) {
-        return res.status(404).json({ error: "Match not found" });
+        return res.status(404).json({
+          error: "Nie znaleziono meczu.",
+        });
+      }
+
+      if (!match.event_id) {
+        return res.status(400).json({
+          error: "Match has no event_id",
+        });
       }
 
       const maxMaps = maxMapsFromBo(match.best_of);
-      const inputMaps = Array.isArray(req.body.maps) ? req.body.maps : [];
+
+      if (![1, 3, 5].includes(Number(match.best_of))) {
+        return res.status(400).json({
+          error: `Nieobsługiwany format BO${match.best_of}.`,
+        });
+      }
+
+      const inputMaps = Array.isArray(req.body.maps)
+        ? req.body.maps
+        : [];
+
       const clean = [];
 
-      for (const m of inputMaps) {
-        const mapNo = Number(m.mapNo);
-        const exactA = Number(m.exactA);
-        const exactB = Number(m.exactB);
+      // ============================================
+      // NORMALIZACJA + PODSTAWOWA WALIDACJA
+      // ============================================
 
-        if (!Number.isInteger(mapNo) || mapNo < 1 || mapNo > maxMaps) {
-          return res.status(400).json({ error: `Invalid mapNo: ${m.mapNo}` });
-        }
+      for (const map of inputMaps) {
+        const mapNo = Number(map.mapNo);
+        const exactA = Number(map.exactA);
+        const exactB = Number(map.exactB);
 
         if (
-          !Number.isFinite(exactA) ||
-          !Number.isFinite(exactB) ||
-          exactA < 0 ||
-          exactB < 0 ||
-          exactA > 99 ||
-          exactB > 99
+          !Number.isInteger(mapNo) ||
+          mapNo < 1 ||
+          mapNo > maxMaps
         ) {
-          return res
-            .status(400)
-            .json({ error: `Map ${mapNo}: score must be a number 0-99` });
+          return res.status(400).json({
+            error: `Invalid mapNo: ${map.mapNo}`,
+          });
         }
 
-        clean.push({ mapNo, exactA, exactB });
+        if (!validateCs2Score(exactA, exactB)) {
+          return res.status(400).json({
+            error: `Mapa ${mapNo}: nieprawidłowy wynik CS2.`,
+          });
+        }
+
+        clean.push({
+          mapNo,
+          exactA,
+          exactB,
+        });
       }
 
       if (!clean.length) {
-        return res.status(400).json({ error: "No map scores provided" });
+        return res.status(400).json({
+          error: "No map scores provided",
+        });
       }
 
-      if (maxMaps === 1) {
-        const { exactA, exactB } = clean[0];
+      const uniqueMapNos = new Set(
+        clean.map((map) => map.mapNo),
+      );
 
-        await pool.query(
-          `
-                INSERT INTO match_results (guild_id, event_id, match_id, exact_a, exact_b)
-                VALUES (?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    event_id = VALUES(event_id),
-                    exact_a = VALUES(exact_a),
-                    exact_b = VALUES(exact_b)
-                `,
-          [guildId, match.event_id, matchId, exactA, exactB],
-        );
-      } else {
-        for (const { mapNo, exactA, exactB } of clean) {
-          await pool.query(
-            `
-                    INSERT INTO match_map_results (guild_id, event_id, match_id, map_no, exact_a, exact_b)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        event_id = VALUES(event_id),
-                        exact_a = VALUES(exact_a),
-                        exact_b = VALUES(exact_b),
-                        updated_at = CURRENT_TIMESTAMP
-                    `,
-            [guildId, match.event_id, matchId, mapNo, exactA, exactB],
-          );
+      if (uniqueMapNos.size !== clean.length) {
+        return res.status(400).json({
+          error: "Numery map nie mogą się powtarzać.",
+        });
+      }
+
+      const sortedMaps = [...clean].sort(
+        (a, b) => a.mapNo - b.mapNo,
+      );
+
+      // ============================================
+      // KOLEJNOŚĆ MAP
+      // ============================================
+
+      for (
+        let index = 0;
+        index < sortedMaps.length;
+        index += 1
+      ) {
+        if (sortedMaps[index].mapNo !== index + 1) {
+          return res.status(400).json({
+            error:
+              "Numery map muszą być kolejne: 1, 2, 3...",
+          });
         }
       }
 
-      await recalculateMatchPoints(
-        pool,
-        guildId,
-        match.event_id,
-        matchId,
-        match.best_of,
-      );
+      let finalResA = 0;
+      let finalResB = 0;
 
-      const [[eventRow]] = await pool.query(
-        "SELECT slug FROM events WHERE id = ? LIMIT 1",
-        [match.event_id],
-      );
+      // ============================================
+      // BO1
+      // ============================================
 
-      if (eventRow?.slug) {
-        io.emit("dashboard:refresh", { slug: eventRow.slug });
+      if (maxMaps === 1) {
+        if (sortedMaps.length !== 1) {
+          return res.status(400).json({
+            error: "BO1 musi zawierać dokładnie jedną mapę.",
+          });
+        }
+
+        const { exactA, exactB } = sortedMaps[0];
+
+        finalResA = exactA > exactB ? 1 : 0;
+        finalResB = exactB > exactA ? 1 : 0;
       }
 
-      res.json({ ok: true, maps: clean });
-    } catch (err) {
-      console.error(err);
+      // ============================================
+      // BO3 / BO5
+      // ============================================
 
-      res.status(500).json({
-        error: "Database error",
+      else {
+        const winsNeeded = Math.ceil(
+          Number(match.best_of) / 2,
+        );
+
+        let resA = 0;
+        let resB = 0;
+
+        for (
+          let index = 0;
+          index < sortedMaps.length;
+          index += 1
+        ) {
+          const { mapNo, exactA, exactB } =
+            sortedMaps[index];
+
+          if (exactA > exactB) {
+            resA += 1;
+          } else {
+            resB += 1;
+          }
+
+          const seriesFinished =
+            resA === winsNeeded ||
+            resB === winsNeeded;
+
+          if (
+            seriesFinished &&
+            index !== sortedMaps.length - 1
+          ) {
+            return res.status(400).json({
+              error:
+                `Seria zakończyła się już po mapie ${mapNo}.`,
+            });
+          }
+        }
+
+        if (
+          resA !== winsNeeded &&
+          resB !== winsNeeded
+        ) {
+          return res.status(400).json({
+            error:
+              `Seria BO${match.best_of} nie jest jeszcze zakończona.`,
+          });
+        }
+
+        finalResA = resA;
+        finalResB = resB;
+      }
+
+      // ============================================
+      // TRANSACTION
+      // ============================================
+
+      await runInTransaction(
+        pool,
+        async (conn) => {
+          // BO1
+          if (maxMaps === 1) {
+            const { exactA, exactB } =
+              sortedMaps[0];
+
+            await conn.query(
+              `
+              INSERT INTO match_results (
+                guild_id,
+                event_id,
+                match_id,
+                res_a,
+                res_b,
+                exact_a,
+                exact_b,
+                finished_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+
+              ON DUPLICATE KEY UPDATE
+                event_id = VALUES(event_id),
+                res_a = VALUES(res_a),
+                res_b = VALUES(res_b),
+                exact_a = VALUES(exact_a),
+                exact_b = VALUES(exact_b),
+                finished_at = CURRENT_TIMESTAMP
+              `,
+              [
+                guildId,
+                match.event_id,
+                matchId,
+                finalResA,
+                finalResB,
+                exactA,
+                exactB,
+              ],
+            );
+          }
+
+          // BO3 / BO5
+          else {
+            await conn.query(
+              `
+              DELETE FROM match_map_results
+              WHERE guild_id = ?
+                AND event_id = ?
+                AND match_id = ?
+              `,
+              [
+                guildId,
+                match.event_id,
+                matchId,
+              ],
+            );
+
+            for (const {
+              mapNo,
+              exactA,
+              exactB,
+            } of sortedMaps) {
+              await conn.query(
+                `
+                INSERT INTO match_map_results (
+                  guild_id,
+                  event_id,
+                  match_id,
+                  map_no,
+                  exact_a,
+                  exact_b
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                `,
+                [
+                  guildId,
+                  match.event_id,
+                  matchId,
+                  mapNo,
+                  exactA,
+                  exactB,
+                ],
+              );
+            }
+
+            await conn.query(
+              `
+              INSERT INTO match_results (
+                guild_id,
+                event_id,
+                match_id,
+                res_a,
+                res_b,
+                finished_at
+              )
+              VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+
+              ON DUPLICATE KEY UPDATE
+                event_id = VALUES(event_id),
+                res_a = VALUES(res_a),
+                res_b = VALUES(res_b),
+                exact_a = NULL,
+                exact_b = NULL,
+                finished_at = CURRENT_TIMESTAMP
+              `,
+              [
+                guildId,
+                match.event_id,
+                matchId,
+                finalResA,
+                finalResB,
+              ],
+            );
+          }
+
+          // ============================================
+          // LOCK
+          // ============================================
+
+          await conn.query(
+            `
+            UPDATE matches
+            SET is_locked = 1
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND id = ?
+            `,
+            [
+              guildId,
+              match.event_id,
+              matchId,
+            ],
+          );
+
+          // ============================================
+          // POINTS
+          // ============================================
+
+          await recalculateMatchPoints(
+            conn,
+            guildId,
+            match.event_id,
+            matchId,
+            match.best_of,
+          );
+        },
+      );
+
+      // ============================================
+      // REALTIME — PO COMMIT
+      // ============================================
+
+      const [[eventRow]] = await pool.query(
+        `
+        SELECT slug
+        FROM events
+        WHERE guild_id = ?
+          AND id = ?
+        LIMIT 1
+        `,
+        [
+          guildId,
+          match.event_id,
+        ],
+      );
+
+      emitDashboardRefresh({
+        slug: eventRow?.slug ?? null,
+        guildId,
+        eventId: match.event_id,
+        matchId: Number(matchId),
+        phase: match.phase,
+        reason: "match_finished",
+      });
+
+      return res.json({
+        ok: true,
+
+        result: {
+          res_a: finalResA,
+          res_b: finalResB,
+        },
+
+        maps: sortedMaps,
+      });
+    } catch (err) {
+      console.error(
+        "ADMIN MATCH EXACT SAVE ERROR:",
+        err,
+      );
+
+      return res.status(500).json({
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2507,7 +4574,7 @@ app.post(
 
       if (!event) {
         return res.status(404).json({
-          error: "Event not found",
+          error: "Nie znaleziono turnieju.",
         });
       }
 
@@ -2557,7 +4624,7 @@ app.get(
       const { guildId } = req;
 
       if (!SWISS_STAGES.includes(stage)) {
-        return res.status(400).json({ error: "Invalid stage" });
+        return res.status(400).json({ error: "Nieprawidłowy etap." });
       }
 
       const [[event]] = await pool.query(
@@ -2566,7 +4633,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const current = await getCurrentSwissResults(
@@ -2585,7 +4652,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2600,7 +4667,7 @@ app.post(
       const { guildId } = req;
 
       if (!SWISS_STAGES.includes(stage)) {
-        return res.status(400).json({ error: "Invalid stage" });
+        return res.status(400).json({ error: "Nieprawidłowy etap." });
       }
 
       const x3_0 = Array.isArray(req.body.x3_0)
@@ -2613,25 +4680,7 @@ app.post(
         ? req.body.advancing.map(String)
         : [];
 
-      if (x3_0.length > 2) {
-        return res.status(400).json({ error: "3-0: limit 2 teams" });
-      }
-
-      if (x0_3.length > 2) {
-        return res.status(400).json({ error: "0-3: limit 2 teams" });
-      }
-
-      if (advancing.length > 6) {
-        return res.status(400).json({ error: "Advancing: limit 6 teams" });
-      }
-
       const all = [...x3_0, ...x0_3, ...advancing];
-
-      if (new Set(all.map((v) => v.toLowerCase())).size !== all.length) {
-        return res
-          .status(400)
-          .json({ error: "A team cannot be in more than one category" });
-      }
 
       const [[event]] = await pool.query(
         "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
@@ -2639,7 +4688,17 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      // Limity wyniku biorą się z konfiguracji tego eventu (maksimum,
+      // nie liczba wymagana - wynik wpisuje się etapami).
+      const limityWyniku = await getPhaseLimits(pool, guildId, event.id, stage);
+
+      const walidacjaWyniku = sprawdzWynik(stage, limityWyniku, { x3_0, x0_3, advancing });
+
+      if (!walidacjaWyniku.ok) {
+        return res.status(400).json({ error: walidacjaWyniku.blad });
       }
 
       const teams = await loadActiveTeams(pool, guildId);
@@ -2679,7 +4738,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2699,7 +4758,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const current = await getCurrentPlayoffs(pool, guildId, event.id);
@@ -2714,7 +4773,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2737,14 +4796,6 @@ app.post(
       const winner = req.body.winner ? String(req.body.winner) : null;
       const third = req.body.third ? String(req.body.third) : null;
 
-      if (semifinalists.length > 4) {
-        return res.status(400).json({ error: "Semifinalists: limit 4 teams" });
-      }
-
-      if (finalists.length > 2) {
-        return res.status(400).json({ error: "Finalists: limit 2 teams" });
-      }
-
       if (finalists.some((t) => !semifinalists.includes(t))) {
         return res
           .status(400)
@@ -2752,7 +4803,7 @@ app.post(
       }
 
       if (winner && !finalists.includes(winner)) {
-        return res.status(400).json({ error: "Winner must be a finalist" });
+        return res.status(400).json({ error: "Zwycięzca musi być finalistą." });
       }
 
       if (third && (third === winner || !semifinalists.includes(third))) {
@@ -2772,7 +4823,17 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
+      // wpisuje sie etapami - czesciowy tez musi sie zapisac).
+      const limityWyniku = await getPhaseLimits(pool, guildId, event.id, "playoffs");
+
+      const walidacjaWyniku = sprawdzWynik("playoffs", limityWyniku, { semifinalists, finalists, winner: winner ? [winner] : [], third: third ? [third] : [] });
+
+      if (!walidacjaWyniku.ok) {
+        return res.status(400).json({ error: walidacjaWyniku.blad });
       }
 
       const teams = await loadActiveTeams(pool, guildId);
@@ -2810,7 +4871,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2830,7 +4891,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const current = await getCurrentDoubleElimResults(
@@ -2844,7 +4905,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2877,8 +4938,10 @@ app.post(
         ["Upper Final B", upperFinalB],
         ["Lower Final B", lowerFinalB],
       ]) {
-        if (arr.length > 2) {
-          return res.status(400).json({ error: `${label}: limit 2 teams` });
+        if (new Set(arr).size !== arr.length) {
+          return res
+            .status(400)
+            .json({ error: `${label}: drużyny nie mogą się powtarzać.` });
         }
       }
 
@@ -2905,7 +4968,17 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
+      // wpisuje sie etapami - czesciowy tez musi sie zapisac).
+      const limityWyniku = await getPhaseLimits(pool, guildId, event.id, "doubleelim");
+
+      const walidacjaWyniku = sprawdzWynik("doubleelim", limityWyniku, { upperFinalA, lowerFinalA, upperFinalB, lowerFinalB });
+
+      if (!walidacjaWyniku.ok) {
+        return res.status(400).json({ error: walidacjaWyniku.blad });
       }
 
       const teams = await loadActiveTeams(pool, guildId);
@@ -2949,7 +5022,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2969,7 +5042,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const current = await getCurrentPlayinResults(pool, guildId, event.id);
@@ -2979,7 +5052,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -2997,19 +5070,23 @@ app.post(
         ? Array.from(new Set(req.body.teams.map(String)))
         : [];
 
-      if (teams.length !== 8) {
-        return res.status(400).json({
-          error: `Play-In requires exactly 8 teams (got ${teams.length})`,
-        });
-      }
-
       const [[event]] = await pool.query(
         "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
         [guildId, slug],
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+      }
+
+      // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
+      // wpisuje sie etapami - czesciowy tez musi sie zapisac).
+      const limityWyniku = await getPhaseLimits(pool, guildId, event.id, "playin");
+
+      const walidacjaWyniku = sprawdzWynik("playin", limityWyniku, { teams });
+
+      if (!walidacjaWyniku.ok) {
+        return res.status(400).json({ error: walidacjaWyniku.blad });
       }
 
       const activeTeams = await loadActiveTeams(pool, guildId);
@@ -3039,7 +5116,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -3101,7 +5178,7 @@ app.get(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -3128,7 +5205,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const [base] = await pool.query(
@@ -3176,14 +5253,14 @@ app.get(
       const source = base.length
         ? base.map((b) => ({ ...b, ...(byUser.get(b.user_id) || {}) }))
         : detail.map((d) => ({
-            ...d,
-            total_points:
-              Number(d.swiss_points || 0) +
-              Number(d.playoffs_points || 0) +
-              Number(d.playin_points || 0) +
-              Number(d.doubleelim_points || 0) +
-              Number(d.match_points || 0),
-          }));
+          ...d,
+          total_points:
+            Number(d.swiss_points || 0) +
+            Number(d.playoffs_points || 0) +
+            Number(d.playin_points || 0) +
+            Number(d.doubleelim_points || 0) +
+            Number(d.match_points || 0),
+        }));
 
       const standings = source
         .map((r) => ({
@@ -3251,7 +5328,7 @@ app.get(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -3270,7 +5347,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const [candidates] = await pool.query(
@@ -3298,7 +5375,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -3315,7 +5392,7 @@ app.post(
 
       if (!Array.isArray(entries) || !entries.length) {
         return res.status(400).json({
-          error: "entries must be a non-empty array of { nickname, teamName }",
+          error: "entries musi być niepustą tablicą { nickname, teamName }.",
         });
       }
 
@@ -3336,7 +5413,7 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       await runInTransaction(pool, async (conn) => {
@@ -3361,7 +5438,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -3377,7 +5454,7 @@ app.post(
       const candidateId = Number(req.body.candidateId);
 
       if (!Number.isInteger(candidateId) || candidateId <= 0) {
-        return res.status(400).json({ error: "candidateId is required" });
+        return res.status(400).json({ error: "Wymagany jest identyfikator kandydata." });
       }
 
       const [[event]] = await pool.query(
@@ -3386,7 +5463,7 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       await pool.query(
@@ -3406,7 +5483,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -3418,41 +5495,62 @@ app.post(
   async (req, res) => {
     try {
       const { slug } = req.params;
+      const { guildId } = req;
       const { phase } = req.body;
 
       const allowedPhases = [
         "NOT_STARTED",
         "PLAY_IN",
         "SWISS",
-        "PLAYOFFS",
-        "FINISHED",
         "SWISS_STAGE_1",
         "SWISS_STAGE_2",
         "SWISS_STAGE_3",
+        "DOUBLE_ELIM",
+        "PLAYOFFS",
+        "FINISHED",
       ];
 
       if (!allowedPhases.includes(phase)) {
-        return res.status(400).json({ error: "Invalid phase", allowedPhases });
+        return res.status(400).json({
+          error: "Invalid phase",
+          allowedPhases,
+        });
       }
 
       const [result] = await pool.query(
-        `UPDATE events SET phase = ? WHERE slug = ? LIMIT 1`,
-        [phase, slug],
+        `
+        UPDATE events
+        SET phase = ?
+        WHERE guild_id = ?
+          AND slug = ?
+        LIMIT 1
+        `,
+        [phase, guildId, slug],
       );
 
       if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+        });
       }
 
       io.emit("dashboard:refresh", { slug });
 
-      res.json({ ok: true, slug, phase });
+      res.json({
+        ok: true,
+        slug,
+        phase,
+      });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+
+      res.status(500).json({
+        error: "Błąd bazy danych.",
+      });
     }
   },
 );
+
 
 app.get(
   "/api/guilds/:guildId/backups",
@@ -3481,7 +5579,7 @@ app.get(
       const filePath = path.join(backupDir, fileName);
 
       if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: "Backup file not found" });
+        return res.status(404).json({ error: "Nie znaleziono pliku kopii zapasowej." });
       }
 
       logInfo("backup", "Guild backup downloaded from web panel", {
@@ -3544,7 +5642,7 @@ app.post(
       const filePath = path.join(backupDir, fileName);
 
       if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: "Backup file not found" });
+        return res.status(404).json({ error: "Nie znaleziono pliku kopii zapasowej." });
       }
 
       const summary = await restoreBackup(filePath, { guildId });
@@ -3591,7 +5689,7 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       guildRegistry.ensureGuildDirs(guildId);
@@ -3747,7 +5845,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const buffer = await exportClassification({ guildId, eventId: event.id });
@@ -3785,7 +5883,7 @@ app.get(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const [[points]] = await pool.query(
@@ -3837,7 +5935,7 @@ app.get(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -3857,7 +5955,7 @@ app.post(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Event not found" });
+        return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
       const { r1, r2, r3, r4 } = await runInTransaction(pool, async (conn) => {
@@ -3951,7 +6049,7 @@ app.post(
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
@@ -4010,7 +6108,7 @@ app.get(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Database error" });
+      res.status(500).json({ error: "Błąd bazy danych." });
     }
   },
 );
@@ -4190,33 +6288,77 @@ app.post(
   async (req, res) => {
     try {
       const { matchId } = req.params;
-      const { locked } = req.body;
+      const { mode } = req.body;
 
-      const [result] = await pool.query(
-        `
-      UPDATE matches
-      SET is_locked = ?
-      WHERE id = ?
-      LIMIT 1
-      `,
-        [locked ? 1 : 0, matchId],
-      );
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          error: "Match not found",
+      if (!["auto", "lock", "unlock"].includes(mode)) {
+        return res.status(400).json({
+          error: "Nieprawidłowy tryb blokady.",
         });
       }
 
+      const [[currentMatch]] = await pool.query(
+        `
+        SELECT
+          id,
+          start_time_utc,
+          is_locked
+        FROM matches
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [matchId],
+      );
+
+      if (!currentMatch) {
+        return res.status(404).json({
+          error: "Nie znaleziono meczu.",
+        });
+      }
+
+      let override = null;
+      let isLocked = Number(currentMatch.is_locked) === 1;
+
+      if (mode === "lock") {
+        override = 1;
+      }
+
+      if (mode === "unlock") {
+        override = 0;
+      }
+
+      if (mode === "auto") {
+        override = null;
+
+        isLocked = isMatchStarted(
+          {
+            start_time_utc: currentMatch.start_time_utc,
+          },
+          undefined,
+          getLockBeforeSec(),
+        );
+      }
+
+      await pool.query(
+        `
+        UPDATE matches
+        SET
+          lock_override = ?,
+          is_locked = ?
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [override, isLocked ? 1 : 0, matchId],
+      );
+
       const [[match]] = await pool.query(
         `
-  SELECT e.slug
-  FROM matches m
-  JOIN events e
-    ON e.id = m.event_id
-  WHERE m.id = ?
-  LIMIT 1
-  `,
+        SELECT e.slug
+        FROM matches m
+        JOIN events e
+          ON e.id = m.event_id
+        WHERE m.id = ?
+        LIMIT 1
+        `,
         [matchId],
       );
 
@@ -4224,7 +6366,7 @@ app.post(
         io.emit("match:updated", {
           slug: match.slug,
           matchId,
-          locked: !!locked,
+          mode,
         });
 
         io.emit("dashboard:refresh", {
@@ -4235,154 +6377,20 @@ app.post(
       res.json({
         ok: true,
         matchId,
-        locked: !!locked,
+        mode,
+        lockOverride: override,
+        isLocked,
       });
     } catch (err) {
       console.error(err);
 
       res.status(500).json({
-        error: "Database error",
+        error: "Błąd bazy danych.",
       });
     }
   },
 );
 
-app.get("/api/matches/:matchId/stats", async (req, res) => {
-  try {
-    const { matchId } = req.params;
-
-    const [[match]] = await pool.query(
-      `
-            SELECT id, team_a, team_b, best_of
-            FROM matches
-            WHERE id = ?
-            LIMIT 1
-            `,
-      [matchId],
-    );
-
-    if (!match) {
-      return res.status(404).json({
-        error: "Match not found",
-      });
-    }
-
-    const [[stats]] = await pool.query(
-      `
-            SELECT
-                COUNT(*) AS predictions,
-                SUM(pred_a > pred_b) AS team_a_picks,
-                SUM(pred_b > pred_a) AS team_b_picks
-            FROM match_predictions
-            WHERE match_id = ?
-            `,
-      [matchId],
-    );
-
-    const [seriesRows] = await pool.query(
-      `
-            SELECT
-                pred_a,
-                pred_b,
-                COUNT(*) AS picks
-            FROM match_predictions
-            WHERE match_id = ?
-            GROUP BY pred_a, pred_b
-            ORDER BY picks DESC
-            `,
-      [matchId],
-    );
-
-    const [bo1MapRows] = await pool.query(
-      `
-            SELECT
-                1 AS map_no,
-                pred_exact_a,
-                pred_exact_b,
-                COUNT(*) AS picks
-            FROM match_predictions
-            WHERE match_id = ?
-              AND pred_exact_a IS NOT NULL
-              AND pred_exact_b IS NOT NULL
-            GROUP BY pred_exact_a, pred_exact_b
-            `,
-      [matchId],
-    );
-
-    const [multiMapRows] = await pool.query(
-      `
-            SELECT
-                map_no,
-                pred_exact_a,
-                pred_exact_b,
-                COUNT(*) AS picks
-            FROM match_map_predictions
-            WHERE match_id = ?
-              AND pred_exact_a IS NOT NULL
-              AND pred_exact_b IS NOT NULL
-            GROUP BY map_no, pred_exact_a, pred_exact_b
-            ORDER BY map_no ASC, picks DESC
-            `,
-      [matchId],
-    );
-
-    const bestOf = Number(match.best_of || 1);
-    const mapRows = bestOf === 1 ? bo1MapRows : multiMapRows;
-
-    const mapBreakdownMap = new Map();
-
-    for (const row of mapRows) {
-      const mapNo = Number(row.map_no);
-
-      if (!mapBreakdownMap.has(mapNo)) {
-        mapBreakdownMap.set(mapNo, []);
-      }
-
-      mapBreakdownMap.get(mapNo).push({
-        map_no: mapNo,
-        pred_exact_a: Number(row.pred_exact_a),
-        pred_exact_b: Number(row.pred_exact_b),
-        score: `${row.pred_exact_a}:${row.pred_exact_b}`,
-        picks: Number(row.picks || 0),
-      });
-    }
-
-    const map_breakdown = [...mapBreakdownMap.entries()].map(
-      ([map_no, scores]) => ({
-        map_no,
-        scores: scores.sort((a, b) => b.picks - a.picks).slice(0, 5),
-      }),
-    );
-
-    res.json({
-      match,
-      stats: {
-        predictions: Number(stats?.predictions || 0),
-        team_a_picks: Number(stats?.team_a_picks || 0),
-        team_b_picks: Number(stats?.team_b_picks || 0),
-
-        series_breakdown: seriesRows.map((row) => ({
-          pred_a: Number(row.pred_a),
-          pred_b: Number(row.pred_b),
-          label:
-            Number(row.pred_a) > Number(row.pred_b)
-              ? `${match.team_a} ${row.pred_a}:${row.pred_b}`
-              : `${match.team_b} ${row.pred_b}:${row.pred_a}`,
-          score: `${row.pred_a}:${row.pred_b}`,
-          picks: Number(row.picks || 0),
-        })),
-
-        map_breakdown,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: "Database error",
-    });
-  }
-});
 
 app.post(
   "/api/dev/matches/:matchId/score",
@@ -4483,292 +6491,627 @@ app.post(
   },
 );
 
-app.get("/api/public/users/:userId", async (req, res) => {
+
+app.get("/api/public/events/:slug/my-stats", async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.session?.user?.id;
 
-    const [[profileStats]] = await pool.query(
+    if (!userId) {
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+      });
+    }
+
+    const { slug } = req.params;
+
+    const [[event]] = await pool.query(
       `
-            SELECT
-                user_id,
-                displayname,
-                total_points,
-                swiss_points,
-                playoffs_points,
-                playin_points,
-                doubleelim_points,
-                match_points,
-                correct_series,
-                correct_maps,
-                exact_maps,
-                updated_at
-            FROM user_total_scores
-            WHERE user_id = ?
-            LIMIT 1
-            `,
-      [userId],
+      SELECT
+        id,
+        guild_id,
+        name,
+        slug
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
+      [slug],
     );
 
-    const [[rankRow]] = await pool.query(
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    if (!isGuildMember(req.session.user, event.guild_id)) {
+      return res.status(403).json({
+        error: "Nie należysz do tego serwera.",
+      });
+    }
+
+    const guildId = event.guild_id;
+    const eventId = event.id;
+
+    // ============================================
+    // LICZBA WSZYSTKICH TYPÓW
+    // ============================================
+
+    const [[predictionCount]] = await pool.query(
       `
-            SELECT ranked.rank_position
-            FROM (
-                SELECT
-                    user_id,
-                    RANK() OVER (ORDER BY total_points DESC) AS rank_position
-                FROM user_total_scores
-            ) ranked
-            WHERE ranked.user_id = ?
-            LIMIT 1
-            `,
-      [userId],
+      SELECT COUNT(*) AS total
+      FROM match_predictions
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND user_id = ?
+      `,
+      [guildId, eventId, userId],
     );
 
-    const [recentPredictions] = await pool.query(
+    const totalPredictions = Number(predictionCount?.total || 0);
+
+    if (!totalPredictions) {
+      return res.json({
+        event: {
+          id: event.id,
+          name: event.name,
+          slug: event.slug,
+        },
+        has_data: false,
+      });
+    }
+
+    // ============================================
+    // ROZLICZONE MECZE
+    // ============================================
+
+    const [settledRows] = await pool.query(
       `
-            SELECT
-                mp.match_id,
-                mp.pred_a,
-                mp.pred_b,
-                mp.pred_exact_a,
-                mp.pred_exact_b,
-                m.team_a,
-                m.team_b,
-                mp.updated_at,
-                e.name AS event_name,
-                e.slug AS event_slug
-            FROM match_predictions mp
-            JOIN matches m
-                ON m.id = mp.match_id
-            JOIN events e
-                ON e.id = mp.event_id
-            WHERE mp.user_id = ?
-            ORDER BY mp.updated_at DESC
-            LIMIT 10
-            `,
-      [userId],
+      SELECT
+        m.id AS match_id,
+        m.match_no,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+
+        mp.pred_a,
+        mp.pred_b,
+        mp.pred_exact_a,
+        mp.pred_exact_b,
+
+        mr.res_a,
+        mr.res_b,
+        mr.exact_a,
+        mr.exact_b,
+        mr.finished_at
+
+      FROM match_predictions mp
+
+      INNER JOIN matches m
+        ON m.id = mp.match_id
+       AND m.guild_id = mp.guild_id
+       AND m.event_id = mp.event_id
+
+      INNER JOIN match_results mr
+        ON mr.match_id = mp.match_id
+       AND mr.guild_id = mp.guild_id
+       AND mr.event_id = mp.event_id
+
+      WHERE mp.guild_id = ?
+        AND mp.event_id = ?
+        AND mp.user_id = ?
+
+      ORDER BY
+        mr.finished_at ASC,
+        m.id ASC
+      `,
+      [guildId, eventId, userId],
     );
 
-    const [[accuracyStats]] = await pool.query(
+    const settledMatches = settledRows.length;
+
+    const winnerHits = settledRows.filter(isWinnerCorrect).length;
+
+    const seriesExacts = settledRows.filter(isSeriesExact).length;
+
+    const { current: currentStreak, best: bestStreak } =
+      calculateStreaks(settledRows);
+
+    const bo1 = getBoStats(settledRows, 1);
+    const bo3 = getBoStats(settledRows, 3);
+    const bo5 = getBoStats(settledRows, 5);
+
+    // ============================================
+    // MAPY
+    // ============================================
+
+    const [mapRowsRaw] = await pool.query(
       `
-            SELECT
-                COUNT(*) AS finished_predictions,
-                SUM(
-                    CASE
-                        WHEN lms.status = 'FINAL'
-                         AND (
-                            (mp.pred_exact_a > mp.pred_exact_b AND lms.score_a > lms.score_b)
-                            OR
-                            (mp.pred_exact_b > mp.pred_exact_a AND lms.score_b > lms.score_a)
-                         )
-                        THEN 1 ELSE 0
-                    END
-                ) AS correct_winners,
-                SUM(
-                    CASE
-                        WHEN lms.status = 'FINAL'
-                         AND mp.pred_exact_a = lms.score_a
-                         AND mp.pred_exact_b = lms.score_b
-                        THEN 1 ELSE 0
-                    END
-                ) AS exact_scores
-            FROM match_predictions mp
-            JOIN live_match_scores lms
-                ON lms.match_id = mp.match_id
-            WHERE mp.user_id = ?
-            `,
-      [userId],
+      SELECT
+        p.match_id,
+        p.map_no,
+        p.pred_exact_a,
+        p.pred_exact_b,
+        r.exact_a,
+        r.exact_b
+
+      FROM match_map_predictions p
+
+      INNER JOIN match_map_results r
+        ON r.guild_id = p.guild_id
+       AND r.event_id = p.event_id
+       AND r.match_id = p.match_id
+       AND r.map_no = p.map_no
+
+      WHERE p.guild_id = ?
+        AND p.event_id = ?
+        AND p.user_id = ?
+      `,
+      [guildId, eventId, userId],
     );
 
-    const [swissPicks] = await pool.query(
-      `
-    SELECT
-        sp.stage,
-        sp.pick_3_0,
-        sp.pick_0_3,
-        sp.advancing,
-        sp.submitted_at,
-        e.name AS event_name,
-        e.slug AS event_slug
-    FROM swiss_predictions sp
-    JOIN events e
-        ON e.id = sp.event_id
-    WHERE sp.user_id = ?
-      AND sp.active = 1
-    ORDER BY sp.submitted_at DESC
-    LIMIT 12
-    `,
-      [userId],
+    const mapRows = [...mapRowsRaw];
+
+    const existingMapKeys = new Set(
+      mapRows.map((row) => `${row.match_id}:${row.map_no}`),
     );
 
-    const [eventPerformances] = await pool.query(
+    for (const row of settledRows) {
+      if (Number(row.best_of) !== 1) {
+        continue;
+      }
+
+      const key = `${row.match_id}:1`;
+
+      if (existingMapKeys.has(key)) {
+        continue;
+      }
+
+      if (
+        row.pred_exact_a == null ||
+        row.pred_exact_b == null ||
+        row.exact_a == null ||
+        row.exact_b == null
+      ) {
+        continue;
+      }
+
+      mapRows.push({
+        match_id: row.match_id,
+        map_no: 1,
+        pred_exact_a: row.pred_exact_a,
+        pred_exact_b: row.pred_exact_b,
+        exact_a: row.exact_a,
+        exact_b: row.exact_b,
+      });
+
+      existingMapKeys.add(key);
+    }
+
+    const settledMaps = mapRows.length;
+
+    const mapWinnerHits = mapRows.filter(isMapWinnerCorrect).length;
+
+    const exactMaps = mapRows.filter(isMapExact).length;
+
+    const mapAccuracy = calculateMapAccuracy(mapRows);
+
+    const teamStats = calculateTeamStats(settledRows);
+
+    // ============================================
+    // PUNKTY USERA
+    // ============================================
+
+    const [[points]] = await pool.query(
       `
-    SELECT
-        e.id AS event_id,
-        e.name AS event_name,
-        e.slug AS event_slug,
+      SELECT
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'series'
+              THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS series_points,
 
-        SUM(combined.total_points) AS total_points,
-        SUM(combined.swiss_points) AS swiss_points,
-        SUM(combined.match_points) AS match_points,
-        SUM(combined.playoffs_points) AS playoffs_points,
-        SUM(combined.playin_points) AS playin_points,
-        SUM(combined.doubleelim_points) AS doubleelim_points
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'map'
+              THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS map_points,
 
-    FROM (
-        SELECT
-            event_id,
-            user_id,
-            COALESCE(points, 0) AS total_points,
-            COALESCE(points, 0) AS swiss_points,
-            0 AS match_points,
-            0 AS playoffs_points,
-            0 AS playin_points,
-            0 AS doubleelim_points
-        FROM swiss_scores
+        COALESCE(
+          SUM(points),
+          0
+        ) AS total_points
 
-        UNION ALL
+      FROM match_points
 
-        SELECT
-            event_id,
-            user_id,
-            COALESCE(points, 0) AS total_points,
-            0 AS swiss_points,
-            COALESCE(points, 0) AS match_points,
-            0 AS playoffs_points,
-            0 AS playin_points,
-            0 AS doubleelim_points
-        FROM match_points
-
-        UNION ALL
-
-        SELECT
-            event_id,
-            user_id,
-            COALESCE(points, score, 0) AS total_points,
-            0 AS swiss_points,
-            0 AS match_points,
-            COALESCE(points, score, 0) AS playoffs_points,
-            0 AS playin_points,
-            0 AS doubleelim_points
-        FROM playoffs_scores
-
-        UNION ALL
-
-        SELECT
-            event_id,
-            user_id,
-            COALESCE(points, 0) AS total_points,
-            0 AS swiss_points,
-            0 AS match_points,
-            0 AS playoffs_points,
-            COALESCE(points, 0) AS playin_points,
-            0 AS doubleelim_points
-        FROM playin_scores
-
-        UNION ALL
-
-        SELECT
-            event_id,
-            user_id,
-            COALESCE(points, 0) AS total_points,
-            0 AS swiss_points,
-            0 AS match_points,
-            0 AS playoffs_points,
-            0 AS playin_points,
-            COALESCE(points, 0) AS doubleelim_points
-        FROM doubleelim_scores
-    ) combined
-
-    JOIN events e
-        ON e.id = combined.event_id
-
-    WHERE combined.user_id = ?
-
-    GROUP BY e.id, e.name, e.slug
-
-    ORDER BY total_points DESC, e.id DESC
-
-    LIMIT 10
-    `,
-      [userId],
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND user_id = ?
+      `,
+      [guildId, eventId, userId],
     );
+
+    const totalPoints = Number(points?.total_points || 0);
+
+    const seriesPoints = Number(points?.series_points || 0);
+
+    const mapPoints = Number(points?.map_points || 0);
+
+    const averagePoints = settledMatches ? totalPoints / settledMatches : 0;
+
+    // ============================================
+    // PUNKTY PER MECZ / TRENDY
+    // ============================================
+
+    const [pointsPerMatchRows] = await pool.query(
+      `
+      SELECT
+        match_id,
+        COALESCE(SUM(points), 0) AS total_points
+      FROM match_points
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND user_id = ?
+      GROUP BY match_id
+      `,
+      [guildId, eventId, userId],
+    );
+
+    const pointsByMatch = new Map(
+      pointsPerMatchRows.map((row) => [
+        String(row.match_id),
+        Number(row.total_points || 0),
+      ]),
+    );
+
+    const trends = calculateTrendStats({
+      settledRows,
+      mapRows,
+      pointsByMatch,
+    });
+
+    // ============================================
+    // SPOŁECZNOŚĆ
+    // ============================================
+
+    const [communityRows] = await pool.query(
+      `
+      SELECT
+        mp.user_id,
+
+        m.id AS match_id,
+        m.match_no,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+
+        mp.pred_a,
+        mp.pred_b,
+        mp.pred_exact_a,
+        mp.pred_exact_b,
+
+        mr.res_a,
+        mr.res_b,
+        mr.exact_a,
+        mr.exact_b
+
+      FROM match_predictions mp
+
+      INNER JOIN matches m
+        ON m.id = mp.match_id
+       AND m.guild_id = mp.guild_id
+       AND m.event_id = mp.event_id
+
+      INNER JOIN match_results mr
+        ON mr.match_id = mp.match_id
+       AND mr.guild_id = mp.guild_id
+       AND mr.event_id = mp.event_id
+
+      WHERE mp.guild_id = ?
+        AND mp.event_id = ?
+      `,
+      [guildId, eventId],
+    );
+
+    const communitySettledMatches = communityRows.length;
+
+    const communityWinnerHits = communityRows.filter(isWinnerCorrect).length;
+
+    const communitySeriesExacts = communityRows.filter(isSeriesExact).length;
+
+    const contrarianStats = calculateContrarianStats(
+      settledRows,
+      communityRows,
+    );
+
+    const communityAnalysis = calculateCommunityAnalysis(communityRows);
+
+    const style = calculatePlayerStyle({
+      settledMatches,
+      winnerHits,
+      seriesExacts,
+
+      settledMaps,
+      mapWinnerHits,
+      exactMaps,
+
+      contrarianPicks: contrarianStats.contrarianPicks,
+
+      contrarianHits: contrarianStats.contrarianHits,
+
+      majorityPicks: contrarianStats.majorityPicks,
+
+      majorityHits: contrarianStats.majorityHits,
+    });
+
+    // ============================================
+    // UCZESTNICY / RANKING
+    // ============================================
+
+    // Miejsce w klasyfikacji bierzemy z tabeli `leaderboard` - tej samej, ktora
+    // karmi strone "Ranking graczy", bota i eksport. Wczesniej liczylo sie to
+    // tutaj po swojemu: z samych match_points i tylko wsrod typujacych mecze.
+    // Przez to profil pokazywal "Miejsce #1" nawet wtedy, gdy ranking eventu
+    // byl jeszcze pusty, i pomijal punkty ze Swiss, Playoffs, Play-In,
+    // Double Elim oraz MVP.
+    const participantCount = await policzUczestnikow(eventId);
+
+    const [klasyfikacja] = await pool.query(
+      `
+      SELECT
+        CAST(user_id AS CHAR CHARACTER SET utf8mb4)
+          COLLATE utf8mb4_unicode_ci AS user_id,
+        COALESCE(total_points, 0) AS total_points
+      FROM leaderboard
+      WHERE event_id = ?
+      `,
+      [eventId],
+    );
+
+    const mojWiersz = klasyfikacja.find(
+      (row) => String(row.user_id) === String(userId),
+    );
+
+    // Brak wiersza znaczy, ze dla tego gracza nic jeszcze nie zostalo
+    // rozliczone. Wtedy nie ma miejsca w klasyfikacji - front pokaze "-"
+    // zamiast zmyslac pozycje.
+    const rank = mojWiersz
+      ? klasyfikacja.filter(
+        (row) => Number(row.total_points) > Number(mojWiersz.total_points),
+      ).length + 1
+      : null;
+
+    const topPercent =
+      rank && klasyfikacja.length
+        ? Math.max(0.1, (rank / klasyfikacja.length) * 100)
+        : null;
+
+    // Srednie spolecznosci zostaja na punktach meczowych, bo zestawiamy je
+    // ze statystykami meczowymi gracza (skutecznosc, punkty na mecz).
+    const [allPlayerPoints] = await pool.query(
+      `
+      SELECT
+        user_id,
+        COALESCE(SUM(points), 0) AS total_points
+      FROM match_points
+      WHERE guild_id = ?
+        AND event_id = ?
+      GROUP BY user_id
+      `,
+      [guildId, eventId],
+    );
+
+    const [[matchParticipants]] = await pool.query(
+      `
+      SELECT COUNT(DISTINCT user_id) AS ilu
+      FROM match_predictions
+      WHERE guild_id = ?
+        AND event_id = ?
+      `,
+      [guildId, eventId],
+    );
+
+    const matchParticipantCount = Number(matchParticipants?.ilu || 0);
+
+    const communityTotalPoints = allPlayerPoints.reduce(
+      (sum, row) => sum + Number(row.total_points || 0),
+      0,
+    );
+
+    const communityAverageTotalPoints = matchParticipantCount
+      ? communityTotalPoints / matchParticipantCount
+      : 0;
+
+    const communityAveragePoints = communitySettledMatches
+      ? communityTotalPoints / communitySettledMatches
+      : 0;
+
+    // ============================================
+    // NAJLEPSZY MECZ
+    // ============================================
+
+    const [[bestMatch]] = await pool.query(
+      `
+      SELECT
+        m.id AS match_id,
+        m.match_no,
+        m.team_a,
+        m.team_b,
+        SUM(mp.points) AS points
+
+      FROM match_points mp
+
+      INNER JOIN matches m
+        ON m.id = mp.match_id
+       AND m.guild_id = mp.guild_id
+       AND m.event_id = mp.event_id
+
+      WHERE mp.guild_id = ?
+        AND mp.event_id = ?
+        AND mp.user_id = ?
+
+      GROUP BY
+        m.id,
+        m.match_no,
+        m.team_a,
+        m.team_b
+
+      ORDER BY
+        points DESC,
+        m.match_no ASC,
+        m.id ASC
+
+      LIMIT 1
+      `,
+      [guildId, eventId, userId],
+    );
+
+    // ============================================
+    // RESPONSE
+    // ============================================
+
+    const last5 = calculateRecentForm(settledRows, 5);
+
+    const last10 = calculateRecentForm(settledRows, 10);
+
+    const recentForm = settledRows
+      .slice(-10)
+      .map((row) => (isWinnerCorrect(row) ? "W" : "L"));
 
     res.json({
-      profile: {
-        user_id: userId,
-        displayname: profileStats?.displayname || userId,
-
-        rank: Number(rankRow?.rank_position || 0),
-
-        total_points: Number(profileStats?.total_points || 0),
-        swiss_points: Number(profileStats?.swiss_points || 0),
-        playoffs_points: Number(profileStats?.playoffs_points || 0),
-        playin_points: Number(profileStats?.playin_points || 0),
-        doubleelim_points: Number(profileStats?.doubleelim_points || 0),
-        match_points: Number(profileStats?.match_points || 0),
-
-        correct_series: Number(profileStats?.correct_series || 0),
-        correct_maps: Number(profileStats?.correct_maps || 0),
-        exact_maps: Number(profileStats?.exact_maps || 0),
-
-        prediction_count: recentPredictions.length,
-
-        finished_predictions: Number(accuracyStats?.finished_predictions || 0),
-        correct_winners: Number(accuracyStats?.correct_winners || 0),
-        exact_scores: Number(accuracyStats?.exact_scores || 0),
-
-        accuracy:
-          Number(accuracyStats?.finished_predictions || 0) > 0
-            ? Math.round(
-                (Number(accuracyStats?.correct_winners || 0) /
-                  Number(accuracyStats?.finished_predictions || 0)) *
-                  100,
-              )
-            : 0,
-
-        updated_at: profileStats?.updated_at || null,
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
       },
 
-      recent_predictions: recentPredictions.map((prediction) => ({
-        ...prediction,
-        winner:
-          Number(prediction.pred_a) === 1
-            ? prediction.team_a
-            : prediction.team_b,
-        score:
-          prediction.pred_exact_a !== null && prediction.pred_exact_b !== null
-            ? `${prediction.pred_exact_a}:${prediction.pred_exact_b}`
-            : `${prediction.pred_a}:${prediction.pred_b}`,
-      })),
+      has_data: true,
 
-      swiss_picks: swissPicks.map((pick) => ({
-        stage: pick.stage,
-        event_name: pick.event_name,
-        event_slug: pick.event_slug,
-        submitted_at: pick.submitted_at,
-        three_zero: parseCsvPick(pick.pick_3_0),
-        zero_three: parseCsvPick(pick.pick_0_3),
-        advancing: parseCsvPick(pick.advancing),
-      })),
+      general: {
+        total_predictions: totalPredictions,
+        settled_matches: settledMatches,
 
-      event_performances: eventPerformances.map((event) => ({
-        event_id: event.event_id,
-        event_name: event.event_name,
-        event_slug: event.event_slug,
-        total_points: Number(event.total_points || 0),
-        swiss_points: Number(event.swiss_points || 0),
-        match_points: Number(event.match_points || 0),
-        playoffs_points: Number(event.playoffs_points || 0),
-        playin_points: Number(event.playin_points || 0),
-        doubleelim_points: Number(event.doubleelim_points || 0),
-      })),
+        winner_hits: winnerHits,
+        series_exacts: seriesExacts,
+
+        settled_maps: settledMaps,
+        map_winner_hits: mapWinnerHits,
+        exact_maps: exactMaps,
+
+        total_points: totalPoints,
+        series_points: seriesPoints,
+        map_points: mapPoints,
+        average_points: Number(averagePoints.toFixed(2)),
+
+        rank,
+        participant_count: participantCount,
+        top_percent:
+          topPercent === null ? null : Number(topPercent.toFixed(1)),
+
+        style,
+        trends,
+      },
+
+      accuracy: {
+        winner_hits: winnerHits,
+        settled_matches: settledMatches,
+
+        series_exacts: seriesExacts,
+
+        map_winner_hits: mapWinnerHits,
+        settled_maps: settledMaps,
+        exact_maps: exactMaps,
+
+        bo1,
+        bo3,
+        bo5,
+      },
+
+      form: {
+        recent: recentForm,
+
+        last5,
+        last10,
+
+        current_streak: currentStreak,
+        best_streak: bestStreak,
+
+        best_match: bestMatch
+          ? {
+            match_id: Number(bestMatch.match_id),
+            match_no:
+              bestMatch.match_no !== null ? Number(bestMatch.match_no) : null,
+            team_a: bestMatch.team_a,
+            team_b: bestMatch.team_b,
+            points: Number(bestMatch.points || 0),
+          }
+          : null,
+      },
+
+      comparison: {
+        rank,
+        participant_count: participantCount,
+        top_percent:
+          topPercent === null ? null : Number(topPercent.toFixed(1)),
+
+        user: {
+          winner_accuracy: percentageNumber(winnerHits, settledMatches),
+
+          exact_accuracy: percentageNumber(seriesExacts, settledMatches),
+
+          average_points: Number(averagePoints.toFixed(2)),
+
+          total_points: totalPoints,
+        },
+
+        community: {
+          winner_accuracy: percentageNumber(
+            communityWinnerHits,
+            communitySettledMatches,
+          ),
+
+          exact_accuracy: percentageNumber(
+            communitySeriesExacts,
+            communitySettledMatches,
+          ),
+
+          average_points: Number(communityAveragePoints.toFixed(2)),
+
+          average_total_points: Number(communityAverageTotalPoints.toFixed(2)),
+
+          settled_predictions: communitySettledMatches,
+        },
+      },
+
+      analysis: {
+        team_stats: teamStats,
+        map_accuracy: mapAccuracy,
+        community: communityAnalysis,
+      },
+
+      style: {
+        profile: style,
+        contrarian: contrarianStats,
+        settled_matches: settledMatches,
+      },
+
+      trends,
     });
   } catch (err) {
-    console.error(err);
+    console.error("MY STATS ERROR:", err);
 
     res.status(500).json({
-      error: "Database error",
+      error: "My stats load failed",
     });
   }
 });
@@ -4780,39 +7123,102 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
 
     if (!user_id) {
       return res.status(401).json({
-        error: "Login required",
+        error: "Musisz być zalogowany.",
       });
     }
 
+    // ============================================
+    // MATCH
+    // ============================================
+
     const [[match]] = await pool.query(
       `
-            SELECT id, guild_id, event_id, phase, team_a, team_b, best_of, is_locked
-            FROM matches
-            WHERE id = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id,
+        event_id,
+        phase,
+        team_a,
+        team_b,
+        best_of,
+        is_locked,
+        lock_override,
+        start_time_utc
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
       [matchId],
     );
 
     if (!match) {
       return res.status(404).json({
-        error: "Match not found",
+        error: "Nie znaleziono meczu.",
       });
     }
+
+    // ============================================
+    // GUILD ACCESS
+    // ============================================
 
     if (!isGuildMember(req.session.user, match.guild_id)) {
       return res.status(403).json({
-        error: "You are not a member of this server",
+        error: "Nie należysz do tego serwera.",
       });
     }
 
-    if (Number(match.is_locked) === 1) {
+    // ============================================
+    // FINAL RESULT
+    // ============================================
+
+    const [[existingResult]] = await pool.query(
+      `
+      SELECT 1
+      FROM match_results
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND match_id = ?
+      LIMIT 1
+      `,
+      [match.guild_id, match.event_id, match.id],
+    );
+
+    if (existingResult) {
       return res.status(403).json({
-        error: "Match is locked",
+        error: "Mecz został już zakończony.",
       });
     }
 
-    const matchPanelPhase = MATCH_PANEL_PHASE[match.phase];
+    // ============================================
+    // GLOBAL PREDICTION GATE
+    // ============================================
+
+    const gate = await assertPredictionsAllowed({
+      guildId: match.guild_id,
+      kind: "MATCHES",
+    });
+
+    if (!gate.allowed) {
+      return res.status(403).json({
+        error: komunikatNaWWW(gate.message, "Typowanie meczów jest aktualnie zamknięte."),
+      });
+    }
+
+    // ============================================
+    // MATCH LOCK
+    // ============================================
+
+    if (isMatchLocked(match)) {
+      return res.status(403).json({
+        error: "Typowanie tego meczu jest już zamknięte.",
+      });
+    }
+
+    // ============================================
+    // PHASE DEADLINE
+    // ============================================
+
+    const matchPanelPhase = matchPanelPhaseFor(match.phase);
 
     if (matchPanelPhase) {
       const { passed } = await isMatchDeadlinePassed(
@@ -4828,16 +7234,47 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
       }
     }
 
+    // ============================================
+    // BEST OF
+    // ============================================
+
     const bestOf = Number(match.best_of || 1);
+
+    if (![1, 3, 5].includes(bestOf)) {
+      return res.status(400).json({
+        error: `Nieobsługiwany format BO${bestOf}.`,
+      });
+    }
+
+    const hasSeriesPayload = Boolean(req.body?.series);
+
+    if (bestOf === 1 && hasSeriesPayload) {
+      return res.status(400).json({
+        error: "BO1 nie przyjmuje payloadu serii.",
+      });
+    }
+
+    if (bestOf > 1 && !hasSeriesPayload) {
+      return res.status(400).json({
+        error: `BO${bestOf} wymaga payloadu serii.`,
+      });
+    }
 
     let predA = null;
     let predB = null;
+
     let bo1ExactA = null;
     let bo1ExactB = null;
+
     let mapPicks = [];
 
-    if (req.body?.series) {
+    // ============================================
+    // BO3 / BO5
+    // ============================================
+
+    if (hasSeriesPayload) {
       predA = Number(req.body.series.pred_a);
+
       predB = Number(req.body.series.pred_b);
 
       if (
@@ -4848,20 +7285,13 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
         predA === predB
       ) {
         return res.status(400).json({
-          error: "Invalid series prediction",
+          error: "Nieprawidłowy typ serii.",
         });
       }
 
-      if (bestOf === 1) {
-        const validBo1 =
-          (predA === 1 && predB === 0) || (predA === 0 && predB === 1);
-
-        if (!validBo1) {
-          return res.status(400).json({
-            error: "BO1 series must be 1:0 or 0:1",
-          });
-        }
-      }
+      // ============================================
+      // VALID SERIES SCORE
+      // ============================================
 
       if (bestOf === 3) {
         const validBo3 =
@@ -4887,56 +7317,131 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
         }
       }
 
+      // ============================================
+      // MAPS
+      // ============================================
+
       mapPicks = Array.isArray(req.body.maps) ? req.body.maps : [];
+
+      const requiredMaps = predA + predB;
+
+      if (mapPicks.length !== requiredMaps) {
+        return res.status(400).json({
+          error:
+            `Dla wyniku ${predA}:${predB} wymagane są ` +
+            `${requiredMaps} mapy.`,
+        });
+      }
+
+      // ============================================
+      // UNIQUE MAP NUMBERS
+      // ============================================
+
+      const mapNumbers = mapPicks.map((map) => Number(map.map_no));
+
+      const uniqueMapNumbers = new Set(mapNumbers);
+
+      if (uniqueMapNumbers.size !== mapNumbers.length) {
+        return res.status(400).json({
+          error: "Numery map nie mogą się powtarzać.",
+        });
+      }
+
+      // ============================================
+      // MAP NUMBERS 1,2,3...
+      // ============================================
+
+      const expectedMapNumbers = Array.from(
+        {
+          length: mapPicks.length,
+        },
+        (_, index) => index + 1,
+      );
+
+      const actualMapNumbers = mapPicks
+        .map((map) => Number(map.map_no))
+        .sort((a, b) => a - b);
+
+      const hasValidMapNumbers = expectedMapNumbers.every(
+        (mapNo, index) => mapNo === actualMapNumbers[index],
+      );
+
+      if (!hasValidMapNumbers) {
+        return res.status(400).json({
+          error: "Numery map muszą być kolejne: 1, 2, 3...",
+        });
+      }
+
+      // ============================================
+      // MAP SCORE VALIDATION
+      // ============================================
 
       for (const map of mapPicks) {
         const mapNo = Number(map.map_no);
+
         const exactA = Number(map.pred_exact_a);
+
         const exactB = Number(map.pred_exact_b);
 
         if (
           !Number.isInteger(mapNo) ||
           mapNo < 1 ||
           mapNo > bestOf ||
-          !Number.isInteger(exactA) ||
-          !Number.isInteger(exactB) ||
-          exactA < 0 ||
-          exactB < 0 ||
-          exactA > 99 ||
-          exactB > 99 ||
-          exactA === exactB
+          !validateCs2Score(exactA, exactB)
         ) {
           return res.status(400).json({
-            error: `Invalid map prediction for map ${mapNo || "?"}`,
+            error: `Nieprawidłowy wynik mapy ` + `${mapNo || "?"}.`,
           });
         }
-
-        if (bestOf === 1 && mapNo === 1) {
-          bo1ExactA = exactA;
-          bo1ExactB = exactB;
-        }
       }
-    } else {
+
+      // ============================================
+      // MAP WINNERS MUST MATCH SERIES
+      // ============================================
+
+      const winsA = mapPicks.filter(
+        (map) => Number(map.pred_exact_a) > Number(map.pred_exact_b),
+      ).length;
+
+      const winsB = mapPicks.filter(
+        (map) => Number(map.pred_exact_b) > Number(map.pred_exact_a),
+      ).length;
+
+      if (winsA !== predA || winsB !== predB) {
+        return res.status(400).json({
+          error: "Wyniki map nie zgadzają się z wynikiem serii.",
+        });
+      }
+
+      // ============================================
+      // SERIES CANNOT END TOO EARLY
+      // ============================================
+
+      if (!validateSeriesMapOrder(mapPicks, bestOf)) {
+        return res.status(400).json({
+          error: "Seria kończy się za wcześnie względem podanych map.",
+        });
+      }
+    }
+
+    // ============================================
+    // BO1
+    // ============================================
+    else {
       const { winner, score_a, score_b } = req.body;
 
       if (!["team_a", "team_b"].includes(winner)) {
         return res.status(400).json({
-          error: "Invalid winner",
+          error: "Nieprawidłowy zwycięzca.",
         });
       }
 
       const scoreA = Number(score_a);
       const scoreB = Number(score_b);
 
-      if (
-        !Number.isInteger(scoreA) ||
-        !Number.isInteger(scoreB) ||
-        scoreA < 0 ||
-        scoreB < 0 ||
-        scoreA === scoreB
-      ) {
+      if (!validateCs2Score(scoreA, scoreB)) {
         return res.status(400).json({
-          error: "Invalid score",
+          error: "Nieprawidłowy wynik CS2.",
         });
       }
 
@@ -4945,39 +7450,44 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
         (winner === "team_b" && scoreB <= scoreA)
       ) {
         return res.status(400).json({
-          error: "Winner does not match score",
+          error: "Wybrany zwycięzca nie zgadza się z wynikiem.",
         });
       }
 
       predA = winner === "team_a" ? 1 : 0;
+
       predB = winner === "team_b" ? 1 : 0;
+
       bo1ExactA = scoreA;
       bo1ExactB = scoreB;
     }
 
-    await pool.query("START TRANSACTION");
+    // ============================================
+    // SAVE
+    // ============================================
 
-    try {
-      await pool.query(
+    await runInTransaction(pool, async (conn) => {
+      await conn.query(
         `
-                INSERT INTO match_predictions (
-                    match_id,
-                    guild_id,
-                    event_id,
-                    user_id,
-                    pred_a,
-                    pred_b,
-                    pred_exact_a,
-                    pred_exact_b
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    pred_a = VALUES(pred_a),
-                    pred_b = VALUES(pred_b),
-                    pred_exact_a = VALUES(pred_exact_a),
-                    pred_exact_b = VALUES(pred_exact_b),
-                    updated_at = CURRENT_TIMESTAMP
-                `,
+          INSERT INTO match_predictions (
+            match_id,
+            guild_id,
+            event_id,
+            user_id,
+            pred_a,
+            pred_b,
+            pred_exact_a,
+            pred_exact_b
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+
+          ON DUPLICATE KEY UPDATE
+            pred_a = VALUES(pred_a),
+            pred_b = VALUES(pred_b),
+            pred_exact_a = VALUES(pred_exact_a),
+            pred_exact_b = VALUES(pred_exact_b),
+            updated_at = CURRENT_TIMESTAMP
+          `,
         [
           match.id,
           match.guild_id,
@@ -4985,20 +7495,26 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
           user_id,
           predA,
           predB,
+
           bestOf === 1 ? bo1ExactA : null,
+
           bestOf === 1 ? bo1ExactB : null,
         ],
       );
 
+      // ============================================
+      // BO3 / BO5 MAPS
+      // ============================================
+
       if (bestOf > 1) {
-        await pool.query(
+        await conn.query(
           `
-                    DELETE FROM match_map_predictions
-                    WHERE guild_id = ?
-                      AND event_id = ?
-                      AND match_id = ?
-                      AND user_id = ?
-                    `,
+            DELETE FROM match_map_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND match_id = ?
+              AND user_id = ?
+            `,
           [match.guild_id, match.event_id, match.id, user_id],
         );
 
@@ -5008,106 +7524,161 @@ app.post("/api/public/matches/:matchId/prediction", async (req, res) => {
           match.event_id,
           user_id,
           Number(map.map_no),
-          null,
           Number(map.pred_exact_a),
           Number(map.pred_exact_b),
         ]);
 
         if (values.length) {
-          await pool.query(
+          await conn.query(
             `
-                        INSERT INTO match_map_predictions (
-                            match_id,
-                            guild_id,
-                            event_id,
-                            user_id,
-                            map_no,
-                            pred,
-                            pred_exact_a,
-                            pred_exact_b
-                        )
-                        VALUES ?
-                        `,
+              INSERT INTO match_map_predictions (
+                match_id,
+                guild_id,
+                event_id,
+                user_id,
+                map_no,
+                pred_exact_a,
+                pred_exact_b
+              )
+              VALUES ?
+              `,
             [values],
           );
         }
       }
 
-      await pool.query("COMMIT");
-    } catch (err) {
-      await pool.query("ROLLBACK");
-      throw err;
-    }
+      // ============================================
+      // BO1 CLEANUP
+      // ============================================
 
-    res.json({
+      if (bestOf === 1) {
+        await conn.query(
+          `
+            DELETE FROM match_map_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND match_id = ?
+              AND user_id = ?
+            `,
+          [match.guild_id, match.event_id, match.id, user_id],
+        );
+      }
+    });
+
+    // ============================================
+    // RESPONSE
+    // ============================================
+
+    return res.json({
       ok: true,
+
       prediction: {
-        match_id: Number(matchId),
+        match_id: Number(match.id),
+
         user_id,
+
         series: {
           pred_a: predA,
           pred_b: predB,
         },
+
         maps:
           bestOf === 1
             ? [
-                {
-                  map_no: 1,
-                  pred_exact_a: bo1ExactA,
-                  pred_exact_b: bo1ExactB,
-                },
-              ]
+              {
+                map_no: 1,
+                pred_exact_a: bo1ExactA,
+                pred_exact_b: bo1ExactB,
+              },
+            ]
             : mapPicks.map((map) => ({
-                map_no: Number(map.map_no),
-                pred_exact_a: Number(map.pred_exact_a),
-                pred_exact_b: Number(map.pred_exact_b),
-              })),
+              map_no: Number(map.map_no),
+
+              pred_exact_a: Number(map.pred_exact_a),
+
+              pred_exact_b: Number(map.pred_exact_b),
+            })),
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("MATCH PREDICTION SAVE ERROR:", err);
 
-    res.status(500).json({
-      error: "Prediction save failed",
+    return res.status(500).json({
+      error: "Nie udało się zapisać typu.",
     });
   }
 });
 
-app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
+app.get("/api/public/matches/:matchId/prediction", async (req, res) => {
   try {
-    const { matchId, userId } = req.params;
+    const { matchId } = req.params;
+    const userId = req.session?.user?.id;
+
+    // ============================================
+    // AUTH
+    // ============================================
+
+    if (!userId) {
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+      });
+    }
+
+    // ============================================
+    // MATCH
+    // ============================================
 
     const [[match]] = await pool.query(
       `
-            SELECT id, best_of
-            FROM matches
-            WHERE id = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id,
+        event_id,
+        best_of
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
       [matchId],
     );
 
     if (!match) {
       return res.status(404).json({
-        error: "Match not found",
+        error: "Nie znaleziono meczu.",
       });
     }
 
+    // ============================================
+    // GUILD ACCESS
+    // ============================================
+
+    if (!isGuildMember(req.session.user, match.guild_id)) {
+      return res.status(403).json({
+        error: "Nie należysz do tego serwera.",
+      });
+    }
+
+    // ============================================
+    // SERIES PREDICTION
+    // ============================================
+
     const [[prediction]] = await pool.query(
       `
-            SELECT
-                match_id,
-                user_id,
-                pred_a,
-                pred_b,
-                pred_exact_a,
-                pred_exact_b
-            FROM match_predictions
-            WHERE match_id = ?
-              AND user_id = ?
-            LIMIT 1
-            `,
-      [matchId, userId],
+      SELECT
+        match_id,
+        user_id,
+        pred_a,
+        pred_b,
+        pred_exact_a,
+        pred_exact_b
+      FROM match_predictions
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND match_id = ?
+        AND user_id = ?
+      LIMIT 1
+      `,
+      [match.guild_id, match.event_id, match.id, userId],
     );
 
     if (!prediction) {
@@ -5115,6 +7686,10 @@ app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
         prediction: null,
       });
     }
+
+    // ============================================
+    // MAPS
+    // ============================================
 
     let maps = [];
 
@@ -5129,16 +7704,18 @@ app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
     } else {
       const [mapRows] = await pool.query(
         `
-                SELECT
-                    map_no,
-                    pred_exact_a,
-                    pred_exact_b
-                FROM match_map_predictions
-                WHERE match_id = ?
-                  AND user_id = ?
-                ORDER BY map_no ASC
-                `,
-        [matchId, userId],
+        SELECT
+          map_no,
+          pred_exact_a,
+          pred_exact_b
+        FROM match_map_predictions
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND match_id = ?
+          AND user_id = ?
+        ORDER BY map_no ASC
+        `,
+        [match.guild_id, match.event_id, match.id, userId],
       );
 
       maps = mapRows.map((row) => ({
@@ -5148,9 +7725,14 @@ app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
       }));
     }
 
-    res.json({
+    // ============================================
+    // RESPONSE
+    // ============================================
+
+    return res.json({
       prediction: {
-        match_id: prediction.match_id,
+        match_id: Number(prediction.match_id),
+
         user_id: prediction.user_id,
 
         winner:
@@ -5159,10 +7741,12 @@ app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
             : "team_b",
 
         score_a: prediction.pred_exact_a,
+
         score_b: prediction.pred_exact_b,
 
         series: {
           pred_a: Number(prediction.pred_a),
+
           pred_b: Number(prediction.pred_b),
         },
 
@@ -5170,10 +7754,10 @@ app.get("/api/public/matches/:matchId/prediction/:userId", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("MATCH PREDICTION LOAD ERROR:", err);
 
-    res.status(500).json({
-      error: "Prediction load failed",
+    return res.status(500).json({
+      error: "Nie udało się wczytać typu.",
     });
   }
 });
@@ -5239,12 +7823,12 @@ app.get("/api/public/events/:eventId/predictions/:userId", async (req, res) => {
         const maps =
           bestOf === 1
             ? [
-                {
-                  map_no: 1,
-                  pred_exact_a: row.pred_exact_a,
-                  pred_exact_b: row.pred_exact_b,
-                },
-              ]
+              {
+                map_no: 1,
+                pred_exact_a: row.pred_exact_a,
+                pred_exact_b: row.pred_exact_b,
+              },
+            ]
             : mapsByMatch.get(Number(row.match_id)) || [];
 
         return {
@@ -5274,213 +7858,298 @@ app.get("/api/public/events/:eventId/predictions/:userId", async (req, res) => {
   }
 });
 
-app.get("/api/public/me/predictions", async (req, res) => {
+
+app.post("/api/public/events/:slug/swiss-pickem/:stage", async (req, res) => {
   try {
     const userId = req.session?.user?.id;
 
     if (!userId) {
       return res.status(401).json({
-        error: "Login required",
+        error: "Musisz być zalogowany.",
       });
     }
 
-    const [rows] = await pool.query(
+    const { slug, stage } = req.params;
+
+    if (!["stage1", "stage2", "stage3"].includes(stage)) {
+      return res.status(400).json({
+        error: "Nieprawidłowy etap Swiss.",
+      });
+    }
+
+    const { three_zero, zero_three, advancing } = req.body;
+
+    const [[event]] = await pool.query(
       `
-            SELECT
-                mp.match_id,
-                mp.pred_a,
-                mp.pred_b,
-                mp.pred_exact_a,
-                mp.pred_exact_b,
-                m.team_a,
-                m.team_b,
-                m.phase,
-                m.best_of,
-                m.is_locked,
-                m.score_a,
-                m.score_b,
-                m.ui_status
-                e.name AS event_name,
-                e.slug AS event_slug
-            FROM match_predictions mp
-            JOIN matches m ON m.id = mp.match_id
-            JOIN events e ON e.id = mp.event_id
-            WHERE mp.user_id = ?
-            ORDER BY mp.updated_at DESC
-            `,
-      [userId],
+      SELECT
+        id,
+        guild_id,
+        name,
+        slug,
+        phase,
+        status
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    /*
+     * Discord działa wyłącznie z poziomu gildii,
+     * więc WWW również wymaga członkostwa.
+     */
+    if (!isGuildMember(req.session.user, event.guild_id)) {
+      return res.status(403).json({
+        error: "Nie należysz do tego serwera.",
+      });
+    }
+
+    /*
+     * Ten sam gate co Discord + webowy odpowiednik deadline.
+     */
+    const gate = await pickemGate(event.guild_id, "SWISS", stage);
+
+    if (!gate.allowed) {
+      return res.status(403).json({
+        error: komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
+      });
+    }
+
+    /*
+     * AKTUALNY EVENT - Discord robi to przez getOpenEventId().
+     *
+     * Bez tego zapis szedł na event_id odczytany ze sluga w URL-u, a gate
+     * sprawdzał fazę BIEŻĄCEGO eventu. Przy otwartym Swiss 1 dawało się więc
+     * wejść pod slugiem starego turnieju i zapisać typ do cudzego event_id.
+     * Playoffs, Play-In i Double Elim mają ten sam check; Swiss był jedynym
+     * bez niego.
+     */
+    const currentEventId = await getOpenEventId(pool, event.guild_id);
+
+    if (!currentEventId) {
+      return res.status(403).json({
+        error: "Nie znaleziono aktywnego eventu.",
+      });
+    }
+
+    if (Number(currentEventId) !== Number(event.id)) {
+      return res.status(409).json({
+        error:
+          "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Swiss.",
+      });
+    }
+
+    const threeZero = Array.isArray(three_zero) ? three_zero.map(String) : [];
+
+    const zeroThree = Array.isArray(zero_three) ? zero_three.map(String) : [];
+
+    const advancingTeams = Array.isArray(advancing)
+      ? advancing.map(String)
+      : [];
+
+    /*
+     * Liczby drużyn biorą się z konfiguracji TEGO eventu, a nie z liczb
+     * wpisanych na sztywno. Event bez konfiguracji dostaje wartości
+     * domyślne (2/2/6), czyli zachowanie sprzed tej zmiany.
+     */
+    const limity = await getPhaseLimits(
+      pool,
+      event.guild_id,
+      currentEventId,
+      stage,
+    );
+
+    const walidacja = sprawdzTyp(stage, limity, {
+      x3_0: threeZero,
+      x0_3: zeroThree,
+      advancing: advancingTeams,
+    });
+
+    if (!walidacja.ok) {
+      return res.status(400).json({ error: walidacja.blad });
+    }
+
+    const allPicked = [...threeZero, ...zeroThree, ...advancingTeams];
+
+    /*
+     * Tak samo jak Discord:
+     * jeszcze raz sprawdzamy aktywne drużyny
+     * tuż przed zapisem.
+     */
+    const validTeams = await loadActiveTeams(pool, event.guild_id);
+
+    const invalidTeams = allPicked.filter((team) => !validTeams.includes(team));
+
+    if (invalidTeams.length) {
+      return res.status(400).json({
+        error: `Unknown or inactive teams: ${invalidTeams.join(", ")}`,
+      });
+    }
+
+    /*
+     * Finalny zapis.
+     * WAŻNE: stage musi być zapisany.
+     */
+    await pool.query(
+      `
+      INSERT INTO swiss_predictions (
+        guild_id,
+        event_id,
+        user_id,
+        username,
+        displayname,
+        stage,
+        pick_3_0,
+        pick_0_3,
+        advancing,
+        active,
+        submitted_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        username = VALUES(username),
+        displayname = VALUES(displayname),
+        pick_3_0 = VALUES(pick_3_0),
+        pick_0_3 = VALUES(pick_0_3),
+        advancing = VALUES(advancing),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
+      `,
+      [
+        event.guild_id,
+        currentEventId,
+        userId,
+        req.session.user?.username || userId,
+        req.session.user?.global_name || req.session.user?.username || userId,
+        stage,
+        threeZero.join(", "),
+        zeroThree.join(", "),
+        advancingTeams.join(", "),
+      ],
     );
 
     res.json({
-      predictions: rows.map((row) => ({
-        match_id: row.match_id,
-        winner: Number(row.pred_a) === 1 ? "team_a" : "team_b",
-        score_a: row.pred_exact_a,
-        score_b: row.pred_exact_b,
-        team_a: row.team_a,
-        team_b: row.team_b,
-        phase: row.phase,
-        best_of: row.best_of,
-        actual_score_a: row.score_a,
-        actual_score_b: row.score_b,
-        match_status: row.ui_status,
-        is_locked: Number(row.is_locked) === 1,
-        event_name: row.event_name,
-        event_slug: row.event_slug,
-        is_correct_winner:
-          row.ui_status === "FINAL"
-            ? (Number(row.pred_exact_a) > Number(row.pred_exact_b) &&
-                Number(row.score_a) > Number(row.score_b)) ||
-              (Number(row.pred_exact_b) > Number(row.pred_exact_a) &&
-                Number(row.score_b) > Number(row.score_a))
-            : null,
-        is_exact_score:
-          row.ui_status === "FINAL"
-            ? Number(row.pred_exact_a) === Number(row.score_a) &&
-              Number(row.pred_exact_b) === Number(row.score_b)
-            : null,
-      })),
+      ok: true,
+
+      prediction: {
+        three_zero: threeZero,
+        zero_three: zeroThree,
+        advancing: advancingTeams,
+      },
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Predictions load failed" });
-  }
-});
-
-app.get("/api/public/leaderboard", async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-            SELECT
-                mp.user_id,
-
-                COUNT(*) AS total_predictions,
-
-                SUM(
-                    CASE
-                        WHEN m.ui_status = 'FINAL'
-                         AND (
-                            (mp.pred_exact_a > mp.pred_exact_b AND m.score_a > m.score_b)
-                            OR
-                            (mp.pred_exact_b > mp.pred_exact_a AND m.score_b > m.score_a)
-                         )
-                        THEN 1 ELSE 0
-                    END
-                ) AS correct_winners,
-
-                SUM(
-                    CASE
-                        WHEN m.ui_status = 'FINAL'
-                         AND mp.pred_exact_a = m.score_a
-                         AND mp.pred_exact_b = m.score_b
-                        THEN 1 ELSE 0
-                    END
-                ) AS exact_scores,
-
-                COALESCE(SUM(ms.points), 0) AS total_points
-
-            FROM match_predictions mp
-
-            LEFT JOIN matches m
-                ON m.id = mp.match_id
-
-            LEFT JOIN match_scores ms
-                ON ms.match_id = mp.match_id
-               AND ms.user_id = mp.user_id
-
-            GROUP BY mp.user_id
-
-            ORDER BY total_points DESC, correct_winners DESC
-
-            LIMIT 100
-        `);
-
-    const leaderboard = rows.map((row, index) => {
-      const finishedPredictions = Number(row.correct_winners || 0);
-
-      const totalPredictions = Number(row.total_predictions || 0);
-
-      return {
-        rank: index + 1,
-        user_id: row.user_id,
-        total_points: Number(row.total_points || 0),
-        total_predictions: totalPredictions,
-        correct_winners: Number(row.correct_winners || 0),
-        exact_scores: Number(row.exact_scores || 0),
-        accuracy:
-          totalPredictions > 0
-            ? Math.round(
-                (Number(row.correct_winners || 0) / totalPredictions) * 100,
-              )
-            : 0,
-      };
-    });
-
-    res.json({ leaderboard });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Leaderboard load failed",
+      error: "Nie udało się zapisać typów Swiss.",
     });
   }
 });
 
+// Lista drużyn do formularza fazy uzupełniona o drużyny z zapisanego typu.
+//
+// Formularze faz budowały listę wyboru wyłącznie z loadActiveTeams()
+// (active = 1), a typy trzymane są jako nazwy tekstowe. Drużyna wyłączona
+// albo przemianowana PO turnieju znikała z listy, więc historyczny typ nie
+// podświetlał się jako wybrany - gracz oglądał własny typ jako pusty.
+//
+// Dokładamy brakujące nazwy na koniec, oznaczone active: false, żeby widok
+// historyczny pokazywał to, co faktycznie zostało zapisane.
+function uzupelnijDruzynyOTypy(teams, ...listyNazw) {
+  const znane = new Set((teams || []).map((team) => team.name));
+  const brakujace = [];
+
+  for (const lista of listyNazw) {
+    for (const nazwa of lista || []) {
+      if (nazwa && !znane.has(nazwa)) {
+        znane.add(nazwa);
+        brakujace.push(nazwa);
+      }
+    }
+  }
+
+  return [
+    ...(teams || []).map((team) => ({ ...team, active: true })),
+    // ujemne id, żeby nie kolidowały z prawdziwymi (front używa ich jako key)
+    ...brakujace.map((name, index) => ({
+      id: -(index + 1),
+      name,
+      active: false,
+    })),
+  ];
+}
+
 app.get("/api/public/events/:slug/swiss-pickem/:stage", async (req, res) => {
   try {
+    const { slug, stage } = req.params;
     const userId = req.session?.user?.id || null;
-    const { slug } = req.params;
-
-    const { stage } = req.params;
 
     if (!["stage1", "stage2", "stage3"].includes(stage)) {
       return res.status(400).json({
-        error: "Invalid Swiss stage",
+        error: "Nieprawidłowy etap Swiss.",
       });
     }
 
     const [[event]] = await pool.query(
       `
-            SELECT id, guild_id, name, slug, phase, status
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id,
+        name,
+        slug,
+        phase,
+        status
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
       [slug],
     );
 
     if (!event) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
     }
-
-    const gate = await pickemGate(event.guild_id, "SWISS", stage);
-
-    const [teams] = await pool.query(
-      `
-            SELECT id, name
-            FROM teams
-            WHERE guild_id = ?
-              AND active = 1
-            ORDER BY name ASC
-            `,
-      [event.guild_id],
-    );
 
     let prediction = null;
 
     if (userId) {
+      if (!isGuildMember(req.session.user, event.guild_id)) {
+        return res.status(403).json({
+          error: "Nie należysz do tego serwera.",
+        });
+      }
+
       const [[row]] = await pool.query(
         `
-                SELECT
-                    pick_3_0,
-                    pick_0_3,
-                    advancing
-                FROM swiss_predictions
-                WHERE event_id = ?
-                  AND user_id = ?
-                  AND stage = ?
-                LIMIT 1
-                `,
-        [event.id, userId, stage],
+        SELECT
+          pick_3_0,
+          pick_0_3,
+          advancing
+        FROM swiss_predictions
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND user_id = ?
+          AND stage = ?
+          AND active = 1
+        LIMIT 1
+        `,
+        [
+          event.guild_id,
+          event.id,
+          userId,
+          stage,
+        ],
       );
 
       if (row) {
@@ -5492,293 +8161,56 @@ app.get("/api/public/events/:slug/swiss-pickem/:stage", async (req, res) => {
       }
     }
 
-    res.json({
-      event,
+    const teamNames = await loadActiveTeams(
+      pool,
+      event.guild_id,
+    );
+
+    const teams = uzupelnijDruzynyOTypy(
+      teamNames.map((name, index) => ({ id: index + 1, name })),
+      prediction?.three_zero,
+      prediction?.zero_three,
+      prediction?.advancing,
+    );
+
+    const gate = await pickemGate(
+      event.guild_id,
+      "SWISS",
+      stage,
+    );
+
+    return res.json({
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+      },
+
+      stage,
+
       teams,
+
+      // Limity z konfiguracji TEGO eventu - front nie ma ich już zaszytych.
+      limity: await getPhaseLimits(pool, event.guild_id, event.id, stage),
+
       prediction,
+
       lock: {
-        allowed: gate.allowed,
-        message: gate.message || null,
+        allowed: Boolean(gate.allowed),
+        message: gate.allowed
+          ? null
+          : komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Swiss pickem load failed" });
-  }
-});
+    console.error("SWISS PICKEM LOAD ERROR:", err);
 
-app.post("/api/public/events/:slug/swiss-pickem/:stage", async (req, res) => {
-  try {
-    const userId = req.session?.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({
-        error: "Login required",
-      });
-    }
-
-    const { slug } = req.params;
-
-    const { stage } = req.params;
-
-    if (!["stage1", "stage2", "stage3"].includes(stage)) {
-      return res.status(400).json({
-        error: "Invalid Swiss stage",
-      });
-    }
-
-    const { three_zero, zero_three, advancing } = req.body;
-
-    const [[event]] = await pool.query(
-      `
-            SELECT id, guild_id, name, slug, phase, status
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
-      [slug],
-    );
-
-    if (!event) {
-      return res.status(404).json({
-        error: "Event not found",
-      });
-    }
-
-    if (!isGuildMember(req.session.user, event.guild_id)) {
-      return res.status(403).json({
-        error: "You are not a member of this server",
-      });
-    }
-
-    const gate = await pickemGate(event.guild_id, "SWISS", stage);
-
-    if (!gate.allowed) {
-      return res.status(403).json({
-        error: gate.message || "Pick'Em is closed for this stage.",
-      });
-    }
-
-    const threeZero = Array.isArray(three_zero) ? three_zero : [];
-    const zeroThree = Array.isArray(zero_three) ? zero_three : [];
-    const advancingTeams = Array.isArray(advancing) ? advancing : [];
-
-    if (threeZero.length !== 2) {
-      return res.status(400).json({
-        error: "Pick exactly 2 teams for 3-0",
-      });
-    }
-
-    if (zeroThree.length !== 2) {
-      return res.status(400).json({
-        error: "Pick exactly 2 teams for 0-3",
-      });
-    }
-
-    if (advancingTeams.length !== 6) {
-      return res.status(400).json({
-        error: "Pick exactly 6 advancing teams",
-      });
-    }
-
-    const allPicked = [...threeZero, ...zeroThree, ...advancingTeams];
-
-    const uniquePicked = new Set(allPicked);
-
-    if (uniquePicked.size !== allPicked.length) {
-      return res.status(400).json({
-        error: "Team can only be selected once",
-      });
-    }
-    await pool.query(
-      `
-    INSERT INTO swiss_predictions (
-        guild_id,
-        event_id,
-        user_id,
-        username,
-        displayname,
-        pick_3_0,
-        pick_0_3,
-        advancing,
-        active,
-        submitted_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-    ON DUPLICATE KEY UPDATE
-        username = VALUES(username),
-        displayname = VALUES(displayname),
-        pick_3_0 = VALUES(pick_3_0),
-        pick_0_3 = VALUES(pick_0_3),
-        advancing = VALUES(advancing),
-        active = 1,
-        submitted_at = CURRENT_TIMESTAMP
-    `,
-      [
-        event.guild_id,
-        event.id,
-        userId,
-        req.session.user?.username || userId,
-        req.session.user?.global_name || req.session.user?.username || userId,
-        threeZero.join(","),
-        zeroThree.join(","),
-        advancingTeams.join(","),
-      ],
-    );
-
-    res.json({
-      ok: true,
-      prediction: {
-        three_zero: threeZero,
-        zero_three: zeroThree,
-        advancing: advancingTeams,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: "Swiss pickem save failed",
+    return res.status(500).json({
+      error: "Nie udało się wczytać typów Swiss.",
     });
   }
 });
 
-app.get("/api/public/events/:slug/leaderboard", async (req, res) => {
-  try {
-    const { slug } = req.params;
-
-    const [[event]] = await pool.query(
-      `
-            SELECT id, guild_id, name, slug
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
-      [slug],
-    );
-
-    if (!event) {
-      return res.status(404).json({
-        error: "Event not found",
-      });
-    }
-
-    const [rows] = await pool.query(
-      `
-            SELECT
-                combined.user_id,
-                MAX(combined.displayname) AS displayname,
-
-                SUM(combined.total_points) AS total_points,
-                SUM(combined.swiss_points) AS swiss_points,
-                SUM(combined.playoffs_points) AS playoffs_points,
-                SUM(combined.playin_points) AS playin_points,
-                SUM(combined.doubleelim_points) AS doubleelim_points,
-                SUM(combined.match_points) AS match_points
-
-            FROM (
-                SELECT
-                    user_id,
-                    displayname,
-                    COALESCE(points, 0) AS total_points,
-                    COALESCE(points, 0) AS swiss_points,
-                    0 AS playoffs_points,
-                    0 AS playin_points,
-                    0 AS doubleelim_points,
-                    0 AS match_points
-                FROM swiss_scores
-                WHERE event_id = ?
-
-                UNION ALL
-
-                SELECT
-                    user_id,
-                    displayname,
-                    COALESCE(points, score, 0) AS total_points,
-                    0 AS swiss_points,
-                    COALESCE(points, score, 0) AS playoffs_points,
-                    0 AS playin_points,
-                    0 AS doubleelim_points,
-                    0 AS match_points
-                FROM playoffs_scores
-                WHERE event_id = ?
-
-                UNION ALL
-
-                SELECT
-                    user_id,
-                    displayname,
-                    COALESCE(points, 0) AS total_points,
-                    0 AS swiss_points,
-                    0 AS playoffs_points,
-                    COALESCE(points, 0) AS playin_points,
-                    0 AS doubleelim_points,
-                    0 AS match_points
-                FROM playin_scores
-                WHERE event_id = ?
-
-                UNION ALL
-
-                SELECT
-                    user_id,
-                    displayname,
-                    COALESCE(points, 0) AS total_points,
-                    0 AS swiss_points,
-                    0 AS playoffs_points,
-                    0 AS playin_points,
-                    COALESCE(points, 0) AS doubleelim_points,
-                    0 AS match_points
-                FROM doubleelim_scores
-                WHERE event_id = ?
-
-                UNION ALL
-
-                SELECT
-                    user_id,
-                    NULL AS displayname,
-                    COALESCE(points, 0) AS total_points,
-                    0 AS swiss_points,
-                    0 AS playoffs_points,
-                    0 AS playin_points,
-                    0 AS doubleelim_points,
-                    COALESCE(points, 0) AS match_points
-                FROM match_points
-                WHERE event_id = ?
-            ) combined
-
-            WHERE combined.user_id IS NOT NULL
-
-            GROUP BY combined.user_id
-
-            ORDER BY total_points DESC, swiss_points DESC, match_points DESC
-
-            LIMIT 100
-            `,
-      [event.id, event.id, event.id, event.id, event.id],
-    );
-
-    res.json({
-      event,
-      leaderboard: rows.map((row, index) => ({
-        rank: index + 1,
-        user_id: row.user_id,
-        displayname: row.displayname || row.user_id,
-        total_points: Number(row.total_points || 0),
-        swiss_points: Number(row.swiss_points || 0),
-        playoffs_points: Number(row.playoffs_points || 0),
-        playin_points: Number(row.playin_points || 0),
-        doubleelim_points: Number(row.doubleelim_points || 0),
-        match_points: Number(row.match_points || 0),
-      })),
-    });
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: "Event leaderboard load failed",
-    });
-  }
-});
 
 app.get("/api/public/events/:slug/swiss-stats/:stage", async (req, res) => {
   try {
@@ -5786,7 +8218,7 @@ app.get("/api/public/events/:slug/swiss-stats/:stage", async (req, res) => {
 
     if (!["stage1", "stage2", "stage3"].includes(stage)) {
       return res.status(400).json({
-        error: "Invalid Swiss stage",
+        error: "Nieprawidłowy etap Swiss.",
       });
     }
 
@@ -5802,7 +8234,7 @@ app.get("/api/public/events/:slug/swiss-stats/:stage", async (req, res) => {
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
@@ -5856,172 +8288,11 @@ app.get("/api/public/events/:slug/swiss-stats/:stage", async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Swiss stats load failed",
+      error: "Nie udało się wczytać statystyk Swiss.",
     });
   }
 });
 
-app.get("/api/public/events/:slug/match-stats", async (req, res) => {
-  try {
-    const { slug } = req.params;
-
-    const [[event]] = await pool.query(
-      `
-            SELECT id, guild_id, name, slug
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
-      [slug],
-    );
-
-    if (!event) {
-      return res.status(404).json({
-        error: "Event not found",
-      });
-    }
-
-    const [rows] = await pool.query(
-      `
-    SELECT
-        m.id AS match_id,
-        m.match_no,
-        m.phase,
-        m.team_a,
-        m.team_b,
-        m.best_of,
-        m.start_time_utc,
-
-        mr.res_a,
-        mr.res_b,
-        mr.finished_at,
-
-        COUNT(mp.user_id) AS total_predictions,
-
-        COALESCE(SUM(mp.pred_a = 1), 0) AS team_a_picks,
-        COALESCE(SUM(mp.pred_b = 1), 0) AS team_b_picks
-
-    FROM matches m
-
-    LEFT JOIN match_results mr
-        ON mr.match_id = m.id
-
-    LEFT JOIN match_predictions mp
-        ON mp.match_id = m.id
-
-    WHERE m.event_id = ?
-
-    GROUP BY
-        m.id,
-        m.match_no,
-        m.phase,
-        m.team_a,
-        m.team_b,
-        m.best_of,
-        m.start_time_utc,
-        mr.res_a,
-        mr.res_b,
-        mr.finished_at
-
-    ORDER BY m.match_no ASC, m.id ASC
-    `,
-      [event.id],
-    );
-
-    const [scoreRows] = await pool.query(
-      `
-    SELECT
-        mp.match_id,
-        mp.pred_exact_a,
-        mp.pred_exact_b,
-        COUNT(*) AS picks
-    FROM match_predictions mp
-    JOIN matches m
-        ON m.id = mp.match_id
-    WHERE m.event_id = ?
-      AND mp.pred_exact_a IS NOT NULL
-      AND mp.pred_exact_b IS NOT NULL
-    GROUP BY
-        mp.match_id,
-        mp.pred_exact_a,
-        mp.pred_exact_b
-    ORDER BY picks DESC
-    `,
-      [event.id],
-    );
-
-    const scoreMap = new Map();
-
-    scoreRows.forEach((row) => {
-      const matchId = Number(row.match_id);
-
-      if (!scoreMap.has(matchId)) {
-        scoreMap.set(matchId, []);
-      }
-
-      scoreMap.get(matchId).push({
-        score: `${row.pred_exact_a}:${row.pred_exact_b}`,
-        picks: Number(row.picks || 0),
-      });
-    });
-
-    res.json({
-      event,
-      matches: rows.map((row) => {
-        const total = Number(row.total_predictions || 0);
-        const teamAPicks = Number(row.team_a_picks || 0);
-        const teamBPicks = Number(row.team_b_picks || 0);
-
-        const winner = row.finished_at
-          ? Number(row.res_a) > Number(row.res_b)
-            ? row.team_a
-            : row.team_b
-          : null;
-
-        const communityPick =
-          teamAPicks >= teamBPicks ? row.team_a : row.team_b;
-
-        return {
-          match_id: row.match_id,
-          match_no: row.match_no,
-          phase: row.phase,
-          team_a: row.team_a,
-          team_b: row.team_b,
-          best_of: row.best_of,
-          start_time_utc: row.start_time_utc,
-
-          result_a: row.res_a !== null ? Number(row.res_a) : null,
-          result_b: row.res_b !== null ? Number(row.res_b) : null,
-          finished_at: row.finished_at,
-
-          total_predictions: total,
-
-          team_a_picks: teamAPicks,
-          team_b_picks: teamBPicks,
-
-          team_a_percentage:
-            total > 0 ? Math.round((teamAPicks / total) * 100) : 0,
-
-          team_b_percentage:
-            total > 0 ? Math.round((teamBPicks / total) * 100) : 0,
-
-          community_pick: communityPick,
-          winner,
-
-          community_was_right: winner ? communityPick === winner : null,
-
-          top_scores: (scoreMap.get(Number(row.match_id)) || []).slice(0, 3),
-        };
-      }),
-    });
-  } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      error: "Match stats load failed",
-    });
-  }
-});
 
 app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
   try {
@@ -6040,7 +8311,7 @@ app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
@@ -6060,16 +8331,26 @@ app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
     let prediction = null;
 
     if (userId) {
+      // Członkostwo sprawdzamy także przy odczycie - tak jak robi to Swiss.
+      // Discord w ogóle nie ma jak pokazać panelu spoza gildii, a te trzy
+      // endpointy jako jedyne pozwalały odpytać event obcego serwera.
+      if (!isGuildMember(req.session.user, event.guild_id)) {
+        return res.status(403).json({
+          error: "Nie należysz do tego serwera.",
+        });
+      }
+
       const [[row]] = await pool.query(
         `
                 SELECT teams
                 FROM playin_predictions
-                WHERE event_id = ?
+                WHERE guild_id = ?
+                AND event_id = ?
                   AND user_id = ?
                   AND active = 1
                 LIMIT 1
                 `,
-        [event.id, userId],
+        [event.guild_id, event.id, userId],
       );
 
       if (row) {
@@ -6081,18 +8362,20 @@ app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     res.json({
       event,
-      teams,
+      teams: uzupelnijDruzynyOTypy(teams, prediction?.teams),
+      limity: await getPhaseLimits(pool, event.guild_id, event.id, "playin"),
+
       prediction,
       lock: {
         allowed: gate.allowed,
-        message: gate.message || null,
+        message: komunikatNaWWW(gate.message, null),
       },
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Play-In PickEm load failed",
+      error: "Nie udało się wczytać typów Play-In.",
     });
   }
 });
@@ -6103,7 +8386,7 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
-        error: "Login required",
+        error: "Musisz być zalogowany.",
       });
     }
 
@@ -6112,23 +8395,28 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     const [[event]] = await pool.query(
       `
-            SELECT id, guild_id, name, slug, status
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id,
+        name,
+        slug,
+        status
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
       [slug],
     );
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
     if (!isGuildMember(req.session.user, event.guild_id)) {
       return res.status(403).json({
-        error: "You are not a member of this server",
+        error: "Nie należysz do tego serwera.",
       });
     }
 
@@ -6136,35 +8424,61 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     if (!gate.allowed) {
       return res.status(403).json({
-        error: gate.message || "Play-In Pick'Em is closed.",
+        error: komunikatNaWWW(gate.message, "Typowanie Play-In jest zamknięte."),
       });
     }
 
-    const selectedTeams = Array.isArray(teams) ? teams : [];
+    // ============================================
+    // AKTUALNY EVENT - zgodność z Discordem 1:1
+    // ============================================
 
-    if (selectedTeams.length !== 8) {
-      return res.status(400).json({
-        error: "Pick exactly 8 Play-In teams",
+    const currentEventId = await getOpenEventId(pool, event.guild_id);
+
+    if (!currentEventId) {
+      return res.status(403).json({
+        error: "Nie znaleziono aktywnego eventu.",
       });
     }
 
-    if (new Set(selectedTeams).size !== selectedTeams.length) {
-      return res.status(400).json({
-        error: "Team can only be selected once",
+    if (Number(currentEventId) !== Number(event.id)) {
+      return res.status(409).json({
+        error:
+          "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Play-In.",
       });
     }
 
-    const [validTeamsRows] = await pool.query(
-      `
-            SELECT name
-            FROM teams
-            WHERE guild_id = ?
-              AND active = 1
-            `,
-      [event.guild_id],
+    // ============================================
+    // WYBÓR DRUŻYN
+    // ============================================
+
+    const selectedTeams = Array.isArray(teams)
+      ? teams
+        .map((team) => String(team).trim())
+        .filter(Boolean)
+      : [];
+
+    // Limity z konfiguracji TEGO eventu (brak konfiguracji = domyślne,
+    // czyli zachowanie sprzed tej zmiany).
+    const limity = await getPhaseLimits(
+      pool,
+      event.guild_id,
+      currentEventId,
+      "playin",
     );
 
-    const validTeams = new Set(validTeamsRows.map((team) => team.name));
+    const walidacja = sprawdzTyp(limity && "playin", limity, { teams: selectedTeams });
+
+    if (!walidacja.ok) {
+      return res.status(400).json({ error: walidacja.blad });
+    }
+
+    // ============================================
+    // AKTYWNE DRUŻYNY
+    // ============================================
+
+    const validTeamNames = await loadActiveTeams(pool, event.guild_id);
+
+    const validTeams = new Set(validTeamNames);
 
     const invalidTeams = selectedTeams.filter((team) => !validTeams.has(team));
 
@@ -6174,29 +8488,35 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
       });
     }
 
+    // ============================================
+    // ZAPIS
+    // ============================================
+
     await pool.query(
       `
-            INSERT INTO playin_predictions (
-                guild_id,
-                event_id,
-                user_id,
-                username,
-                displayname,
-                teams,
-                active,
-                submitted_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
-                username = VALUES(username),
-                displayname = VALUES(displayname),
-                teams = VALUES(teams),
-                active = 1,
-                submitted_at = CURRENT_TIMESTAMP
-            `,
+      INSERT INTO playin_predictions (
+        guild_id,
+        event_id,
+        user_id,
+        username,
+        displayname,
+        teams,
+        active,
+        submitted_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        username = VALUES(username),
+        displayname = VALUES(displayname),
+        teams = VALUES(teams),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
+      `,
       [
         event.guild_id,
-        event.id,
+        currentEventId,
         userId,
         req.session.user?.username || userId,
         req.session.user?.global_name || req.session.user?.username || userId,
@@ -6206,6 +8526,7 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
 
     res.json({
       ok: true,
+
       prediction: {
         teams: selectedTeams,
       },
@@ -6214,7 +8535,7 @@ app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      error: "Play-In PickEm save failed",
+      error: "Nie udało się zapisać typów Play-In.",
     });
   }
 });
@@ -6235,7 +8556,7 @@ app.get("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
     );
 
     if (!event) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({ error: "Nie znaleziono turnieju." });
     }
 
     const gate = await pickemGate(event.guild_id, "PLAYOFFS");
@@ -6254,6 +8575,15 @@ app.get("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
     let prediction = null;
 
     if (userId) {
+      // Członkostwo sprawdzamy także przy odczycie - tak jak robi to Swiss.
+      // Discord w ogóle nie ma jak pokazać panelu spoza gildii, a te trzy
+      // endpointy jako jedyne pozwalały odpytać event obcego serwera.
+      if (!isGuildMember(req.session.user, event.guild_id)) {
+        return res.status(403).json({
+          error: "Nie należysz do tego serwera.",
+        });
+      }
+
       const [[row]] = await pool.query(
         `
                 SELECT semifinalists, finalists, winner, third_place_winner
@@ -6278,16 +8608,24 @@ app.get("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
 
     res.json({
       event,
-      teams,
+      teams: uzupelnijDruzynyOTypy(
+        teams,
+        prediction?.semifinalists,
+        prediction?.finalists,
+        prediction?.winner ? [prediction.winner] : [],
+        prediction?.third_place_winner ? [prediction.third_place_winner] : [],
+      ),
+      limity: await getPhaseLimits(pool, event.guild_id, event.id, "playoffs"),
+
       prediction,
       lock: {
         allowed: gate.allowed,
-        message: gate.message || null,
+        message: komunikatNaWWW(gate.message, null),
       },
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Playoffs PickEm load failed" });
+    res.status(500).json({ error: "Nie udało się wczytać typów Playoffs." });
   }
 });
 
@@ -6296,165 +8634,235 @@ app.post("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
     const userId = req.session?.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ error: "Login required" });
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+      });
     }
 
     const { slug } = req.params;
+
     const { semifinalists, finalists, winner, third_place_winner } = req.body;
 
     const [[event]] = await pool.query(
       `
-            SELECT id, guild_id, name, slug, status
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id,
+        name,
+        slug,
+        status
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
       [slug],
     );
 
     if (!event) {
-      return res.status(404).json({ error: "Event not found" });
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
     }
 
     if (!isGuildMember(req.session.user, event.guild_id)) {
       return res.status(403).json({
-        error: "You are not a member of this server",
+        error: "Nie należysz do tego serwera.",
       });
     }
+
+    // ============================================
+    // GATE
+    // ============================================
 
     const gate = await pickemGate(event.guild_id, "PLAYOFFS");
 
     if (!gate.allowed) {
       return res.status(403).json({
-        error: gate.message || "Playoffs Pick'Em is closed.",
+        error: komunikatNaWWW(gate.message, "Typowanie Playoffs jest zamknięte."),
       });
     }
 
-    const semifinalistsPick = Array.isArray(semifinalists) ? semifinalists : [];
-    const finalistsPick = Array.isArray(finalists) ? finalists : [];
+    // ============================================
+    // AKTUALNY EVENT
+    // Discord robi to przez getOpenEventId()
+    // ============================================
 
-    if (semifinalistsPick.length !== 4) {
-      return res.status(400).json({ error: "Pick exactly 4 semifinalists" });
+    const currentEventId = await getOpenEventId(pool, event.guild_id);
+
+    if (!currentEventId) {
+      return res.status(403).json({
+        error: "Nie znaleziono aktywnego eventu.",
+      });
     }
 
-    if (finalistsPick.length !== 2) {
-      return res.status(400).json({ error: "Pick exactly 2 finalists" });
+    if (Number(currentEventId) !== Number(event.id)) {
+      return res.status(409).json({
+        error:
+          "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Playoffs.",
+      });
     }
 
-    if (!winner) {
-      return res.status(400).json({ error: "Pick tournament winner" });
-    }
+    // ============================================
+    // NORMALIZACJA
+    // ============================================
 
-    if (!third_place_winner) {
-      return res.status(400).json({ error: "Pick third place winner" });
-    }
+    const normalizeTeams = (value) =>
+      Array.isArray(value)
+        ? value.map((team) => String(team).trim()).filter(Boolean)
+        : [];
 
-    const [validTeamsRows] = await pool.query(
-      `
-            SELECT name
-            FROM teams
-            WHERE guild_id = ?
-              AND active = 1
-            `,
-      [event.guild_id],
+    const semifinalistsPick = normalizeTeams(semifinalists);
+    const finalistsPick = normalizeTeams(finalists);
+
+    const winnerPick = winner ? String(winner).trim() : null;
+
+    // 3. miejsce jest OPCJONALNE
+    const thirdPick = third_place_winner
+      ? String(third_place_winner).trim()
+      : null;
+    // ============================================
+    // LICZBA WYBORÓW I DUPLIKATY
+    // ============================================
+    //
+    // Limity z konfiguracji TEGO eventu. sprawdzTyp celowo NIE wymusza tu
+    // unikalności między grupami - Playoffs to hierarchia, więc finaliści
+    // powtarzają się w półfinalistach, a zwycięzca w finalistach. Zależności
+    // drabinki sprawdzamy niżej, bo to reguła formatu, nie liczba drużyn.
+
+    const limity = await getPhaseLimits(
+      pool,
+      event.guild_id,
+      currentEventId,
+      "playoffs",
     );
 
-    const validTeams = new Set(validTeamsRows.map((team) => team.name));
+    const walidacja = sprawdzTyp("playoffs", limity, {
+      semifinalists: semifinalistsPick,
+      finalists: finalistsPick,
+      winner: winnerPick ? [winnerPick] : [],
+      third: thirdPick ? [thirdPick] : [],
+    });
+
+    if (!walidacja.ok) {
+      return res.status(400).json({ error: walidacja.blad });
+    }
+
+    // ============================================
+    // LOGIKA DRABINKI 1:1 Z DISCORDEM
+    // ============================================
+
+    if (!finalistsPick.includes(winnerPick)) {
+      return res.status(400).json({
+        error: "Zwycięzca musi być jednym z finalistów.",
+      });
+    }
+
+    for (const finalist of finalistsPick) {
+      if (!semifinalistsPick.includes(finalist)) {
+        return res.status(400).json({
+          error: "Finaliści muszą pochodzić z półfinalistów.",
+        });
+      }
+    }
+
+    if (thirdPick && [winnerPick, ...finalistsPick].includes(thirdPick)) {
+      return res.status(400).json({
+        error: "3. miejsce nie może być finalistą ani zwycięzcą.",
+      });
+    }
+
+    if (thirdPick && !semifinalistsPick.includes(thirdPick)) {
+      return res.status(400).json({
+        error: "3. miejsce musi być jednym z półfinalistów.",
+      });
+    }
+
+    // ============================================
+    // AKTYWNE DRUŻYNY
+    // ============================================
+
+    const teamNames = await loadActiveTeams(pool, event.guild_id);
+
+    const allowed = new Set(teamNames);
 
     const allPicked = [
       ...semifinalistsPick,
       ...finalistsPick,
-      winner,
-      third_place_winner,
+      winnerPick,
+      ...(thirdPick ? [thirdPick] : []),
     ];
 
-    const invalidTeams = allPicked.filter((team) => !validTeams.has(team));
+    const invalid = [
+      ...new Set(allPicked.filter((team) => !allowed.has(team))),
+    ];
 
-    if (invalidTeams.length > 0) {
+    if (invalid.length) {
       return res.status(400).json({
-        error: `Invalid teams: ${invalidTeams.join(", ")}`,
+        error: `Unknown or inactive teams: ${invalid.join(", ")}`,
       });
     }
 
-    const finalistsMustBeSemifinalists = finalistsPick.every((team) =>
-      semifinalistsPick.includes(team),
-    );
-
-    if (!finalistsMustBeSemifinalists) {
-      return res.status(400).json({
-        error: "Finalists must be selected from semifinalists",
-      });
-    }
-
-    if (!finalistsPick.includes(winner)) {
-      return res.status(400).json({
-        error: "Winner must be selected from finalists",
-      });
-    }
-
-    if (!semifinalistsPick.includes(third_place_winner)) {
-      return res.status(400).json({
-        error: "Third place winner must be selected from semifinalists",
-      });
-    }
-
-    if (winner === third_place_winner) {
-      return res.status(400).json({
-        error: "Winner and third place winner cannot be the same team",
-      });
-    }
+    // ============================================
+    // SAVE
+    // ============================================
 
     await pool.query(
       `
-            INSERT INTO playoffs_predictions (
-                guild_id,
-                event_id,
-                user_id,
-                username,
-                displayname,
-                semifinalists,
-                finalists,
-                winner,
-                third_place_winner,
-                active,
-                submitted_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
-                username = VALUES(username),
-                displayname = VALUES(displayname),
-                semifinalists = VALUES(semifinalists),
-                finalists = VALUES(finalists),
-                winner = VALUES(winner),
-                third_place_winner = VALUES(third_place_winner),
-                active = 1,
-                submitted_at = CURRENT_TIMESTAMP
-            `,
+      INSERT INTO playoffs_predictions (
+        guild_id,
+        event_id,
+        user_id,
+        username,
+        displayname,
+        semifinalists,
+        finalists,
+        winner,
+        third_place_winner,
+        active,
+        submitted_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        username = VALUES(username),
+        displayname = VALUES(displayname),
+        semifinalists = VALUES(semifinalists),
+        finalists = VALUES(finalists),
+        winner = VALUES(winner),
+        third_place_winner = VALUES(third_place_winner),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
+      `,
       [
         event.guild_id,
-        event.id,
+        currentEventId,
         userId,
         req.session.user?.username || userId,
         req.session.user?.global_name || req.session.user?.username || userId,
         semifinalistsPick.join(", "),
         finalistsPick.join(", "),
-        winner,
-        third_place_winner,
+        winnerPick,
+        thirdPick,
       ],
     );
 
     res.json({
       ok: true,
+
       prediction: {
         semifinalists: semifinalistsPick,
         finalists: finalistsPick,
-        winner,
-        third_place_winner,
+        winner: winnerPick,
+        third_place_winner: thirdPick,
       },
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Playoffs PickEm save failed" });
+
+    res.status(500).json({
+      error: "Nie udało się zapisać typów Playoffs.",
+    });
   }
 });
 
@@ -6475,7 +8883,7 @@ app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
@@ -6495,6 +8903,15 @@ app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
     let prediction = null;
 
     if (userId) {
+      // Członkostwo sprawdzamy także przy odczycie - tak jak robi to Swiss.
+      // Discord w ogóle nie ma jak pokazać panelu spoza gildii, a te trzy
+      // endpointy jako jedyne pozwalały odpytać event obcego serwera.
+      if (!isGuildMember(req.session.user, event.guild_id)) {
+        return res.status(403).json({
+          error: "Nie należysz do tego serwera.",
+        });
+      }
+
       const [[row]] = await pool.query(
         `
                 SELECT
@@ -6503,12 +8920,13 @@ app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
                     upper_final_b,
                     lower_final_b
                 FROM doubleelim_predictions
-                WHERE event_id = ?
-                  AND user_id = ?
-                  AND active = 1
+                WHERE guild_id = ?
+  AND event_id = ?
+  AND user_id = ?
+  AND active = 1
                 LIMIT 1
                 `,
-        [event.id, userId],
+        [event.guild_id, event.id, userId],
       );
 
       if (row) {
@@ -6523,18 +8941,26 @@ app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
 
     res.json({
       event,
-      teams,
+      teams: uzupelnijDruzynyOTypy(
+        teams,
+        prediction?.upper_final_a,
+        prediction?.lower_final_a,
+        prediction?.upper_final_b,
+        prediction?.lower_final_b,
+      ),
+      limity: await getPhaseLimits(pool, event.guild_id, event.id, "doubleelim"),
+
       prediction,
       lock: {
         allowed: gate.allowed,
-        message: gate.message || null,
+        message: komunikatNaWWW(gate.message, null),
       },
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Double Elim PickEm load failed",
+      error: "Nie udało się wczytać typów Double Elimination.",
     });
   }
 });
@@ -6545,7 +8971,7 @@ app.post("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
 
     if (!userId) {
       return res.status(401).json({
-        error: "Login required",
+        error: "Musisz być zalogowany.",
       });
     }
 
@@ -6556,65 +8982,111 @@ app.post("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
 
     const [[event]] = await pool.query(
       `
-            SELECT id, guild_id
-            FROM events
-            WHERE slug = ?
-            LIMIT 1
-            `,
+      SELECT
+        id,
+        guild_id
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
       [slug],
     );
 
     if (!event) {
       return res.status(404).json({
-        error: "Event not found",
+        error: "Nie znaleziono turnieju.",
       });
     }
 
     if (!isGuildMember(req.session.user, event.guild_id)) {
       return res.status(403).json({
-        error: "You are not a member of this server",
+        error: "Nie należysz do tego serwera.",
       });
     }
+
+    // ============================================
+    // GATE
+    // ============================================
 
     const gate = await pickemGate(event.guild_id, "DOUBLEELIM");
 
     if (!gate.allowed) {
       return res.status(403).json({
-        error: gate.message || "Double Elim Pick'Em is closed.",
+        error: komunikatNaWWW(gate.message, "Typowanie Double Elimination jest zamknięte."),
       });
     }
 
-    const ufa = Array.isArray(upper_final_a) ? upper_final_a : [];
-    const lfa = Array.isArray(lower_final_a) ? lower_final_a : [];
-    const ufb = Array.isArray(upper_final_b) ? upper_final_b : [];
-    const lfb = Array.isArray(lower_final_b) ? lower_final_b : [];
+    // ============================================
+    // AKTUALNY EVENT
+    // ============================================
 
-    if (
-      ufa.length !== 2 ||
-      lfa.length !== 2 ||
-      ufb.length !== 2 ||
-      lfb.length !== 2
-    ) {
-      return res.status(400).json({
-        error: "Each bracket must contain exactly 2 teams",
+    const currentEventId = await getOpenEventId(pool, event.guild_id);
+
+    if (!currentEventId) {
+      return res.status(403).json({
+        error: "Nie znaleziono aktywnego eventu.",
       });
     }
 
-    const [validTeamsRows] = await pool.query(
-      `
-            SELECT name
-            FROM teams
-            WHERE guild_id = ?
-              AND active = 1
-            `,
-      [event.guild_id],
+    if (Number(currentEventId) !== Number(event.id)) {
+      return res.status(409).json({
+        error:
+          "Ten formularz dotyczy poprzedniego eventu. " +
+          "Otwórz aktualny panel Double Elimination.",
+      });
+    }
+
+    // ============================================
+    // NORMALIZACJA
+    // ============================================
+
+    const normalizeTeams = (value) =>
+      Array.isArray(value)
+        ? value.map((team) => String(team).trim()).filter(Boolean)
+        : [];
+
+    const ufa = normalizeTeams(upper_final_a);
+    const lfa = normalizeTeams(lower_final_a);
+    const ufb = normalizeTeams(upper_final_b);
+    const lfb = normalizeTeams(lower_final_b);
+
+    // ============================================
+    // KAŻDY SLOT = DOKŁADNIE 2 DRUŻYNY
+    // ============================================
+
+    // Limity z konfiguracji TEGO eventu (brak konfiguracji = domyślne,
+    // czyli zachowanie sprzed tej zmiany).
+    const limity = await getPhaseLimits(
+      pool,
+      event.guild_id,
+      currentEventId,
+      "doubleelim",
     );
 
-    const validTeams = new Set(validTeamsRows.map((team) => team.name));
+    const walidacja = sprawdzTyp(limity && "doubleelim", limity, {
+      upperFinalA: ufa,
+      lowerFinalA: lfa,
+      upperFinalB: ufb,
+      lowerFinalB: lfb,
+    });
+
+    if (!walidacja.ok) {
+      return res.status(400).json({ error: walidacja.blad });
+    }
 
     const allTeams = [...ufa, ...lfa, ...ufb, ...lfb];
 
-    const invalidTeams = allTeams.filter((team) => !validTeams.has(team));
+    // ============================================
+    // TYLKO AKTYWNE DRUŻYNY
+    // ============================================
+
+    const teamNames = await loadActiveTeams(pool, event.guild_id);
+
+    const validTeams = new Set(teamNames);
+
+    const invalidTeams = [
+      ...new Set(allTeams.filter((team) => !validTeams.has(team))),
+    ];
 
     if (invalidTeams.length > 0) {
       return res.status(400).json({
@@ -6622,35 +9094,41 @@ app.post("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
       });
     }
 
+    // ============================================
+    // SAVE
+    // ============================================
+
     await pool.query(
       `
-            INSERT INTO doubleelim_predictions (
-                guild_id,
-                event_id,
-                user_id,
-                username,
-                displayname,
-                upper_final_a,
-                lower_final_a,
-                upper_final_b,
-                lower_final_b,
-                active,
-                submitted_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-            ON DUPLICATE KEY UPDATE
-                username = VALUES(username),
-                displayname = VALUES(displayname),
-                upper_final_a = VALUES(upper_final_a),
-                lower_final_a = VALUES(lower_final_a),
-                upper_final_b = VALUES(upper_final_b),
-                lower_final_b = VALUES(lower_final_b),
-                active = 1,
-                submitted_at = CURRENT_TIMESTAMP
-            `,
+      INSERT INTO doubleelim_predictions (
+        guild_id,
+        event_id,
+        user_id,
+        username,
+        displayname,
+        upper_final_a,
+        lower_final_a,
+        upper_final_b,
+        lower_final_b,
+        active,
+        submitted_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+
+      ON DUPLICATE KEY UPDATE
+        event_id = VALUES(event_id),
+        username = VALUES(username),
+        displayname = VALUES(displayname),
+        upper_final_a = VALUES(upper_final_a),
+        lower_final_a = VALUES(lower_final_a),
+        upper_final_b = VALUES(upper_final_b),
+        lower_final_b = VALUES(lower_final_b),
+        active = 1,
+        submitted_at = CURRENT_TIMESTAMP
+      `,
       [
         event.guild_id,
-        event.id,
+        currentEventId,
         userId,
         req.session.user?.username || userId,
         req.session.user?.global_name || req.session.user?.username || userId,
@@ -6663,12 +9141,19 @@ app.post("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
 
     res.json({
       ok: true,
+
+      prediction: {
+        upper_final_a: ufa,
+        lower_final_a: lfa,
+        upper_final_b: ufb,
+        lower_final_b: lfb,
+      },
     });
   } catch (err) {
     console.error(err);
 
     res.status(500).json({
-      error: "Double Elim PickEm save failed",
+      error: "Nie udało się zapisać typów Double Elimination.",
     });
   }
 });
@@ -6719,6 +9204,86 @@ app.get("/api/public/archives/:id/download", async (req, res) => {
     });
   }
 });
+
+app.post(
+  "/api/matches/:matchId/start",
+  requireGuildAdmin(async (req) => {
+    const { matchId } = req.params;
+
+    const [[match]] = await pool.query(
+      `
+      SELECT guild_id
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [matchId],
+    );
+
+    return match?.guild_id || null;
+  }),
+  async (req, res) => {
+    try {
+      const { matchId } = req.params;
+      const { startTimeUtc } = req.body;
+
+      const [[match]] = await pool.query(
+        `
+        SELECT id, guild_id, team_a, team_b
+        FROM matches
+        WHERE id = ?
+        LIMIT 1
+        `,
+        [matchId],
+      );
+
+      if (!match) {
+        return res.status(404).json({
+          error: "Nie znaleziono meczu.",
+        });
+      }
+
+      const startDate = startTimeUtc ? new Date(startTimeUtc) : null;
+
+      if (startDate && Number.isNaN(startDate.getTime())) {
+        return res.status(400).json({
+          error: "Invalid start time",
+        });
+      }
+
+      const lockBeforeSec = getLockBeforeSec();
+
+      const shouldLock =
+        startDate !== null &&
+        isMatchStarted({ start_time_utc: startDate }, undefined, lockBeforeSec);
+
+      await pool.query(
+        `
+  UPDATE matches
+  SET
+    start_time_utc = ?,
+    is_locked = ?
+  WHERE id = ?
+  `,
+        [startDate, shouldLock ? 1 : 0, matchId],
+      );
+
+      res.json({
+        ok: true,
+        match: {
+          id: match.id,
+          start_time_utc: startTimeUtc || null,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+
+      res.status(500).json({
+        error: "Błąd bazy danych.",
+      });
+    }
+  },
+);
 
 // Serve the built web/ frontend (npm run build -> web/dist) as static files
 // in production, so one process/port handles both the API and the SPA -
@@ -6802,4 +9367,2199 @@ startCs2LogReceiver({
 
     console.log("[CS2 PARSED]", parsed);
   },
+});
+
+app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
+  try {
+    const { slug, userId } = req.params;
+
+    const [[event]] = await pool.query(
+      `
+        SELECT
+          id,
+          guild_id,
+          name,
+          slug
+        FROM events
+        WHERE slug = ?
+        LIMIT 1
+        `,
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    const [[userProfile]] = await pool.query(
+      `
+        SELECT
+          user_id,
+          displayname,
+          username,
+          avatar
+        FROM user_profiles
+        WHERE user_id = ?
+        LIMIT 1
+        `,
+      [userId],
+    );
+
+    /*
+     * Punkty dla tego eventu.
+     * match_points może mieć kilka rekordów dla jednego meczu,
+     * np. source = series i source = map.
+     */
+    const [[pointsStats]] = await pool.query(
+      `
+        SELECT
+          COALESCE(SUM(points), 0) AS total_points,
+
+          COALESCE(
+            SUM(
+              CASE
+                WHEN source = 'series'
+                THEN points
+                ELSE 0
+              END
+            ),
+            0
+          ) AS series_points,
+
+          COALESCE(
+            SUM(
+              CASE
+                WHEN source = 'map'
+                THEN points
+                ELSE 0
+              END
+            ),
+            0
+          ) AS map_points
+
+        FROM match_points
+        WHERE event_id = ?
+          AND user_id = ?
+        `,
+      [event.id, userId],
+    );
+
+    /*
+     * Statystyki typów serii.
+     */
+    const [[predictionStats]] = await pool.query(
+      `
+        SELECT
+          COUNT(*) AS total_predictions,
+
+          SUM(
+            CASE
+              WHEN mr.match_id IS NOT NULL
+              THEN 1
+              ELSE 0
+            END
+          ) AS finished_predictions,
+
+          SUM(
+            CASE
+              WHEN mr.match_id IS NOT NULL
+               AND (
+                 (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+                 OR
+                 (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+               )
+              THEN 1
+              ELSE 0
+            END
+          ) AS correct_winners,
+
+          SUM(
+            CASE
+              WHEN mr.match_id IS NOT NULL
+               AND mp.pred_a = mr.res_a
+               AND mp.pred_b = mr.res_b
+              THEN 1
+              ELSE 0
+            END
+          ) AS exact_series
+
+        FROM match_predictions mp
+
+        LEFT JOIN match_results mr
+          ON mr.event_id = mp.event_id
+         AND mr.match_id = mp.match_id
+
+        WHERE mp.event_id = ?
+          AND mp.user_id = ?
+        `,
+      [event.id, userId],
+    );
+
+    /*
+     * Statystyki map.
+     */
+    const [[mapStats]] = await pool.query(
+      `
+        SELECT
+          COUNT(*) AS predicted_maps,
+
+          SUM(
+            CASE
+              WHEN mmr.match_id IS NOT NULL
+               AND (
+                 (
+                   mmp.pred_exact_a > mmp.pred_exact_b
+                   AND mmr.exact_a > mmr.exact_b
+                 )
+                 OR
+                 (
+                   mmp.pred_exact_b > mmp.pred_exact_a
+                   AND mmr.exact_b > mmr.exact_a
+                 )
+               )
+              THEN 1
+              ELSE 0
+            END
+          ) AS correct_maps,
+
+          SUM(
+            CASE
+              WHEN mmr.match_id IS NOT NULL
+               AND mmp.pred_exact_a = mmr.exact_a
+               AND mmp.pred_exact_b = mmr.exact_b
+              THEN 1
+              ELSE 0
+            END
+          ) AS exact_maps
+
+        FROM match_map_predictions mmp
+
+        LEFT JOIN match_map_results mmr
+          ON mmr.event_id = mmp.event_id
+         AND mmr.match_id = mmp.match_id
+         AND mmr.map_no = mmp.map_no
+
+        WHERE mmp.event_id = ?
+          AND mmp.user_id = ?
+        `,
+      [event.id, userId],
+    );
+
+    /*
+     * Pozycja gracza w samym tym evencie.
+     *
+     * Klasyfikacja idzie z tabeli `leaderboard` - tej samej, ktora karmi
+     * strone "Ranking graczy", bota i eksport. Wczesniej bylo tu osobne
+     * ROW_NUMBER() liczone z samych match_points i tylko wsrod typujacych
+     * mecze. Przez to profil pokazywal miejsce nawet wtedy, gdy w rankingu
+     * eventu nie bylo jeszcze nikogo, i pomijal punkty ze Swiss, Playoffs,
+     * Play-In, Double Elim oraz MVP.
+     */
+    const [[rankRow]] = await pool.query(
+      `
+  SELECT ranked.rank_position
+  FROM (
+    SELECT
+      CAST(user_id AS CHAR CHARACTER SET utf8mb4)
+        COLLATE utf8mb4_unicode_ci AS user_id,
+
+      ROW_NUMBER() OVER (
+        ORDER BY
+          COALESCE(total_points, 0) DESC,
+          user_id ASC
+      ) AS rank_position
+
+    FROM leaderboard
+    WHERE event_id = ?
+  ) ranked
+
+  WHERE ranked.user_id = ?
+
+  LIMIT 1
+  `,
+      [event.id, userId],
+    );
+
+    const totalPredictions = Number(predictionStats?.finished_predictions || 0);
+
+    const correctWinners = Number(predictionStats?.correct_winners || 0);
+
+    const [recentPredictions] = await pool.query(
+      `
+  SELECT
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+
+    mr.res_a,
+    mr.res_b,
+
+    m.team_a,
+    m.team_b,
+
+    COALESCE(SUM(pts.points), 0) AS points
+
+  FROM match_predictions mp
+
+  INNER JOIN matches m
+    ON m.id = mp.match_id
+   AND m.event_id = mp.event_id
+
+  LEFT JOIN match_results mr
+    ON mr.match_id = mp.match_id
+   AND mr.event_id = mp.event_id
+
+  LEFT JOIN match_points pts
+    ON pts.match_id = mp.match_id
+   AND pts.event_id = mp.event_id
+   AND pts.user_id = mp.user_id
+
+  WHERE mp.event_id = ?
+    AND mp.user_id = ?
+
+  GROUP BY
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+    mr.res_a,
+    mr.res_b,
+    m.team_a,
+    m.team_b
+
+  ORDER BY mp.match_id DESC
+  LIMIT 10
+  `,
+      [event.id, userId],
+    );
+
+    const [recentMapPredictions] = await pool.query(
+      `
+  SELECT
+    mmp.match_id,
+    mmp.map_no,
+
+    mmp.pred_exact_a,
+    mmp.pred_exact_b,
+
+    mmr.exact_a AS res_exact_a,
+    mmr.exact_b AS res_exact_b
+
+  FROM match_map_predictions mmp
+
+  LEFT JOIN match_map_results mmr
+    ON mmr.event_id = mmp.event_id
+   AND mmr.match_id = mmp.match_id
+   AND mmr.map_no = mmp.map_no
+
+  WHERE mmp.event_id = ?
+    AND mmp.user_id = ?
+
+  ORDER BY
+    mmp.match_id DESC,
+    mmp.map_no ASC
+  `,
+      [event.id, userId],
+    );
+
+    const [[bestMatch]] = await pool.query(
+      `
+  SELECT
+    match_id,
+    SUM(points) AS points
+
+  FROM match_points
+
+  WHERE event_id = ?
+    AND user_id = ?
+
+  GROUP BY match_id
+
+  ORDER BY
+    points DESC,
+    match_id ASC
+
+  LIMIT 1
+  `,
+      [event.id, userId],
+    );
+
+    const [streakRows] = await pool.query(
+      `
+  SELECT
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+    mr.res_a,
+    mr.res_b,
+    COALESCE(m.match_no, m.id) AS sort_order
+
+  FROM match_predictions mp
+
+  INNER JOIN match_results mr
+    ON mr.event_id = mp.event_id
+   AND mr.match_id = mp.match_id
+
+  INNER JOIN matches m
+    ON m.id = mp.match_id
+   AND m.event_id = mp.event_id
+
+  WHERE mp.event_id = ?
+    AND mp.user_id = ?
+
+  ORDER BY
+    sort_order ASC,
+    mp.match_id ASC
+  `,
+      [event.id, userId],
+    );
+
+    let currentCorrectStreak = 0;
+    let bestCorrectStreak = 0;
+
+    for (const row of streakRows) {
+      const correct =
+        (Number(row.pred_a) > Number(row.pred_b) &&
+          Number(row.res_a) > Number(row.res_b)) ||
+        (Number(row.pred_b) > Number(row.pred_a) &&
+          Number(row.res_b) > Number(row.res_a));
+
+      if (correct) {
+        currentCorrectStreak += 1;
+
+        if (currentCorrectStreak > bestCorrectStreak) {
+          bestCorrectStreak = currentCorrectStreak;
+        }
+      } else {
+        currentCorrectStreak = 0;
+      }
+    }
+
+    const [perfectMatchRows] = await pool.query(
+      `
+  SELECT
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+    mr.res_a,
+    mr.res_b,
+
+    COUNT(mmp.map_no) AS predicted_maps,
+
+    SUM(
+      CASE
+        WHEN mmr.match_id IS NOT NULL
+         AND mmp.pred_exact_a = mmr.exact_a
+         AND mmp.pred_exact_b = mmr.exact_b
+        THEN 1
+        ELSE 0
+      END
+    ) AS exact_maps
+
+  FROM match_predictions mp
+
+  INNER JOIN match_results mr
+    ON mr.event_id = mp.event_id
+   AND mr.match_id = mp.match_id
+
+  LEFT JOIN match_map_predictions mmp
+    ON mmp.event_id = mp.event_id
+   AND mmp.match_id = mp.match_id
+   AND mmp.user_id = mp.user_id
+
+  LEFT JOIN match_map_results mmr
+    ON mmr.event_id = mmp.event_id
+   AND mmr.match_id = mmp.match_id
+   AND mmr.map_no = mmp.map_no
+
+  WHERE mp.event_id = ?
+    AND mp.user_id = ?
+
+  GROUP BY
+    mp.match_id,
+    mp.pred_a,
+    mp.pred_b,
+    mr.res_a,
+    mr.res_b
+  `,
+      [event.id, userId],
+    );
+
+    let perfectMatches = 0;
+
+    for (const row of perfectMatchRows) {
+      const exactSeries =
+        Number(row.pred_a) === Number(row.res_a) &&
+        Number(row.pred_b) === Number(row.res_b);
+
+      const predictedMaps = Number(row.predicted_maps || 0);
+      const exactMaps = Number(row.exact_maps || 0);
+
+      const allMapsExact = predictedMaps > 0 && predictedMaps === exactMaps;
+
+      if (exactSeries && allMapsExact) {
+        perfectMatches += 1;
+      }
+    }
+
+    const [[bestMapMatch]] = await pool.query(
+      `
+  SELECT
+    match_id,
+    SUM(points) AS points
+
+  FROM match_points
+
+  WHERE event_id = ?
+    AND user_id = ?
+    AND source = 'map'
+
+  GROUP BY match_id
+
+  ORDER BY
+    points DESC,
+    match_id ASC
+
+  LIMIT 1
+  `,
+      [event.id, userId],
+    );
+
+    const [[correctMatchPointsStats]] = await pool.query(
+      `
+  SELECT
+    COALESCE(AVG(match_total_points), 0) AS average_points
+
+  FROM (
+    SELECT
+      mp.match_id,
+      COALESCE(SUM(mpts.points), 0) AS match_total_points
+
+    FROM match_predictions mp
+
+    INNER JOIN match_results mr
+      ON mr.event_id = mp.event_id
+     AND mr.match_id = mp.match_id
+
+    LEFT JOIN match_points mpts
+      ON mpts.event_id = mp.event_id
+     AND mpts.match_id = mp.match_id
+     AND mpts.user_id = mp.user_id
+
+    WHERE mp.event_id = ?
+      AND mp.user_id = ?
+
+      AND (
+        (
+          mp.pred_a > mp.pred_b
+          AND mr.res_a > mr.res_b
+        )
+        OR
+        (
+          mp.pred_b > mp.pred_a
+          AND mr.res_b > mr.res_a
+        )
+      )
+
+    GROUP BY mp.match_id
+  ) correct_matches
+  `,
+      [event.id, userId],
+    );
+
+    const [eventComparisonRows] = await pool.query(
+      `
+  SELECT
+    users.user_id,
+
+    COALESCE(points.total_points, 0) AS total_points,
+
+    COALESCE(preds.correct_winners, 0) AS correct_winners,
+    COALESCE(preds.finished_predictions, 0) AS finished_predictions,
+
+    COALESCE(maps.correct_maps, 0) AS correct_maps,
+    COALESCE(maps.exact_maps, 0) AS exact_maps
+
+  FROM (
+    SELECT DISTINCT user_id
+    FROM match_predictions
+    WHERE event_id = ?
+  ) users
+
+  LEFT JOIN (
+    SELECT
+      user_id,
+      SUM(points) AS total_points
+    FROM match_points
+    WHERE event_id = ?
+    GROUP BY user_id
+  ) points
+    ON points.user_id = users.user_id
+
+  LEFT JOIN (
+    SELECT
+      mp.user_id,
+
+      COUNT(DISTINCT mp.match_id) AS finished_predictions,
+
+      COUNT(
+        DISTINCT CASE
+          WHEN (
+            (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+            OR
+            (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+          )
+          THEN mp.match_id
+          ELSE NULL
+        END
+      ) AS correct_winners
+
+    FROM match_predictions mp
+
+    INNER JOIN match_results mr
+      ON mr.event_id = mp.event_id
+     AND mr.match_id = mp.match_id
+
+    WHERE mp.event_id = ?
+
+    GROUP BY mp.user_id
+  ) preds
+    ON preds.user_id = users.user_id
+
+  LEFT JOIN (
+    SELECT
+      mmp.user_id,
+
+      SUM(
+        CASE
+          WHEN (
+            (mmp.pred_exact_a > mmp.pred_exact_b AND mmr.exact_a > mmr.exact_b)
+            OR
+            (mmp.pred_exact_b > mmp.pred_exact_a AND mmr.exact_b > mmr.exact_a)
+          )
+          THEN 1
+          ELSE 0
+        END
+      ) AS correct_maps,
+
+      SUM(
+        CASE
+          WHEN mmp.pred_exact_a = mmr.exact_a
+           AND mmp.pred_exact_b = mmr.exact_b
+          THEN 1
+          ELSE 0
+        END
+      ) AS exact_maps
+
+    FROM match_map_predictions mmp
+
+    INNER JOIN match_map_results mmr
+      ON mmr.event_id = mmp.event_id
+     AND mmr.match_id = mmp.match_id
+     AND mmr.map_no = mmp.map_no
+
+    WHERE mmp.event_id = ?
+
+    GROUP BY mmp.user_id
+  ) maps
+    ON maps.user_id = users.user_id
+  `,
+      [event.id, event.id, event.id, event.id],
+    );
+
+    const comparisonPlayers = eventComparisonRows.map((row) => {
+      const finished = Number(row.finished_predictions || 0);
+      const correct = Number(row.correct_winners || 0);
+
+      return {
+        user_id: String(row.user_id),
+
+        points: Number(row.total_points || 0),
+
+        accuracy: finished > 0 ? (correct / finished) * 100 : 0,
+
+        exact_maps: Number(row.exact_maps || 0),
+        correct_maps: Number(row.correct_maps || 0),
+      };
+    });
+
+    function getComparison(metric, value) {
+      const total = comparisonPlayers.length;
+
+      if (total === 0) {
+        return {
+          rank: 0,
+          total: 0,
+          top_percent: 0,
+        };
+      }
+
+      const better = comparisonPlayers.filter(
+        (player) => player[metric] > value,
+      ).length;
+
+      const rank = better + 1;
+
+      return {
+        rank,
+        total,
+
+        top_percent: Math.max(1, Math.ceil((rank / total) * 100)),
+      };
+    }
+
+    const playerComparison = comparisonPlayers.find(
+      (row) => row.user_id === String(userId),
+    );
+
+    const eventComparison = playerComparison
+      ? {
+        points: getComparison("points", playerComparison.points),
+
+        accuracy: getComparison("accuracy", playerComparison.accuracy),
+
+        exact_maps: getComparison("exact_maps", playerComparison.exact_maps),
+
+        correct_maps: getComparison(
+          "correct_maps",
+          playerComparison.correct_maps,
+        ),
+      }
+      : null;
+
+    const [balancedMatchRows] = await pool.query(
+      `
+  SELECT
+    m.id AS match_id,
+    m.team_a,
+    m.team_b,
+    m.phase,
+    m.best_of,
+    m.is_locked,
+    m.lock_override,
+
+    COUNT(mp.user_id) AS total_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_a > mp.pred_b THEN 1
+        ELSE 0
+      END
+    ) AS team_a_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_b > mp.pred_a THEN 1
+        ELSE 0
+      END
+    ) AS team_b_picks,
+
+    CASE
+      WHEN mr.match_id IS NOT NULL THEN 1
+      ELSE 0
+    END AS finished
+
+  FROM matches m
+
+  INNER JOIN match_predictions mp
+    ON mp.event_id = m.event_id
+   AND mp.match_id = m.id
+
+  LEFT JOIN match_results mr
+    ON mr.event_id = m.event_id
+   AND mr.match_id = m.id
+
+  WHERE m.event_id = ?
+
+  GROUP BY
+    m.id,
+    m.team_a,
+    m.team_b,
+    m.phase,
+    m.best_of,
+    m.is_locked,
+    m.lock_override,
+    mr.match_id
+  `,
+      [event.id],
+    );
+
+    const balancedCandidates = [];
+
+    for (const row of balancedMatchRows) {
+      let locked = Number(row.finished) === 1;
+      let forceOpen = false;
+
+      if (!locked) {
+        const gate = await assertPredictionsAllowed({
+          guildId: event.guild_id,
+          kind: "MATCHES",
+        });
+
+        if (!gate.allowed) {
+          locked = true;
+        }
+      }
+
+      if (!locked && Number(row.lock_override) === 1) {
+        locked = true;
+      }
+
+      if (
+        !locked &&
+        row.lock_override !== null &&
+        Number(row.lock_override) === 0
+      ) {
+        forceOpen = true;
+      }
+
+      if (!locked && !forceOpen && Number(row.is_locked) === 1) {
+        locked = true;
+      }
+
+      if (!locked && !forceOpen) {
+        const matchPanelPhase = matchPanelPhaseFor(row.phase);
+
+        if (matchPanelPhase) {
+          const { passed } = await isMatchDeadlinePassed(
+            pool,
+            event.guild_id,
+            matchPanelPhase,
+          );
+
+          if (passed) {
+            locked = true;
+          }
+        }
+      }
+
+      if (!locked) {
+        continue;
+      }
+
+      const total = Number(row.total_picks || 0);
+
+      if (total === 0) {
+        continue;
+      }
+
+      const teamA = Number(row.team_a_picks || 0);
+      const teamB = Number(row.team_b_picks || 0);
+
+      const teamAPercentage = Math.round((teamA / total) * 100);
+
+      const teamBPercentage = 100 - teamAPercentage;
+
+      balancedCandidates.push({
+        match_id: Number(row.match_id),
+        team_a: row.team_a,
+        team_b: row.team_b,
+        best_of: Number(row.best_of || 0),
+
+        total_picks: total,
+
+        team_a_picks: teamA,
+        team_b_picks: teamB,
+
+        team_a_percentage: teamAPercentage,
+        team_b_percentage: teamBPercentage,
+
+        difference: Math.abs(teamAPercentage - teamBPercentage),
+      });
+    }
+
+    balancedCandidates.sort((a, b) => {
+      if (a.difference !== b.difference) {
+        return a.difference - b.difference;
+      }
+
+      if (b.total_picks !== a.total_picks) {
+        return b.total_picks - a.total_picks;
+      }
+
+      return a.match_id - b.match_id;
+    });
+
+    const closestMatch = balancedCandidates[0] || null;
+
+    res.json({
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+      },
+
+      profile: {
+        best_match_points: Number(bestMatch?.points || 0),
+        best_correct_streak: bestCorrectStreak,
+        current_correct_streak: currentCorrectStreak,
+        perfect_matches: perfectMatches,
+        best_map_match_points: Number(bestMapMatch?.points || 0),
+        average_points_correct_match: Number(
+          Number(correctMatchPointsStats?.average_points || 0).toFixed(1),
+        ),
+        event_comparison: eventComparison,
+        user_id: userId,
+
+        recent_predictions: recentPredictions.map((row) => {
+          const maps = recentMapPredictions
+            .filter((map) => Number(map.match_id) === Number(row.match_id))
+            .map((map) => {
+              const predA = Number(map.pred_exact_a);
+              const predB = Number(map.pred_exact_b);
+
+              const resultA =
+                map.res_exact_a !== null ? Number(map.res_exact_a) : null;
+
+              const resultB =
+                map.res_exact_b !== null ? Number(map.res_exact_b) : null;
+
+              const finished = resultA !== null && resultB !== null;
+
+              const exact = finished && predA === resultA && predB === resultB;
+
+              const correctWinner =
+                finished &&
+                ((predA > predB && resultA > resultB) ||
+                  (predB > predA && resultB > resultA));
+
+              return {
+                map_no: Number(map.map_no),
+
+                pred_a: predA,
+                pred_b: predB,
+
+                res_a: resultA,
+                res_b: resultB,
+
+                finished,
+                exact,
+                correct_winner: correctWinner,
+              };
+            });
+
+          return {
+            match_id: row.match_id,
+
+            team_a: row.team_a,
+            team_b: row.team_b,
+
+            pred_a: Number(row.pred_a),
+            pred_b: Number(row.pred_b),
+
+            res_a: row.res_a !== null ? Number(row.res_a) : null,
+
+            res_b: row.res_b !== null ? Number(row.res_b) : null,
+
+            points: Number(row.points || 0),
+
+            maps,
+          };
+        }),
+
+        displayname:
+          userProfile?.displayname || userProfile?.username || userId,
+
+        avatar: userProfile?.avatar || null,
+
+        // null, a nie 0 - brak wiersza znaczy "jeszcze nie sklasyfikowany",
+        // co front pokazuje jako "-", zamiast zmyslac pozycje.
+        rank: rankRow ? Number(rankRow.rank_position) : null,
+
+        total_points: Number(pointsStats?.total_points || 0),
+
+        series_points: Number(pointsStats?.series_points || 0),
+
+        map_points: Number(pointsStats?.map_points || 0),
+
+        total_predictions: Number(predictionStats?.total_predictions || 0),
+
+        finished_predictions: totalPredictions,
+
+        correct_winners: correctWinners,
+
+        exact_series: Number(predictionStats?.exact_series || 0),
+
+        predicted_maps: Number(mapStats?.predicted_maps || 0),
+
+        correct_maps: Number(mapStats?.correct_maps || 0),
+
+        exact_maps: Number(mapStats?.exact_maps || 0),
+
+        accuracy:
+          totalPredictions > 0
+            ? Math.round((correctWinners / totalPredictions) * 100)
+            : 0,
+      },
+    });
+  } catch (err) {
+    console.error("EVENT PLAYER PROFILE ERROR:", err);
+
+    res.status(500).json({
+      error: "Event player profile load failed",
+    });
+  }
+});
+
+app.get("/api/events/:slug/stats", async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const [[event]] = await pool.query(
+      `
+      SELECT id
+      FROM events
+      WHERE slug = ?
+      LIMIT 1
+      `,
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    /*
+     * Uczestnicy + liczba typów meczów
+     */
+    const [[predictionStats]] = await pool.query(
+      `
+      SELECT
+        COUNT(DISTINCT user_id) AS participants,
+        COUNT(*) AS total_predictions
+      FROM match_predictions
+      WHERE event_id = ?
+      `,
+      [event.id],
+    );
+
+    /*
+     * Typy map
+     */
+    const [[mapPredictionStats]] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_map_predictions
+      FROM match_map_predictions
+      WHERE event_id = ?
+      `,
+      [event.id],
+    );
+
+    /*
+     * Średnia punktów i najlepszy wynik.
+     */
+    const [[pointsStats]] = await pool.query(
+      `
+      SELECT
+        COALESCE(AVG(player_points), 0) AS average_points,
+        COALESCE(MAX(player_points), 0) AS best_score
+      FROM (
+        SELECT
+          user_id,
+          SUM(points) AS player_points
+        FROM match_points
+        WHERE event_id = ?
+        GROUP BY user_id
+      ) scores
+      `,
+      [event.id],
+    );
+
+    /*
+     * Najlepszy gracz punktowo.
+     */
+    const [[bestPlayer]] = await pool.query(
+      `
+      SELECT
+        mp.user_id,
+
+        COALESCE(
+          up.displayname,
+          up.username,
+          mp.user_id
+        ) AS displayname,
+
+        SUM(mp.points) AS total_points
+
+      FROM match_points mp
+
+      LEFT JOIN user_profiles up
+        ON up.user_id COLLATE utf8mb4_unicode_ci
+         = mp.user_id COLLATE utf8mb4_unicode_ci
+
+      WHERE mp.event_id = ?
+
+      GROUP BY
+        mp.user_id,
+        up.displayname,
+        up.username
+
+      ORDER BY
+        total_points DESC,
+        mp.user_id ASC
+
+      LIMIT 1
+      `,
+      [event.id],
+    );
+
+    /*
+     * Łączna liczba exactów map.
+     */
+    const [[exactStats]] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS exact_maps
+      FROM match_map_predictions mmp
+
+      INNER JOIN match_map_results mmr
+        ON mmr.event_id = mmp.event_id
+       AND mmr.match_id = mmp.match_id
+       AND mmr.map_no = mmp.map_no
+
+      WHERE mmp.event_id = ?
+        AND mmp.pred_exact_a = mmr.exact_a
+        AND mmp.pred_exact_b = mmr.exact_b
+      `,
+      [event.id],
+    );
+
+    /*
+     * Gracz z największą liczbą exactów map.
+     */
+    const [[bestExactPlayer]] = await pool.query(
+      `
+      SELECT
+        mmp.user_id,
+
+        COALESCE(
+          up.displayname,
+          up.username,
+          mmp.user_id
+        ) AS displayname,
+
+        COUNT(*) AS exact_maps
+
+      FROM match_map_predictions mmp
+
+      INNER JOIN match_map_results mmr
+        ON mmr.event_id = mmp.event_id
+       AND mmr.match_id = mmp.match_id
+       AND mmr.map_no = mmp.map_no
+
+      LEFT JOIN user_profiles up
+        ON up.user_id COLLATE utf8mb4_unicode_ci
+         = mmp.user_id COLLATE utf8mb4_unicode_ci
+
+      WHERE mmp.event_id = ?
+        AND mmp.pred_exact_a = mmr.exact_a
+        AND mmp.pred_exact_b = mmr.exact_b
+
+      GROUP BY
+        mmp.user_id,
+        up.displayname,
+        up.username
+
+      ORDER BY
+        exact_maps DESC,
+        mmp.user_id ASC
+
+      LIMIT 1
+      `,
+      [event.id],
+    );
+
+    const [[bestAccuracyPlayer]] = await pool.query(
+      `
+  SELECT
+    mp.user_id,
+
+    COALESCE(
+      up.displayname,
+      up.username,
+      mp.user_id
+    ) AS displayname,
+
+    COUNT(DISTINCT mp.match_id) AS finished_predictions,
+
+    COUNT(
+      DISTINCT CASE
+        WHEN (
+          (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+          OR
+          (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+        )
+        THEN mp.match_id
+        ELSE NULL
+      END
+    ) AS correct_winners,
+
+    ROUND(
+      COUNT(
+        DISTINCT CASE
+          WHEN (
+            (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+            OR
+            (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+          )
+          THEN mp.match_id
+          ELSE NULL
+        END
+      )
+      / COUNT(DISTINCT mp.match_id) * 100,
+      1
+    ) AS accuracy
+
+  FROM match_predictions mp
+
+  INNER JOIN match_results mr
+    ON mr.event_id = mp.event_id
+   AND mr.match_id = mp.match_id
+
+  LEFT JOIN user_profiles up
+    ON up.user_id COLLATE utf8mb4_unicode_ci
+     = mp.user_id COLLATE utf8mb4_unicode_ci
+
+  WHERE mp.event_id = ?
+
+  GROUP BY
+    mp.user_id,
+    up.displayname,
+    up.username
+
+  HAVING finished_predictions >= GREATEST(
+    1,
+    CEIL(
+      (
+        SELECT COUNT(DISTINCT mr2.match_id)
+        FROM match_results mr2
+        WHERE mr2.event_id = ?
+      ) * 0.5
+    )
+  )
+
+  ORDER BY
+    accuracy DESC,
+    correct_winners DESC,
+    finished_predictions DESC,
+    mp.user_id ASC
+
+  LIMIT 1
+  `,
+      [event.id, event.id],
+    );
+
+    const [[favoriteTeam]] = await pool.query(
+      `
+  SELECT
+    picked_team AS team,
+    COUNT(*) AS picks
+  FROM (
+    SELECT
+      CASE
+        WHEN pred_a > pred_b THEN m.team_a
+        WHEN pred_b > pred_a THEN m.team_b
+        ELSE NULL
+      END AS picked_team
+
+    FROM match_predictions mp
+
+    INNER JOIN matches m
+      ON m.id = mp.match_id
+     AND m.event_id = mp.event_id
+
+    WHERE mp.event_id = ?
+  ) picks
+
+  WHERE picked_team IS NOT NULL
+
+  GROUP BY picked_team
+
+  ORDER BY
+    picks DESC,
+    picked_team ASC
+
+  LIMIT 1
+  `,
+      [event.id],
+    );
+
+    const [balancedMatchRows] = await pool.query(
+      `
+  SELECT
+    m.id AS match_id,
+    m.team_a,
+    m.team_b,
+    m.phase,
+    m.best_of,
+    m.is_locked,
+    m.lock_override,
+
+    COUNT(mp.user_id) AS total_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_a > mp.pred_b THEN 1
+        ELSE 0
+      END
+    ) AS team_a_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_b > mp.pred_a THEN 1
+        ELSE 0
+      END
+    ) AS team_b_picks,
+
+    CASE
+      WHEN mr.match_id IS NOT NULL THEN 1
+      ELSE 0
+    END AS finished
+
+  FROM matches m
+
+  INNER JOIN match_predictions mp
+    ON mp.event_id = m.event_id
+   AND mp.match_id = m.id
+
+  LEFT JOIN match_results mr
+    ON mr.event_id = m.event_id
+   AND mr.match_id = m.id
+
+  WHERE m.event_id = ?
+
+  GROUP BY
+    m.id,
+    m.team_a,
+    m.team_b,
+    m.phase,
+    m.best_of,
+    m.is_locked,
+    m.lock_override,
+    mr.match_id
+  `,
+      [event.id],
+    );
+
+    const balancedCandidates = [];
+
+    for (const row of balancedMatchRows) {
+      let locked = Number(row.finished) === 1;
+      let forceOpen = false;
+
+      if (!locked) {
+        const gate = await assertPredictionsAllowed({
+          guildId: event.guild_id,
+          kind: "MATCHES",
+        });
+
+        if (!gate.allowed) {
+          locked = true;
+        }
+      }
+
+      if (!locked && Number(row.lock_override) === 1) {
+        locked = true;
+      }
+
+      if (
+        !locked &&
+        row.lock_override !== null &&
+        Number(row.lock_override) === 0
+      ) {
+        forceOpen = true;
+      }
+
+      if (!locked && !forceOpen && Number(row.is_locked) === 1) {
+        locked = true;
+      }
+
+      if (!locked && !forceOpen) {
+        const matchPanelPhase = matchPanelPhaseFor(row.phase);
+
+        if (matchPanelPhase) {
+          const { passed } = await isMatchDeadlinePassed(
+            pool,
+            event.guild_id,
+            matchPanelPhase,
+          );
+
+          if (passed) {
+            locked = true;
+          }
+        }
+      }
+
+      if (!locked) {
+        continue;
+      }
+
+      const total = Number(row.total_picks || 0);
+
+      if (total === 0) {
+        continue;
+      }
+
+      const teamA = Number(row.team_a_picks || 0);
+      const teamB = Number(row.team_b_picks || 0);
+
+      const teamAPercentage = Math.round((teamA / total) * 100);
+
+      const teamBPercentage = 100 - teamAPercentage;
+
+      balancedCandidates.push({
+        match_id: Number(row.match_id),
+        team_a: row.team_a,
+        team_b: row.team_b,
+        best_of: Number(row.best_of || 0),
+
+        total_picks: total,
+
+        team_a_picks: teamA,
+        team_b_picks: teamB,
+
+        team_a_percentage: teamAPercentage,
+        team_b_percentage: teamBPercentage,
+
+        difference: Math.abs(teamAPercentage - teamBPercentage),
+      });
+    }
+
+    balancedCandidates.sort((a, b) => {
+      if (a.difference !== b.difference) {
+        return a.difference - b.difference;
+      }
+
+      if (b.total_picks !== a.total_picks) {
+        return b.total_picks - a.total_picks;
+      }
+
+      return a.match_id - b.match_id;
+    });
+
+    const closestMatch = balancedCandidates[0] || null;
+
+    const [upsetRows] = await pool.query(
+      `
+  SELECT
+    m.id AS match_id,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+
+    mr.res_a,
+    mr.res_b,
+
+    COUNT(mp.user_id) AS total_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_a > mp.pred_b THEN 1
+        ELSE 0
+      END
+    ) AS team_a_picks,
+
+    SUM(
+      CASE
+        WHEN mp.pred_b > mp.pred_a THEN 1
+        ELSE 0
+      END
+    ) AS team_b_picks
+
+  FROM matches m
+
+  INNER JOIN match_results mr
+    ON mr.event_id = m.event_id
+   AND mr.match_id = m.id
+
+  INNER JOIN match_predictions mp
+    ON mp.event_id = m.event_id
+   AND mp.match_id = m.id
+
+  WHERE m.event_id = ?
+
+  GROUP BY
+    m.id,
+    m.team_a,
+    m.team_b,
+    m.best_of,
+    mr.res_a,
+    mr.res_b
+  `,
+      [event.id],
+    );
+
+    const upsetCandidates = upsetRows
+      .map((row) => {
+        const total = Number(row.total_picks || 0);
+
+        if (total === 0) {
+          return null;
+        }
+
+        const teamAPicks = Number(row.team_a_picks || 0);
+        const teamBPicks = Number(row.team_b_picks || 0);
+
+        const teamAWon = Number(row.res_a) > Number(row.res_b);
+
+        const winnerPicks = teamAWon ? teamAPicks : teamBPicks;
+
+        const winnerPercentage = Math.round((winnerPicks / total) * 100);
+
+        return {
+          match_id: Number(row.match_id),
+
+          team_a: row.team_a,
+          team_b: row.team_b,
+
+          best_of: Number(row.best_of || 0),
+
+          res_a: Number(row.res_a),
+          res_b: Number(row.res_b),
+
+          winner: teamAWon ? row.team_a : row.team_b,
+
+          total_picks: total,
+
+          team_a_picks: teamAPicks,
+          team_b_picks: teamBPicks,
+
+          team_a_percentage: Math.round((teamAPicks / total) * 100),
+
+          team_b_percentage: Math.round((teamBPicks / total) * 100),
+
+          winner_percentage: winnerPercentage,
+        };
+      })
+      .filter(Boolean);
+
+    upsetCandidates.sort((a, b) => {
+      if (a.winner_percentage !== b.winner_percentage) {
+        return a.winner_percentage - b.winner_percentage;
+      }
+
+      return b.total_picks - a.total_picks;
+    });
+
+    const biggestUpset = upsetCandidates[0] || null;
+
+    res.json({
+      stats: {
+        participants: Number(predictionStats?.participants || 0),
+
+        closest_match: closestMatch,
+        biggest_upset: biggestUpset,
+
+        total_predictions: Number(predictionStats?.total_predictions || 0),
+
+        total_map_predictions: Number(
+          mapPredictionStats?.total_map_predictions || 0,
+        ),
+
+        average_points: Number(
+          Number(pointsStats?.average_points || 0).toFixed(1),
+        ),
+
+        exact_maps: Number(exactStats?.exact_maps || 0),
+
+        best_score: Number(pointsStats?.best_score || 0),
+        favorite_team: favoriteTeam
+          ? {
+            team: favoriteTeam.team,
+            picks: Number(favoriteTeam.picks || 0),
+          }
+          : null,
+
+        best_player: bestPlayer
+          ? {
+            user_id: bestPlayer.user_id,
+            displayname: bestPlayer.displayname,
+            points: Number(bestPlayer.total_points || 0),
+          }
+          : null,
+
+        best_exact_player: bestExactPlayer
+          ? {
+            user_id: bestExactPlayer.user_id,
+            displayname: bestExactPlayer.displayname,
+            exact_maps: Number(bestExactPlayer.exact_maps || 0),
+          }
+          : null,
+
+        best_accuracy_player: bestAccuracyPlayer
+          ? {
+            user_id: bestAccuracyPlayer.user_id,
+            displayname: bestAccuracyPlayer.displayname,
+            accuracy: Number(bestAccuracyPlayer.accuracy || 0),
+            correct_winners: Number(bestAccuracyPlayer.correct_winners || 0),
+            finished_predictions: Number(
+              bestAccuracyPlayer.finished_predictions || 0,
+            ),
+          }
+          : null,
+      },
+    });
+  } catch (err) {
+    console.error("EVENT STATS ERROR:", err);
+
+    res.status(500).json({
+      error: "Błąd bazy danych.",
+    });
+  }
+});
+
+app.get("/api/events/:slug/matches/:matchId/pick-stats", async (req, res) => {
+  try {
+    const { slug, matchId } = req.params;
+
+    const [[event]] = await pool.query(
+      `
+  SELECT
+    id,
+    guild_id
+  FROM events
+  WHERE slug = ?
+  LIMIT 1
+  `,
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    const [[match]] = await pool.query(
+      `
+  SELECT
+    id,
+    phase,
+    team_a,
+    team_b,
+    best_of,
+    is_locked,
+    lock_override
+  FROM matches
+  WHERE id = ?
+    AND event_id = ?
+  LIMIT 1
+  `,
+      [matchId, event.id],
+    );
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Nie znaleziono meczu.",
+      });
+    }
+
+    let locked = false;
+
+    const [[resultRow]] = await pool.query(
+      `
+  SELECT match_id
+  FROM match_results
+  WHERE event_id = ?
+    AND match_id = ?
+  LIMIT 1
+  `,
+      [event.id, match.id],
+    );
+
+    // Wynik oficjalny = mecz zamknięty
+    if (resultRow) {
+      locked = true;
+    }
+
+    // Globalny gate
+    if (!locked) {
+      const gate = await assertPredictionsAllowed({
+        guildId: event.guild_id,
+        kind: "MATCHES",
+      });
+
+      if (!gate.allowed) {
+        locked = true;
+      }
+    }
+
+    // Wspólna logika locka z Discordem
+    if (!locked && isMatchLocked(match)) {
+      locked = true;
+    }
+
+    // Deadline fazy
+    if (!locked) {
+      const matchPanelPhase = matchPanelPhaseFor(match.phase);
+
+      if (matchPanelPhase) {
+        const { passed } = await isMatchDeadlinePassed(
+          pool,
+          event.guild_id,
+          matchPanelPhase,
+        );
+
+        if (passed) {
+          locked = true;
+        }
+      }
+    }
+
+    // Przed lockiem nie pokazujemy community stats
+    if (!locked) {
+      return res.json({
+        locked: false,
+      });
+    }
+
+    /*
+     * Rozkład zwycięzców.
+     */
+    const [[winnerStats]] = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_picks,
+
+        SUM(
+          CASE
+            WHEN pred_a > pred_b THEN 1
+            ELSE 0
+          END
+        ) AS team_a_picks,
+
+        SUM(
+          CASE
+            WHEN pred_b > pred_a THEN 1
+            ELSE 0
+          END
+        ) AS team_b_picks
+
+      FROM match_predictions
+
+      WHERE event_id = ?
+        AND match_id = ?
+      `,
+      [event.id, match.id],
+    );
+
+    const totalPicks = Number(winnerStats?.total_picks || 0);
+
+    const teamAPicks = Number(winnerStats?.team_a_picks || 0);
+
+    const teamBPicks = Number(winnerStats?.team_b_picks || 0);
+
+    /*
+     * Najczęściej typowany dokładny wynik serii.
+     */
+    const [[popularScore]] = await pool.query(
+      `
+      SELECT
+        pred_a,
+        pred_b,
+        COUNT(*) AS picks
+
+      FROM match_predictions
+
+      WHERE event_id = ?
+        AND match_id = ?
+
+      GROUP BY
+        pred_a,
+        pred_b
+
+      ORDER BY
+        picks DESC,
+        pred_a DESC,
+        pred_b DESC
+
+      LIMIT 1
+      `,
+      [event.id, match.id],
+    );
+
+    const [mapPickRows] = await pool.query(
+      `
+  SELECT
+    mmp.map_no,
+
+    COUNT(*) AS total_picks,
+
+    SUM(
+      CASE
+        WHEN mmp.pred_exact_a > mmp.pred_exact_b
+        THEN 1
+        ELSE 0
+      END
+    ) AS team_a_picks,
+
+    SUM(
+      CASE
+        WHEN mmp.pred_exact_b > mmp.pred_exact_a
+        THEN 1
+        ELSE 0
+      END
+    ) AS team_b_picks
+
+  FROM match_map_predictions mmp
+
+  WHERE mmp.event_id = ?
+    AND mmp.match_id = ?
+
+  GROUP BY mmp.map_no
+
+  ORDER BY mmp.map_no ASC
+  `,
+      [event.id, match.id],
+    );
+
+    const mapStats = mapPickRows.map((row) => {
+      const total = Number(row.total_picks || 0);
+      const teamA = Number(row.team_a_picks || 0);
+      const teamB = Number(row.team_b_picks || 0);
+
+      return {
+        map_no: Number(row.map_no),
+
+        total_picks: total,
+
+        team_a: {
+          picks: teamA,
+          percentage: total > 0 ? Math.round((teamA / total) * 100) : 0,
+        },
+
+        team_b: {
+          picks: teamB,
+          percentage: total > 0 ? Math.round((teamB / total) * 100) : 0,
+        },
+      };
+    });
+
+    res.json({
+      locked: true,
+
+      maps: mapStats,
+
+      match: {
+        id: match.id,
+        team_a: match.team_a,
+        team_b: match.team_b,
+        best_of: Number(match.best_of || 0),
+      },
+
+      picks: {
+        total: totalPicks,
+
+        team_a: {
+          picks: teamAPicks,
+          percentage:
+            totalPicks > 0 ? Math.round((teamAPicks / totalPicks) * 100) : 0,
+        },
+
+        team_b: {
+          picks: teamBPicks,
+          percentage:
+            totalPicks > 0 ? Math.round((teamBPicks / totalPicks) * 100) : 0,
+        },
+      },
+
+      popular_score: popularScore
+        ? {
+          score_a: Number(popularScore.pred_a),
+          score_b: Number(popularScore.pred_b),
+          picks: Number(popularScore.picks),
+        }
+        : null,
+    });
+  } catch (err) {
+    console.error("MATCH PICK STATS ERROR:", err);
+
+    res.status(500).json({
+      error: "Błąd bazy danych.",
+    });
+  }
+});
+
+app.get("/api/public/events/:slug/my-predictions/:phase", async (req, res) => {
+  try {
+    const userId = req.session?.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+      });
+    }
+
+    const { slug, phase } = req.params;
+
+    const page = Math.max(0, Number(req.query.page) || 0);
+
+    const PAGE_SIZE = 5;
+
+    const [[event]] = await pool.query(
+      `
+        SELECT
+          id,
+          guild_id,
+          name,
+          slug
+        FROM events
+        WHERE slug = ?
+        LIMIT 1
+        `,
+      [slug],
+    );
+
+    if (!event) {
+      return res.status(404).json({
+        error: "Nie znaleziono turnieju.",
+      });
+    }
+
+    if (!isGuildMember(req.session.user, event.guild_id)) {
+      return res.status(403).json({
+        error: "Nie należysz do tego serwera.",
+      });
+    }
+
+    const [[countRow]] = await pool.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM matches
+        WHERE guild_id = ?
+          AND event_id = ?
+          AND phase = ?
+        `,
+      [event.guild_id, event.id, phase],
+    );
+
+    const totalMatches = Number(countRow?.total || 0);
+
+    const totalPages = Math.max(1, Math.ceil(totalMatches / PAGE_SIZE));
+
+    const safePage = Math.min(page, totalPages - 1);
+
+    const offset = safePage * PAGE_SIZE;
+
+    const [matches] = await pool.query(
+      `
+        SELECT
+          m.id,
+          m.match_no,
+          m.team_a,
+          m.team_b,
+          m.best_of,
+
+          mp.pred_a,
+          mp.pred_b,
+          mp.pred_exact_a,
+          mp.pred_exact_b,
+
+          mr.res_a,
+          mr.res_b,
+
+          COALESCE(points.series_points, 0) AS series_points,
+          COALESCE(points.map_points, 0) AS map_points,
+          COALESCE(points.total_points, 0) AS earned_points,
+
+          CASE
+            WHEN mr.match_id IS NOT NULL THEN 1
+            ELSE 0
+          END AS has_result
+
+        FROM matches m
+
+        LEFT JOIN match_predictions mp
+          ON mp.guild_id = m.guild_id
+         AND mp.event_id = m.event_id
+         AND mp.match_id = m.id
+         AND mp.user_id = ?
+
+        LEFT JOIN match_results mr
+          ON mr.guild_id = m.guild_id
+         AND mr.event_id = m.event_id
+         AND mr.match_id = m.id
+
+        LEFT JOIN (
+          SELECT
+            guild_id,
+            event_id,
+            match_id,
+            user_id,
+
+            SUM(
+              CASE
+                WHEN source = 'series' THEN points
+                ELSE 0
+              END
+            ) AS series_points,
+
+            SUM(
+              CASE
+                WHEN source = 'map' THEN points
+                ELSE 0
+              END
+            ) AS map_points,
+
+            SUM(points) AS total_points
+
+          FROM match_points
+
+          GROUP BY
+            guild_id,
+            event_id,
+            match_id,
+            user_id
+        ) points
+          ON points.guild_id = m.guild_id
+         AND points.event_id = m.event_id
+         AND points.match_id = m.id
+         AND points.user_id = ?
+
+        WHERE m.guild_id = ?
+          AND m.event_id = ?
+          AND m.phase = ?
+
+        ORDER BY
+          COALESCE(m.match_no, 999999),
+          m.id
+
+        LIMIT ? OFFSET ?
+        `,
+      [userId, userId, event.guild_id, event.id, phase, PAGE_SIZE, offset],
+    );
+
+    const matchIds = matches.map((match) => Number(match.id));
+
+    let maps = [];
+
+    if (matchIds.length) {
+      const placeholders = matchIds.map(() => "?").join(", ");
+
+      const [mapRows] = await pool.query(
+        `
+          SELECT
+            p.match_id,
+            p.map_no,
+            p.pred_exact_a,
+            p.pred_exact_b,
+
+            r.exact_a AS res_exact_a,
+            r.exact_b AS res_exact_b
+
+          FROM match_map_predictions p
+
+          LEFT JOIN match_map_results r
+            ON r.guild_id = p.guild_id
+           AND r.event_id = p.event_id
+           AND r.match_id = p.match_id
+           AND r.map_no = p.map_no
+
+          WHERE p.guild_id = ?
+            AND p.event_id = ?
+            AND p.user_id = ?
+            AND p.match_id IN (${placeholders})
+
+          ORDER BY
+            p.match_id,
+            p.map_no
+          `,
+        [event.guild_id, event.id, userId, ...matchIds],
+      );
+
+      maps = mapRows;
+    }
+
+    const mapsByMatch = new Map();
+
+    for (const map of maps) {
+      const key = Number(map.match_id);
+
+      if (!mapsByMatch.has(key)) {
+        mapsByMatch.set(key, []);
+      }
+
+      mapsByMatch.get(key).push({
+        map_no: Number(map.map_no),
+
+        pred_exact_a:
+          map.pred_exact_a !== null ? Number(map.pred_exact_a) : null,
+
+        pred_exact_b:
+          map.pred_exact_b !== null ? Number(map.pred_exact_b) : null,
+
+        res_exact_a: map.res_exact_a !== null ? Number(map.res_exact_a) : null,
+
+        res_exact_b: map.res_exact_b !== null ? Number(map.res_exact_b) : null,
+      });
+    }
+
+    res.json({
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+      },
+
+      phase,
+
+      pagination: {
+        page: safePage,
+        page_size: PAGE_SIZE,
+        total_matches: totalMatches,
+        total_pages: totalPages,
+      },
+
+      matches: matches.map((match) => ({
+        id: Number(match.id),
+        match_no: match.match_no !== null ? Number(match.match_no) : null,
+
+        team_a: match.team_a,
+        team_b: match.team_b,
+
+        best_of: Number(match.best_of),
+
+        prediction:
+          match.pred_a !== null && match.pred_b !== null
+            ? {
+              pred_a: Number(match.pred_a),
+              pred_b: Number(match.pred_b),
+
+              pred_exact_a:
+                match.pred_exact_a !== null
+                  ? Number(match.pred_exact_a)
+                  : null,
+
+              pred_exact_b:
+                match.pred_exact_b !== null
+                  ? Number(match.pred_exact_b)
+                  : null,
+            }
+            : null,
+
+        result:
+          Number(match.has_result) === 1
+            ? {
+              res_a: Number(match.res_a),
+              res_b: Number(match.res_b),
+            }
+            : null,
+
+        points: {
+          series: Number(match.series_points || 0),
+
+          maps: Number(match.map_points || 0),
+
+          total: Number(match.earned_points || 0),
+        },
+
+        maps: mapsByMatch.get(Number(match.id)) || [],
+      })),
+    });
+  } catch (err) {
+    console.error("MY PREDICTIONS ERROR:", err);
+
+    res.status(500).json({
+      error: "Nie udało się wczytać Twoich typów.",
+    });
+  }
+});
+
+
+app.get("/api/public/matches/:matchId/my-points", async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.session?.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+      });
+    }
+
+    const [[match]] = await pool.query(
+      `
+      SELECT
+        id,
+        guild_id,
+        event_id
+      FROM matches
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [matchId],
+    );
+
+    if (!match) {
+      return res.status(404).json({
+        error: "Nie znaleziono meczu.",
+      });
+    }
+
+    if (!isGuildMember(req.session.user, match.guild_id)) {
+      return res.status(403).json({
+        error: "Nie należysz do tego serwera.",
+      });
+    }
+
+    const [[row]] = await pool.query(
+      `
+      SELECT
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'series' THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS series_points,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'map' THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS map_points,
+
+        COALESCE(
+          SUM(points),
+          0
+        ) AS total_points
+
+      FROM match_points
+      WHERE guild_id = ?
+        AND event_id = ?
+        AND match_id = ?
+        AND user_id = ?
+      `,
+      [
+        match.guild_id,
+        match.event_id,
+        match.id,
+        userId,
+      ],
+    );
+
+    return res.json({
+      points: {
+        series: Number(row?.series_points || 0),
+        maps: Number(row?.map_points || 0),
+        total: Number(row?.total_points || 0),
+      },
+    });
+  } catch (err) {
+    console.error("MY MATCH POINTS ERROR:", err);
+
+    return res.status(500).json({
+      error: "Nie udało się wczytać punktów.",
+    });
+  }
 });

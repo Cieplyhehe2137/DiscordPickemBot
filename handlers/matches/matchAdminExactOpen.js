@@ -41,19 +41,25 @@ function hasAdminPerms(interaction) {
    DEFAULTS (DB)
 ====================== */
 
-async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
+async function getDefaults(pool, guildId, eventId, matchId, maxMaps, mapNo) {
   try {
     if (maxMaps === 1) {
       const [[r]] = await pool.query(
         `
         SELECT exact_a, exact_b
         FROM match_results
-        WHERE match_id = ? AND guild_id = ?
+        WHERE match_id = ?
+          AND guild_id = ?
+          AND event_id = ?
         LIMIT 1
         `,
-        [matchId, guildId],
+        [matchId, guildId, eventId],
       );
-      return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
+
+      return {
+        a: r?.exact_a ?? "",
+        b: r?.exact_b ?? "",
+      };
     }
 
     const [[r]] = await pool.query(
@@ -62,15 +68,22 @@ async function getDefaults(pool, guildId, matchId, maxMaps, mapNo) {
       FROM match_map_results
       WHERE match_id = ?
         AND guild_id = ?
+        AND event_id = ?
         AND map_no = ?
       LIMIT 1
       `,
-      [matchId, guildId, mapNo],
+      [matchId, guildId, eventId, mapNo],
     );
 
-    return { a: r?.exact_a ?? "", b: r?.exact_b ?? "" };
+    return {
+      a: r?.exact_a ?? "",
+      b: r?.exact_b ?? "",
+    };
   } catch {
-    return { a: "", b: "" };
+    return {
+      a: "",
+      b: "",
+    };
   }
 }
 
@@ -120,6 +133,7 @@ module.exports = async function matchAdminExactOpen(interaction) {
       const defaults = await getDefaults(
         pool,
         guildId,
+        match.event_id,
         match.id,
         maxMaps,
         mapNo,

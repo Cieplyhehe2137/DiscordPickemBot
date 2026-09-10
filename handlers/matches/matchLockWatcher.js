@@ -50,6 +50,7 @@ function startMatchLockWatcher(client, guildId) {
           FROM matches
           WHERE guild_id = ?
             AND is_locked = 0
+            AND lock_override IS NULL
             AND start_time_utc IS NOT NULL
             AND ${timeCond}
           ORDER BY start_time_utc ASC
@@ -69,6 +70,7 @@ function startMatchLockWatcher(client, guildId) {
             WHERE id = ?
               AND guild_id = ?
               AND is_locked = 0
+              AND lock_override is NULL
             `,
             [m.id, guildId],
           );

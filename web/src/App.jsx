@@ -1,122 +1,82 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
-// Route-level code splitting: every page is its own chunk, so the initial
-// load only pulls what the current route needs. Notably this keeps the
-// admin panel (/app/*) and socket.io-client - only used by the two live
-// dashboards - out of the bundle for visitors who just browse rankings.
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const EventDashboard = lazy(() => import("./pages/EventDashboard"));
-const GuildSelect = lazy(() => import("./pages/GuildSelect"));
-const GuildDashboard = lazy(() => import("./pages/GuildDashboard"));
-const TeamsPage = lazy(() => import("./pages/TeamsPage"));
-const TournamentArchivePage = lazy(
-  () => import("./pages/TournamentArchivePage"),
-);
-const ArchivedTournamentPage = lazy(
-  () => import("./pages/ArchivedTournamentPage"),
-);
-const AppLayout = lazy(() => import("./components/layout/AppLayout"));
-const RequireAdmin = lazy(() => import("./components/auth/RequireAdmin"));
-const PublicServersPage = lazy(() => import("./pages/PublicServersPage"));
-const PublicGuildPage = lazy(() => import("./pages/PublicGuildPage"));
-const PublicUserPage = lazy(() => import("./pages/PublicUserPage"));
-const PublicEventPage = lazy(() => import("./pages/PublicEventPage"));
-const PublicMyPredictionsPage = lazy(
-  () => import("./pages/PublicMyPredictionsPage"),
-);
-const PublicLeaderboardPage = lazy(
-  () => import("./pages/PublicLeaderboardPage"),
-);
-const PublicSwissPickemPage = lazy(
-  () => import("./pages/PublicSwissPickemPage"),
-);
-const PublicEventLeaderboardPage = lazy(
-  () => import("./pages/PublicEventLeaderboardPage"),
-);
-const PublicPlayinPickemPage = lazy(
-  () => import("./pages/PublicPlayinPickemPage"),
-);
-const PublicPlayoffsPickemPage = lazy(
-  () => import("./pages/PublicPlayoffsPickemPage"),
-);
-const PublicDoubleElimPickemPage = lazy(
-  () => import("./pages/PublicDoubleElimPickemPage"),
-);
-const PublicArchivePage = lazy(() => import("./pages/PublicArchivePage"));
+import AppLayout from "./components/layout/AppLayout.jsx";
 
-// Matches the loading state RequireAdmin already uses, so a chunk fetch
-// looks the same as an auth check instead of flashing a blank page.
-function RouteFallback() {
+import HomePage from "./pages/HomePage.jsx";
+import EventsPage from "./pages/EventsPage.jsx";
+import EventPage from "./pages/EventPage.jsx";
+
+import MatchesPage from "./pages/MatchesPage.jsx";
+import MatchPage from "./pages/MatchPage.jsx";
+
+import MyPicksPage from "./pages/MyPicksPage.jsx";
+import MyStatsPage from "./pages/MyStatsPage.jsx";
+import LeaderboardPage from "./pages/LeaderboardPage.jsx";
+import PlayerProfilePage from "./pages/PlayerProfilePage.jsx";
+
+import SwissPickemPage from "./pages/SwissPickemPage.jsx";
+import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
+import PlayoffsPickemPage from "./pages/PlayoffsPickemPage.jsx";
+import DoubleElimPickemPage from "./pages/DoubleElimPickemPage.jsx";
+
+import AdminPage from "./pages/AdminPage.jsx";
+import AdminMatchResultPage from "./pages/AdminMatchResultPage.jsx";
+import NotFoundPage from "./pages/NotFoundPage.jsx";
+
+function App() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-      <div className="h-10 w-10 animate-pulse rounded-full bg-violet-500/40" />
-    </div>
+    <Routes>
+      <Route element={<AppLayout />}>
+        {/* MAIN */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/:slug" element={<EventPage />} />
+
+        {/* MATCHES */}
+        <Route path="/events/:slug/matches" element={<MatchesPage />} />
+
+        <Route path="/events/:slug/matches/:matchId" element={<MatchPage />} />
+
+        {/* PLAYER */}
+        <Route path="/events/:slug/my-picks" element={<MyPicksPage />} />
+
+        <Route path="/events/:slug/my-stats" element={<MyStatsPage />} />
+
+        <Route path="/events/:slug/leaderboard" element={<LeaderboardPage />} />
+
+        <Route
+          path="/events/:slug/player/:userId"
+          element={<PlayerProfilePage />}
+        />
+
+        {/* PICK'EM PHASES */}
+        <Route
+          path="/events/:slug/swiss/:stage"
+          element={<SwissPickemPage />}
+        />
+
+        <Route path="/events/:slug/playin" element={<PlayinPickemPage />} />
+
+        <Route path="/events/:slug/playoffs" element={<PlayoffsPickemPage />} />
+
+        <Route
+          path="/events/:slug/doubleelim"
+          element={<DoubleElimPickemPage />}
+        />
+
+        {/* ADMIN */}
+        <Route path="/admin" element={<AdminPage />} />
+
+        <Route
+          path="/admin/matches/:matchId/result"
+          element={<AdminMatchResultPage />}
+        />
+
+        {/* Musi zostać na końcu - łapie każdy adres, który nie pasował wyżej. */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   );
 }
 
-export default function App() {
-  return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route path="/" element={<Navigate to="/public" replace />} />
-
-        <Route path="/public" element={<PublicServersPage />} />
-        <Route path="/public/leaderboard" element={<PublicLeaderboardPage />} />
-        <Route
-          path="/public/me/predictions"
-          element={<PublicMyPredictionsPage />}
-        />
-        <Route path="/public/users/:userId" element={<PublicUserPage />} />
-        <Route
-          path="/public/event/:slug/doubleelim"
-          element={<PublicDoubleElimPickemPage />}
-        />
-        <Route
-          path="/public/event/:slug/playoffs"
-          element={<PublicPlayoffsPickemPage />}
-        />
-        <Route
-          path="/public/event/:slug/playin"
-          element={<PublicPlayinPickemPage />}
-        />
-        <Route
-          path="/public/event/:slug/pickem/:stage"
-          element={<PublicSwissPickemPage />}
-        />
-        <Route
-          path="/public/event/:slug/leaderboard"
-          element={<PublicEventLeaderboardPage />}
-        />
-        <Route path="/public/event/:slug" element={<PublicEventPage />} />
-        <Route path="/public/archives" element={<PublicArchivePage />} />
-        <Route path="/public/:guildSlug" element={<PublicGuildPage />} />
-
-        <Route
-          path="/app"
-          element={
-            <RequireAdmin>
-              <AppLayout />
-            </RequireAdmin>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="guilds" element={<GuildSelect />} />
-          <Route path="guilds/:guildId" element={<GuildDashboard />} />
-          <Route path="guilds/:guildId/teams" element={<TeamsPage />} />
-          <Route
-            path="guilds/:guildId/archive"
-            element={<TournamentArchivePage />}
-          />
-          <Route
-            path="guilds/:guildId/archive/:slug"
-            element={<ArchivedTournamentPage />}
-          />
-          <Route path="events/:slug" element={<EventDashboard />} />
-        </Route>
-
-        <Route path="*" element={<Navigate to="/public" replace />} />
-      </Routes>
-    </Suspense>
-  );
-}
+export default App;

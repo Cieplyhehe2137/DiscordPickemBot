@@ -34,4 +34,26 @@ async function setMatchLock(pool, guildId, matchId, locked) {
   return result.affectedRows > 0;
 }
 
-module.exports = { getMatchById, setMatchLock };
+// Czy mecz ma już wpisany oficjalny wynik serii.
+//
+// Panel WWW blokuje typowanie takiego meczu (ui_status = 'FINAL' + 403),
+// a Discord sprawdzał wyłącznie isMatchLocked(). Mecz z wynikiem, ale bez
+// start_time_utc i z lock_override = 0, przyjmował więc typy już po ogłoszeniu
+// rezultatu. Ta funkcja wyrównuje obie strony.
+async function hasOfficialResult(pool, guildId, eventId, matchId) {
+  const [[row]] = await pool.query(
+    `
+    SELECT 1 AS istnieje
+    FROM match_results
+    WHERE guild_id = ?
+      AND event_id = ?
+      AND match_id = ?
+    LIMIT 1
+    `,
+    [guildId, eventId, matchId],
+  );
+
+  return Boolean(row);
+}
+
+module.exports = { getMatchById, setMatchLock, hasOfficialResult };

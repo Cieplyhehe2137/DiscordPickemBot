@@ -64,6 +64,19 @@ module.exports = async function matchAdminResultSelect(interaction) {
           [guildId, eventId, matchId, resA, resB],
         );
 
+        // Mecz z oficjalnym wynikiem musi zostać zablokowany - tak robi
+        // matchAdminExactSubmit i panel WWW. Bez tego mecz bez start_time_utc
+        // zostawał otwarty na typowanie już po ogłoszeniu rezultatu.
+        await conn.query(
+          `
+          UPDATE matches
+          SET is_locked = 1
+          WHERE guild_id = ?
+            AND id = ?
+          `,
+          [guildId, matchId],
+        );
+
         await recalculateMatchPoints(
           conn,
           guildId,

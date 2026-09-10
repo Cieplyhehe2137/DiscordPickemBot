@@ -24,7 +24,6 @@ module.exports = {
 
   match_user_map_select: "matchUserMapSelect",
   match_admin_map_select: "matchAdminMapSelect",
-  match_series_select: "matchUserSeriesSelect",
   match_score_select_pred: "matchScoreSelectPred",
 
   // ===== ADMIN PANEL (UPROSZCZONY) =====

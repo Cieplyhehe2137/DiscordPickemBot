@@ -5,7 +5,7 @@ const { isMatchLocked } = require("../../utils/matchLock");
 const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
 const { withGuild } = require("../../utils/guildContext");
 const { maxMapsFromBo } = require("../../utils/mapLabels");
-const { getMatchById } = require("../../utils/matchesStore");
+const { getMatchById, hasOfficialResult } = require("../../utils/matchesStore");
 
 function getRequiredMapsFromSeries(targetWinsA, targetWinsB, maxMaps) {
   if (
@@ -134,6 +134,17 @@ module.exports = async function matchUserExactSubmit(interaction) {
         });
       }
 
+      // Ten sam warunek co w panelu WWW: po wpisaniu oficjalnego wyniku typ
+      // nie ma sensu. Samo isMatchLocked() tego nie łapie, bo mecz bez
+      // start_time_utc i z lock_override = 0 nie jest "zablokowany".
+      if (await hasOfficialResult(pool, guildId, match.event_id, match.id)) {
+        userState.clear(guildId, interaction.user.id);
+        return interaction.reply({
+          content: "🏁 Ten mecz został już zakończony — typowanie zamknięte.",
+          ephemeral: true,
+        });
+      }
+
       const maxMaps = maxMapsFromBo(match.best_of);
       const mapNo = Number(ctx.mapNo || 1);
 
@@ -209,6 +220,19 @@ module.exports = async function matchUserExactSubmit(interaction) {
           ],
         );
 
+        // BO1 trzyma wynik w match_predictions, więc żadne wiersze map nie
+        // powinny zostać - tak samo robi panel WWW. Ma znaczenie, gdy admin
+        // zmienił meczowi best_of z 3/5 na 1 już po zapisaniu typów.
+        await pool.query(
+          `
+          DELETE FROM match_map_predictions
+          WHERE guild_id = ?
+            AND match_id = ?
+            AND user_id = ?
+          `,
+          [guildId, match.id, interaction.user.id],
+        );
+
         userState.clear(guildId, interaction.user.id);
 
         return interaction.reply({
@@ -250,10 +274,21 @@ module.exports = async function matchUserExactSubmit(interaction) {
       }
 
       const winsNeeded = maxMaps === 3 ? 2 : 3;
-      const shouldFinish =
-        mapNo >= requiredMaps ||
-        nextWinsA >= winsNeeded ||
-        nextWinsB >= winsNeeded;
+
+      // Gdy gracz wybrał wynik serii, jedynym warunkiem końca jest wpisanie
+      // wszystkich map, które ten wynik zakłada.
+      //
+      // Wcześniej dochodziły tu `nextWinsA/B >= winsNeeded`. Przy typie 2:1
+      // i dwóch pierwszych mapach wygranych przez A flow kończył się już po
+      // mapie 2 i zapisywał serię **2:1 z mapami 2:0** - dane wewnętrznie
+      // sprzeczne, których panel WWW nie przyjmuje (validateSeriesMapOrder).
+      // Warunek "ostatnia mapa musi dać dokładnie wybrany wynik serii" jest
+      // sprawdzany wyżej, więc requiredMaps w zupełności wystarcza.
+      const shouldFinish = hasTarget
+        ? mapNo >= requiredMaps
+        : mapNo >= requiredMaps ||
+          nextWinsA >= winsNeeded ||
+          nextWinsB >= winsNeeded;
 
       if (!shouldFinish) {
         const nextMapNo = mapNo + 1;
@@ -306,6 +341,24 @@ module.exports = async function matchUserExactSubmit(interaction) {
           ],
         );
       }
+
+      // Sprzątanie map spoza wybranego wyniku serii.
+      //
+      // Zapis map to upsert po (match_id, user_id, map_no), więc gracz, który
+      // najpierw wytypował 2:1 (3 mapy), a potem zmienił na 2:0 (2 mapy),
+      // zostawiał w bazie osierocony wiersz mapy 3. recalculateMatchPoints
+      // nalicza punkty za KAŻDĄ zapisaną mapę, więc ta mapa dalej punktowała.
+      // Panel WWW rozwiązuje to inaczej - kasuje komplet i wstawia od nowa.
+      await pool.query(
+        `
+        DELETE FROM match_map_predictions
+        WHERE guild_id = ?
+          AND match_id = ?
+          AND user_id = ?
+          AND map_no > ?
+        `,
+        [guildId, match.id, interaction.user.id, requiredMaps],
+      );
 
       userState.clear(guildId, interaction.user.id);
 

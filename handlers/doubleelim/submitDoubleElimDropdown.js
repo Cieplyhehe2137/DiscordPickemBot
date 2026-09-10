@@ -3,7 +3,10 @@
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logger } = require("../../utils/logger");
 
-const { assertPredictionsAllowed } = require("../../utils/protectionsGuards");
+const {
+  assertPredictionsAllowed,
+  assertPickemOpen,
+} = require("../../utils/protectionsGuards");
 
 const {
   getDraft,
@@ -220,7 +223,8 @@ module.exports = async (interaction) => {
     // FINAL PHASE GATE
     // ================================================
 
-    const gate = await assertPredictionsAllowed({
+    const gate = await assertPickemOpen({
+      pool,
       guildId,
       kind: "DOUBLE_ELIM",
     });
@@ -340,9 +344,10 @@ module.exports = async (interaction) => {
           upper_final_a,
           lower_final_a,
           upper_final_b,
-          lower_final_b
+          lower_final_b,
+          active
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
 
         ON DUPLICATE KEY UPDATE
           event_id      = VALUES(event_id),
@@ -351,6 +356,7 @@ module.exports = async (interaction) => {
           upper_final_b = VALUES(upper_final_b),
           lower_final_b = VALUES(lower_final_b),
           displayname   = VALUES(displayname),
+          active        = 1,
           submitted_at  = CURRENT_TIMESTAMP
         `,
       [

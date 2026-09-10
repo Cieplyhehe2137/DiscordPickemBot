@@ -3,6 +3,7 @@ const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const { getMatchById } = require("../../utils/matchesStore");
 const { maxMapsFromBo } = require("../../utils/mapLabels");
+const { isMatchLocked } = require("../../utils/matchLock");
 
 module.exports = async function matchUserMapSelect(interaction) {
   try {
@@ -35,7 +36,9 @@ module.exports = async function matchUserMapSelect(interaction) {
         });
       }
 
-      if (m.is_locked) {
+      // isMatchLocked() zamiast samego m.is_locked - uwzględnia
+      // start_time_utc i ręczny lock_override admina.
+      if (isMatchLocked(m)) {
         userState.clear(guildId, interaction.user.id);
         return interaction.update({
           content: "🔒 Ten mecz jest zablokowany.",
