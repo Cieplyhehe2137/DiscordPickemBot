@@ -7,6 +7,43 @@ const { logInfo, logError } = require("../../utils/logger");
 const startedGuilds = new Set();
 const runningGuilds = new Set();
 
+// Nieudane próby per event. Zlecenie zostaje w kolejce dopóki się nie uda,
+// więc bez licznika watcher ponawia je co 30 sekund w nieskończoność -
+// źle ustawiony kanał daje wieczny strumień błędów w logach i nikt się
+// nie dowiaduje, że event nigdy nie wystartuje.
+const nieudanePodejscia = new Map();
+
+// Ile razy ponawiać błąd, który może być chwilowy (rate limit, sieć,
+// awaria Discorda). Przy tyknięciu co 30 s daje to ~2,5 minuty.
+const MAX_PODEJSC = 5;
+
+// Błędy Discorda, których ponawianie nie ma sensu - to konfiguracja,
+// nie chwilowa awaria. Nie czekamy z nimi pięciu podejść.
+const BLEDY_KONFIGURACJI = new Map([
+  [10003, "kanał nie istnieje lub bot go nie widzi"],
+  [50001, "bot nie ma dostępu do kanału"],
+  [50013, "bot nie ma uprawnień do pisania na kanale"],
+]);
+
+// Zdejmuje zlecenie z kolejki - tak samo, jak robi to ręczne anulowanie
+// auto-startu, więc panel admina przestaje pokazywać event jako zaplanowany.
+async function porzucZlecenie(pool, guildId, eventId) {
+  await pool.query(
+    `
+    UPDATE events
+    SET
+      auto_start_at = NULL,
+      auto_start_phase = NULL,
+      auto_start_channel_id = NULL
+    WHERE id = ?
+      AND guild_id = ?
+    `,
+    [eventId, guildId],
+  );
+
+  nieudanePodejscia.delete(eventId);
+}
+
 function startPickemAutoStartWatcher(client, guildId) {
   const key = String(guildId || "");
 
@@ -113,6 +150,8 @@ function startPickemAutoStartWatcher(client, guildId) {
               );
             }
 
+            nieudanePodejscia.delete(event.id);
+
             logInfo("PickEm started automatically", {
               guildId,
               eventId: Number(event.id),
@@ -121,11 +160,52 @@ function startPickemAutoStartWatcher(client, guildId) {
               channelId: event.auto_start_channel_id,
             });
           } catch (err) {
+            const kod = Number(err?.code);
+            const powodKonfiguracji = BLEDY_KONFIGURACJI.get(kod);
+
+            const podejscie = (nieudanePodejscia.get(event.id) || 0) + 1;
+
+            nieudanePodejscia.set(event.id, podejscie);
+
+            // Błąd konfiguracji nie naprawi się sam, więc nie ponawiamy go
+            // wcale. Reszta dostaje kilka szans, bo Discord bywa chwilowo
+            // niedostępny.
+            const poddajemySie =
+              Boolean(powodKonfiguracji) || podejscie >= MAX_PODEJSC;
+
             logError("PickEm automatic start failed", err, {
               guildId,
               eventId: event.id,
               phase: event.auto_start_phase,
+              extra: {
+                podejscie,
+                powod: powodKonfiguracji || "błąd chwilowy lub nieznany",
+                poddajemySie,
+              },
             });
+
+            if (!poddajemySie) continue;
+
+            try {
+              await porzucZlecenie(pool, guildId, event.id);
+
+              logError(
+                "PickEm automatic start abandoned",
+                new Error(
+                  powodKonfiguracji
+                    ? `Auto-start eventu ${event.id} porzucony: ${powodKonfiguracji}. ` +
+                      `Napraw uprawnienia lub kanał i zaplanuj start ponownie.`
+                    : `Auto-start eventu ${event.id} porzucony po ${podejscie} próbach. ` +
+                      `Zaplanuj start ponownie.`,
+                ),
+                { guildId, eventId: event.id, phase: event.auto_start_phase },
+              );
+            } catch (blad) {
+              logError("PickEm auto-start abandon failed", blad, {
+                guildId,
+                eventId: event.id,
+              });
+            }
           }
         }
       });
