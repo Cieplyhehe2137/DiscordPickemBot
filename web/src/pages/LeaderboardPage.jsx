@@ -3,10 +3,12 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventLeaderboard } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
+import { useAuth } from "../auth/useAuth.js";
 
 function LeaderboardPage() {
   const { slug } = useParams();
   const { realtimeRefresh } = useOutletContext();
+  const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
   const [uczestnicy, setUczestnicy] = useState(0);
   const [strony, setStrony] = useState(null);
@@ -19,8 +21,28 @@ function LeaderboardPage() {
   const strona = wybranaStrona.slug === slug ? wybranaStrona.numer : 1;
 
   const idzDoStrony = (numer) => setWybranaStrona({ slug, numer });
+
+  // To, co wpisano, i to, czego faktycznie szukamy, to dwie różne rzeczy -
+  // bez odczekania każde naciśnięcie klawisza byłoby osobnym zapytaniem.
+  const [wpisane, setWpisane] = useState("");
+  const [szukane, setSzukane] = useState({ slug, fraza: "" });
+
+  const szukaj = szukane.slug === slug ? szukane.fraza : "";
+
+  // Skok do własnego miejsca: serwer sam liczy, na której stronie stoi gracz.
+  const [znajdz, setZnajdz] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const licznik = setTimeout(() => {
+      setSzukane({ slug, fraza: wpisane.trim() });
+      setWybranaStrona({ slug, numer: 1 });
+    }, 350);
+
+    return () => clearTimeout(licznik);
+  }, [wpisane, slug]);
 
   useEffect(() => {
     async function loadLeaderboard() {
@@ -28,11 +50,22 @@ function LeaderboardPage() {
         setLoading(true);
         setError(null);
 
-        const data = await getEventLeaderboard(slug, { strona });
+        const data = await getEventLeaderboard(slug, {
+          strona,
+          szukaj,
+          znajdz,
+        });
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
         setStrony(data.strony ?? null);
+
+        // Skok jest jednorazowy - inaczej każde kliknięcie "Następna"
+        // wracałoby na stronę z naszym miejscem.
+        if (znajdz && data.strony?.numer) {
+          setWybranaStrona({ slug, numer: data.strony.numer });
+          setZnajdz(null);
+        }
       } catch (err) {
         console.error("LEADERBOARD ERROR:", err);
         setError(err.message);
@@ -42,7 +75,7 @@ function LeaderboardPage() {
     }
 
     loadLeaderboard();
-  }, [slug, strona]);
+  }, [slug, strona, szukaj, znajdz]);
 
   useEffect(() => {
     if (!realtimeRefresh?.version) {
@@ -57,7 +90,7 @@ function LeaderboardPage() {
 
     async function refreshLeaderboard() {
       try {
-        const data = await getEventLeaderboard(slug, { strona });
+        const data = await getEventLeaderboard(slug, { strona, szukaj });
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
@@ -69,7 +102,7 @@ function LeaderboardPage() {
     }
 
     refreshLeaderboard();
-  }, [realtimeRefresh, slug, strona]);
+  }, [realtimeRefresh, slug, strona, szukaj]);
 
   if (loading) {
     return <p>Ładowanie rankingu...</p>;
@@ -88,6 +121,40 @@ function LeaderboardPage() {
       <Link className="matches-page__back" to={`/events/${slug}`}>
         ← Wróć do eventu
       </Link>
+
+      {/* Przy 500 graczach na 11 stronach jedyną drogą do własnego miejsca
+          było klikanie "Następna" dziewięć razy. */}
+      <div className="leaderboard-szukaj">
+        <input
+          type="search"
+          value={wpisane}
+          onChange={(e) => setWpisane(e.target.value)}
+          placeholder="Szukaj gracza po nicku..."
+          aria-label="Szukaj gracza"
+        />
+
+        {user?.id && (
+          <button type="button" onClick={() => setZnajdz(user.id)}>
+            Znajdź mnie
+          </button>
+        )}
+      </div>
+
+      {szukaj && strony && (
+        <p className="leaderboard-szukaj__wynik">
+          {strony.wszystkich > 0 ? (
+            <>
+              Znaleziono <strong>{strony.wszystkich}</strong> z{" "}
+              {strony.wRankingu}{" "}
+              {odmien(strony.wRankingu, "gracza", "graczy", "graczy")}
+            </>
+          ) : (
+            <>
+              Nikt nie pasuje do <strong>{szukaj}</strong>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="leaderboard-list">
         {leaderboard.length === 0 ? (

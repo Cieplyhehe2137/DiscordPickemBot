@@ -83,11 +83,16 @@ export function getPublicMatch(matchId) {
 
 // Ranking bywa duży - największy turniej ma ponad 500 graczy, a wcześniej
 // endpoint ucinał go twardo na setce. Bez argumentów zwraca pierwszą stronę.
-export function getEventLeaderboard(slug, { strona, naStronie } = {}) {
+export function getEventLeaderboard(
+  slug,
+  { strona, naStronie, szukaj, znajdz } = {},
+) {
   const parametry = new URLSearchParams();
 
   if (strona) parametry.set("strona", String(strona));
   if (naStronie) parametry.set("naStronie", String(naStronie));
+  if (szukaj) parametry.set("szukaj", String(szukaj));
+  if (znajdz) parametry.set("znajdz", String(znajdz));
 
   const zapytanie = parametry.toString();
 

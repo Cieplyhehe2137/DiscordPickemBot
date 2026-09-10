@@ -6763,3 +6763,76 @@ main > .matches-page__back {
   display: block;
   background: var(--tlo-mocniejsze);
 }
+
+/* =========================================================
+   SZUKANIE W RANKINGU
+   ========================================================= */
+
+.leaderboard-szukaj {
+  align-self: stretch;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  margin-top: 24px;
+}
+
+.leaderboard-szukaj input {
+  flex: 1 1 220px;
+  min-height: 44px;
+  padding: 0 14px;
+
+  border: 1px solid var(--linia);
+  border-radius: var(--r-mala);
+  background: var(--tlo-pole);
+
+  color: var(--tekst);
+  font-size: 0.9rem;
+}
+
+.leaderboard-szukaj input::placeholder {
+  color: var(--tekst-slaby);
+}
+
+.leaderboard-szukaj input:focus {
+  outline: none;
+  border-color: var(--akcent-linia);
+}
+
+.leaderboard-szukaj button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 18px;
+
+  border: 1px solid var(--akcent-linia);
+  border-radius: var(--r-mala);
+  background: var(--akcent-tlo);
+
+  color: var(--akcent-jasny);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.leaderboard-szukaj button:hover {
+  border-color: var(--akcent);
+  background: rgba(124, 58, 237, 0.22);
+}
+
+.leaderboard-szukaj__wynik {
+  align-self: stretch;
+
+  margin: 12px 0 0;
+
+  color: var(--tekst-drugi);
+  font-size: 0.85rem;
+}
+
+.leaderboard-szukaj__wynik strong {
+  color: var(--tekst-jasny);
+}
