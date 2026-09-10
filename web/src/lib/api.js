@@ -1,4 +1,12 @@
-const API_BASE_URL = "/api";
+// Domyślnie ścieżka względna: w dev obsługuje ją proxy Vite, a w produkcji
+// ten sam proces Express, który serwuje web/dist. Jedno źródło, więc ciasteczko
+// sesji jest same-site i nie potrzeba CORS.
+//
+// VITE_API_URL ustawia się tylko wtedy, gdy front stoi na osobnym hoście
+// (Cloudflare Pages). Wtedy backend musi mieć HTTPS, wpuszczać ten origin
+// w CORS i wystawiać ciasteczko jako SameSite=None; Secure - patrz
+// CROSS_ORIGIN_WEB w server/index.js.
+const API_BASE_URL = `${String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "")}/api`;
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {

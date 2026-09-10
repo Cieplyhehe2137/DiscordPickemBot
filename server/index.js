@@ -96,6 +96,45 @@ const {
 
 const WEB_ORIGIN = process.env.WEB_ORIGIN || "http://localhost:5173";
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+// Front na osobnym hoście (np. Cloudflare Pages).
+//
+// Domyślne wdrożenie jest jednoprocesowe: Express serwuje web/dist pod tym
+// samym adresem co /api, więc ciasteczko sesji jest same-site i CORS nie jest
+// potrzebny. Rozdzielenie hostów wymaga trzech rzeczy naraz, bo przeglądarka
+// odrzuci ciasteczko, jeśli którejkolwiek zabraknie:
+//   - dopuszczenia originu frontu w CORS z credentials
+//   - SameSite=None; Secure na ciasteczku
+//   - HTTPS po stronie API
+//
+// SameSite=None zdejmuje ochronę, którą Lax daje przy CSRF, więc włączamy to
+// wyłącznie jawną flagą, a nie przy okazji ustawienia WEB_ORIGIN.
+const CROSS_ORIGIN_WEB = process.env.CROSS_ORIGIN_WEB === "1";
+
+// WEB_ORIGIN przyjmuje listę po przecinku. Cloudflare Pages daje każdemu
+// podglądowi własny adres <hash>.<projekt>.pages.dev, więc pojedynczy wpis
+// nie wystarcza - WEB_ORIGIN_SUFFIX dopuszcza całą domenę projektu.
+const DOZWOLONE_ORIGINY = WEB_ORIGIN.split(",")
+  .map((o) => o.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
+const SUFIKS_ORIGINU = String(process.env.WEB_ORIGIN_SUFFIX || "").trim();
+
+function czyDozwolonyOrigin(origin) {
+  // Brak nagłówka Origin to żądanie nie z przeglądarki (curl, health check)
+  // albo same-origin - nie ma czego blokować.
+  if (!origin) return true;
+
+  const czysty = String(origin).replace(/\/+$/, "");
+
+  if (DOZWOLONE_ORIGINY.includes(czysty)) return true;
+
+  return Boolean(SUFIKS_ORIGINU) && czysty.endsWith(SUFIKS_ORIGINU);
+}
+
+// Pierwszy wpis zostaje adresem, na który wraca logowanie przez Discorda -
+// podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
+const WEB_ORIGIN_GLOWNY = DOZWOLONE_ORIGINY[0] || "http://localhost:5173";
 const ADMINISTRATOR_PERMISSION = 0x8n;
 
 function sqlEscape(value) {
@@ -338,7 +377,11 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: WEB_ORIGIN,
+    origin: (origin, callback) =>
+      callback(
+        czyDozwolonyOrigin(origin) ? null : new Error("Origin niedozwolony"),
+        czyDozwolonyOrigin(origin),
+      ),
     credentials: true,
   },
 });
@@ -374,7 +417,10 @@ if (IS_PRODUCTION) {
 
 app.use(
   cors({
-    origin: WEB_ORIGIN,
+    origin: (origin, callback) =>
+      czyDozwolonyOrigin(origin)
+        ? callback(null, true)
+        : callback(new Error(`Origin niedozwolony: ${origin}`)),
     credentials: true,
   }),
 );
@@ -395,9 +441,11 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: IS_PRODUCTION,
+      // SameSite=None wymaga Secure - przeglądarka odrzuci ciasteczko bez
+      // niego, więc front na osobnym hoście działa tylko przy HTTPS na API.
+      secure: IS_PRODUCTION || CROSS_ORIGIN_WEB,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: CROSS_ORIGIN_WEB ? "none" : "lax",
     },
   }),
 );
@@ -902,7 +950,7 @@ app.get("/api/auth/discord/callback", async (req, res) => {
       const returnTo = req.session.returnTo || "/public";
       delete req.session.returnTo;
 
-      res.redirect(`${WEB_ORIGIN}${returnTo}`);
+      res.redirect(`${WEB_ORIGIN_GLOWNY}${returnTo}`);
     });
   } catch (err) {
     console.error(err);
@@ -931,7 +979,7 @@ if (!IS_PRODUCTION) {
         return res.status(500).send("Session save failed");
       }
 
-      res.redirect(`${WEB_ORIGIN}/public`);
+      res.redirect(`${WEB_ORIGIN_GLOWNY}/public`);
     });
   });
 }
