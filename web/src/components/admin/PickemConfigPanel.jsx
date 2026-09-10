@@ -79,7 +79,9 @@ function PickemConfigPanel({ slug }) {
     setKomunikat("");
     setFazy((biezace) =>
       biezace.map((wpis) =>
-        wpis.faza === faza ? { ...wpis, enabled: !wpis.enabled } : wpis,
+        wpis.faza === faza && !wpis.zamrozona
+          ? { ...wpis, enabled: !wpis.enabled }
+          : wpis,
       ),
     );
   }
@@ -90,7 +92,7 @@ function PickemConfigPanel({ slug }) {
     setKomunikat("");
     setFazy((biezace) =>
       biezace.map((wpis) =>
-        wpis.faza === faza
+        wpis.faza === faza && !wpis.zamrozona
           ? {
               ...wpis,
               limity: {
@@ -139,28 +141,42 @@ function PickemConfigPanel({ slug }) {
       <p className="ops-hint">
         Typowanie drużyn jest niezależne od typowania meczów. Włącz fazy, które
         ten turniej faktycznie ma, i ustaw liczbę drużyn w każdej kategorii.
+        Fazę można zmieniać tylko dopóki nikt nie oddał w niej typu i nie ma
+        wpisanego wyniku — potem zostaje zablokowana, żeby zapisane typy
+        zgadzały się z zasadami, według których powstały.
         {!skonfigurowany &&
           " Ten event nie ma jeszcze własnej konfiguracji — poniżej wartości domyślne."}
       </p>
 
       {fazy.map((wpis) => (
         <div
-          className={
-            wpis.enabled
-              ? "pickem-config__phase pickem-config__phase--on"
-              : "pickem-config__phase"
-          }
+          className={[
+            "pickem-config__phase",
+            wpis.enabled ? "pickem-config__phase--on" : "",
+            wpis.zamrozona ? "pickem-config__phase--zamrozona" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           key={wpis.faza}
         >
           <label className="pickem-config__head">
             <input
               type="checkbox"
               checked={wpis.enabled}
+              disabled={wpis.zamrozona}
               onChange={() => przelaczFaze(wpis.faza)}
             />
 
             <strong>{ETYKIETY_FAZ[wpis.faza] ?? wpis.faza}</strong>
           </label>
+
+          {/* Zapisane typy były sprawdzane wobec innych liczb, więc zmiana
+              limitu nie naprawiłaby ich, tylko rozjechała turniej. */}
+          {wpis.zamrozona && (
+            <p className="pickem-config__zamrozenie">
+              🔒 Zablokowane — {wpis.powodZamrozenia}
+            </p>
+          )}
 
           {wpis.enabled && (
             <div className="pickem-config__limits">
@@ -173,6 +189,7 @@ function PickemConfigPanel({ slug }) {
                     min="0"
                     max="64"
                     value={wartosc}
+                    disabled={wpis.zamrozona}
                     onChange={(event) =>
                       zmienLimit(wpis.faza, grupa, event.target.value)
                     }

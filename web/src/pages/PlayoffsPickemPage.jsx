@@ -5,6 +5,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getPlayoffsPickem, savePlayoffsPickem } from "../lib/api.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
+import PhaseFormat from "../components/PhaseFormat.jsx";
 
 function PlayoffsPickemPage() {
   const { slug } = useParams();
@@ -113,6 +114,8 @@ function PlayoffsPickemPage() {
       <p>
         Event: <strong>{slug}</strong>
       </p>
+
+      <PhaseFormat faza="playoffs" limity={data?.limity} />
 
       {!authLoading && !user && (
         <a
