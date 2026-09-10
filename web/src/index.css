@@ -6728,3 +6728,38 @@ main > .matches-page__back {
     display: block;
   }
 }
+
+/* =========================================================
+   AWATAR W PROFILU GRACZA
+   ========================================================= */
+
+.player-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  margin-bottom: 18px;
+}
+
+.player-profile-head h2 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.player-profile-avatar {
+  flex: none;
+  width: 56px;
+  height: 56px;
+
+  border: 1px solid var(--linia);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Bez awatara zostaje sama obwodka - naglowek nie przeskakuje w lewo
+   miedzy graczem z profilem a takim, ktory typowal tylko z Discorda. */
+.player-profile-avatar--pusty {
+  display: block;
+  background: var(--tlo-mocniejsze);
+}

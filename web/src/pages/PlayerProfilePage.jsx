@@ -82,7 +82,21 @@ function PlayerProfilePage() {
       </Link>
 
       <section className="player-profile-card">
-        <h2>{player.displayname}</h2>
+        {/* Awatar mają tylko gracze z wiersza w user_profiles - reszta
+            dostaje pustą obwódkę, żeby nagłówek nie skakał. */}
+        <div className="player-profile-head">
+          {player.avatar ? (
+            <img
+              className="player-profile-avatar"
+              src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
+              alt=""
+            />
+          ) : (
+            <span className="player-profile-avatar player-profile-avatar--pusty" />
+          )}
+
+          <h2>{player.displayname}</h2>
+        </div>
 
         <div className="player-profile-stats">
           <div className="player-profile-stat">
