@@ -6322,3 +6322,181 @@ p {
   font-size: 0.78rem;
   font-weight: 600;
 }
+
+/* =========================================================
+   SERWERY NA STRONIE GLOWNEJ
+   ========================================================= */
+
+.home-servers {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 0 0 80px;
+}
+
+.home-servers h2 {
+  margin: 8px 0 20px;
+  font-size: 1.6rem;
+}
+
+.home-servers__stan {
+  color: var(--tekst-drugi);
+}
+
+.home-servers__lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.home-server {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: var(--odstep-karta);
+
+  border: 1px solid var(--linia);
+  border-radius: var(--r-karta);
+  background: var(--tlo-podniesione);
+}
+
+.home-server strong {
+  color: var(--tekst-jasny);
+  font-size: 1.05rem;
+}
+
+.home-server__liczby {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  color: var(--tekst-drugi);
+  font-size: 0.88rem;
+}
+
+/* Turniej w trakcie to jedyny powód, żeby wejść tu teraz - stąd akcent. */
+.home-server__otwarte {
+  padding: 2px 8px;
+
+  border: 1px solid var(--ok-linia);
+  border-radius: var(--r-pigulka);
+  background: var(--ok-tlo);
+
+  color: var(--ok);
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.home-server__link {
+  margin-top: 2px;
+
+  color: var(--akcent-jasny);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.home-server__link:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================
+   START TYPOWANIA W ZARZADZANIU EVENTEM
+   ========================================================= */
+
+/* Wyroznione, bo to jedyna akcja na WWW, ktora publikuje panel na
+   Discordzie - reszta w tej sekcji zmienia tylko status w bazie. */
+.start-pickem {
+  margin: 20px 0 28px;
+  padding: var(--odstep-karta);
+
+  border: 1px solid var(--ok-linia);
+  border-radius: var(--r-karta);
+  background: linear-gradient(
+    135deg,
+    var(--ok-tlo),
+    rgba(255, 255, 255, 0.02)
+  );
+}
+
+.start-pickem h3 {
+  margin: 0 0 8px;
+  color: var(--ok);
+  font-size: 1.05rem;
+}
+
+.start-pickem__hint {
+  margin: 0 0 16px;
+  max-width: 70ch;
+
+  color: var(--tekst-drugi);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.start-pickem__hint code {
+  padding: 1px 6px;
+
+  border-radius: var(--r-mala);
+  background: var(--tlo-pole);
+
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.start-pickem__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.start-pickem__row select,
+.start-pickem__row input {
+  min-height: 42px;
+  padding: 0 12px;
+
+  border: 1px solid var(--linia);
+  border-radius: 9px;
+  background: var(--tlo-pole);
+  color: var(--tekst);
+}
+
+.start-pickem__row input {
+  flex: 1 1 200px;
+}
+
+.start-pickem__row button {
+  min-height: 42px;
+  padding: 0 18px;
+
+  border: 1px solid var(--ok-linia);
+  border-radius: 9px;
+  background: var(--ok-tlo);
+
+  color: var(--ok);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start-pickem__row button:hover:not(:disabled) {
+  border-color: rgba(134, 239, 172, 0.55);
+  background: rgba(134, 239, 172, 0.2);
+}
+
+.start-pickem__row button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-subheading {
+  margin: 24px 0 4px;
+  font-size: 1rem;
+}
+
+.admin-hint {
+  margin: 0 0 14px;
+  color: var(--tekst-slaby);
+  font-size: 0.85rem;
+}

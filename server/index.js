@@ -3204,19 +3204,47 @@ app.get("/api/public/servers", async (req, res) => {
     `,
     );
 
-    res.json({
-      servers: servers.map((server) => {
-        const known = getKnownGuildInfo(server.guild_id);
+    // Lista serwerów pochodzi z konfiguracji bota, a nie z tabeli events.
+    //
+    // Wcześniej budowało ją samo GROUP BY po eventach, więc serwer pojawiał
+    // się na stronie dopiero po utworzeniu pierwszego turnieju - obsługiwany
+    // serwer, na którym nikt jeszcze nic nie założył, był niewidoczny.
+    const statystyki = new Map(
+      servers.map((row) => [String(row.guild_id), row]),
+    );
+
+    // Gildia, która ma eventy, ale straciła config (np. usunięty plik),
+    // zostaje na liście - inaczej jej turnieje zniknęłyby ze strony.
+    const wszystkieId = [
+      ...new Set([
+        ...guildRegistry.getAllGuildIds().map(String),
+        ...statystyki.keys(),
+      ]),
+    ];
+
+    const lista = wszystkieId
+      .map((guildId) => {
+        const known = getKnownGuildInfo(guildId);
+        const stat = statystyki.get(guildId);
 
         return {
-          guild_id: server.guild_id,
+          guild_id: guildId,
           name: known.name,
           slug: known.slug,
-          events_count: Number(server.events_count || 0),
-          open_events: Number(server.open_events || 0),
+          events_count: Number(stat?.events_count || 0),
+          open_events: Number(stat?.open_events || 0),
           discord_url: known.discord_url,
         };
-      }),
+      })
+      .sort(
+        (a, b) =>
+          b.open_events - a.open_events ||
+          b.events_count - a.events_count ||
+          String(a.name).localeCompare(String(b.name), "pl"),
+      );
+
+    res.json({
+      servers: lista,
       featured_events: featuredEvents,
     });
   } catch (err) {
@@ -5668,27 +5696,6 @@ app.post(
         });
       }
 
-      // Bot podnosi z kolejki tylko eventy w stanie UPCOMING / 0 / 0 - ten
-      // warunek chroni trwający turniej przed przejęciem przez zaplanowany
-      // start. Przełączanie faz w już otwartym evencie idzie inną ścieżką.
-      const gotowy =
-        event.status === "UPCOMING" &&
-        Number(event.is_open) === 0 &&
-        Number(event.is_active) === 0;
-
-      if (!gotowy) {
-        return res.status(409).json({
-          error:
-            "Typowanie tego turnieju zostało już uruchomione. " +
-            "Zmiana fazy trwającego turnieju idzie przez panel na Discordzie.",
-          stan: {
-            status: event.status,
-            is_open: Number(event.is_open),
-            is_active: Number(event.is_active),
-          },
-        });
-      }
-
       // Kanał: jawnie podany wygrywa, w przeciwnym razie PICKEM_CHANNEL_ID
       // z configu gildii. Na Discordzie kanał bierze się z tego, gdzie admin
       // wpisał komendę - z WWW nie ma takiego odpowiednika.
@@ -5705,14 +5712,30 @@ app.post(
         });
       }
 
+      // Cofamy event do UPCOMING / 0 / 0, bo watcher bota podnosi z kolejki
+      // tylko taki stan - ten warunek chroni trwający turniej przed przejęciem
+      // przez zaplanowany auto-start.
+      //
+      // Przy starcie wywołanym ręcznie przejęcie jest właśnie tym, o co chodzi.
+      // Bez cofnięcia stanu nie dałoby się uruchomić typowania eventu, który
+      // ktoś wcześniej otworzył przyciskiem "Otwórz event" - a ten przycisk
+      // ustawia OPEN, nie publikując żadnego panelu.
+      //
+      // publishPickemPanel ustawi z powrotem OPEN / 1 / 1 razem z panelem.
+      // Do tego czasu UPCOMING jest stanem prawdziwszym niż OPEN: panelu
+      // jeszcze nie ma, więc turniej realnie nie jest otwarty.
       const [wynik] = await pool.query(
         `UPDATE events
-            SET auto_start_at = UTC_TIMESTAMP(),
+            SET status = 'UPCOMING',
+                is_open = 0,
+                is_active = 0,
+                auto_start_at = UTC_TIMESTAMP(),
                 auto_start_phase = ?,
                 auto_start_channel_id = ?,
                 auto_started_at = NULL
           WHERE id = ? AND guild_id = ?
-            AND status = 'UPCOMING' AND is_open = 0 AND is_active = 0
+            AND COALESCE(is_archived, 0) = 0
+            AND status <> 'FINISHED'
           LIMIT 1`,
         [faza, channelId, event.id, guildId],
       );

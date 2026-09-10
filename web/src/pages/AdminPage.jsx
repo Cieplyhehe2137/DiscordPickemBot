@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
+import { odmien } from "../lib/odmiana.js";
 import { useEffect, useState } from "react";
 import {
   createAdminEvent,
@@ -27,6 +28,7 @@ import { isAdminAnywhere, adminGuildIds } from "../lib/permissions.js";
 import PhaseResultsAdmin from "../components/admin/PhaseResultsAdmin.jsx";
 import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
+import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 export default function AdminPage() {
   const { user, authLoading } = useAuth();
@@ -805,7 +807,10 @@ export default function AdminPage() {
             >
               <strong>{server.name}</strong>
 
-              <span>{server.events_count ?? 0} eventów</span>
+              <span>
+                {server.events_count ?? 0}{" "}
+                {odmien(server.events_count ?? 0, "event", "eventy", "eventów")}
+              </span>
             </button>
           ))}
       </section>
@@ -952,7 +957,10 @@ export default function AdminPage() {
         >
           <span>🛠️ Operacje</span>
           <strong>Mecze hurtem, kopie, zamknięcie</strong>
-          <p>Tworzenie meczów, propozycje wyników, backupy, koniec turnieju.</p>
+          <p>
+            Tworzenie meczów, propozycje wyników, backupy, koniec turnieju.
+            Start typowania jest w „Zarządzanie eventem”.
+          </p>
         </button>
 
         <button
@@ -976,6 +984,19 @@ export default function AdminPage() {
 
           <p>
             Aktualnie edytujesz: <strong>{selectedEvent.name}</strong>
+          </p>
+
+          <StartPickemPanel slug={selectedEvent.slug} />
+
+          {/* Przyciski poniżej zmieniają wyłącznie status w bazie. Panel na
+              Discordzie publikuje tylko "Uruchom typowanie" powyżej - bez
+              tego rozróżnienia ludzie klikali "Otwórz event" i czekali na
+              panel, który nigdy się nie pojawiał. */}
+          <h3 className="admin-subheading">Status turnieju</h3>
+
+          <p className="admin-hint">
+            Zmienia tylko stan zapisany w bazie. Nie publikuje ani nie usuwa
+            panelu na Discordzie.
           </p>
 
           <div className="admin-section__actions">
