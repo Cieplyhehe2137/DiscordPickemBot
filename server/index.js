@@ -1019,10 +1019,18 @@ app.get("/api/events/active", async (req, res) => {
         ) AS predictions,
 
         (
+          -- Panel należy wprost do eventu (migracja 0004). Wcześniej parowanie
+          -- szło po guild_id + phase i dla Swiss nie trafiało nigdy:
+          -- active_panels.phase trzyma 'swiss_stage1', a events.phase 'SWISS'.
+          -- Dla pozostałych faz działało tylko dzięki temu, że utf8mb4_unicode_ci
+          -- ignoruje wielkość liter ('PLAYOFFS' = 'playoffs') - stąd te CAST-y
+          -- na kolację, teraz niepotrzebne.
+          --
+          -- Bez warunku na fazę, bo publisher gasi wszystkie panele gildii przy
+          -- publikacji nowego, więc aktywny panel eventu jest dokładnie jeden.
           SELECT ap.deadline
           FROM active_panels ap
-          WHERE ap.guild_id COLLATE utf8mb4_unicode_ci = e.guild_id
-            AND ap.phase COLLATE utf8mb4_unicode_ci = e.phase
+          WHERE ap.event_id = e.id
             AND ap.active = 1
             AND ap.deadline IS NOT NULL
           ORDER BY ap.deadline ASC
