@@ -9,6 +9,7 @@ const {
 } = require("../../utils/predictionDraftCache");
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { runInTransaction } = require("../../utils/runInTransaction");
 const { getCurrentPlayoffs } = require("../../utils/playoffsRepository");
 
@@ -107,10 +108,28 @@ module.exports = async (interaction) => {
 
       const current = await getCurrentPlayoffs(pool, guildId, eventId);
 
-      const mSemi = pickOrKeep(current.semifinalists, local.semifinalists, 4);
-      const mFinal = pickOrKeep(current.finalists, local.finalists, 2);
-      const mWinner = pickOrKeep(current.winner, local.winner, 1);
-      const mThird = pickOrKeep(current.third, local.third_place_winner, 1);
+      // Sufity kategorii z konfiguracji eventu, nie wpisane na sztywno.
+      const limity = await getPhaseLimits(pool, guildId, eventId, "playoffs");
+
+      const mSemi = pickOrKeep(
+        current.semifinalists,
+        local.semifinalists,
+        limity.semifinalists,
+      );
+
+      const mFinal = pickOrKeep(
+        current.finalists,
+        local.finalists,
+        limity.finalists,
+      );
+
+      const mWinner = pickOrKeep(current.winner, local.winner, limity.winner);
+
+      const mThird = pickOrKeep(
+        current.third,
+        local.third_place_winner,
+        limity.third,
+      );
 
       if (!mSemi.ok)
         return interaction.editReply(`⚠️ Półfinaliści: ${mSemi.err}`);

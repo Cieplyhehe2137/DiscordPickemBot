@@ -9,6 +9,7 @@ const {
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { getCurrentSwissResults } = require("../../utils/swissRepository");
 const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
 
@@ -28,10 +29,12 @@ function chunk(array, size = 25) {
    UI BUILDER
 ======================= */
 
-function buildSwissComponents(stageLabel, stageDb, teams, cur) {
-  const left30 = Math.max(0, 2 - cur.x3_0.length);
-  const left03 = Math.max(0, 2 - cur.x0_3.length);
-  const leftA = Math.max(0, 6 - cur.adv.length);
+// `limity` pochodzą z konfiguracji eventu. Przy wynikach limit działa jak
+// maksimum, nie jak liczba wymagana - admin wpisuje wynik etapami.
+function buildSwissComponents(stageLabel, stageDb, teams, cur, limity) {
+  const left30 = Math.max(0, limity.x3_0 - cur.x3_0.length);
+  const left03 = Math.max(0, limity.x0_3 - cur.x0_3.length);
+  const leftA = Math.max(0, limity.advancing - cur.adv.length);
 
   const used = new Set(
     [...cur.x3_0, ...cur.x0_3, ...cur.adv].map((t) => String(t).toLowerCase()),
@@ -80,9 +83,9 @@ function buildSwissComponents(stageLabel, stageDb, teams, cur) {
     .setDescription(
       [
         "Ustawiaj wyniki **inkrementalnie**:",
-        `• 🔥 3-0: ${cur.x3_0.length}/2 – ${cur.x3_0.join(", ") || "—"}`,
-        `• 💀 0-3: ${cur.x0_3.length}/2 – ${cur.x0_3.join(", ") || "—"}`,
-        `• 🚀 Awans: ${cur.adv.length}/6 – ${cur.adv.join(", ") || "—"}`,
+        `• 🔥 3-0: ${cur.x3_0.length}/${limity.x3_0} – ${cur.x3_0.join(", ") || "—"}`,
+        `• 💀 0-3: ${cur.x0_3.length}/${limity.x0_3} – ${cur.x0_3.join(", ") || "—"}`,
+        `• 🚀 Awans: ${cur.adv.length}/${limity.advancing} – ${cur.adv.join(", ") || "—"}`,
         "",
         "Po wyborze kliknij **Zatwierdź (dopisz)**.",
       ].join("\n"),
@@ -137,11 +140,14 @@ module.exports = async function openSwissResultsDropdown(
       }
       const cur = await getCurrentSwissResults(pool, guildId, eventId, stageDb);
 
+      const limity = await getPhaseLimits(pool, guildId, eventId, stageDb);
+
       const { embed, components } = buildSwissComponents(
         stageLabel,
         stageDb,
         teams,
         cur,
+        limity,
       );
 
       await interaction.editReply({

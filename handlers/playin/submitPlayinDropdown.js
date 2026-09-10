@@ -16,6 +16,13 @@ const {
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 
+const {
+  getPhaseLimits,
+  sprawdzTyp,
+} = require("../../utils/eventPickemConfig");
+
+const { druzyny } = require("../../utils/odmiana");
+
 const NAMESPACE = "playin";
 
 const getCache = (key) => getDraft(NAMESPACE, key);
@@ -116,13 +123,22 @@ module.exports = async (interaction) => {
 
       const values = (interaction.values || []).map(String);
 
-      if (values.length !== 8) {
+      const limity = await getPhaseLimits(
+        pool,
+        guildId,
+        currentEventId,
+        "playin",
+      );
+
+      if (values.length !== limity.teams) {
         return interaction.editReply({
-          content: "❌ Musisz wybrać **dokładnie 8 drużyn**.",
+          content:
+            `❌ Musisz wybrać **dokładnie ${limity.teams} ` +
+            `${druzyny(limity.teams)}**.`,
         });
       }
 
-      if (new Set(values).size !== 8) {
+      if (new Set(values).size !== values.length) {
         return interaction.editReply({
           content: "❌ Drużyny nie mogą się powtarzać.",
         });
@@ -147,7 +163,7 @@ module.exports = async (interaction) => {
 
       return interaction.editReply({
         content:
-          "✅ Wybór **8 drużyn** zapisany.\n" +
+          `✅ Wybór **${limity.teams} ${druzyny(limity.teams)}** zapisany.\n` +
           "Kliknij **Zatwierdź typy**, aby zapisać Pick'Em.",
       });
     });
@@ -202,15 +218,9 @@ module.exports = async (interaction) => {
 
     const picked = draft.teams;
 
-    if (!Array.isArray(picked) || picked.length !== 8) {
+    if (!Array.isArray(picked)) {
       return interaction.editReply({
-        content: "❌ Musisz wybrać **dokładnie 8 drużyn**.",
-      });
-    }
-
-    if (new Set(picked).size !== 8) {
-      return interaction.editReply({
-        content: "❌ Drużyny nie mogą się powtarzać.",
+        content: "❌ Musisz najpierw wybrać drużyny.",
       });
     }
 
@@ -238,6 +248,25 @@ module.exports = async (interaction) => {
           "❌ Ten formularz pochodzi z poprzedniego eventu.\n" +
           "Otwórz najnowszy panel Pick'Em.",
       });
+    }
+
+    // ==================================================
+    // LICZBA DRUŻYN
+    // ==================================================
+
+    // Sprawdzane dopiero tutaj, bo limit należy do eventu - wcześniej nie
+    // wiadomo jeszcze, którego eventu dotyczy ten formularz.
+    const limity = await getPhaseLimits(
+      pool,
+      guildId,
+      currentEventId,
+      "playin",
+    );
+
+    const wynik = sprawdzTyp("playin", limity, { teams: picked });
+
+    if (!wynik.ok) {
+      return interaction.editReply({ content: `❌ ${wynik.blad}` });
     }
 
     // ==================================================

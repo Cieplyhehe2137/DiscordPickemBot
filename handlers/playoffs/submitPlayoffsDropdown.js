@@ -17,6 +17,11 @@ const {
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 
+const {
+  getPhaseLimits,
+  sprawdzTyp,
+} = require("../../utils/eventPickemConfig");
+
 const NAMESPACE = "playoffs";
 
 const getCache = (guildId, userId) =>
@@ -245,31 +250,26 @@ module.exports = async (interaction) => {
       });
     }
 
-    if (
-      picks.semifinalists.length !== 4 ||
-      picks.finalists.length !== 2 ||
-      picks.winner.length !== 1 ||
-      thirdPick.length > 1
-    ) {
-      return interaction.editReply({
-        content: "⚠️ Nieprawidłowa liczba drużyn w jednym z etapów.",
-      });
-    }
+    // Liczby i duplikaty wewnątrz każdej kategorii sprawdza konfiguracja
+    // eventu - ta sama, z której korzysta strona. Playoffs to hierarchia,
+    // więc ta sama drużyna MA prawo wystąpić w kilku kategoriach; pilnuje
+    // tego logika drabinki poniżej, nie unikalność globalna.
+    const limity = await getPhaseLimits(
+      pool,
+      guildId,
+      currentEventId,
+      "playoffs",
+    );
 
-    // ==================================================
-    // DUPLICATES
-    // ==================================================
+    const wynik = sprawdzTyp("playoffs", limity, {
+      semifinalists: picks.semifinalists,
+      finalists: picks.finalists,
+      winner: picks.winner,
+      third: thirdPick,
+    });
 
-    if (new Set(picks.semifinalists).size !== 4) {
-      return interaction.editReply({
-        content: "⚠️ Półfinaliści nie mogą się powtarzać.",
-      });
-    }
-
-    if (new Set(picks.finalists).size !== 2) {
-      return interaction.editReply({
-        content: "⚠️ Finaliści nie mogą się powtarzać.",
-      });
+    if (!wynik.ok) {
+      return interaction.editReply({ content: `⚠️ ${wynik.blad}` });
     }
 
     // ==================================================

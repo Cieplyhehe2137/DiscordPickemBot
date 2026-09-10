@@ -15,6 +15,13 @@ const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 
+const {
+  getPhaseLimits,
+  sprawdzTyp,
+} = require("../../utils/eventPickemConfig");
+
+const { druzyny } = require("../../utils/odmiana");
+
 const { logError } = require("../../utils/logger");
 
 // ======================================================
@@ -161,11 +168,23 @@ module.exports = async (interaction) => {
         // Discord powinien pilnować liczby wyborów,
         // ale sprawdzamy również po stronie bota.
 
-        const expectedCount = type === "advancing" ? 6 : 2;
+        const limity = await getPhaseLimits(
+          pool,
+          guildId,
+          currentEventId,
+          stage,
+        );
+
+        const grupa =
+          type === "advancing" ? "advancing" : type === "3" ? "x3_0" : "x0_3";
+
+        const expectedCount = Number(limity?.[grupa] ?? 0);
 
         if (incoming.length !== expectedCount) {
           return interaction.followUp({
-            content: `⚠️ Dla tej kategorii musisz wybrać dokładnie **${expectedCount}** drużyn.`,
+            content:
+              `⚠️ Dla tej kategorii musisz wybrać dokładnie ` +
+              `**${expectedCount}** ${druzyny(expectedCount)}.`,
             ephemeral: true,
           });
         }
@@ -332,25 +351,28 @@ module.exports = async (interaction) => {
       // COUNTS
       // ==============================================
 
-      if (
-        data["3"].length !== 2 ||
-        data["0"].length !== 2 ||
-        data["advancing"].length !== 6
-      ) {
-        return interaction.editReply("⚠️ Nieprawidłowa liczba drużyn.");
-      }
+      // Liczby, unikalność wewnątrz kategorii i między kategoriami
+      // sprawdza teraz konfiguracja eventu - ta sama, z której korzysta
+      // strona. Wcześniej były tu wpisane na sztywno 2/2/6, więc event
+      // o innym formacie przepuszczał na WWW co innego niż na Discordzie.
+      const limity = await getPhaseLimits(
+        pool,
+        guildId,
+        currentEventId,
+        stage,
+      );
 
-      // ==============================================
-      // GLOBAL UNIQUENESS
-      // ==============================================
+      const wynik = sprawdzTyp(stage, limity, {
+        x3_0: data["3"],
+        x0_3: data["0"],
+        advancing: data["advancing"],
+      });
+
+      if (!wynik.ok) {
+        return interaction.editReply(`⚠️ ${wynik.blad}`);
+      }
 
       const all = [...data["3"], ...data["0"], ...data["advancing"]];
-
-      if (new Set(all).size !== all.length) {
-        return interaction.editReply(
-          "⚠️ Ta sama drużyna nie może wystąpić w więcej niż jednej kategorii.",
-        );
-      }
 
       // ==============================================
       // ACTIVE TEAMS VALIDATION

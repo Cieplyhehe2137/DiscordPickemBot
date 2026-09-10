@@ -9,6 +9,9 @@ const {
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
+const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { druzyny } = require("../../utils/odmiana");
 
 module.exports = async (interaction) => {
   if (!interaction.guildId) {
@@ -43,19 +46,32 @@ module.exports = async (interaction) => {
         });
       }
 
+      // Ile drużyn awansuje - z konfiguracji tego eventu.
+      const eventId = await getOpenEventId(pool, guildId);
+
+      if (!eventId) {
+        return interaction.editReply({
+          content: "❌ Nie znaleziono aktywnego eventu.",
+        });
+      }
+
+      const limity = await getPhaseLimits(pool, guildId, eventId, "playin");
+
       const embed = new EmbedBuilder()
         .setTitle("📌 Oficjalne wyniki – Play-In")
         .setDescription(
-          "Wybierz **8 drużyn**, które awansowały z fazy **Play-In**.\n\n" +
+          `Wybierz **${limity.teams} ${druzyny(limity.teams)}**, które awansowały z fazy **Play-In**.\n\n` +
             "Po wyborze kliknij **Zatwierdź wyniki**.",
         )
         .setColor("#32CD32");
 
       const select = new StringSelectMenuBuilder()
         .setCustomId("official_playin_teams")
-        .setPlaceholder("Wybierz 8 drużyn awansujących")
-        .setMinValues(8)
-        .setMaxValues(8)
+        .setPlaceholder(
+          `Wybierz ${limity.teams} ${druzyny(limity.teams)} awansujących`,
+        )
+        .setMinValues(limity.teams)
+        .setMaxValues(limity.teams)
         .addOptions(
           teams.map((team) => ({
             label: team,

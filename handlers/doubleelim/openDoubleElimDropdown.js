@@ -17,6 +17,7 @@ const {
 const { getDraft, setDraft } = require("../../utils/predictionDraftCache");
 
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 
 // ======================================================
 // TEAMS
@@ -206,16 +207,24 @@ module.exports = async (interaction) => {
       // EMBED
       // ================================================
 
+      // Liczby drużyn z konfiguracji tego eventu, nie wpisane na sztywno.
+      const limity = await getPhaseLimits(
+        pool,
+        guildId,
+        eventId,
+        "doubleelim",
+      );
+
       const embed = new EmbedBuilder()
         .setColor("#ff6600")
         .setTitle("📌 Typowanie fazy Double Elimination")
         .setDescription(
           [
-            "Wybierz po **2 drużyny** w każdej pozycji:",
-            "• **Upper Final – Grupa A** (2)",
-            "• **Lower Final – Grupa A** (2)",
-            "• **Upper Final – Grupa B** (2)",
-            "• **Lower Final – Grupa B** (2)",
+            "Wybierz drużyny w każdej pozycji:",
+            `• **Upper Final – Grupa A** (${limity.upperFinalA})`,
+            `• **Lower Final – Grupa A** (${limity.lowerFinalA})`,
+            `• **Upper Final – Grupa B** (${limity.upperFinalB})`,
+            `• **Lower Final – Grupa B** (${limity.lowerFinalB})`,
             "",
             "⚠️ Drużyny **nie mogą się powtarzać** między slotami.",
             "Po wyborze kliknij **Zatwierdź typy**.",
@@ -229,9 +238,9 @@ module.exports = async (interaction) => {
       const row1 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("doubleelim_upper_final_a")
-          .setPlaceholder("Upper Final – Grupa A (wybierz 2)")
-          .setMinValues(2)
-          .setMaxValues(2)
+          .setPlaceholder(`Upper Final – Grupa A (wybierz ${limity.upperFinalA})`)
+          .setMinValues(limity.upperFinalA)
+          .setMaxValues(limity.upperFinalA)
           .addOptions(options),
       );
 
@@ -242,9 +251,9 @@ module.exports = async (interaction) => {
       const row2 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("doubleelim_lower_final_a")
-          .setPlaceholder("Lower Final – Grupa A (wybierz 2)")
-          .setMinValues(2)
-          .setMaxValues(2)
+          .setPlaceholder(`Lower Final – Grupa A (wybierz ${limity.lowerFinalA})`)
+          .setMinValues(limity.lowerFinalA)
+          .setMaxValues(limity.lowerFinalA)
           .addOptions(options),
       );
 
@@ -255,9 +264,9 @@ module.exports = async (interaction) => {
       const row3 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("doubleelim_upper_final_b")
-          .setPlaceholder("Upper Final – Grupa B (wybierz 2)")
-          .setMinValues(2)
-          .setMaxValues(2)
+          .setPlaceholder(`Upper Final – Grupa B (wybierz ${limity.upperFinalB})`)
+          .setMinValues(limity.upperFinalB)
+          .setMaxValues(limity.upperFinalB)
           .addOptions(options),
       );
 
@@ -268,9 +277,9 @@ module.exports = async (interaction) => {
       const row4 = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId("doubleelim_lower_final_b")
-          .setPlaceholder("Lower Final – Grupa B (wybierz 2)")
-          .setMinValues(2)
-          .setMaxValues(2)
+          .setPlaceholder(`Lower Final – Grupa B (wybierz ${limity.lowerFinalB})`)
+          .setMinValues(limity.lowerFinalB)
+          .setMaxValues(limity.lowerFinalB)
           .addOptions(options),
       );
 

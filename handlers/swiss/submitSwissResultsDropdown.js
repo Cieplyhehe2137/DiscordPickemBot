@@ -8,6 +8,7 @@ const {
 } = require("../../utils/predictionDraftCache");
 const { loadActiveTeams } = require("../../utils/loadActiveTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { getCurrentSwissResults } = require("../../utils/swissRepository");
 
 const NAMESPACE = "swiss-results";
@@ -109,21 +110,24 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
 
     const current = await getCurrentSwissResults(pool, guildId, eventId, stage);
 
-    const m3 = mergeWithCap(current.x3_0, sel.add3, 2);
+    // Sufity z konfiguracji eventu, nie wpisane na sztywno.
+    const limity = await getPhaseLimits(pool, guildId, eventId, stage);
+
+    const m3 = mergeWithCap(current.x3_0, sel.add3, limity.x3_0);
     if (!m3.ok) {
       return interaction.editReply({
         content: `⚠️ 3-0: ${m3.err}`,
       });
     }
 
-    const m0 = mergeWithCap(current.x0_3, sel.add0, 2);
+    const m0 = mergeWithCap(current.x0_3, sel.add0, limity.x0_3);
     if (!m0.ok) {
       return interaction.editReply({
         content: `⚠️ 0-3: ${m0.err}`,
       });
     }
 
-    const mA = mergeWithCap(current.adv, sel.addA, 6);
+    const mA = mergeWithCap(current.adv, sel.addA, limity.advancing);
     if (!mA.ok) {
       return interaction.editReply({
         content: `⚠️ Awans: ${mA.err}`,
@@ -183,6 +187,7 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
         stage,
         teams,
         fresh,
+        limity,
       );
 
       return interaction.editReply({

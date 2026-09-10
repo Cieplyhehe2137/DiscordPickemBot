@@ -1,4 +1,9 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const {
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require("discord.js");
 
 const { withGuild } = require("../../utils/guildContext");
 
@@ -11,6 +16,10 @@ const {
 const {
   loadDoubleElimTeams,
 } = require("../../services/results/doubleElimResultService");
+
+const { getOpenEventId } = require("../../utils/getOpenEventId");
+const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+const { druzyny } = require("../../utils/odmiana");
 
 function makeOptions(teams) {
   return teams.slice(0, 25).map((t) => ({
@@ -55,47 +64,74 @@ module.exports = async function openDoubleElimResultsDropdown(interaction) {
 
       const options = makeOptions(teams);
 
-      const row1 = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("official_doubleelim_upper_final_a")
-          .setPlaceholder("Upper Final A — wybierz 2 drużyny")
-          .setMinValues(2)
-          .setMaxValues(2)
-          .addOptions(options),
+      const eventId = await getOpenEventId(pool, guildId);
+
+      if (!eventId) {
+        return safeEditReply(interaction, {
+          content: "❌ Nie znaleziono aktywnego eventu.",
+          components: [],
+        });
+      }
+
+      const limity = await getPhaseLimits(
+        pool,
+        guildId,
+        eventId,
+        "doubleelim",
       );
 
-      const row2 = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("official_doubleelim_lower_final_a")
-          .setPlaceholder("Lower Final A — wybierz 2 drużyny")
-          .setMinValues(2)
-          .setMaxValues(2)
-          .addOptions(options),
+      // Sloty muszą mieć customId, które zna submitDoubleElimResultsDropdown.
+      // Wcześniej "Upper Final B" wskazywał na lower_final_b, a czwarty slot
+      // miał identyfikator nieznany routerowi - w efekcie wyniku Upper Final B
+      // nie dało się w ogóle wprowadzić.
+      const slot = (customId, etykieta, ile) =>
+        new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder()
+            .setCustomId(customId)
+            .setPlaceholder(`${etykieta} — wybierz ${ile} ${druzyny(ile)}`)
+            .setMinValues(ile)
+            .setMaxValues(ile)
+            .addOptions(options),
+        );
+
+      const row1 = slot(
+        "official_doubleelim_upper_final_a",
+        "Upper Final A",
+        limity.upperFinalA,
       );
 
-      const row3 = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("official_doubleelim_lower_final_b")
-          .setPlaceholder("Upper Final B — wybierz 2 drużyny")
-          .setMinValues(2)
-          .setMaxValues(2)
-          .addOptions(options),
+      const row2 = slot(
+        "official_doubleelim_lower_final_a",
+        "Lower Final A",
+        limity.lowerFinalA,
       );
 
-      const row4 = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("double_results_lower_final_b")
-          .setPlaceholder("Lower Final B — wybierz 2 drużyny")
-          .setMinValues(2)
-          .setMaxValues(2)
-          .addOptions(options),
+      const row3 = slot(
+        "official_doubleelim_upper_final_b",
+        "Upper Final B",
+        limity.upperFinalB,
+      );
+
+      const row4 = slot(
+        "official_doubleelim_lower_final_b",
+        "Lower Final B",
+        limity.lowerFinalB,
+      );
+
+      // Przycisk zatwierdzania był routowany, ale nigdy nie renderowany -
+      // bez niego nie dało się zapisać wpisanych wyników.
+      const rowConfirm = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("confirm_official_doubleelim")
+          .setLabel("✅ Zatwierdź wyniki")
+          .setStyle(ButtonStyle.Success),
       );
 
       return safeEditReply(interaction, {
         content:
           "🧾 Wprowadź oficjalne wyniki Double Elimination.\n\n" +
           "Uzupełnij wszystkie 4 pola.",
-        components: [row1, row2, row3, row4],
+        components: [row1, row2, row3, row4, rowConfirm],
       });
     });
   } catch (err) {
