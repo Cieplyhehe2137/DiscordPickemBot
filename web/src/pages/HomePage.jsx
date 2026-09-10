@@ -1,4 +1,86 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
+import { getAdminServers } from "../lib/api.js";
+import { odmien } from "../lib/odmiana.js";
+
+// Lista serwerów była dostępna wyłącznie w panelu admina, za logowaniem -
+// zwykły odwiedzający nie miał jak sprawdzić, gdzie bot w ogóle działa.
+async function pobierzSerwery() {
+  const dane = await getAdminServers();
+
+  return dane.servers ?? [];
+}
+
+function Serwery() {
+  const [serwery, setSerwery] = useState(null);
+  const [blad, setBlad] = useState("");
+
+  useEffect(() => {
+    let anulowane = false;
+
+    (async () => {
+      try {
+        const lista = await pobierzSerwery();
+
+        if (!anulowane) setSerwery(lista);
+      } catch (err) {
+        console.error("SERVERS ERROR:", err);
+
+        if (!anulowane) setBlad(err.message || "Nie udało się pobrać serwerów.");
+      }
+    })();
+
+    return () => {
+      anulowane = true;
+    };
+  }, []);
+
+  // Sekcja jest dodatkiem do strony głównej, więc przy błędzie albo braku
+  // serwerów po prostu jej nie ma - lepsze niż pusta ramka z komunikatem.
+  if (blad || (serwery && !serwery.length)) return null;
+
+  return (
+    <section className="home-servers">
+      <span className="home-kicker">Gdzie działa bot</span>
+
+      <h2>Serwery</h2>
+
+      {!serwery && <p className="home-servers__stan">Wczytywanie...</p>}
+
+      {serwery && (
+        <div className="home-servers__lista">
+          {serwery.map((serwer) => (
+            <article className="home-server" key={serwer.guild_id}>
+              <strong>{serwer.name}</strong>
+
+              <span className="home-server__liczby">
+                {serwer.events_count}{" "}
+                {odmien(serwer.events_count, "turniej", "turnieje", "turniejów")}
+                {serwer.open_events > 0 && (
+                  <em className="home-server__otwarte">
+                    {serwer.open_events} w trakcie
+                  </em>
+                )}
+              </span>
+
+              {serwer.discord_url && (
+                <a
+                  className="home-server__link"
+                  href={serwer.discord_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Dołącz na Discordzie
+                </a>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function HomePage() {
   return (
@@ -83,6 +165,8 @@ function HomePage() {
           </div>
         </div>
       </section>
+
+      <Serwery />
     </main>
   );
 }
