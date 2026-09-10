@@ -16,6 +16,7 @@ config/*.env
 # runtime / uploads / backups (jeśli masz)
 klasyfikacja.xlsx
 web.zip
+.sql
 
 # Zrzuty bazy i eksporty turniejów - zawierają dane graczy i sesje,
 # nigdy nie powinny trafić do repozytorium.
