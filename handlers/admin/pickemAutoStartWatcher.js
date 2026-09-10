@@ -7,6 +7,11 @@ const { logInfo, logError } = require("../../utils/logger");
 const startedGuilds = new Set();
 const runningGuilds = new Set();
 
+// Uchwyty timerow watchera - po jednym komplecie na guild. Bez nich nie da
+// sie ich zatrzymac przy zamykaniu procesu i tick potrafi wystartowac
+// zapytanie do puli, ktora wlasnie sie zamyka.
+const timery = [];
+
 // Nieudane próby per event. Zlecenie zostaje w kolejce dopóki się nie uda,
 // więc bez licznika watcher ponawia je co 30 sekund w nieskończoność -
 // źle ustawiony kanał daje wieczny strumień błędów w logach i nikt się
@@ -219,12 +224,30 @@ function startPickemAutoStartWatcher(client, guildId) {
   };
 
   // pierwszy check 3 sekundy po starcie
-  setTimeout(tick, 3000);
+  timery.push(setTimeout(tick, 3000));
 
   // potem co 30 sekund
-  setInterval(tick, 30000);
+  timery.push(setInterval(tick, 30000));
+}
+
+// Zatrzymuje watchery wszystkich guildow. Wolane przy zamykaniu bota, zanim
+// zamkniemy pule polaczen.
+function stopPickemAutoStartWatchers() {
+  const ile = timery.length;
+
+  for (const timer of timery) {
+    // W Node clearTimeout i clearInterval przyjmuja ten sam obiekt Timeout,
+    // wiec jedno wywolanie wystarcza na oba rodzaje.
+    clearTimeout(timer);
+  }
+
+  timery.length = 0;
+  startedGuilds.clear();
+
+  return ile;
 }
 
 module.exports = {
   startPickemAutoStartWatcher,
+  stopPickemAutoStartWatchers,
 };

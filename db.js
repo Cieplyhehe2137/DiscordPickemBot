@@ -80,6 +80,29 @@ function getPoolForGuild(guildId) {
   return pools.get(guildId);
 }
 
+// Zamyka wszystkie pule otwarte w tym procesie. Wołane tylko przy zamykaniu
+// bota - pool.end() czeka na zapytania w locie i wysyła MySQL-owi COM_QUIT,
+// zamiast zostawiać mu połączenia do wygaszenia po timeoucie.
+async function closeAllPools() {
+  const otwarte = [...pools.values()];
+
+  // Czyścimy mapę od razu, żeby nic nie zdążyło sięgnąć po pulę, która
+  // właśnie się zamyka.
+  pools.clear();
+
+  const wyniki = await Promise.allSettled(otwarte.map((pool) => pool.end()));
+  const nieudane = wyniki.filter((w) => w.status === "rejected");
+
+  if (nieudane.length) {
+    throw new Error(
+      `Nie udało się zamknąć ${nieudane.length} z ${otwarte.length} pul: ${nieudane[0].reason?.message || nieudane[0].reason}`,
+    );
+  }
+
+  return otwarte.length;
+}
+
 module.exports = {
   getPoolForGuild,
+  closeAllPools,
 };

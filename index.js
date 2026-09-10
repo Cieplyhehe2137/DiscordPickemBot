@@ -45,8 +45,14 @@ const { loadHandlers } = require("./loader");
 const handleInteraction = require("./interactionRouter");
 const onReady = require("./onReady");
 const { closeExpiredPanels } = require("./utils/closeExpiredPanels");
+const { closeAllPools } = require("./db");
+const { zarejestrujZamykanie } = require("./utils/gracefulShutdown");
+const {
+  stopPickemAutoStartWatchers,
+} = require("./handlers/admin/pickemAutoStartWatcher");
 
 let readyTimeout = null;
+let panelInterval = null;
 
 const client = new Client({
   intents: [
@@ -94,7 +100,7 @@ client.once("clientReady", async () => {
 
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
 
-  setInterval(() => {
+  panelInterval = setInterval(() => {
     closeExpiredPanels(client);
   }, 30 * 1000);
 
@@ -106,6 +112,36 @@ client.once("clientReady", async () => {
     logError("ON_READY_FAILED", err);
     console.error("❌ onReady failed:", err);
   }
+});
+
+// Rejestrujemy zamykanie zanim ruszy logowanie, zeby Ctrl+C w trakcie startu
+// tez zostal obsluzony, a nie ubil procesu w polowie laczenia z gatewayem.
+zarejestrujZamykanie({
+  nazwa: "bot",
+  kroki: [
+    {
+      opis: "zatrzymanie timerow",
+      async zrob() {
+        if (readyTimeout) clearTimeout(readyTimeout);
+        if (panelInterval) clearInterval(panelInterval);
+
+        stopPickemAutoStartWatchers();
+      },
+    },
+    {
+      opis: "rozlaczenie z Discordem",
+      async zrob() {
+        await client.destroy();
+      },
+    },
+    {
+      // Na koncu, bo wczesniejsze kroki moga jeszcze czytac z bazy.
+      opis: "zamkniecie pul MySQL",
+      async zrob() {
+        await closeAllPools();
+      },
+    },
+  ],
 });
 
 const handlers = loadHandlers("handlers");
