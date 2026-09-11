@@ -649,6 +649,29 @@
 }
 
 /* -------------------------------------------------------------------------
+   PASEK PODZIAŁU
+   Dwie strony jednej całości, nie postęp. Stąd osobny komponent zamiast
+   naciągania ui-meter: tam wypełnienie mówi "ile zrobione", tu obie części
+   są danymi i obie muszą być widoczne.
+   ------------------------------------------------------------------------- */
+
+.ui-split {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--layer-sunken);
+}
+
+.ui-split__a {
+  background: var(--side-a);
+}
+
+.ui-split__b {
+  background: var(--side-b);
+}
+
+/* -------------------------------------------------------------------------
    PASEK POSTĘPU
    ------------------------------------------------------------------------- */
 

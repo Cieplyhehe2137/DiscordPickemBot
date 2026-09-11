@@ -411,16 +411,18 @@ function EventPage() {
           )}
 
           {profilEventu && (
-            <section className="event-my-summary">
-              <div className="event-my-summary__header">
-                <span className="ui-kicker">Twój wynik</span>
+            <section className="ui-stack ui-stack--loose">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">Twój wynik</span>
 
-                <h2>Twoje podsumowanie eventu</h2>
+                  <h2>Twoje podsumowanie eventu</h2>
+                </div>
               </div>
 
-              <div className="event-my-summary__card">
-                <div className="event-my-summary__main">
-                  <div className="event-my-summary__rank">
+              <div className="ui-card ui-stack ui-stack--loose">
+                <div className="ui-stats">
+                  <div className="ui-stat">
                     <span>Miejsce</span>
 
                     {/* Brak miejsca = nic jeszcze nie rozliczono. Wtedy sam
@@ -439,7 +441,7 @@ function EventPage() {
                       )}
                   </div>
 
-                  <div className="event-my-summary__points">
+                  <div className="ui-stat ui-stat--featured">
                     <span>Punkty</span>
 
                     <strong>{profilEventu.total_points ?? 0}</strong>
@@ -452,13 +454,13 @@ function EventPage() {
                   </div>
                 </div>
 
-                <div className="event-my-summary__stats">
-                  <div>
+                <div className="ui-stats">
+                  <div className="ui-stat">
                     <span>Skuteczność</span>
                     <strong>{profilEventu.accuracy ?? 0}%</strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Trafione mecze</span>
                     <strong>
                       {profilEventu.correct_winners ?? 0}/
@@ -466,12 +468,12 @@ function EventPage() {
                     </strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Exacty map</span>
                     <strong>{profilEventu.exact_maps ?? 0}</strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Aktualna seria</span>
                     <strong>
                       {profilEventu.current_correct_streak ?? 0}
@@ -480,7 +482,7 @@ function EventPage() {
                 </div>
 
                 <Link
-                  className="event-my-summary__profile"
+                  className="ui-btn ui-btn--ghost ui-btn--sm"
                   to={`/events/${slug}/player/${currentUser.id}`}
                 >
                   Zobacz pełny profil →
@@ -578,16 +580,16 @@ function EventPage() {
                     </div>
                   </div>
 
-                  <div className="event-close-match__bar">
+                  <div className="ui-split">
                     <div
-                      className="event-close-match__bar-a"
+                      className="ui-split__a"
                       style={{
                         width: `${eventStats.closest_match.team_a_percentage}%`,
                       }}
                     />
 
                     <div
-                      className="event-close-match__bar-b"
+                      className="ui-split__b"
                       style={{
                         width: `${eventStats.closest_match.team_b_percentage}%`,
                       }}
@@ -641,16 +643,16 @@ function EventPage() {
                     </div>
                   </div>
 
-                  <div className="event-upset__bar">
+                  <div className="ui-split">
                     <div
-                      className="event-upset__bar-a"
+                      className="ui-split__a"
                       style={{
                         width: `${eventStats.biggest_upset.team_a_percentage}%`,
                       }}
                     />
 
                     <div
-                      className="event-upset__bar-b"
+                      className="ui-split__b"
                       style={{
                         width: `${eventStats.biggest_upset.team_b_percentage}%`,
                       }}

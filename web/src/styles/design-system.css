@@ -73,6 +73,12 @@
   --accent-border: rgba(139, 92, 246, 0.35);
   --accent-glow: rgba(139, 92, 246, 0.25);
 
+  /* Dwie strony porownania - podzial typow spolecznosci, starcie druzyn.
+     Rozne odcienie, obie nasycone: gdyby jedna byla szara, wykres 50/50
+     czytalby sie jako "ta wazniejsza i ta druga". */
+  --side-a: #8b5cf6;
+  --side-b: #f43f5e;
+
   --live: #22d3ee;
   --live-bg: rgba(34, 211, 238, 0.12);
   --live-border: rgba(34, 211, 238, 0.3);
