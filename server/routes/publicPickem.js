@@ -39,7 +39,7 @@ export function registerPublicPickemRoutes(
     isMatchLocked,
     isSeriesExact,
     isWinnerCorrect,
-    komunikatNaWWW,
+    toWebMessage,
     loadActiveTeams,
     matchPanelPhaseFor,
     parseCsvPick,
@@ -762,7 +762,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie meczów jest aktualnie zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie meczów jest aktualnie zamknięte."),
         });
       }
 
@@ -1480,7 +1480,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
         });
       }
 
@@ -1761,7 +1761,7 @@ export function registerPublicPickemRoutes(
           allowed: Boolean(gate.allowed),
           message: gate.allowed
             ? null
-            : komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
+            : toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
         },
       });
     } catch (err) {
@@ -1930,7 +1930,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -1986,7 +1986,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Play-In jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Play-In jest zamknięte."),
         });
       }
 
@@ -2182,7 +2182,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -2240,7 +2240,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Playoffs jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Playoffs jest zamknięte."),
         });
       }
 
@@ -2515,7 +2515,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -2574,7 +2574,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Double Elimination jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Double Elimination jest zamknięte."),
         });
       }
 

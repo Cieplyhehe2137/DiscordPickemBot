@@ -11,6 +11,8 @@ import { registerPublicOverviewRoutes } from "./routes/publicOverview.js";
 import { createGuildInfo } from "./lib/guildInfo.js";
 import { createParticipantQueries } from "./lib/participants.js";
 import { buildPublicMatch } from "./lib/publicMatch.js";
+import { toWebMessage } from "./lib/messages.js";
+import { parseCsvPick } from "./lib/picks.js";
 import {
   ADMINISTRATOR_PERMISSION,
   hasAdminPermission,
@@ -343,15 +345,6 @@ io.on("connection", (socket) => {
   });
 });
 
-function parseCsvPick(value) {
-  if (!value) return [];
-
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 // Na produkcji aplikacja stoi za reverse proxy (Plesk/nginx kończy TLS i
 // dopiero wewnętrznie odzywa się po HTTP). Bez tego Express widzi połączenie
 // jako nieszyfrowane i express-session PRZY cookie.secure=true w ogóle nie
@@ -434,52 +427,6 @@ function matchPanelPhaseFor(phase) {
   if (!phase) return null;
   return MATCH_PANEL_PHASE[normalizePhase(phase)] || null;
 }
-
-// ======================================================
-// KOMUNIKATY GUARDA -> WWW
-// ======================================================
-//
-// Guardy w utils/protectionsGuards.js piszą komunikaty pod Discorda: emoji na
-// początku i **pogrubienie** markdownem. API oddawało je bez zmian, a React
-// renderuje tekst dosłownie, więc gracz widział na ekranie:
-//
-//   ❌ ❌ Aktualna faza to **SWISS_STAGE1** — typowanie Play-In jest niedostępne.
-//
-// (drugie ❌ dokleja frontend). Do tego SWISS_STAGE1 to surowa wartość kolumny.
-//
-// Nie zmieniamy tekstów w guardzie, bo Discord renderuje je poprawnie -
-// czyścimy je dopiero na granicy HTTP.
-
-const NAZWY_FAZ_WWW = {
-  SWISS: "Swiss",
-  SWISS_STAGE1: "Swiss Stage 1",
-  SWISS_STAGE2: "Swiss Stage 2",
-  SWISS_STAGE3: "Swiss Stage 3",
-  PLAYOFFS: "Playoffs",
-  PLAYIN: "Play-In",
-  DOUBLEELIM: "Double Elimination",
-  MATCHES: "mecze",
-  NOT_STARTED: "nierozpoczęty",
-  UNKNOWN: "nieznana",
-};
-
-function komunikatNaWWW(tekst, zapasowy = null) {
-  if (!tekst) return zapasowy;
-
-  return (
-    String(tekst)
-      // identyfikatory faz -> nazwy czytelne dla gracza
-      .replace(/\*\*([A-Z0-9_]+)\*\*/g, (dopasowanie, faza) =>
-        NAZWY_FAZ_WWW[faza] ? NAZWY_FAZ_WWW[faza] : faza,
-      )
-      // reszta pogrubień markdownem
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      // emoji statusu na początku (Discord je potrzebuje, WWW ma własne style)
-      .replace(/^[\s\p{Extended_Pictographic}️]+/u, "")
-      .trim() || zapasowy
-  );
-}
-
 // ======================================================
 // MECZ + STAN TYPOWANIA - WSPOLNE DLA LISTY I POJEDYNCZEGO MECZU
 // ======================================================
@@ -609,7 +556,7 @@ async function stanTypowaniaMeczu({ match, gate, guildId, deadlineCache }) {
     return {
       ...base,
       predictions_allowed: false,
-      lock_reason: komunikatNaWWW(
+      lock_reason: toWebMessage(
         gate.message,
         "Typowanie meczów jest aktualnie zamknięte.",
       ),
@@ -1580,7 +1527,7 @@ registerPublicPickemRoutes(app, {
   isMatchLocked,
   isSeriesExact,
   isWinnerCorrect,
-  komunikatNaWWW,
+  toWebMessage,
   loadActiveTeams,
   matchPanelPhaseFor,
   parseCsvPick,
