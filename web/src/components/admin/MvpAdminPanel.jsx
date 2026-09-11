@@ -112,7 +112,9 @@ function MvpAdminPanel({ slug }) {
     try {
       await saveMvpResult(slug, candidateId);
       setWynik(candidateId);
-      setKomunikat("Zapisano zwycięzcę MVP. Przelicz punkty, żeby go rozliczyć.");
+      setKomunikat(
+        "Zapisano zwycięzcę MVP. Przelicz punkty, żeby go rozliczyć.",
+      );
     } catch (err) {
       setBlad(err.message || "Nie udało się zapisać wyniku MVP.");
     }

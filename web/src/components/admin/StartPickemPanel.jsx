@@ -46,7 +46,11 @@ function StartPickemPanel({ slug }) {
     setBlad("");
 
     try {
-      const odpowiedz = await startEventPickem(slug, faza, kanal.trim() || null);
+      const odpowiedz = await startEventPickem(
+        slug,
+        faza,
+        kanal.trim() || null,
+      );
 
       setOk(
         `Zlecono start fazy ${etykieta}. Bot opublikuje panel na kanale ` +
@@ -66,9 +70,9 @@ function StartPickemPanel({ slug }) {
 
       <p className="start-pickem__hint">
         Jedyna akcja, która publikuje panel typowania na Discordzie. Turniej
-        staje się aktywny, a poprzedni otwarty zostaje zamknięty. Kanał
-        domyślny bierze się z <code>PICKEM_CHANNEL_ID</code> w configu serwera —
-        poniżej możesz go nadpisać.
+        staje się aktywny, a poprzedni otwarty zostaje zamknięty. Kanał domyślny
+        bierze się z <code>PICKEM_CHANNEL_ID</code> w configu serwera — poniżej
+        możesz go nadpisać.
       </p>
 
       <div className="start-pickem__row">

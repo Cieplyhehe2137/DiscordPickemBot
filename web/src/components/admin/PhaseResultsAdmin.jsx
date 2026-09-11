@@ -287,7 +287,11 @@ function PhaseResultsAdmin({ slug, teams }) {
         })}
 
       <div className="phase-admin__actions">
-        <button type="button" onClick={zapisz} disabled={zapisywanie || ladowanie}>
+        <button
+          type="button"
+          onClick={zapisz}
+          disabled={zapisywanie || ladowanie}
+        >
           {zapisywanie ? "Zapisywanie..." : "Zapisz wyniki fazy"}
         </button>
 

@@ -311,10 +311,10 @@ export default function AdminPage() {
         current.map((event) =>
           event.id === selectedEvent.id
             ? {
-              ...event,
-              status: data.status,
-              is_archived: data.is_archived,
-            }
+                ...event,
+                status: data.status,
+                is_archived: data.is_archived,
+              }
             : event,
         ),
       );
@@ -347,9 +347,9 @@ export default function AdminPage() {
         current.map((event) =>
           event.id === selectedEvent.id
             ? {
-              ...event,
-              phase: data.phase,
-            }
+                ...event,
+                phase: data.phase,
+              }
             : event,
         ),
       );
@@ -800,10 +800,11 @@ export default function AdminPage() {
             <button
               key={server.guild_id}
               type="button"
-              className={`admin-server ${selectedServer?.guild_id === server.guild_id
-                ? "admin-server--active"
-                : ""
-                }`}
+              className={`admin-server ${
+                selectedServer?.guild_id === server.guild_id
+                  ? "admin-server--active"
+                  : ""
+              }`}
               onClick={() => setSelectedServer(server)}
             >
               <strong>{server.name}</strong>
@@ -833,8 +834,9 @@ export default function AdminPage() {
               <button
                 key={event.id}
                 type="button"
-                className={`admin-event ${selectedEvent?.id === event.id ? "admin-event--active" : ""
-                  }`}
+                className={`admin-event ${
+                  selectedEvent?.id === event.id ? "admin-event--active" : ""
+                }`}
                 onClick={() => setSelectedEvent(event)}
               >
                 <strong>{event.name}</strong>
@@ -850,8 +852,9 @@ export default function AdminPage() {
       <div className="admin-page__grid">
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "events" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "events" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("events")}
         >
@@ -868,8 +871,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "matches" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "matches" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("matches")}
         >
@@ -886,8 +890,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "locks" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "locks" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("locks")}
         >
@@ -915,8 +920,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "phases" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "phases" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("phases")}
         >
@@ -927,8 +933,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "pickemcfg" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "pickemcfg" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("pickemcfg")}
         >
@@ -939,8 +946,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "mvp" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "mvp" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("mvp")}
         >
@@ -951,8 +959,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "ops" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "ops" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("ops")}
         >
@@ -966,8 +975,9 @@ export default function AdminPage() {
 
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "teams" ? "admin-card--active" : ""
-            }`}
+          className={`admin-card ${
+            activeAdminSection === "teams" ? "admin-card--active" : ""
+          }`}
           disabled={!selectedServer}
           onClick={() => setActiveAdminSection("teams")}
         >
@@ -1071,10 +1081,11 @@ export default function AdminPage() {
 
             {phaseMessage && (
               <p
-                className={`admin-feedback ${phaseMessage.includes("zosta")
-                  ? "admin-feedback--success"
-                  : "admin-feedback--error"
-                  }`}
+                className={`admin-feedback ${
+                  phaseMessage.includes("zosta")
+                    ? "admin-feedback--success"
+                    : "admin-feedback--error"
+                }`}
               >
                 {phaseMessage}
               </p>
@@ -1083,10 +1094,11 @@ export default function AdminPage() {
 
           {statusMessage && (
             <p
-              className={`admin-feedback ${statusMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`admin-feedback ${
+                statusMessage.includes("zosta")
+                  ? "admin-feedback--success"
+                  : "admin-feedback--error"
+              }`}
             >
               {statusMessage}
             </p>
@@ -1179,10 +1191,11 @@ export default function AdminPage() {
 
             {createMatchMessage && (
               <p
-                className={`admin-feedback ${createMatchMessage.includes("zosta")
-                  ? "admin-feedback--success"
-                  : "admin-feedback--error"
-                  }`}
+                className={`admin-feedback ${
+                  createMatchMessage.includes("zosta")
+                    ? "admin-feedback--success"
+                    : "admin-feedback--error"
+                }`}
               >
                 {createMatchMessage}
               </p>
@@ -1465,7 +1478,7 @@ export default function AdminPage() {
                         onClick={() => handleOpenDeleteMatch(match.id)}
                       >
                         {loadingMatchDeletePreview &&
-                          deletingMatchId === match.id
+                        deletingMatchId === match.id
                           ? "Sprawdzanie..."
                           : "🗑️ Usuń"}
                       </button>
@@ -1491,12 +1504,13 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`admin-badge admin-badge--${match.lock_override === 1
-                      ? "lock"
-                      : match.lock_override === 0
-                        ? "unlock"
-                        : "auto"
-                      }`}
+                    className={`admin-badge admin-badge--${
+                      match.lock_override === 1
+                        ? "lock"
+                        : match.lock_override === 0
+                          ? "unlock"
+                          : "auto"
+                    }`}
                   >
                     {match.lock_override === 1
                       ? "LOCK"
@@ -1559,10 +1573,11 @@ export default function AdminPage() {
 
             {deadlineValue && (
               <p
-                className={`admin-deadline-status ${new Date(deadlineValue) < new Date()
-                  ? "admin-deadline-status--expired"
-                  : "admin-deadline-status--active"
-                  }`}
+                className={`admin-deadline-status ${
+                  new Date(deadlineValue) < new Date()
+                    ? "admin-deadline-status--expired"
+                    : "admin-deadline-status--active"
+                }`}
               >
                 {new Date(deadlineValue) < new Date()
                   ? "⛔ Deadline minął"
@@ -1584,10 +1599,11 @@ export default function AdminPage() {
 
             {deadlineMessage && (
               <p
-                className={`admin-deadline-message ${deadlineMessage.includes("został")
-                  ? "admin-deadline-message--success"
-                  : "admin-deadline-message--error"
-                  }`}
+                className={`admin-deadline-message ${
+                  deadlineMessage.includes("został")
+                    ? "admin-deadline-message--success"
+                    : "admin-deadline-message--error"
+                }`}
               >
                 {deadlineMessage}
               </p>
@@ -1635,12 +1651,13 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`admin-badge admin-badge--${match.lock_override === 1
-                      ? "lock"
-                      : match.lock_override === 0
-                        ? "unlock"
-                        : "auto"
-                      }`}
+                    className={`admin-badge admin-badge--${
+                      match.lock_override === 1
+                        ? "lock"
+                        : match.lock_override === 0
+                          ? "unlock"
+                          : "auto"
+                    }`}
                   >
                     {match.lock_override === 1
                       ? "LOCK"
@@ -1660,10 +1677,11 @@ export default function AdminPage() {
                 <span>
                   Wynik:{" "}
                   <strong
-                    className={`admin-badge ${match.ui_status === "FINAL"
-                      ? "admin-badge--result-set"
-                      : "admin-badge--result-missing"
-                      }`}
+                    className={`admin-badge ${
+                      match.ui_status === "FINAL"
+                        ? "admin-badge--result-set"
+                        : "admin-badge--result-missing"
+                    }`}
                   >
                     {match.ui_status === "FINAL" ? "USTAWIONY" : "BRAK WYNIKU"}
                   </strong>
@@ -1740,10 +1758,11 @@ export default function AdminPage() {
 
           {teamEditMessage && (
             <p
-              className={`admin-feedback ${teamEditMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`admin-feedback ${
+                teamEditMessage.includes("zosta")
+                  ? "admin-feedback--success"
+                  : "admin-feedback--error"
+              }`}
             >
               {teamEditMessage}
             </p>
@@ -1751,10 +1770,11 @@ export default function AdminPage() {
 
           {teamDeleteMessage && (
             <p
-              className={`admin-feedback ${teamDeleteMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`admin-feedback ${
+                teamDeleteMessage.includes("zosta")
+                  ? "admin-feedback--success"
+                  : "admin-feedback--error"
+              }`}
             >
               {teamDeleteMessage}
             </p>
@@ -1808,10 +1828,11 @@ export default function AdminPage() {
                     <span>
                       Status:{" "}
                       <strong
-                        className={`admin-badge ${team.active
-                          ? "admin-badge--team-active"
-                          : "admin-badge--team-inactive"
-                          }`}
+                        className={`admin-badge ${
+                          team.active
+                            ? "admin-badge--team-active"
+                            : "admin-badge--team-inactive"
+                        }`}
                       >
                         {team.active ? "AKTYWNA" : "NIEAKTYWNA"}
                       </strong>
@@ -1890,10 +1911,11 @@ export default function AdminPage() {
 
                 {eventLeaderboard.map((player) => (
                   <div
-                    className={`admin-leaderboard__row ${player.rank <= 3
-                      ? `admin-leaderboard__row--top-${player.rank}`
-                      : ""
-                      }`}
+                    className={`admin-leaderboard__row ${
+                      player.rank <= 3
+                        ? `admin-leaderboard__row--top-${player.rank}`
+                        : ""
+                    }`}
                     key={player.user_id}
                   >
                     <span>#{player.rank}</span>
@@ -1958,10 +1980,11 @@ export default function AdminPage() {
 
         {createEventMessage && (
           <p
-            className={`admin-feedback ${createEventMessage.includes("zosta")
-              ? "admin-feedback--success"
-              : "admin-feedback--error"
-              }`}
+            className={`admin-feedback ${
+              createEventMessage.includes("zosta")
+                ? "admin-feedback--success"
+                : "admin-feedback--error"
+            }`}
           >
             {createEventMessage}
           </p>

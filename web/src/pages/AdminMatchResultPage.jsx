@@ -73,9 +73,9 @@ function AdminMatchResultPage() {
       current.map((map, mapIndex) =>
         mapIndex === index
           ? {
-            ...map,
-            [side]: value,
-          }
+              ...map,
+              [side]: value,
+            }
           : map,
       ),
     );
@@ -160,24 +160,24 @@ function AdminMatchResultPage() {
       const maps =
         bestOf === 1
           ? [
-            {
-              mapNo: 1,
-              exactA: Number(scoreA),
-              exactB: Number(scoreB),
-            },
-          ]
+              {
+                mapNo: 1,
+                exactA: Number(scoreA),
+                exactB: Number(scoreB),
+              },
+            ]
           : mapScores
-            .map((map, index) => ({
-              mapNo: index + 1,
-              exactA: map.exactA,
-              exactB: map.exactB,
-            }))
-            .filter((map) => map.exactA !== "" && map.exactB !== "")
-            .map((map) => ({
-              ...map,
-              exactA: Number(map.exactA),
-              exactB: Number(map.exactB),
-            }));
+              .map((map, index) => ({
+                mapNo: index + 1,
+                exactA: map.exactA,
+                exactB: map.exactB,
+              }))
+              .filter((map) => map.exactA !== "" && map.exactB !== "")
+              .map((map) => ({
+                ...map,
+                exactA: Number(map.exactA),
+                exactB: Number(map.exactB),
+              }));
 
       if (!maps.length) {
         setMessage("Wpisz przynajmniej jeden wynik mapy.");
@@ -199,11 +199,7 @@ function AdminMatchResultPage() {
         return;
       }
 
-      if (
-        maps.some(
-          (map) => !validateCs2Score(map.exactA, map.exactB),
-        )
-      ) {
+      if (maps.some((map) => !validateCs2Score(map.exactA, map.exactB))) {
         setMessage(
           "Nieprawidłowy wynik CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.",
         );
@@ -271,19 +267,19 @@ function AdminMatchResultPage() {
     bestOf === 1
       ? scoreA !== "" && scoreB !== ""
         ? [
-          {
-            exactA: Number(scoreA),
-            exactB: Number(scoreB),
-          },
-        ]
+            {
+              exactA: Number(scoreA),
+              exactB: Number(scoreB),
+            },
+          ]
         : []
       : mapScores
-        .slice(0, bestOf)
-        .filter((map) => map.exactA !== "" && map.exactB !== "")
-        .map((map) => ({
-          exactA: Number(map.exactA),
-          exactB: Number(map.exactB),
-        }));
+          .slice(0, bestOf)
+          .filter((map) => map.exactA !== "" && map.exactB !== "")
+          .map((map) => ({
+            exactA: Number(map.exactA),
+            exactB: Number(map.exactB),
+          }));
 
   const liveWinsA = liveMaps.filter((map) => map.exactA > map.exactB).length;
 
@@ -492,10 +488,11 @@ function AdminMatchResultPage() {
 
       {message && (
         <p
-          className={`admin-feedback ${message === "Wynik zapisany."
-            ? "admin-feedback--success"
-            : "admin-feedback--error"
-            }`}
+          className={`admin-feedback ${
+            message === "Wynik zapisany."
+              ? "admin-feedback--success"
+              : "admin-feedback--error"
+          }`}
         >
           {message}
         </p>

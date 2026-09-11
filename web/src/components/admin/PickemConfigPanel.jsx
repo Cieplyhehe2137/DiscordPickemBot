@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import Ladowanie from "../../components/Ladowanie.jsx";
 
-import {
-  getEventPickemConfig,
-  saveEventPickemConfig,
-} from "../../lib/api.js";
+import { getEventPickemConfig, saveEventPickemConfig } from "../../lib/api.js";
 
 // Konfiguracja typowania DRUŻYN dla konkretnego eventu.
 //

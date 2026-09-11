@@ -277,7 +277,9 @@ function PropozycjeWynikow({ slug }) {
       if (akcja === "accept") await acceptResultProposal(id);
       else await rejectResultProposal(id);
 
-      setOk(akcja === "accept" ? "Wynik zatwierdzony." : "Propozycja odrzucona.");
+      setOk(
+        akcja === "accept" ? "Wynik zatwierdzony." : "Propozycja odrzucona.",
+      );
       await wczytaj();
     } catch (err) {
       setBlad(err.message || "Nie udało się rozstrzygnąć propozycji.");
