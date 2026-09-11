@@ -126,11 +126,19 @@ a {
   min-height: calc(100vh - 72px);
 }
 
+/* Domyslny h1 to naglowek strony, nie hero. Rozmiar hero jest decyzja
+   konkretnego ekranu i wlacza go klasa ui-display - wczesniej dostawal go
+   KAZDY h1, wiec "Panel administratora" wychodzil na pol ekranu. */
 h1 {
   margin: 0;
 
-  font-size: clamp(3rem, 8vw, 5rem);
-  font-weight: 800;
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-black);
+}
+
+.ui-display {
+  font-size: var(--text-hero);
+  font-weight: var(--weight-black);
 }
 
 p {

@@ -125,6 +125,9 @@
   --text-4xl: 2.25rem; /* 36px - nagłówek strony */
   --text-display: clamp(2.25rem, 5vw, 3.5rem);
 
+  /* Rozmiar wylacznie dla naglowka powitalnego strony glownej. */
+  --text-hero: clamp(3rem, 8vw, 5rem);
+
   --weight-normal: 400;
   --weight-medium: 500;
   --weight-semibold: 600;

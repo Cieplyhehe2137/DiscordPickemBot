@@ -25,7 +25,7 @@ function Hero() {
     <section className="home-hero">
       <span className="ui-kicker">CS2 Pick&apos;Em</span>
 
-      <h1>
+      <h1 className="ui-display">
         Typuj. <span>Rywalizuj.</span> <span>Wygrywaj.</span>
       </h1>
 

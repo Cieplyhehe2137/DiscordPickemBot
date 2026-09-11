@@ -336,12 +336,18 @@ function AdminMatchResultPage() {
       <main className="ui-page">
         <BackLink to="/">Strona główna</BackLink>
 
-        <h1>Brak uprawnień</h1>
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🚫
+          </span>
 
-        <p>
-          Wpisywanie oficjalnego wyniku wymaga uprawnień administratora na
-          serwerze, do którego należy ten mecz.
-        </p>
+          <strong className="ui-empty__title">Brak uprawnień</strong>
+
+          <p className="ui-empty__text">
+            Wpisywanie oficjalnego wyniku wymaga uprawnień administratora na
+            serwerze, do którego należy ten mecz.
+          </p>
+        </div>
       </main>
     );
   }
@@ -349,16 +355,19 @@ function AdminMatchResultPage() {
   return (
     <main className="ui-page">
       <BackLink to="/admin">Wróć do panelu</BackLink>
-      <h1>Ustaw wynik meczu</h1>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Oficjalny wynik · mecz #{matchId}</span>
 
-      <p>Match ID: {matchId}</p>
+          <h2>Ustaw wynik meczu</h2>
 
-      {match && (
-        <h2>
-          {match.team_a} vs {match.team_b} — BO
-          {match.best_of}
-        </h2>
-      )}
+          {match && (
+            <p>
+              {match.team_a} vs {match.team_b} · BO{match.best_of}
+            </p>
+          )}
+        </div>
+      </div>
 
       {match && (
         <section className="ui-card ui-stack ui-stack--tight">

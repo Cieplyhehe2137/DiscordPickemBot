@@ -31,6 +31,7 @@ import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 import Ladowanie from "../components/Ladowanie.jsx";
+import LoginRequired from "../components/LoginRequired.jsx";
 // Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
 // "admin-badge--status-" i statusu z API - czyli CSS musial znac z gory kazda
 // wartosc, jaka backend kiedykolwiek zwroci, a literowka byla niewidoczna.
@@ -791,7 +792,9 @@ export default function AdminPage() {
   if (!user) {
     return (
       <div className="ui-page">
-        <p>Musisz się zalogować przez Discord.</p>
+        <LoginRequired>
+          Panel administratora jest dostępny po zalogowaniu.
+        </LoginRequired>
       </div>
     );
   }
@@ -799,18 +802,34 @@ export default function AdminPage() {
   if (!isAdmin) {
     return (
       <div className="ui-page">
-        <p>Brak uprawnień administratora.</p>
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🚫
+          </span>
+
+          <strong className="ui-empty__title">
+            Brak uprawnień administratora
+          </strong>
+
+          <p className="ui-empty__text">
+            Twoje konto nie ma uprawnień do zarządzania żadnym serwerem.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="ui-page">
-      <header className="ui-section-head">
-        <span>⚙️ ADMIN</span>
-        <h1>Panel administratora</h1>
-        <p>Zarządzanie turniejami, meczami, wynikami i typowaniem.</p>
-      </header>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">⚙️ Administracja</span>
+
+          <h2>Panel administratora</h2>
+
+          <p>Zarządzanie turniejami, meczami, wynikami i typowaniem.</p>
+        </div>
+      </div>
       <section className="ui-card ui-stack">
         <h2>Twoje serwery</h2>
         {loadingServers && <Ladowanie>Ładowanie serwerów...</Ladowanie>}
