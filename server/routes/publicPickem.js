@@ -46,7 +46,7 @@ export function registerPublicPickemRoutes(
     path,
     percentageNumber,
     checkPickemGate,
-    policzUczestnikow,
+    countParticipants,
     pool,
     runInTransaction,
     sprawdzTyp,
@@ -426,7 +426,7 @@ export function registerPublicPickemRoutes(
       // Przez to profil pokazywal "Miejsce #1" nawet wtedy, gdy ranking eventu
       // byl jeszcze pusty, i pomijal punkty ze Swiss, Playoffs, Play-In,
       // Double Elim oraz MVP.
-      const participantCount = await policzUczestnikow(eventId);
+      const participantCount = await countParticipants(eventId);
 
       const [klasyfikacja] = await pool.query(
         `
