@@ -16,6 +16,7 @@ import { parseCsvPick } from "./lib/picks.js";
 import { buildMatchesWithPickSql } from "./lib/matchQueries.js";
 import { createFrozenPhases } from "./lib/frozenPhases.js";
 import { createPredictionGate } from "./lib/predictionGate.js";
+import { createBackupFiles } from "./lib/backupFiles.js";
 import {
   ADMINISTRATOR_PERMISSION,
   hasAdminPermission,
@@ -276,58 +277,19 @@ async function createGuildBackup(guildId) {
   };
 }
 
-function listGuildBackups(guildId) {
-  guildRegistry.ensureGuildDirs(guildId);
-
-  const { backupDir } = guildRegistry.getGuildPaths(guildId);
-
-  return fs
-    .readdirSync(backupDir)
-    .filter((file) => file.endsWith(".sql"))
-    .map((file) => {
-      const fullPath = path.join(backupDir, file);
-      const stat = fs.statSync(fullPath);
-
-      return {
-        fileName: file,
-        sizeBytes: stat.size,
-        createdAt: stat.birthtime?.toISOString?.() || stat.mtime.toISOString(),
-        modifiedAt: stat.mtime.toISOString(),
-      };
-    })
-    .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
-}
-
 // Ile backupów trzymamy na gildię. Zrzut to ~40 KB, więc 10 sztuk to
 // pół megabajta - limit istnieje po to, żeby katalog nie rósł w nieskończoność
 // przy adminie klikającym "Utwórz backup" przed każdą zmianą, a nie po to,
 // żeby oszczędzać miejsce.
 const BACKUP_RETENTION = Number(process.env.BACKUP_RETENTION) || 10;
 
-function pruneGuildBackups(guildId) {
-  const { backupDir } = guildRegistry.getGuildPaths(guildId);
-
-  // listGuildBackups sortuje od najnowszego, więc do usunięcia idzie ogon.
-  const stale = listGuildBackups(guildId).slice(BACKUP_RETENTION);
-  const removed = [];
-
-  for (const backup of stale) {
-    try {
-      fs.unlinkSync(path.join(backupDir, backup.fileName));
-      removed.push(backup.fileName);
-    } catch (err) {
-      // Nieudane sprzątanie nie może wywrócić samego backupu - plik już
-      // powstał i jest ważniejszy niż limit.
-      logWarn("backup", "Could not prune old backup", {
-        guildId,
-        fileName: backup.fileName,
-        message: err?.message,
-      });
-    }
-  }
-
-  return removed;
-}
+const { listGuildBackups, pruneGuildBackups } = createBackupFiles({
+  fs,
+  path,
+  guildRegistry,
+  retention: BACKUP_RETENTION,
+  logWarn,
+});
 
 const app = express();
 
