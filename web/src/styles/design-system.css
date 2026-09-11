@@ -201,57 +201,6 @@
 }
 
 /* =========================================================================
-   ALIASY WSTECZNE
-   Stare polskie nazwy wskazują na nowe tokeny. Istniejące reguły działają
-   bez zmian, a widoki przenosimy na nowe nazwy pojedynczo.
-   Po zakończeniu migracji ten blok znika.
-   ========================================================================= */
-:root {
-  --tlo: var(--surface-0);
-  --tlo-glebokie: var(--surface-1);
-  --tlo-karta: var(--surface-2);
-  --tlo-podniesione: var(--layer-subtle);
-  --tlo-mocniejsze: var(--layer);
-  --tlo-pole: var(--layer-sunken);
-
-  --linia-slaba: var(--border-subtle);
-  --linia: var(--border);
-  --linia-mocna: var(--border-strong);
-
-  --tekst-jasny: var(--text-strong);
-  --tekst: var(--text);
-  --tekst-drugi: var(--text-muted);
-  --tekst-slaby: var(--text-faint);
-
-  --akcent: var(--accent);
-  --akcent-ciemny: var(--accent-hover);
-  --akcent-jasny: var(--accent-bright);
-  --akcent-tlo: var(--accent-bg);
-  --akcent-linia: var(--accent-border);
-
-  --ok-tlo: var(--ok-bg);
-  --ok-linia: var(--ok-border);
-  --uwaga: var(--warn);
-  --uwaga-tlo: var(--warn-bg);
-  --blad: var(--danger);
-  --blad-tlo: var(--danger-bg);
-  --blad-linia: var(--danger-border);
-
-  --r-mala: var(--radius-sm);
-  --r-srednia: var(--radius-md);
-  --r-karta: var(--radius-xl);
-  --r-pigulka: var(--radius-pill);
-  --odstep-karta: var(--space-6);
-
-  --przycisk: var(--surface-3);
-  --przycisk-hover: var(--surface-4);
-  --przycisk-linia: var(--border-strong);
-  --przycisk-linia-hover: var(--border-strong);
-
-  --mono: var(--font-mono);
-}
-
-/* =========================================================================
    PODSTAWY
    ========================================================================= */
 

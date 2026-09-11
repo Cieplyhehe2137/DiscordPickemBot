@@ -405,7 +405,7 @@ function EventPage() {
           {loadingEventStats && <Ladowanie>Ładowanie statystyk eventu...</Ladowanie>}
 
           {eventStatsError && (
-            <p className="admin-feedback admin-feedback--error">
+            <p className="ui-note ui-note--danger">
               {eventStatsError}
             </p>
           )}

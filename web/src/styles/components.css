@@ -140,6 +140,28 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Karta operacji nieodwracalnych: kasowanie eventu, czyszczenie danych.
+   Ma wygladac inaczej, zanim ktos przeczyta, co jest w srodku. */
+/* Karta ukladajaca dzieci w wiersz. Osobny modyfikator, bo samo dodanie
+   ui-row nie wystarczy: .ui-card stoi w pliku nizej i jego flex-direction
+   wygrywa, wiec zawartosc i tak spadala w slupek. */
+.ui-card--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ui-card--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+/* Wybrana karta w zestawie przelacznikow (sekcje panelu admina). */
+.ui-card--selected {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
 .ui-card--accent {
   border-color: var(--accent-border);
   box-shadow: var(--shadow-sm), var(--shadow-accent);
@@ -282,6 +304,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Drobny podpis pod wartoscia. ui-hint to nazwa kanoniczna - dziala wszedzie,
+   nie tylko w kafelku; ui-stat__hint zostaje, bo tak nazywa go polowa juz
+   przeniesionych widokow i obie nazwy to jedna i ta sama rzecz. */
+.ui-hint,
 .ui-stat__hint,
 .ui-stat > small {
   font-size: var(--text-xs);
@@ -938,6 +964,22 @@ a.ui-choice__option {
 
 .ui-field__input:focus-visible {
   box-shadow: var(--focus-ring);
+}
+
+/* Pole strony, ktora wygrala mape. Wpisujacy wynik widzi od razu, czy
+   klepnal go w dobra kolumne. */
+.ui-field--winner .ui-field__label {
+  color: var(--ok);
+}
+
+.ui-field--winner .ui-field__input {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+}
+
+.ui-field__input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .ui-score {
