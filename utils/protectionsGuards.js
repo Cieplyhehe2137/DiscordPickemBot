@@ -1,54 +1,13 @@
 const { withGuild } = require("./guildContext");
 const { logError } = require("./logger");
 const { isPickDeadlinePassed } = require("./deadlineRepository");
+// Sama normalizacja siedzi w module bez zaleznosci, zeby test mogl zaladowac
+// dokladnie te funkcje, ktora wykonuje produkcja.
+const { normalizePhase } = require("./phaseNames");
 
 // ======================================================
 // NORMALIZACJE
 // ======================================================
-
-function normalizePhase(phase) {
-  const value = String(phase || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-
-  const aliases = {
-    // SWISS
-    swiss_stage_1: "SWISS_STAGE1",
-    swiss_stage1: "SWISS_STAGE1",
-    stage1: "SWISS_STAGE1",
-
-    swiss_stage_2: "SWISS_STAGE2",
-    swiss_stage2: "SWISS_STAGE2",
-    stage2: "SWISS_STAGE2",
-
-    swiss_stage_3: "SWISS_STAGE3",
-    swiss_stage3: "SWISS_STAGE3",
-    stage3: "SWISS_STAGE3",
-
-    // PLAYOFFS
-    playoffs: "PLAYOFFS",
-
-    // PLAY-IN
-    playin: "PLAYIN",
-    play_in: "PLAYIN",
-
-    // DOUBLE ELIM
-    double: "DOUBLEELIM",
-    doubleelim: "DOUBLEELIM",
-    double_elim: "DOUBLEELIM",
-    double_elimination: "DOUBLEELIM",
-
-    // MATCHES
-    matches: "MATCHES",
-    match: "MATCHES",
-
-    // Generic Swiss identifier.
-    swiss: "SWISS",
-  };
-
-  return aliases[value] || value.toUpperCase();
-}
 
 function normalizeStage(stage) {
   const value = String(stage || "")
