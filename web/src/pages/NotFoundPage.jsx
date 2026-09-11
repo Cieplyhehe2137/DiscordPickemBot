@@ -18,11 +18,11 @@ function NotFoundPage() {
       </p>
 
       <div className="notfound-page__actions">
-        <Link className="home-button home-button--primary" to="/events">
+        <Link className="ui-btn ui-btn--primary" to="/events">
           Zobacz turnieje
         </Link>
 
-        <Link className="home-button home-button--secondary" to="/">
+        <Link className="ui-btn ui-btn--ghost" to="/">
           Strona główna
         </Link>
       </div>

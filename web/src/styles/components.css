@@ -635,3 +635,36 @@
 .ui-meter__fill--ok {
   background: var(--ok);
 }
+
+/* -------------------------------------------------------------------------
+   KAFELEK ENCJI
+   Karta z nazwą i zestawem plakietek: turniej, serwer, event na liście.
+   Jeden komponent zamiast trzech niemal identycznych.
+   ------------------------------------------------------------------------- */
+
+.ui-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.ui-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ui-tile__name {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+}
+
+.ui-tile__meta {
+  margin-top: auto;
+}

@@ -13,7 +13,6 @@
    Nie zmieniaja wygladu istniejacych komponentow - sluza nowym
    i migracji starych bez polowania na heksy. */
 
-
 * {
   box-sizing: border-box;
 }
@@ -218,328 +217,20 @@ p {
    HOME PAGE
 ========================= */
 
-.home-page {
-  min-height: calc(100vh - 72px);
-  display: block;
-  text-align: left;
-}
-
-.home-hero {
-  width: min(1200px, calc(100% - 32px));
-  min-height: calc(100vh - 72px);
-  margin: 0 auto;
-  padding: 80px 0;
-
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  align-items: center;
-  gap: 72px;
-}
-
-.home-hero__content {
-  max-width: 680px;
-}
-
-.home-kicker {
-  display: inline-flex;
-  align-items: center;
-
-  padding: 8px 12px;
-
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: var(--r-pigulka);
-
-  background: rgba(139, 92, 246, 0.08);
-  color: #a78bfa;
-
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.home-hero h1 {
-  margin: 24px 0 0;
-
-  font-size: clamp(3.5rem, 7vw, 6rem);
-  line-height: 0.95;
-  letter-spacing: -0.06em;
-}
-
-.home-hero h1 span {
-  display: block;
-  color: var(--akcent);
-}
-
-.home-hero p {
-  max-width: 600px;
-  margin: 28px 0 0;
-
-  color: var(--tekst-drugi);
-
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.home-actions {
-  margin-top: 32px;
-
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.home-button {
-  min-height: 50px;
-  padding: 0 20px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: var(--r-srednia);
-
-  font-weight: 800;
-
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.home-button:hover {
-  transform: translateY(-2px);
-}
-
-.home-button--primary {
-  background: var(--akcent-ciemny);
-  color: white;
-}
-
-.home-button--primary:hover {
-  background: var(--akcent);
-}
-
-.home-button--secondary {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--tekst);
-}
-
-.home-button--secondary:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-}
-
 /* =========================
    MATCH PREVIEW
 ========================= */
-
-.home-preview {
-  padding: 24px;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-karta);
-
-  background: linear-gradient(
-    145deg,
-    rgba(24, 24, 27, 0.95),
-    rgba(12, 12, 15, 0.98)
-  );
-
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.35),
-    0 0 80px rgba(124, 58, 237, 0.08);
-}
-
-.home-preview__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  color: var(--tekst-slaby);
-
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.home-preview__top strong {
-  padding: 6px 9px;
-
-  border-radius: var(--r-mala);
-
-  background: rgba(124, 58, 237, 0.12);
-  color: #a78bfa;
-}
-
-.home-preview__event {
-  margin: 18px 0;
-  padding-bottom: 18px;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-
-  color: var(--tekst);
-
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.home-preview__team {
-  min-height: 72px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.home-preview__team > div {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.home-preview__team > div > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.home-preview__team strong {
-  font-size: 0.9rem;
-}
-
-.home-preview__team small {
-  color: var(--tekst-slaby);
-}
-
-.home-preview__team b {
-  font-size: 2rem;
-}
-
-.home-team-logo {
-  width: 48px;
-  height: 48px;
-
-  display: grid;
-  place-items: center;
-
-  border-radius: var(--r-srednia);
-
-  background: linear-gradient(135deg, #312e81, #581c87);
-
-  color: #ddd6fe;
-
-  font-weight: 900;
-}
-
-.home-team-logo--blue {
-  background: linear-gradient(135deg, #172554, #1e3a8a);
-
-  color: #bfdbfe;
-}
-
-.home-preview__vs {
-  margin: 2px 0;
-
-  color: var(--przycisk-linia-hover);
-
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-align: center;
-}
-
-.home-preview__maps {
-  margin-top: 14px;
-
-  display: grid;
-  gap: 8px;
-}
-
-.home-preview__maps div {
-  padding: 11px 12px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  border-radius: var(--r-mala);
-
-  background: rgba(255, 255, 255, 0.025);
-
-  color: var(--tekst-slaby);
-
-  font-size: 0.8rem;
-}
-
-.home-preview__maps strong {
-  color: var(--tekst);
-}
 
 /* =========================
    HOME MOBILE
 ========================= */
 
 @media (max-width: 900px) {
-  .home-hero {
-    grid-template-columns: 1fr;
-    gap: 56px;
 
-    padding: 64px 0;
-  }
-
-  .home-hero__content {
-    max-width: none;
-    text-align: center;
-  }
-
-  .home-kicker {
-    margin: 0 auto;
-  }
-
-  .home-hero p {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .home-actions {
-    justify-content: center;
-  }
-
-  .home-preview {
-    width: min(100%, 520px);
-    margin: 0 auto;
-  }
 }
 
 @media (max-width: 640px) {
-  .home-page {
-    min-height: calc(100vh - 64px);
-  }
 
-  .home-hero {
-    width: min(100% - 24px, 1200px);
-    min-height: auto;
-
-    padding: 52px 0;
-  }
-
-  .home-hero h1 {
-    font-size: clamp(3rem, 15vw, 4.8rem);
-  }
-
-  .home-actions {
-    flex-direction: column;
-  }
-
-  .home-button {
-    width: 100%;
-  }
-
-  .home-preview {
-    padding: 18px;
-  }
 }
 
 /* =========================
@@ -2014,48 +1705,6 @@ p {
   color: rgba(255, 255, 255, 0.55);
 }
 
-.leaderboard-page {
-  width: min(1100px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 72px 0 100px;
-}
-
-.leaderboard-page h1 {
-  margin: 20px 0 0;
-  font-size: clamp(2.5rem, 4vw, 4rem);
-  letter-spacing: -0.04em;
-  line-height: 1.05;
-}
-
-.leaderboard-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 32px;
-}
-
-.leaderboard-row {
-  display: grid;
-  grid-template-columns: 80px 1fr auto;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-srednia);
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.leaderboard-row > strong:first-child {
-  color: var(--akcent-jasny);
-}
-
-.leaderboard-row > strong:last-child {
-  color: var(--tekst-jasny);
-}
-
-.leaderboard-row span {
-  color: rgba(255, 255, 255, 0.72);
-}
-
 .leaderboard-empty {
   padding: 24px;
   border: 1px dashed rgba(255, 255, 255, 0.12);
@@ -2063,27 +1712,6 @@ p {
   background: rgba(255, 255, 255, 0.02);
   text-align: center;
   color: rgba(255, 255, 255, 0.55);
-}
-
-.leaderboard-player {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.leaderboard-player img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.leaderboard-player span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .admin-result-page {
@@ -3931,28 +3559,6 @@ p {
   color: #d97706;
 }
 
-.leaderboard-row--gold {
-  background: rgba(250, 204, 21, 0.08);
-  border-color: rgba(250, 204, 21, 0.22);
-}
-
-.leaderboard-row--silver {
-  background: rgba(203, 213, 225, 0.06);
-  border-color: rgba(203, 213, 225, 0.18);
-}
-
-.leaderboard-row--bronze {
-  background: rgba(180, 83, 9, 0.08);
-  border-color: rgba(180, 83, 9, 0.22);
-}
-
-.leaderboard-rank {
-  min-width: 36px;
-  text-align: center;
-  font-size: 1.35rem;
-  line-height: 1;
-}
-
 .player-profile-card {
   width: min(700px, calc(100% - 32px));
   margin: 32px auto 0;
@@ -5632,22 +5238,6 @@ p {
    RANKING - rozbicie na fazy
    ========================================================= */
 
-.leaderboard-score {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  min-width: 0;
-}
-
-.leaderboard-breakdown {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--tekst-slaby);
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
 /* =========================================================
    PANEL ADMINA - wspolne
    ========================================================= */
@@ -6096,10 +5686,6 @@ p {
     padding-top: 0;
   }
 
-  .leaderboard-breakdown {
-    font-size: 0.7rem;
-  }
-
   .phase-admin__team,
   .mvp-admin__candidate {
     font-size: 0.8rem;
@@ -6283,80 +5869,7 @@ p {
    SERWERY NA STRONIE GLOWNEJ
    ========================================================= */
 
-.home-servers {
-  width: min(1200px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 0 0 80px;
-}
-
-.home-servers h2 {
-  margin: 8px 0 20px;
-  font-size: 1.6rem;
-}
-
-.home-servers__stan {
-  color: var(--tekst-drugi);
-}
-
-.home-servers__lista {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.home-server {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  padding: var(--odstep-karta);
-
-  border: 1px solid var(--linia);
-  border-radius: var(--r-karta);
-  background: var(--tlo-podniesione);
-}
-
-.home-server strong {
-  color: var(--tekst-jasny);
-  font-size: 1rem;
-}
-
-.home-server__liczby {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-
-  color: var(--tekst-drugi);
-  font-size: 0.9rem;
-}
-
 /* Turniej w trakcie to jedyny powód, żeby wejść tu teraz - stąd akcent. */
-.home-server__otwarte {
-  padding: 2px 8px;
-
-  border: 1px solid var(--ok-linia);
-  border-radius: var(--r-pigulka);
-  background: var(--ok-tlo);
-
-  color: var(--ok);
-  font-style: normal;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.home-server__link {
-  margin-top: 2px;
-
-  color: var(--akcent-jasny);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.home-server__link:hover {
-  text-decoration: underline;
-}
 
 /* =========================================================
    START TYPOWANIA W ZARZADZANIU EVENTEM
@@ -6547,23 +6060,9 @@ main > .matches-page__back {
 /* Strona rankingu jest kolumna flex z align-items: center, wiec lista
    kurczyla sie do szerokosci tresci - 318 px zamiast 465 px kolumny.
    Kolumna z nazwa miala przez to 124 px i dluzsze nicki sie urywaly. */
-.leaderboard-list {
-  align-self: stretch;
-}
 
 /* Awatar ma tylko czesc graczy, wiec nazwy startowaly z roznych miejsc.
    Pusty slot tej samej szerokosci wyrownuje wiersze i daje rytm liscie. */
-.leaderboard-player:not(:has(img))::before {
-  content: "";
-
-  flex: none;
-  width: 36px;
-  height: 36px;
-
-  border: 1px solid var(--linia);
-  border-radius: 50%;
-  background: var(--tlo-mocniejsze);
-}
 
 /* Naglowek sekcji stal przy krawedzi okna, a karty pod nim w kolumnie
    tresci - wygladal jak wypadniety poza uklad. Ta sama kolumna co reszta. */
@@ -6646,27 +6145,10 @@ main > .matches-page__back {
   cursor: default;
 }
 
-.leaderboard-strony__opis {
-  color: var(--tekst-drugi);
-  font-size: 0.85rem;
-  text-align: center;
-}
-
-.leaderboard-strony__opis strong {
-  color: var(--tekst-jasny);
-}
-
 /* Liczba graczy to informacja poboczna - na wąskim ekranie schodzi
    do osobnej linii, żeby nie ściskać numeru strony. */
-.leaderboard-strony__opis em {
-  font-style: normal;
-  color: var(--tekst-slaby);
-}
 
 @media (max-width: 480px) {
-  .leaderboard-strony__opis em {
-    display: block;
-  }
 }
 
 /* =========================================================
@@ -6764,19 +6246,6 @@ main > .matches-page__back {
   background: rgba(124, 58, 237, 0.22);
 }
 
-.leaderboard-szukaj__wynik {
-  align-self: stretch;
-
-  margin: 12px 0 0;
-
-  color: var(--tekst-drugi);
-  font-size: 0.85rem;
-}
-
-.leaderboard-szukaj__wynik strong {
-  color: var(--tekst-jasny);
-}
-
 /* =========================================================
    STAN LADOWANIA
    ========================================================= */
@@ -6861,4 +6330,59 @@ main > .matches-page__back {
     min-height: 38vh;
     font-size: 1.1rem;
   }
+}
+
+/* =========================================================================
+   STRONA GŁÓWNA - HERO
+   Jedyna reguła specyficzna dla tej strony. Reszta dashboardu stoi na
+   komponentach systemu (ui-stat, ui-tile, ui-badge).
+   ========================================================================= */
+
+.home-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+
+  padding: var(--space-16) var(--space-4) var(--space-12);
+  text-align: center;
+}
+
+/* Poświata za nagłówkiem. Daje głębię bez dokładania elementu do DOM -
+   i znika przy prefers-reduced-motion razem z resztą ozdobników, bo jest
+   tylko tłem, a nie treścią. */
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% 0 40%;
+  z-index: -1;
+
+  background: radial-gradient(
+    ellipse at 50% 0%,
+    var(--accent-glow),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.home-hero h1 {
+  margin: 0;
+  max-width: 18ch;
+  font-size: var(--text-display);
+  font-weight: var(--weight-black);
+  color: var(--text-strong);
+}
+
+/* Druga i trzecia linia w akcencie - hierarchia bez dodatkowego rozmiaru. */
+.home-hero h1 span {
+  color: var(--accent);
+}
+
+.home-hero > p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
 }
