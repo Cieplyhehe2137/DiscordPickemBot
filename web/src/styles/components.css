@@ -439,6 +439,57 @@
 }
 
 /* -------------------------------------------------------------------------
+   MECZ
+   Starcie dwoch stron. Nazwy druzyn dostaja rowne polowy, zeby dluzsza nie
+   spychala krotszej - przy "MOUZ" kontra "Natus Vincere" bez tego jedna
+   strona wyglada na wazniejsza.
+   ------------------------------------------------------------------------- */
+
+.ui-match {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.ui-match__team {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ui-match__team--b {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ui-match__side {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+.ui-match__name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ui-match__vs {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
    AWATAR
    ------------------------------------------------------------------------- */
 
