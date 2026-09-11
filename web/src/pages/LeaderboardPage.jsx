@@ -4,7 +4,19 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 import { getEventLeaderboard } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
 import { useAuth } from "../auth/useAuth.js";
-import Ladowanie from "../components/Ladowanie.jsx";
+
+// Rozbicie punktów na fazy. Wcześniej sklejane w jeden szary ciąg
+// ("Swiss 42 · Playoffs 4"), w którym nie dało się nic wyłowić wzrokiem.
+function rozbicieNaFazy(player) {
+  return [
+    ["Swiss", player.swiss_points],
+    ["Play-In", player.playin_points],
+    ["Playoffs", player.playoffs_points],
+    ["Double Elim", player.doubleelim_points],
+    ["Mecze", player.phase_match_points],
+    ["MVP", player.mvp_points],
+  ].filter(([, punkty]) => Number(punkty) > 0);
+}
 
 function LeaderboardPage() {
   const { slug } = useParams();
@@ -105,27 +117,74 @@ function LeaderboardPage() {
     refreshLeaderboard();
   }, [realtimeRefresh, slug, strona, szukaj]);
 
+  // Szkielet zamiast spinnera: lista od razu pokazuje, ile wierszy będzie,
+  // więc układ nie skacze w chwili, gdy dane dojdą.
   if (loading) {
-    return <Ladowanie>Ładowanie rankingu...</Ladowanie>;
+    return (
+      <main className="ui-page">
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Ranking</span>
+            <h2>Ranking graczy</h2>
+          </div>
+        </div>
+
+        <div
+          className="ui-table"
+          aria-busy="true"
+          aria-label="Ładowanie rankingu"
+        >
+          {Array.from({ length: 8 }, (_, i) => (
+            <div className="ui-skeleton ui-skeleton--row" key={i} />
+          ))}
+        </div>
+      </main>
+    );
   }
 
   if (error) {
-    return <p>Nie udało się pobrać rankingu: {error}</p>;
+    return (
+      <main className="ui-page">
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
+
+          <strong className="ui-error__title">
+            Nie udało się wczytać rankingu
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="leaderboard-page">
-      <span className="events-kicker">Ranking</span>
+    <main className="ui-page">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Ranking</span>
 
-      <h1>Ranking graczy</h1>
+          <h2>Ranking graczy</h2>
 
-      <Link className="matches-page__back" to={`/events/${slug}`}>
-        ← Wróć do eventu
-      </Link>
+          {strony?.wRankingu > 0 && (
+            <p>
+              {strony.wRankingu}{" "}
+              {odmien(strony.wRankingu, "gracz", "gracze", "graczy")} w
+              klasyfikacji
+            </p>
+          )}
+        </div>
+
+        <Link className="ui-btn ui-btn--ghost ui-btn--sm" to={`/events/${slug}`}>
+          ← Wróć do eventu
+        </Link>
+      </div>
 
       {/* Przy 500 graczach na 11 stronach jedyną drogą do własnego miejsca
           było klikanie "Następna" dziewięć razy. */}
-      <div className="leaderboard-szukaj">
+      <div className="ui-row ui-row--wrap leaderboard-szukaj">
         <input
           type="search"
           value={wpisane}
@@ -135,14 +194,18 @@ function LeaderboardPage() {
         />
 
         {user?.id && (
-          <button type="button" onClick={() => setZnajdz(user.id)}>
+          <button
+            type="button"
+            className="ui-btn ui-btn--sm"
+            onClick={() => setZnajdz(user.id)}
+          >
             Znajdź mnie
           </button>
         )}
       </div>
 
       {szukaj && strony && (
-        <p className="leaderboard-szukaj__wynik">
+        <p className="ui-stat__hint">
           {strony.wszystkich > 0 ? (
             <>
               Znaleziono <strong>{strony.wszystkich}</strong> z{" "}
@@ -157,116 +220,126 @@ function LeaderboardPage() {
         </p>
       )}
 
-      <div className="leaderboard-list">
-        {leaderboard.length === 0 ? (
-          <div className="leaderboard-empty">
-            {uczestnicy > 0 ? (
-              <>
-                <strong>Ranking jeszcze się nie zaczął.</strong>
+      {leaderboard.length === 0 ? (
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            {uczestnicy > 0 ? "⏳" : "🎯"}
+          </span>
 
-                <p>
-                  Ten event ma już {uczestnicy}{" "}
-                  {odmien(uczestnicy, "gracza", "graczy", "graczy")} z oddanymi
-                  typami, ale nikt nie ma jeszcze punktów — pojawią się po
-                  pierwszych rozliczonych meczach i fazach.
-                </p>
-              </>
-            ) : (
-              <>
-                <strong>Nikt jeszcze nie typował.</strong>
-
-                <p>Ranking pojawi się, gdy pierwsi gracze oddadzą typy.</p>
-              </>
-            )}
-          </div>
-        ) : (
-          leaderboard.map((player) => (
-            // Miejsce bierzemy z pola rank, policzonego po stronie serwera na
-            // pełnej liście. Wcześniej szło z indeksu w tablicy, więc każda
-            // strona zaczynała się od pierwszego miejsca i medali - na drugiej
-            // stronie gracz z 51. miejsca dostawał złoto.
-            <div
-              className={`leaderboard-row ${
-                player.rank === 1
-                  ? "leaderboard-row--gold"
-                  : player.rank === 2
-                    ? "leaderboard-row--silver"
-                    : player.rank === 3
-                      ? "leaderboard-row--bronze"
-                      : ""
-              }`}
-              key={player.user_id}
-            >
-              <strong className="leaderboard-rank">
-                {player.rank === 1
-                  ? "🥇"
-                  : player.rank === 2
-                    ? "🥈"
-                    : player.rank === 3
-                      ? "🥉"
-                      : `#${player.rank}`}
+          {uczestnicy > 0 ? (
+            <>
+              <strong className="ui-empty__title">
+                Ranking jeszcze się nie zaczął
               </strong>
 
-              <Link
-                className="leaderboard-player"
-                to={`/events/${slug}/player/${player.user_id}`}
-              >
-                {player.avatar && (
-                  <img
-                    src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=64`}
-                    alt=""
-                  />
-                )}
+              <p className="ui-empty__text">
+                Ten event ma już {uczestnicy}{" "}
+                {odmien(uczestnicy, "gracza", "graczy", "graczy")} z oddanymi
+                typami, ale nikt nie ma jeszcze punktów — pojawią się po
+                pierwszych rozliczonych meczach i fazach.
+              </p>
+            </>
+          ) : (
+            <>
+              <strong className="ui-empty__title">Nikt jeszcze nie typował</strong>
 
-                <span>{player.displayname ?? player.user_id}</span>
-              </Link>
+              <p className="ui-empty__text">
+                Ranking pojawi się, gdy pierwsi gracze oddadzą typy.
+              </p>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="ui-table">
+          <div className="ui-table__head" aria-hidden="true">
+            <span>#</span>
+            <span>Gracz</span>
+            <span>Rozbicie</span>
+            <span>Punkty</span>
+          </div>
 
-              <div className="leaderboard-score">
-                <strong>{Number(player.total_points ?? 0)} pkt</strong>
+          {leaderboard.map((player) => {
+            // Miejsce bierzemy z pola rank, policzonego po stronie serwera na
+            // pełnej liście. Wcześniej szło z indeksu w tablicy, więc każda
+            // strona zaczynała się od pierwszego miejsca i medali.
+            const podium = player.rank <= 3 ? ` ui-row-item--${player.rank}` : "";
 
-                {/* Rozbicie na fazy - dane były liczone od dawna, ale
-                    zwracał je wyłącznie endpoint, którego front nie wołał. */}
-                <span className="leaderboard-breakdown">
-                  {[
-                    ["Swiss", player.swiss_points],
-                    ["Play-In", player.playin_points],
-                    ["Playoffs", player.playoffs_points],
-                    ["Double Elim", player.doubleelim_points],
-                    ["Mecze", player.phase_match_points],
-                    ["MVP", player.mvp_points],
-                  ]
-                    .filter(([, punkty]) => Number(punkty) > 0)
-                    .map(([nazwa, punkty]) => `${nazwa} ${punkty}`)
-                    .join(" · ") || "brak punktów"}
-                </span>
+            const ja =
+              user?.id && String(user.id) === String(player.user_id)
+                ? " ui-row-item--me"
+                : "";
+
+            const fazy = rozbicieNaFazy(player);
+
+            return (
+              <div className={`ui-row-item${podium}${ja}`} key={player.user_id}>
+                <span className="ui-row-item__rank">{player.rank}</span>
+
+                <Link
+                  className="ui-row-item__who"
+                  to={`/events/${slug}/player/${player.user_id}`}
+                >
+                  {/* Awatar zawsze zajmuje miejsce - bez tego wiersze graczy
+                      bez awatara były węższe i lista falowała. */}
+                  {player.avatar ? (
+                    <img
+                      className="ui-avatar"
+                      src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=64`}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="ui-avatar" aria-hidden="true" />
+                  )}
+
+                  <span className="ui-row-item__name">
+                    {player.displayname ?? player.user_id}
+                  </span>
+                </Link>
+
+                <div className="ui-row-item__meta">
+                  {fazy.length > 0 ? (
+                    fazy.map(([nazwa, punkty]) => (
+                      <span className="ui-badge" key={nazwa}>
+                        {nazwa} {punkty}
+                      </span>
+                    ))
+                  ) : (
+                    <span>brak punktów</span>
+                  )}
+                </div>
+
+                <strong className="ui-row-item__score">
+                  {Number(player.total_points ?? 0)}
+                </strong>
               </div>
-            </div>
-          ))
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Pasek stron pokazuje się dopiero, gdy jest co przewijać. */}
       {strony && strony.ile > 1 && (
-        <nav className="leaderboard-strony" aria-label="Strony rankingu">
+        <nav
+          className="ui-row ui-row--between leaderboard-strony"
+          aria-label="Strony rankingu"
+        >
           <button
             type="button"
+            className="ui-btn ui-btn--ghost ui-btn--sm"
             disabled={strona <= 1}
             onClick={() => idzDoStrony(strona - 1)}
           >
             ← Poprzednia
           </button>
 
-          <span className="leaderboard-strony__opis">
+          <span className="ui-stat__hint">
             Strona <strong>{strony.numer}</strong> z {strony.ile}
-            <em>
-              {" · "}
-              {strony.wszystkich}{" "}
-              {odmien(strony.wszystkich, "gracz", "gracze", "graczy")}
-            </em>
           </span>
 
           <button
             type="button"
+            className="ui-btn ui-btn--ghost ui-btn--sm"
             disabled={strona >= strony.ile}
             onClick={() => idzDoStrony(strona + 1)}
           >
