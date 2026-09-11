@@ -244,6 +244,16 @@
   gap: var(--space-3);
 }
 
+/* Na telefonie auto-fit schodzil do JEDNEJ kolumny - w karcie zostawalo
+   285px, a dwie kolumny po 140px potrzebowaly o kilka pikseli wiecej.
+   Dziesiec kafelkow rozkladalo sie wtedy na ekran wysokosci ekranu i
+   polowy nastepnego. Dwie kolumny sa tu decyzja, nie wynikiem zaokraglenia. */
+@media (max-width: 520px) {
+  .ui-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .ui-stat {
   display: flex;
   flex-direction: column;
@@ -1103,6 +1113,20 @@ a.ui-choice__option {
   justify-self: end;
 }
 
+/* Na telefonie numer mapy idzie nad zawartosc. Obok niej plakietki lamaly
+   sie na kilka linii i numer wisial przy ostatniej z nich, jakby opisywal
+   co innego. */
+@media (max-width: 520px) {
+  .ui-map-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .ui-map-row .ui-scoreline {
+    justify-self: start;
+  }
+}
+
 /* Na telefonie nazwy drużyn w wierszu mapy znikają: stoją już w wyniku
    nad listą, a tutaj tylko się ucinały. Kolejność A:B zostaje ta sama. */
 @media (max-width: 560px) {
@@ -1143,4 +1167,96 @@ a.ui-choice__option {
 
 .ui-count--done {
   color: var(--ok);
+}
+
+/* -------------------------------------------------------------------------
+   ROZWIJANY WIERSZ
+   Wiersz historii, który po kliknięciu pokazuje szczegóły.
+   Cały wiersz jest przyciskiem - wcześniej klikalny był tylko div, a
+   strzałka leżała OBOK niego, więc kliknięcie w strzałkę nic nie robiło
+   i nic nie dało się rozwinąć z klawiatury.
+   ------------------------------------------------------------------------- */
+
+.ui-disclosure {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+
+  background: transparent;
+  color: inherit;
+
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.ui-disclosure:hover {
+  background: var(--layer-subtle);
+}
+
+.ui-disclosure__icon {
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.ui-disclosure__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-disclosure__main strong {
+  overflow: hidden;
+  font-size: var(--text-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-strong);
+}
+
+.ui-disclosure__main span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ui-disclosure__points {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-disclosure__points--scored {
+  color: var(--ok);
+}
+
+.ui-disclosure__chevron {
+  color: var(--text-faint);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.ui-disclosure[aria-expanded="true"] .ui-disclosure__chevron {
+  transform: rotate(180deg);
+}
+
+/* Na wąskim ekranie punkty schodzą pod nazwy drużyn - w jednym wierszu
+   nie mieściły się razem z nickiem i strzałką. */
+@media (max-width: 480px) {
+  .ui-disclosure {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .ui-disclosure__points {
+    grid-column: 2;
+    font-size: var(--text-md);
+  }
 }
