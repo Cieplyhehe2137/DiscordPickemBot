@@ -490,16 +490,16 @@ function EventPage() {
           )}
 
           {topPlayers.length > 0 && (
-            <section className="event-podium">
-              <div className="event-podium__header">
-                <span className="ui-kicker">TOP 3</span>
+            <section className="ui-stack ui-stack--loose">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">TOP 3</span>
 
-                <h2>Liderzy eventu</h2>
+                  <h2>Liderzy eventu</h2>
+                </div>
               </div>
 
-              <div
-                className={`event-podium__grid event-podium__grid--${topPlayers.length}`}
-              >
+              <div className="ui-tiles">
                 {topPlayers.map((player, index) => {
                   // Miejsce z serwera; indeks tylko wtedy, gdy go zabraknie.
                   // Dziś podium bierze zawsze pierwszą stronę rankingu, więc
@@ -510,28 +510,40 @@ function EventPage() {
                   return (
                     <Link
                       key={player.user_id}
-                      className={`event-podium__player event-podium__player--${position}`}
+                      className={`ui-card ui-card--interactive ui-tile ${
+                        ["", "ui-card--gold", "ui-card--silver", "ui-card--bronze"][
+                          position
+                        ] ?? ""
+                      }`}
                       to={`/events/${slug}/player/${player.user_id}`}
                     >
-                      <div className="event-podium__medal">
-                        {position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}
+                      <div className="ui-row ui-row--full">
+                        {player.avatar ? (
+                          <img
+                            className="ui-avatar ui-avatar--lg"
+                            src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
+                            alt=""
+                          />
+                        ) : (
+                          <span className="ui-avatar ui-avatar--lg ui-avatar--initials">
+                            {player.displayname?.charAt(0)?.toUpperCase() ?? "?"}
+                          </span>
+                        )}
+
+                        <span className="ui-badge">
+                          {position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}{" "}
+                          Miejsce {position}
+                        </span>
                       </div>
 
-                      {player.avatar ? (
-                        <img
-                          className="event-podium__avatar"
-                          src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="event-podium__avatar event-podium__avatar--empty">
-                          {player.displayname?.charAt(0)?.toUpperCase() ?? "?"}
-                        </div>
-                      )}
+                      <strong className="ui-tile__name">
+                        {player.displayname ?? player.user_id}
+                      </strong>
 
-                      <strong>{player.displayname ?? player.user_id}</strong>
-
-                      <span>{Number(player.total_points ?? 0)} pkt</span>
+                      <span className="ui-stat__value ui-tile__meta">
+                        {Number(player.total_points ?? 0)}
+                        <small className="ui-stat__hint"> pkt</small>
+                      </span>
                     </Link>
                   );
                 })}
@@ -669,9 +681,9 @@ function EventPage() {
               </section>
             )}
 
-          <section className="event-page__grid">
+          <section className="ui-tiles">
             <Link
-              className="event-section-card event-section-card--matches"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/matches`}
             >
               <span>🎯 Mecze</span>
@@ -690,8 +702,8 @@ function EventPage() {
               <Link
                 className={
                   pickemDruzyn.otwarte
-                    ? "event-section-card event-section-card--pickem event-section-card--pickem-otwarte"
-                    : "event-section-card event-section-card--pickem"
+                    ? "ui-card ui-card--interactive ui-card--accent ui-tile"
+                    : "ui-card ui-card--interactive ui-tile"
                 }
                 to={sciezkaFazy(slug, pickemDruzyn.faza)}
               >
@@ -706,7 +718,7 @@ function EventPage() {
             )}
 
             <Link
-              className="event-section-card event-section-card--picks"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-picks`}
             >
               <span>✓ Moje typy</span>
@@ -719,7 +731,7 @@ function EventPage() {
             </Link>
 
             <Link
-              className="event-section-card event-section-card--my-stats"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-stats`}
             >
               <span>📊 Moje statystyki</span>
@@ -728,7 +740,7 @@ function EventPage() {
             </Link>
 
             <Link
-              className="event-section-card event-section-card--leaderboard"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/leaderboard`}
             >
               <span>🏆 Ranking</span>

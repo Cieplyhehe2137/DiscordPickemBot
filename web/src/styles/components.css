@@ -145,6 +145,20 @@
   box-shadow: var(--shadow-sm), var(--shadow-accent);
 }
 
+/* Podium na kartach. Kolor na obramowaniu, nie na tle - ta sama zasada co
+   w wierszach rankingu, zeby trzy pierwsze miejsca nie przytlaczaly reszty. */
+.ui-card--gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+
+.ui-card--silver {
+  border-color: color-mix(in srgb, var(--silver) 35%, transparent);
+}
+
+.ui-card--bronze {
+  border-color: color-mix(in srgb, var(--bronze) 35%, transparent);
+}
+
 /* -------------------------------------------------------------------------
    PLAKIETKA
    Jeden komponent na wszystkie statusy. Ton niesie znaczenie, nie rozmiar.
@@ -438,6 +452,16 @@
   object-fit: cover;
 }
 
+/* Zastepnik, gdy gracz nie ma awatara na Discordzie. Inicjal zamiast pustego
+   kola - kolo bez niczego wyglada jak obrazek, ktory sie nie wczytal. */
+.ui-avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+}
+
 .ui-avatar--lg {
   width: 64px;
   height: 64px;
@@ -667,7 +691,18 @@
   color: inherit;
 }
 
-.ui-tile__name {
+/* Pierwszy goly span w kafelku czytamy jako kicker - pozwala przeniesc
+   istniejace karty nawigacyjne zmiana nazwy klasy zamiast przepisywania. */
+.ui-tile > span:first-child {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent-bright);
+}
+
+.ui-tile__name,
+.ui-tile > strong {
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
   line-height: var(--leading-snug);

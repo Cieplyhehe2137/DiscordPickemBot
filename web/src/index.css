@@ -233,36 +233,10 @@ p {
 
 }
 
-.events-kicker {
-  display: inline-flex;
-  padding: 8px 12px;
-
-  border: 1px solid rgba(139, 92, 246, 0.28);
-  border-radius: var(--r-pigulka);
-
-  background: rgba(139, 92, 246, 0.08);
-  color: #a78bfa;
-
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 @media (max-width: 900px) {
 }
 
 @media (max-width: 640px) {
-}
-
-/* =========================
-   EVENT PAGE
-========================= */
-
-.event-page {
-  min-height: calc(100vh - 72px);
-  display: block;
-  text-align: left;
 }
 
 .event-page__hero {
@@ -288,79 +262,14 @@ p {
   line-height: 1.7;
 }
 
-.event-page__grid {
-  width: min(1200px, calc(100% - 32px));
-  margin: 0 auto;
-  padding-bottom: 80px;
-
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.event-section-card {
-  min-height: 170px;
-  padding: 24px;
-
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-karta);
-
-  background: rgba(255, 255, 255, 0.025);
-
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.event-section-card:hover {
-  transform: translateY(-3px);
-
-  border-color: rgba(124, 58, 237, 0.28);
-
-  background: rgba(124, 58, 237, 0.04);
-}
-
-.event-section-card span {
-  color: #a78bfa;
-
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.event-section-card strong {
-  max-width: 220px;
-
-  color: var(--tekst-jasny);
-
-  font-size: 1.25rem;
-  line-height: 1.35;
-}
-
 @media (max-width: 900px) {
-  .event-page__grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
-  .event-page {
-    min-height: calc(100vh - 64px);
-  }
 
   .event-page__hero {
     width: min(100% - 24px, 1200px);
     padding: 52px 0 30px;
-  }
-
-  .event-page__grid {
-    width: min(100% - 24px, 1200px);
   }
 }
 
@@ -390,48 +299,7 @@ p {
   font-weight: 800;
 }
 
-.event-stats {
-  width: min(1200px, calc(100% - 32px));
-  margin: 0 auto 24px;
-
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.event-stat {
-  padding: 20px;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-karta);
-
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.event-stat span {
-  display: block;
-
-  color: var(--tekst-slaby);
-
-  font-size: 0.75rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.event-stat strong {
-  display: block;
-  margin-top: 8px;
-
-  font-size: 2rem;
-  letter-spacing: -0.04em;
-}
-
 @media (max-width: 640px) {
-  .event-stats {
-    width: min(100% - 24px, 1200px);
-    grid-template-columns: 1fr;
-  }
 }
 
 /* =========================
@@ -1358,36 +1226,6 @@ p {
   .my-picks-pagination {
     flex-wrap: wrap;
   }
-}
-
-.event-section-card--matches:hover {
-  border-color: rgba(59, 130, 246, 0.55);
-}
-
-.event-section-card--picks:hover {
-  border-color: rgba(124, 58, 237, 0.6);
-}
-
-.event-section-card--my-stats {
-  border-color: rgba(139, 92, 246, 0.22);
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.08),
-    rgba(255, 255, 255, 0.02)
-  );
-}
-
-.event-section-card--my-stats:hover {
-  border-color: rgba(139, 92, 246, 0.45);
-  background: linear-gradient(
-    135deg,
-    rgba(139, 92, 246, 0.14),
-    rgba(255, 255, 255, 0.035)
-  );
-}
-
-.event-section-card--leaderboard:hover {
-  border-color: rgba(234, 179, 8, 0.55);
 }
 
 .event-phases {
@@ -3524,14 +3362,6 @@ p {
   white-space: nowrap;
 }
 
-.event-stat small {
-  display: block;
-}
-
-.event-stat small + small {
-  margin-top: 4px;
-}
-
 .match-community-stats {
   margin-top: 32px;
   padding: 24px;
@@ -3932,46 +3762,6 @@ p {
   .player-profile-comparison__grid {
     grid-template-columns: repeat(2, 1fr);
   }
-}
-
-.event-podium {
-  width: min(900px, calc(100% - 32px));
-  margin: 48px auto 0;
-}
-
-.event-podium__header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.event-podium__header h2 {
-  margin: 10px 0 0;
-  font-size: 1.75rem;
-}
-
-.event-podium__medal {
-  font-size: 1.75rem;
-}
-
-.event-podium__avatar {
-  width: 64px;
-  height: 64px;
-
-  border-radius: 50%;
-  object-fit: cover;
-
-  border: 2px solid rgba(255, 255, 255, 0.12);
-}
-
-.event-podium__avatar--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 1.25rem;
-  font-weight: 700;
-
-  background: rgba(255, 255, 255, 0.06);
 }
 
 @media (max-width: 700px) {
@@ -5307,38 +5097,6 @@ p {
     font-size: 0.8rem;
     padding: 7px 12px;
   }
-}
-
-/* =========================================================
-   KAFELEK TYPOWANIA DRUZYN + PASEK FAZ
-   ========================================================= */
-
-.event-section-card--pickem:hover {
-  border-color: var(--akcent-linia);
-}
-
-/* Gdy typowanie jest otwarte, kafelek jest wezwaniem do dzialania -
-   dlatego zielony, a nie kolejny fioletowy jak reszta siatki. */
-.event-section-card--pickem-otwarte {
-  border-color: var(--ok-linia);
-  background: linear-gradient(
-    135deg,
-    var(--ok-tlo),
-    rgba(255, 255, 255, 0.02)
-  );
-}
-
-.event-section-card--pickem-otwarte:hover {
-  border-color: rgba(134, 239, 172, 0.55);
-  background: linear-gradient(
-    135deg,
-    rgba(134, 239, 172, 0.2),
-    rgba(255, 255, 255, 0.03)
-  );
-}
-
-.event-section-card--pickem-otwarte span {
-  color: var(--ok);
 }
 
 /* Pasek faz pod kafelkami. Lezy w tej samej siatce co kafelki, wiec bez
