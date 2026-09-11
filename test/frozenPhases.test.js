@@ -16,32 +16,18 @@ const FROZEN = "../server/lib/frozenPhases.js";
 
 const PHASES = ["stage1", "stage2", "stage3", "playoffs", "playin", "doubleelim"];
 
-// Odwzorowanie normalizePhase z utils/protectionsGuards.js.
+// Prawdziwa normalizacja, nie jej kopia.
 //
-// Nie importuje oryginalu, bo ciagnie za soba winstona i luxona, a testy w tym
-// katalogu maja dzialac bez instalowania zaleznosci (tak chodzi zadanie w CI).
-// Kopia trzyma sie oryginalu tam, gdzie to istotne: dopasowanie idzie po
-// TABLICY ALIASOW, a nie wzorcem - dlatego "stage2" trafia, a "stage_2" nie.
-const ALIASY = {
-  swiss_stage_1: "SWISS_STAGE1",
-  swiss_stage1: "SWISS_STAGE1",
-  stage1: "SWISS_STAGE1",
-  swiss_stage_2: "SWISS_STAGE2",
-  swiss_stage2: "SWISS_STAGE2",
-  stage2: "SWISS_STAGE2",
-  swiss_stage_3: "SWISS_STAGE3",
-  swiss_stage3: "SWISS_STAGE3",
-  stage3: "SWISS_STAGE3",
-};
-
-function normalizePhase(value) {
-  const klucz = String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-
-  return ALIASY[klucz] || klucz.toUpperCase();
-}
+// Wczesniej test mial tu wlasna wersje normalizePhase, bo oryginal siedzial
+// w protectionsGuards.js, ktory przez logger ciagnie winstona, a przez
+// guildContext cale mysql2 - a zadanie `testy` w CI chodzi bez `npm ci`.
+// Kopia zdazyla sie rozjechac: brakowalo w niej aliasow playoffs, playin
+// i doubleelim i przechodzila tylko dlatego, ze dla tych trzech wartosci
+// samo toUpperCase() daje przypadkiem ten sam wynik.
+//
+// Funkcja mieszka teraz w utils/phaseNames.js, ktory nie ma zadnego importu,
+// wiec test laduje dokladnie to, co wykonuje produkcja.
+const { normalizePhase } = require("../utils/phaseNames.js");
 
 // event: wiersz z tabeli events; swiss: lista {stage}; counts: liczniki faz.
 function fakePool({ event = {}, swiss = [], counts = {} } = {}) {
@@ -169,4 +155,43 @@ test("brak eventu w bazie nie zamraza wszystkiego na wszelki wypadek", async () 
   const frozen = await frozenFor({ event: undefined });
 
   assert.deepEqual(frozen, {});
+});
+
+test("aliasy faz spoza Swissa nie moga zniknac", () => {
+  // Te wpisy dlugo istnialy tylko w kodzie produkcyjnym: kopia normalizePhase
+  // trzymana w tym pliku ich nie miala, a mimo to przechodzila, bo dla samego
+  // "playoffs", "playin" i "doubleelim" toUpperCase() daje przypadkiem ten sam
+  // wynik co tablica. Roznica wychodzi dopiero na wariantach zapisu - i to one
+  // sa tutaj sprawdzane, zeby usuniecie wpisu z tablicy bylo widac od razu.
+  const oczekiwane = {
+    playoffs: "PLAYOFFS",
+
+    playin: "PLAYIN",
+    play_in: "PLAYIN",
+    "PLAY-IN": "PLAYIN",
+
+    double: "DOUBLEELIM",
+    doubleelim: "DOUBLEELIM",
+    double_elim: "DOUBLEELIM",
+    double_elimination: "DOUBLEELIM",
+    "Double Elimination": "DOUBLEELIM",
+
+    match: "MATCHES",
+    matches: "MATCHES",
+
+    swiss: "SWISS",
+  };
+
+  for (const [zapis, klucz] of Object.entries(oczekiwane)) {
+    assert.equal(normalizePhase(zapis), klucz, `zapis: ${zapis}`);
+  }
+});
+
+test("nieznana faza wraca wielkimi literami, bez wyjatku", () => {
+  // Fallback jest celowy: nieznana faza ma nie pasowac do niczego dalej,
+  // ale tez nie wysypac reguly.
+  assert.equal(normalizePhase("cos_czego_nie_ma"), "COS_CZEGO_NIE_MA");
+  assert.equal(normalizePhase(""), "");
+  assert.equal(normalizePhase(null), "");
+  assert.equal(normalizePhase(undefined), "");
 });
