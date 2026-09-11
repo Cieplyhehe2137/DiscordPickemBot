@@ -83,7 +83,7 @@ function KartaTurnieju({ event }) {
       className="ui-card ui-card--interactive ui-tile"
       to={`/events/${event.slug}`}
     >
-      <div className="ui-row ui-row--between">
+      <div className="ui-row ui-row--between ui-row--full">
         <span className={`ui-badge ${live ? "ui-badge--live" : ""}`}>
           {live ? "Trwa" : event.is_archived ? "Zakończony" : "Zaplanowany"}
         </span>

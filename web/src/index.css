@@ -233,22 +233,6 @@ p {
 
 }
 
-/* =========================
-   EVENTS PAGE
-========================= */
-
-.events-page {
-  min-height: calc(100vh - 72px);
-  display: block;
-  text-align: left;
-}
-
-.events-hero {
-  width: min(1200px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 72px 0 40px;
-}
-
 .events-kicker {
   display: inline-flex;
   padding: 8px 12px;
@@ -265,169 +249,10 @@ p {
   text-transform: uppercase;
 }
 
-.events-hero h1 {
-  margin: 20px 0 0;
-
-  font-size: clamp(3rem, 6vw, 5rem);
-  letter-spacing: -0.05em;
-}
-
-.events-hero p {
-  max-width: 650px;
-  margin: 18px 0 0;
-
-  color: var(--tekst-drugi);
-
-  font-size: 1rem;
-  line-height: 1.7;
-}
-
-.events-grid {
-  width: min(1200px, calc(100% - 32px));
-  margin: 0 auto;
-  padding-bottom: 80px;
-
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.event-card {
-  padding: 24px;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-karta);
-
-  background: rgba(255, 255, 255, 0.025);
-
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.event-card:hover {
-  transform: translateY(-3px);
-
-  border-color: rgba(124, 58, 237, 0.28);
-
-  background: rgba(124, 58, 237, 0.04);
-}
-
-.event-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.event-status,
-.event-type {
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-}
-
-.event-status {
-  padding: 6px 9px;
-
-  border-radius: var(--r-pigulka);
-
-  background: rgba(34, 197, 94, 0.09);
-  color: var(--ok);
-}
-
-.event-type {
-  color: var(--tekst-slaby);
-}
-
-.event-card h2 {
-  margin: 22px 0 0;
-
-  font-size: 1.35rem;
-  letter-spacing: -0.03em;
-}
-
-.event-card p {
-  margin: 12px 0 0;
-
-  color: var(--tekst-slaby);
-
-  font-size: 0.9rem;
-  line-height: 1.65;
-}
-
-.event-card button {
-  width: 100%;
-  min-height: 46px;
-  margin-top: 24px;
-
-  border: 0;
-  border-radius: var(--r-mala);
-
-  background: var(--akcent-ciemny);
-  color: var(--tekst-jasny);
-
-  font-weight: 800;
-
-  cursor: pointer;
-
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-
-.event-card button:hover {
-  transform: translateY(-1px);
-  background: var(--akcent);
-}
-
 @media (max-width: 900px) {
-  .events-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
-  .events-page {
-    min-height: calc(100vh - 64px);
-  }
-
-  .events-hero {
-    width: min(100% - 24px, 1200px);
-    padding: 52px 0 30px;
-  }
-
-  .events-grid {
-    width: min(100% - 24px, 1200px);
-    grid-template-columns: 1fr;
-  }
-}
-
-.event-card__button {
-  width: 100%;
-  min-height: 46px;
-  margin-top: 24px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: var(--r-mala);
-
-  background: var(--akcent-ciemny);
-  color: var(--tekst-jasny);
-
-  font-weight: 800;
-
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-
-.event-card__button:hover {
-  transform: translateY(-1px);
-  background: var(--akcent);
 }
 
 /* =========================
@@ -1533,47 +1358,6 @@ p {
   .my-picks-pagination {
     flex-wrap: wrap;
   }
-}
-
-.event-page__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: var(--r-pigulka);
-  background: rgba(34, 197, 94, 0.1);
-}
-
-.event-page__status strong {
-  color: var(--ok);
-}
-
-.event-page__status--open {
-  border-color: rgba(34, 197, 94, 0.3);
-  background: rgba(34, 197, 94, 0.1);
-}
-
-.event-page__status--open strong {
-  color: var(--ok);
-}
-
-.event-page__status--closed {
-  border-color: rgba(249, 115, 22, 0.35);
-  background: rgba(249, 115, 22, 0.1);
-}
-
-.event-page__status--closed strong {
-  color: #fdba74;
-}
-
-.event-page__status--finished {
-  border-color: rgba(148, 163, 184, 0.3);
-  background: rgba(148, 163, 184, 0.1);
-}
-
-.event-page__status--finished strong {
-  color: #cbd5e1;
 }
 
 .event-section-card--matches:hover {
@@ -4165,81 +3949,6 @@ p {
   font-size: 1.75rem;
 }
 
-.event-podium__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  align-items: end;
-}
-
-/* #1 na środku */
-.event-podium__player--1 {
-  grid-column: 2;
-  grid-row: 1;
-
-  min-height: 245px;
-  padding: 30px 16px;
-
-  transform: translateY(-16px);
-}
-
-/* #2 po lewej */
-.event-podium__player--2 {
-  grid-column: 1;
-  grid-row: 1;
-
-  min-height: 210px;
-}
-
-/* #3 po prawej */
-.event-podium__player--3 {
-  grid-column: 3;
-  grid-row: 1;
-
-  min-height: 195px;
-}
-
-.event-podium__player {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-
-  padding: 22px 16px;
-
-  text-decoration: none;
-  color: inherit;
-
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--r-karta);
-
-  background: rgba(255, 255, 255, 0.025);
-
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.event-podium__player:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(139, 92, 246, 0.35);
-}
-
-.event-podium__player--1:hover {
-  transform: translateY(-20px);
-}
-
-.event-podium__player--2:hover,
-.event-podium__player--3:hover {
-  transform: translateY(-4px);
-}
-
-.event-podium__player--1 {
-  padding-top: 30px;
-  padding-bottom: 30px;
-}
-
 .event-podium__medal {
   font-size: 1.75rem;
 }
@@ -4265,49 +3974,7 @@ p {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.event-podium__player strong {
-  max-width: 100%;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.event-podium__player span {
-  color: var(--tekst-drugi);
-  font-size: 0.85rem;
-}
-
 @media (max-width: 700px) {
-  .event-podium__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .event-podium__player--1,
-  .event-podium__player--2,
-  .event-podium__player--3 {
-    grid-column: 1;
-    min-height: auto;
-    transform: none;
-  }
-
-  .event-podium__player--1 {
-    grid-row: 1;
-  }
-
-  .event-podium__player--2 {
-    grid-row: 2;
-  }
-
-  .event-podium__player--3 {
-    grid-row: 3;
-  }
-
-  .event-podium__player--1:hover,
-  .event-podium__player--2:hover,
-  .event-podium__player--3:hover {
-    transform: none;
-  }
 }
 
 .event-close-match {
@@ -4525,33 +4192,6 @@ p {
     flex-direction: column;
     gap: 5px;
   }
-}
-
-/* Tylko jeden gracz */
-.event-podium__grid--1 {
-  grid-template-columns: minmax(240px, 320px);
-  justify-content: center;
-}
-
-.event-podium__grid--1 .event-podium__player--1 {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-/* Dwóch graczy */
-.event-podium__grid--2 {
-  grid-template-columns: repeat(2, minmax(220px, 320px));
-  justify-content: center;
-}
-
-.event-podium__grid--2 .event-podium__player--1 {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.event-podium__grid--2 .event-podium__player--2 {
-  grid-column: 2;
-  grid-row: 1;
 }
 
 .event-my-summary {
@@ -5084,30 +4724,6 @@ p {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: center;
-}
-
-/* =========================================================
-   LISTA EVENTOW - sekcje
-   ========================================================= */
-
-.events-section-title {
-  margin: 48px 0 18px;
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--tekst-slaby);
-}
-
-.event-status--done {
-  background: var(--tlo-mocniejsze);
-  color: var(--tekst-drugi);
-}
-
-.event-card__meta {
-  margin: -6px 0 12px;
-  font-size: 0.8rem;
-  color: var(--tekst-slaby);
 }
 
 /* =========================================================
@@ -6057,24 +5673,7 @@ main > .matches-page__back {
   }
 }
 
-/* Strona rankingu jest kolumna flex z align-items: center, wiec lista
-   kurczyla sie do szerokosci tresci - 318 px zamiast 465 px kolumny.
-   Kolumna z nazwa miala przez to 124 px i dluzsze nicki sie urywaly. */
-
-/* Awatar ma tylko czesc graczy, wiec nazwy startowaly z roznych miejsc.
-   Pusty slot tej samej szerokosci wyrownuje wiersze i daje rytm liscie. */
-
-/* Naglowek sekcji stal przy krawedzi okna, a karty pod nim w kolumnie
-   tresci - wygladal jak wypadniety poza uklad. Ta sama kolumna co reszta. */
-.events-section-title {
-  width: min(1200px, calc(100% - 32px));
-  margin-inline: auto;
-}
-
 @media (max-width: 640px) {
-  .events-section-title {
-    width: min(100% - 24px, 1200px);
-  }
 }
 
 /* Strony faz nie mialy zadnej kolumny tresci - karty typowania dotykaly

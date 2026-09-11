@@ -60,6 +60,13 @@
   flex-wrap: wrap;
 }
 
+/* Wiersz na pelna szerokosc rodzica. Potrzebny w kartach, ktore ustawiaja
+   align-items: flex-start - bez tego pasek z plakietka i podpisem nie
+   rozciaga sie i oba zbijaja sie do lewej. */
+.ui-row--full {
+  width: 100%;
+}
+
 /* -------------------------------------------------------------------------
    NAGŁÓWEK SEKCJI
    Kicker nad tytułem daje hierarchię bez powiększania czcionki - to on niesie

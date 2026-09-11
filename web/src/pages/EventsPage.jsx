@@ -2,41 +2,43 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getAllEvents } from "../lib/api.js";
+import { odmien } from "../lib/odmiana.js";
 import { humanPhase } from "../lib/phaseLabels.js";
 
 function EventCard({ event }) {
+  const live = Boolean(event.is_live);
+
   return (
-    <article className="event-card" key={event.id}>
-      <div className="event-card__top">
-        <span
-          className={
-            event.is_live ? "event-status" : "event-status event-status--done"
-          }
-        >
-          {event.is_live ? "AKTYWNY" : "ZAKOŃCZONY"}
+    <Link
+      className="ui-card ui-card--interactive ui-tile"
+      to={`/events/${event.slug}`}
+    >
+      <div className="ui-row ui-row--between ui-row--full">
+        <span className={`ui-badge ${live ? "ui-badge--live" : ""}`}>
+          {live ? "Trwa" : "Zakończony"}
         </span>
 
-        <span className="event-type">CS2</span>
+        <span className="ui-stat__hint">{humanPhase(event.phase)}</span>
       </div>
 
-      <h2>{event.name}</h2>
+      <strong className="ui-tile__name">{event.name}</strong>
 
-      <p className="event-card__meta">
-        {humanPhase(event.phase)}
-        {event.matches_count > 0 && ` · ${event.matches_count} meczów`}
-        {event.participants > 0 && ` · ${event.participants} graczy`}
-      </p>
+      <div className="ui-row ui-row--wrap ui-tile__meta">
+        {event.participants > 0 && (
+          <span className="ui-badge">
+            {event.participants}{" "}
+            {odmien(event.participants, "gracz", "gracze", "graczy")}
+          </span>
+        )}
 
-      <p>
-        {event.is_live
-          ? "Przejdź do eventu i sprawdź dostępne typy, mecze oraz ranking."
-          : "Turniej zakończony — mecze, wyniki, ranking końcowy i Twoje typy."}
-      </p>
-
-      <Link className="event-card__button" to={`/events/${event.slug}`}>
-        {event.is_live ? "Otwórz event" : "Zobacz wyniki"}
-      </Link>
-    </article>
+        {event.matches_count > 0 && (
+          <span className="ui-badge">
+            {event.matches_count}{" "}
+            {odmien(event.matches_count, "mecz", "mecze", "meczów")}
+          </span>
+        )}
+      </div>
+    </Link>
   );
 }
 
@@ -70,83 +72,97 @@ function EventsPage() {
   const zakonczone = events.filter((event) => !event.is_live);
 
   return (
-    <main className="events-page">
-      <section className="events-hero">
-        <span className="events-kicker">Turnieje</span>
+    <main className="ui-page">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Turnieje</span>
 
-        <h1>Eventy</h1>
+          <h2>Eventy</h2>
 
-        <p>
-          Wybierz turniej, żeby przejść do typowania meczów, faz turnieju i
-          rankingu. Zakończone Pick'Emy zostają dostępne do przeglądania.
-        </p>
-      </section>
+          <p>
+            Wybierz turniej, żeby przejść do typowania meczów, faz turnieju i
+            rankingu. Zakończone Pick&apos;Emy zostają dostępne do przeglądania.
+          </p>
+        </div>
+      </div>
 
       {loading && (
-        <section className="events-grid">
-          <article className="event-card">
-            <h2>Ładowanie...</h2>
-
-            <p>Pobieram listę turniejów.</p>
-          </article>
-        </section>
+        <div className="ui-tiles" aria-busy="true" aria-label="Ładowanie turniejów">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div className="ui-skeleton ui-skeleton--row" key={i} />
+          ))}
+        </div>
       )}
 
       {!loading && error && (
-        <section className="events-grid">
-          <article className="event-card">
-            <h2>Nie udało się pobrać turniejów</h2>
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
 
-            <p>{error}</p>
-          </article>
-        </section>
+          <strong className="ui-error__title">
+            Nie udało się pobrać turniejów
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
       )}
 
       {!loading && !error && events.length === 0 && (
-        <section className="events-grid">
-          <article className="event-card">
-            <h2>Brak turniejów</h2>
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🏆
+          </span>
 
-            <p>Nie ma jeszcze żadnego Pick'Ema.</p>
-          </article>
-        </section>
+          <strong className="ui-empty__title">Nie ma jeszcze turniejów</strong>
+
+          <p className="ui-empty__text">
+            Gdy pierwszy Pick&apos;Em wystartuje, pojawi się na tej liście.
+          </p>
+        </div>
       )}
 
       {!loading && !error && aktywne.length > 0 && (
-        <>
-          <h2 className="events-section-title">Trwające</h2>
+        <section className="ui-stack ui-stack--loose">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">Teraz</span>
+              <h2>Trwające</h2>
+            </div>
+          </div>
 
-          <section className="events-grid">
+          <div className="ui-tiles">
             {aktywne.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
-          </section>
-        </>
-      )}
-
-      {!loading && !error && aktywne.length === 0 && events.length > 0 && (
-        <section className="events-grid">
-          <article className="event-card">
-            <h2>Brak aktywnego turnieju</h2>
-
-            <p>
-              Aktualnie nie trwa żaden Pick'Em. Poniżej znajdziesz zakończone
-              turnieje.
-            </p>
-          </article>
+          </div>
         </section>
       )}
 
       {!loading && !error && zakonczone.length > 0 && (
-        <>
-          <h2 className="events-section-title">Zakończone</h2>
+        <section className="ui-stack ui-stack--loose">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">Archiwum</span>
+              <h2>Zakończone</h2>
 
-          <section className="events-grid">
+              {/* Informacja zamiast osobnej karty "brak aktywnego turnieju" -
+                  pusta karta w siatce wyglądała jak zepsuty kafelek. */}
+              {aktywne.length === 0 && (
+                <p>
+                  Aktualnie nie trwa żaden Pick&apos;Em. Poniżej turnieje, które
+                  możesz przeglądać.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="ui-tiles">
             {zakonczone.map((event) => (
               <EventCard key={event.id} event={event} />
             ))}
-          </section>
-        </>
+          </div>
+        </section>
       )}
     </main>
   );
