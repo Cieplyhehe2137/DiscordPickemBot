@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { getDoubleElimPickem, saveDoubleElimPickem } from "../lib/api.js";
+import { SAVED_MESSAGE } from "../lib/saveMessages.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
-import Ladowanie from "../components/Ladowanie.jsx";
+import TeamPickGroup from "../components/TeamPickGroup.jsx";
 
 function DoubleElimPickemPage() {
   const { slug } = useParams();
@@ -93,7 +94,7 @@ function DoubleElimPickemPage() {
         prediction,
       }));
 
-      setSaveMessage("Typy zapisane ✅");
+      setSaveMessage(SAVED_MESSAGE);
     } catch (err) {
       console.error("DOUBLE ELIM SAVE ERROR:", err);
 
@@ -104,223 +105,152 @@ function DoubleElimPickemPage() {
   }
 
   if (loading) {
-    return <Ladowanie>Ładowanie Double Elimination Pick'Em...</Ladowanie>;
+    return (
+      <main className="ui-page">
+        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+          <div className="ui-skeleton ui-skeleton--row" />
+
+          <div className="ui-skeleton ui-skeleton--row" />
+        </div>
+      </main>
+    );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return (
+      <main className="ui-page">
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
+
+          <strong className="ui-error__title">
+            Nie udało się wczytać fazy
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
+      </main>
+    );
   }
 
-  return (
-    <main className="doubleelim-pickem-page">
-      <BackLink to={`/events/${slug}`} />
-      <h1>Double Elimination Pick'Em</h1>
+  const pickingLocked = authLoading || !user || !data?.lock?.allowed;
 
-      <p>
-        Event: <strong>{slug}</strong>
-      </p>
+  // Przełącza nazwę w liście. setSaveMessage stało wcześniej WEWNĄTRZ
+  // funkcji aktualizującej stan - React może ją wywołać dwa razy, więc
+  // efekt uboczny nie ma tam czego szukać.
+  const toggle = (setList) => (name) => {
+    setSaveMessage("");
+
+    setList((current) =>
+      current.includes(name)
+        ? current.filter((item) => item !== name)
+        : [...current, name],
+    );
+  };
+
+  return (
+    <main className="ui-page">
+      <BackLink to={`/events/${slug}`} />
+
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Drabinka podwójnej eliminacji</span>
+
+          <h2>Double Elimination Pick&apos;Em</h2>
+
+          <p>
+            Wskaż uczestników czterech finałów. Drużyna użyta wcześniej nie
+            wraca w kolejnych grupach.
+          </p>
+        </div>
+
+        {!user ? (
+          <span className="ui-badge ui-badge--warn">Wymaga logowania</span>
+        ) : data?.lock?.allowed ? (
+          <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+        ) : (
+          <span className="ui-badge ui-badge--warn">Typowanie zamknięte</span>
+        )}
+      </div>
 
       <PhaseFormat faza="doubleelim" limity={data?.limity} />
 
       {data?.lock && !data.lock.allowed && (
-        <p className="doubleelim-pickem__lock-message">
-          {data.lock.message || "Typowanie jest obecnie zablokowane."}
+        <p className="ui-note ui-note--warn">
+          🔒 {data.lock.message || "Typowanie jest obecnie zablokowane."}
         </p>
       )}
 
       {!authLoading && !user && (
-        <p className="doubleelim-pickem__login-message">
-          Musisz się{" "}
-          <a
-            href={`/api/auth/discord?returnTo=${encodeURIComponent(
-              window.location.pathname + window.location.search,
-            )}`}
-          >
-            zalogować przez Discord
-          </a>
-          , aby zapisać typy.
+        <a
+          className="ui-btn"
+          href={`/api/auth/discord?returnTo=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`}
+        >
+          Zaloguj się przez Discord, aby typować
+        </a>
+      )}
+
+      <TeamPickGroup
+        title="Upper Final A"
+        teams={data?.teams}
+        selected={upperFinalA}
+        limit={limitUFA}
+        disabled={pickingLocked}
+        onToggle={toggle(setUpperFinalA)}
+      />
+
+      <TeamPickGroup
+        title="Lower Final A"
+        teams={data?.teams}
+        selected={lowerFinalA}
+        limit={limitLFA}
+        disabled={pickingLocked}
+        isBlocked={(name) => upperFinalA.includes(name)}
+        onToggle={toggle(setLowerFinalA)}
+      />
+
+      <TeamPickGroup
+        title="Upper Final B"
+        teams={data?.teams}
+        selected={upperFinalB}
+        limit={limitUFB}
+        disabled={pickingLocked}
+        isBlocked={(name) =>
+          upperFinalA.includes(name) || lowerFinalA.includes(name)
+        }
+        onToggle={toggle(setUpperFinalB)}
+      />
+
+      <TeamPickGroup
+        title="Lower Final B"
+        teams={data?.teams}
+        selected={lowerFinalB}
+        limit={limitLFB}
+        disabled={pickingLocked}
+        isBlocked={(name) =>
+          upperFinalA.includes(name) ||
+          lowerFinalA.includes(name) ||
+          upperFinalB.includes(name)
+        }
+        onToggle={toggle(setLowerFinalB)}
+      />
+
+      {saveMessage && (
+        <p
+          className={`ui-note ${
+            saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+          }`}
+        >
+          {saveMessage}
         </p>
       )}
 
-      <h2>Upper Final A</h2>
-
-      <p>
-        Wybrano: <strong>{upperFinalA.length}/{limitUFA}</strong>
-      </p>
-
-      <div className="doubleelim-pickem__teams">
-        {data?.teams?.map((team) => {
-          const selected = upperFinalA.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={
-                selected
-                  ? "doubleelim-pickem__team is-selected"
-                  : "doubleelim-pickem__team"
-              }
-              disabled={
-                authLoading ||
-                !user ||
-                !data?.lock?.allowed ||
-                (!selected && upperFinalA.length >= limitUFA)
-              }
-              onClick={() => {
-                setUpperFinalA((current) => {
-                  setSaveMessage("");
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-      </div>
-      <h2>Lower Final A</h2>
-
-      <p>
-        Wybrano: <strong>{lowerFinalA.length}/{limitLFA}</strong>
-      </p>
-
-      <div className="doubleelim-pickem__teams">
-        {data?.teams?.map((team) => {
-          const selected = lowerFinalA.includes(team.name);
-          const usedElsewhere = upperFinalA.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={
-                selected
-                  ? "doubleelim-pickem__team is-selected"
-                  : "doubleelim-pickem__team"
-              }
-              disabled={
-                authLoading ||
-                !user ||
-                !data?.lock?.allowed ||
-                usedElsewhere ||
-                (!selected && lowerFinalA.length >= limitLFA)
-              }
-              onClick={() => {
-                setLowerFinalA((current) => {
-                  setSaveMessage("");
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-      </div>
-      <h2>Upper Final B</h2>
-
-      <p>
-        Wybrano: <strong>{upperFinalB.length}/{limitUFB}</strong>
-      </p>
-
-      <div className="doubleelim-pickem__teams">
-        {data?.teams?.map((team) => {
-          const selected = upperFinalB.includes(team.name);
-
-          const usedElsewhere =
-            upperFinalA.includes(team.name) || lowerFinalA.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={
-                selected
-                  ? "doubleelim-pickem__team is-selected"
-                  : "doubleelim-pickem__team"
-              }
-              disabled={
-                authLoading ||
-                !user ||
-                !data?.lock?.allowed ||
-                usedElsewhere ||
-                (!selected && upperFinalB.length >= limitUFB)
-              }
-              onClick={() => {
-                setUpperFinalB((current) => {
-                  setSaveMessage("");
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-      </div>
-      <h2>Lower Final B</h2>
-
-      <p>
-        Wybrano: <strong>{lowerFinalB.length}/{limitLFB}</strong>
-      </p>
-
-      <div className="doubleelim-pickem__teams">
-        {data?.teams?.map((team) => {
-          const selected = lowerFinalB.includes(team.name);
-
-          const usedElsewhere =
-            upperFinalA.includes(team.name) ||
-            lowerFinalA.includes(team.name) ||
-            upperFinalB.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={
-                selected
-                  ? "doubleelim-pickem__team is-selected"
-                  : "doubleelim-pickem__team"
-              }
-              disabled={
-                authLoading ||
-                !user ||
-                !data?.lock?.allowed ||
-                usedElsewhere ||
-                (!selected && lowerFinalB.length >= limitLFB)
-              }
-              onClick={() => {
-                setLowerFinalB((current) => {
-                  setSaveMessage("");
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-      </div>
       <button
         type="button"
-        className="doubleelim-pickem__save"
+        className="ui-btn ui-btn--primary"
         disabled={
           saving ||
           authLoading ||
@@ -336,10 +266,6 @@ function DoubleElimPickemPage() {
       >
         {saving ? "Zapisywanie..." : "Zapisz typy"}
       </button>
-
-      {saveMessage && (
-        <p className="doubleelim-pickem__save-message">{saveMessage}</p>
-      )}
 
       {/* Oficjalny wynik fazy + trafienia + punkty.
           Renderuje sie dopiero po opublikowaniu wyniku. */}

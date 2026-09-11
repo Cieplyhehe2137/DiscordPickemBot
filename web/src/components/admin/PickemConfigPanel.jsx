@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import Ladowanie from "../../components/Ladowanie.jsx";
 
-import {
-  getEventPickemConfig,
-  saveEventPickemConfig,
-} from "../../lib/api.js";
+import { getEventPickemConfig, saveEventPickemConfig } from "../../lib/api.js";
 
 // Konfiguracja typowania DRUŻYN dla konkretnego eventu.
 //
@@ -138,8 +135,8 @@ function PickemConfigPanel({ slug }) {
   }
 
   return (
-    <div className="pickem-config">
-      <p className="ops-hint">
+    <div className="ui-stack">
+      <p className="ui-hint">
         Typowanie drużyn jest niezależne od typowania meczów. Włącz fazy, które
         ten turniej faktycznie ma, i ustaw liczbę drużyn w każdej kategorii.
         Fazę można zmieniać tylko dopóki nikt nie oddał w niej typu i nie ma
@@ -152,15 +149,15 @@ function PickemConfigPanel({ slug }) {
       {fazy.map((wpis) => (
         <div
           className={[
-            "pickem-config__phase",
-            wpis.enabled ? "pickem-config__phase--on" : "",
-            wpis.zamrozona ? "pickem-config__phase--zamrozona" : "",
+            "ui-stack__phase",
+            wpis.enabled ? "ui-stack__phase--on" : "",
+            wpis.zamrozona ? "ui-stack__phase--zamrozona" : "",
           ]
             .filter(Boolean)
             .join(" ")}
           key={wpis.faza}
         >
-          <label className="pickem-config__head">
+          <label className="ui-row">
             <input
               type="checkbox"
               checked={wpis.enabled}
@@ -174,15 +171,15 @@ function PickemConfigPanel({ slug }) {
           {/* Zapisane typy były sprawdzane wobec innych liczb, więc zmiana
               limitu nie naprawiłaby ich, tylko rozjechała turniej. */}
           {wpis.zamrozona && (
-            <p className="pickem-config__zamrozenie">
+            <p className="ui-note ui-note--warn">
               🔒 Zablokowane — {wpis.powodZamrozenia}
             </p>
           )}
 
           {wpis.enabled && (
-            <div className="pickem-config__limits">
+            <div className="ui-row ui-row--wrap">
               {Object.entries(wpis.limity ?? {}).map(([grupa, wartosc]) => (
-                <label className="pickem-config__limit" key={grupa}>
+                <label className="ui-field" key={grupa}>
                   <span>{ETYKIETY_GRUP[grupa] ?? grupa}</span>
 
                   <input
@@ -206,11 +203,9 @@ function PickemConfigPanel({ slug }) {
         {zapisywanie ? "Zapisywanie..." : "Zapisz konfigurację"}
       </button>
 
-      {komunikat && (
-        <p className="admin-feedback admin-feedback--success">{komunikat}</p>
-      )}
+      {komunikat && <p className="ui-note ui-note--ok">{komunikat}</p>}
 
-      {blad && <p className="admin-feedback admin-feedback--error">{blad}</p>}
+      {blad && <p className="ui-note ui-note--danger">{blad}</p>}
     </div>
   );
 }

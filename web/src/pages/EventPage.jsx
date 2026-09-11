@@ -240,10 +240,10 @@ function EventPage() {
   })();
 
   return (
-    <main className="event-page">
+    <main className="ui-page">
       <BackLink to="/events">Wróć do listy turniejów</BackLink>
       <section className="event-page__hero">
-        <span className="events-kicker">Event</span>
+        <span className="ui-kicker">Event</span>
 
         <h1>
           {loading
@@ -292,8 +292,8 @@ function EventPage() {
 
       {!loading && !error && event && (
         <>
-          <section className="event-stats">
-            <div className="event-stat">
+          <section className="ui-stats">
+            <div className="ui-stat">
               <span>🎯 Mecze</span>
 
               <strong>{event.stats?.matches ?? 0}</strong>
@@ -304,37 +304,37 @@ function EventPage() {
               </small>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>👥 Uczestnicy</span>
 
               <strong>{eventStats?.participants ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>✓ Oddane typy</span>
 
               <strong>{eventStats?.total_predictions ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🗺️ Typy map</span>
 
               <strong>{eventStats?.total_map_predictions ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>📊 Średnia punktów</span>
 
               <strong>{eventStats?.average_points ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🎯 Exacty map</span>
 
               <strong>{eventStats?.exact_maps ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🔥 Najlepszy wynik</span>
 
               <strong>{eventStats?.best_score ?? 0} pkt</strong>
@@ -350,7 +350,7 @@ function EventPage() {
               )}
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🎯 Najwięcej exactów</span>
 
               <strong>{eventStats?.best_exact_player?.exact_maps ?? 0}</strong>
@@ -365,7 +365,7 @@ function EventPage() {
                 </small>
               )}
             </div>
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🏹 Najlepsza skuteczność</span>
 
               <strong>
@@ -392,7 +392,7 @@ function EventPage() {
             </div>
 
             {eventStats?.favorite_team && (
-              <div className="event-stat">
+              <div className="ui-stat">
                 <span>💜 Ulubieniec graczy</span>
 
                 <strong>{eventStats.favorite_team.team}</strong>
@@ -405,22 +405,24 @@ function EventPage() {
           {loadingEventStats && <Ladowanie>Ładowanie statystyk eventu...</Ladowanie>}
 
           {eventStatsError && (
-            <p className="admin-feedback admin-feedback--error">
+            <p className="ui-note ui-note--danger">
               {eventStatsError}
             </p>
           )}
 
           {profilEventu && (
-            <section className="event-my-summary">
-              <div className="event-my-summary__header">
-                <span className="events-kicker">Twój wynik</span>
+            <section className="ui-stack ui-stack--loose">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">Twój wynik</span>
 
-                <h2>Twoje podsumowanie eventu</h2>
+                  <h2>Twoje podsumowanie eventu</h2>
+                </div>
               </div>
 
-              <div className="event-my-summary__card">
-                <div className="event-my-summary__main">
-                  <div className="event-my-summary__rank">
+              <div className="ui-card ui-stack ui-stack--loose">
+                <div className="ui-stats">
+                  <div className="ui-stat">
                     <span>Miejsce</span>
 
                     {/* Brak miejsca = nic jeszcze nie rozliczono. Wtedy sam
@@ -439,7 +441,7 @@ function EventPage() {
                       )}
                   </div>
 
-                  <div className="event-my-summary__points">
+                  <div className="ui-stat ui-stat--featured">
                     <span>Punkty</span>
 
                     <strong>{profilEventu.total_points ?? 0}</strong>
@@ -452,13 +454,13 @@ function EventPage() {
                   </div>
                 </div>
 
-                <div className="event-my-summary__stats">
-                  <div>
+                <div className="ui-stats">
+                  <div className="ui-stat">
                     <span>Skuteczność</span>
                     <strong>{profilEventu.accuracy ?? 0}%</strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Trafione mecze</span>
                     <strong>
                       {profilEventu.correct_winners ?? 0}/
@@ -466,12 +468,12 @@ function EventPage() {
                     </strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Exacty map</span>
                     <strong>{profilEventu.exact_maps ?? 0}</strong>
                   </div>
 
-                  <div>
+                  <div className="ui-stat">
                     <span>Aktualna seria</span>
                     <strong>
                       {profilEventu.current_correct_streak ?? 0}
@@ -480,7 +482,7 @@ function EventPage() {
                 </div>
 
                 <Link
-                  className="event-my-summary__profile"
+                  className="ui-btn ui-btn--ghost ui-btn--sm"
                   to={`/events/${slug}/player/${currentUser.id}`}
                 >
                   Zobacz pełny profil →
@@ -490,16 +492,16 @@ function EventPage() {
           )}
 
           {topPlayers.length > 0 && (
-            <section className="event-podium">
-              <div className="event-podium__header">
-                <span className="events-kicker">TOP 3</span>
+            <section className="ui-stack ui-stack--loose">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">TOP 3</span>
 
-                <h2>Liderzy eventu</h2>
+                  <h2>Liderzy eventu</h2>
+                </div>
               </div>
 
-              <div
-                className={`event-podium__grid event-podium__grid--${topPlayers.length}`}
-              >
+              <div className="ui-tiles">
                 {topPlayers.map((player, index) => {
                   // Miejsce z serwera; indeks tylko wtedy, gdy go zabraknie.
                   // Dziś podium bierze zawsze pierwszą stronę rankingu, więc
@@ -510,28 +512,40 @@ function EventPage() {
                   return (
                     <Link
                       key={player.user_id}
-                      className={`event-podium__player event-podium__player--${position}`}
+                      className={`ui-card ui-card--interactive ui-tile ${
+                        ["", "ui-card--gold", "ui-card--silver", "ui-card--bronze"][
+                          position
+                        ] ?? ""
+                      }`}
                       to={`/events/${slug}/player/${player.user_id}`}
                     >
-                      <div className="event-podium__medal">
-                        {position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}
+                      <div className="ui-row ui-row--full">
+                        {player.avatar ? (
+                          <img
+                            className="ui-avatar ui-avatar--lg"
+                            src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
+                            alt=""
+                          />
+                        ) : (
+                          <span className="ui-avatar ui-avatar--lg ui-avatar--initials">
+                            {player.displayname?.charAt(0)?.toUpperCase() ?? "?"}
+                          </span>
+                        )}
+
+                        <span className="ui-badge">
+                          {position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}{" "}
+                          Miejsce {position}
+                        </span>
                       </div>
 
-                      {player.avatar ? (
-                        <img
-                          className="event-podium__avatar"
-                          src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="event-podium__avatar event-podium__avatar--empty">
-                          {player.displayname?.charAt(0)?.toUpperCase() ?? "?"}
-                        </div>
-                      )}
+                      <strong className="ui-tile__name">
+                        {player.displayname ?? player.user_id}
+                      </strong>
 
-                      <strong>{player.displayname ?? player.user_id}</strong>
-
-                      <span>{Number(player.total_points ?? 0)} pkt</span>
+                      <span className="ui-stat__value ui-tile__meta">
+                        {Number(player.total_points ?? 0)}
+                        <small className="ui-stat__hint"> pkt</small>
+                      </span>
                     </Link>
                   );
                 })}
@@ -543,7 +557,7 @@ function EventPage() {
             Number(eventStats.closest_match.total_picks) >= 3 && (
               <section className="event-close-match">
                 <div className="event-close-match__header">
-                  <span className="events-kicker">
+                  <span className="ui-kicker">
                     ⚔️ Najbardziej wyrównane
                   </span>
 
@@ -566,16 +580,16 @@ function EventPage() {
                     </div>
                   </div>
 
-                  <div className="event-close-match__bar">
+                  <div className="ui-split">
                     <div
-                      className="event-close-match__bar-a"
+                      className="ui-split__a"
                       style={{
                         width: `${eventStats.closest_match.team_a_percentage}%`,
                       }}
                     />
 
                     <div
-                      className="event-close-match__bar-b"
+                      className="ui-split__b"
                       style={{
                         width: `${eventStats.closest_match.team_b_percentage}%`,
                       }}
@@ -596,7 +610,7 @@ function EventPage() {
             Number(eventStats.biggest_upset.winner_percentage) < 50 && (
               <section className="event-upset">
                 <div className="event-upset__header">
-                  <span className="events-kicker">💥 Największy upset</span>
+                  <span className="ui-kicker">💥 Największy upset</span>
 
                   <h2>Społeczność się przeliczyła</h2>
                 </div>
@@ -629,16 +643,16 @@ function EventPage() {
                     </div>
                   </div>
 
-                  <div className="event-upset__bar">
+                  <div className="ui-split">
                     <div
-                      className="event-upset__bar-a"
+                      className="ui-split__a"
                       style={{
                         width: `${eventStats.biggest_upset.team_a_percentage}%`,
                       }}
                     />
 
                     <div
-                      className="event-upset__bar-b"
+                      className="ui-split__b"
                       style={{
                         width: `${eventStats.biggest_upset.team_b_percentage}%`,
                       }}
@@ -669,9 +683,9 @@ function EventPage() {
               </section>
             )}
 
-          <section className="event-page__grid">
+          <section className="ui-tiles">
             <Link
-              className="event-section-card event-section-card--matches"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/matches`}
             >
               <span>🎯 Mecze</span>
@@ -690,8 +704,8 @@ function EventPage() {
               <Link
                 className={
                   pickemDruzyn.otwarte
-                    ? "event-section-card event-section-card--pickem event-section-card--pickem-otwarte"
-                    : "event-section-card event-section-card--pickem"
+                    ? "ui-card ui-card--interactive ui-card--accent ui-tile"
+                    : "ui-card ui-card--interactive ui-tile"
                 }
                 to={sciezkaFazy(slug, pickemDruzyn.faza)}
               >
@@ -706,7 +720,7 @@ function EventPage() {
             )}
 
             <Link
-              className="event-section-card event-section-card--picks"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-picks`}
             >
               <span>✓ Moje typy</span>
@@ -719,7 +733,7 @@ function EventPage() {
             </Link>
 
             <Link
-              className="event-section-card event-section-card--my-stats"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-stats`}
             >
               <span>📊 Moje statystyki</span>
@@ -728,7 +742,7 @@ function EventPage() {
             </Link>
 
             <Link
-              className="event-section-card event-section-card--leaderboard"
+              className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/leaderboard`}
             >
               <span>🏆 Ranking</span>

@@ -112,33 +112,35 @@ function MvpAdminPanel({ slug }) {
     try {
       await saveMvpResult(slug, candidateId);
       setWynik(candidateId);
-      setKomunikat("Zapisano zwycięzcę MVP. Przelicz punkty, żeby go rozliczyć.");
+      setKomunikat(
+        "Zapisano zwycięzcę MVP. Przelicz punkty, żeby go rozliczyć.",
+      );
     } catch (err) {
       setBlad(err.message || "Nie udało się zapisać wyniku MVP.");
     }
   }
 
   return (
-    <div className="mvp-admin">
-      <div className="mvp-admin__block">
+    <div className="ui-stack">
+      <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
         <h4>Kandydaci</h4>
 
         {ladowanie && <Ladowanie>Wczytywanie...</Ladowanie>}
 
         {!ladowanie && kandydaci.length === 0 && (
-          <p className="mvp-admin__empty">Brak kandydatów.</p>
+          <p className="ui-hint">Brak kandydatów.</p>
         )}
 
         {!ladowanie && kandydaci.length > 0 && (
-          <div className="mvp-admin__list">
+          <div className="ui-row ui-row--wrap">
             {kandydaci.map((kandydat) => (
               <button
                 key={kandydat.id}
                 type="button"
                 className={
                   Number(wynik) === Number(kandydat.id)
-                    ? "mvp-admin__candidate mvp-admin__candidate--winner"
-                    : "mvp-admin__candidate"
+                    ? "ui-stack__candidate ui-stack__candidate--winner"
+                    : "ui-stack__candidate"
                 }
                 onClick={() => ustawWynik(kandydat.id)}
                 title="Kliknij, aby ustawić jako zwycięzcę MVP"
@@ -148,7 +150,7 @@ function MvpAdminPanel({ slug }) {
                 {kandydat.team_name && <span>{kandydat.team_name}</span>}
 
                 {Number(wynik) === Number(kandydat.id) && (
-                  <span className="mvp-admin__badge">MVP</span>
+                  <span className="ui-badge ui-badge--warn">MVP</span>
                 )}
               </button>
             ))}
@@ -156,10 +158,10 @@ function MvpAdminPanel({ slug }) {
         )}
       </div>
 
-      <div className="mvp-admin__block">
+      <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
         <h4>Dodaj kandydatów</h4>
 
-        <p className="mvp-admin__hint">
+        <p className="ui-hint">
           Jeden na linię: <code>nick</code> albo <code>nick, drużyna</code>
         </p>
 
@@ -175,11 +177,9 @@ function MvpAdminPanel({ slug }) {
         </button>
       </div>
 
-      {komunikat && (
-        <p className="admin-feedback admin-feedback--success">{komunikat}</p>
-      )}
+      {komunikat && <p className="ui-note ui-note--ok">{komunikat}</p>}
 
-      {blad && <p className="admin-feedback admin-feedback--error">{blad}</p>}
+      {blad && <p className="ui-note ui-note--danger">{blad}</p>}
     </div>
   );
 }

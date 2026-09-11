@@ -7,24 +7,30 @@ function NotFoundPage() {
   const location = useLocation();
 
   return (
-    <main className="notfound-page">
-      <span className="events-kicker">Błąd 404</span>
+    <main className="ui-page ui-page--narrow">
+      <div className="ui-empty">
+        <span className="ui-empty__icon" aria-hidden="true">
+          🧭
+        </span>
 
-      <h1>Nie ma takiej strony</h1>
+        <span className="ui-kicker">Błąd 404</span>
 
-      <p className="notfound-page__lead">
-        Adres <code className="notfound-page__url">{location.pathname}</code> nie
-        istnieje. Mógł się zdezaktualizować albo zawierać literówkę.
-      </p>
+        <strong className="ui-empty__title">Nie ma takiej strony</strong>
 
-      <div className="notfound-page__actions">
-        <Link className="home-button home-button--primary" to="/events">
-          Zobacz turnieje
-        </Link>
+        <p className="ui-empty__text">
+          Adres <code>{location.pathname}</code> nie istnieje. Mógł się
+          zdezaktualizować albo zawierać literówkę.
+        </p>
 
-        <Link className="home-button home-button--secondary" to="/">
-          Strona główna
-        </Link>
+        <div className="ui-row ui-row--wrap">
+          <Link className="ui-btn ui-btn--primary" to="/events">
+            Zobacz turnieje
+          </Link>
+
+          <Link className="ui-btn ui-btn--ghost" to="/">
+            Strona główna
+          </Link>
+        </div>
       </div>
     </main>
   );

@@ -1,0 +1,1304 @@
+/* =========================================================================
+   KOMPONENTY
+   =========================================================================
+
+   Drugi poziom systemu: gotowe klocki, z których budowane są ekrany.
+   Wszystko z prefiksem `ui-`, żeby nie kolidowało z 408 istniejącymi klasami
+   podczas migracji.
+
+   Zasada: te reguły sięgają WYŁĄCZNIE po tokeny z design-system.css. Jeśli
+   któryś komponent potrzebuje wartości spoza skali, to znak, że brakuje jej
+   w systemie - a nie powód, żeby wpisać liczbę tutaj.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   UKŁAD
+   ------------------------------------------------------------------------- */
+
+.ui-page {
+  width: 100%;
+  max-width: var(--content-width);
+  margin-inline: auto;
+  padding: var(--space-8) var(--content-padding) var(--space-16);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.ui-page--narrow {
+  max-width: var(--content-narrow);
+}
+
+/* Pionowy rytm sekcji. Odstęp jest własnością kontenera, a nie marginesem
+   dzieci - marginesy się zlewają i rytm przestaje być przewidywalny. */
+.ui-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ui-stack--tight {
+  gap: var(--space-2);
+}
+
+.ui-stack--loose {
+  gap: var(--space-6);
+}
+
+.ui-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ui-row--between {
+  justify-content: space-between;
+}
+
+.ui-row--wrap {
+  flex-wrap: wrap;
+}
+
+/* Wiersz na pelna szerokosc rodzica. Potrzebny w kartach, ktore ustawiaja
+   align-items: flex-start - bez tego pasek z plakietka i podpisem nie
+   rozciaga sie i oba zbijaja sie do lewej. */
+.ui-row--full {
+  width: 100%;
+}
+
+/* -------------------------------------------------------------------------
+   NAGŁÓWEK SEKCJI
+   Kicker nad tytułem daje hierarchię bez powiększania czcionki - to on niesie
+   kontekst ("RANKING"), a tytuł treść.
+   ------------------------------------------------------------------------- */
+
+.ui-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.ui-kicker {
+  display: inline-block;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent-bright);
+}
+
+.ui-section-head h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
+  color: var(--text-strong);
+}
+
+.ui-section-head p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 60ch;
+}
+
+/* -------------------------------------------------------------------------
+   KARTA
+   ------------------------------------------------------------------------- */
+
+.ui-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-card--flat {
+  background: var(--surface-1);
+  box-shadow: none;
+}
+
+.ui-card--tight {
+  padding: var(--space-4);
+}
+
+/* Karta klikalna. Podniesienie jest minimalne - 2px wystarczy, żeby ręka
+   wiedziała, że coś jest aktywne, a strona nie skakała. */
+.ui-card--interactive {
+  cursor: pointer;
+  transition:
+    transform var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.ui-card--interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Karta operacji nieodwracalnych: kasowanie eventu, czyszczenie danych.
+   Ma wygladac inaczej, zanim ktos przeczyta, co jest w srodku. */
+/* Karta ukladajaca dzieci w wiersz. Osobny modyfikator, bo samo dodanie
+   ui-row nie wystarczy: .ui-card stoi w pliku nizej i jego flex-direction
+   wygrywa, wiec zawartosc i tak spadala w slupek. */
+.ui-card--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.ui-card--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+/* Wybrana karta w zestawie przelacznikow (sekcje panelu admina). */
+.ui-card--selected {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.ui-card--accent {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-sm), var(--shadow-accent);
+}
+
+/* Podium na kartach. Kolor na obramowaniu, nie na tle - ta sama zasada co
+   w wierszach rankingu, zeby trzy pierwsze miejsca nie przytlaczaly reszty. */
+.ui-card--gold {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+
+.ui-card--silver {
+  border-color: color-mix(in srgb, var(--silver) 35%, transparent);
+}
+
+.ui-card--bronze {
+  border-color: color-mix(in srgb, var(--bronze) 35%, transparent);
+}
+
+/* -------------------------------------------------------------------------
+   PLAKIETKA
+   Jeden komponent na wszystkie statusy. Ton niesie znaczenie, nie rozmiar.
+   ------------------------------------------------------------------------- */
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+
+  background: var(--layer);
+  color: var(--text-muted);
+
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ui-badge--accent {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-bright);
+}
+
+.ui-badge--ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok);
+}
+
+.ui-badge--warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn);
+}
+
+.ui-badge--danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+/* Live pulsuje - to jedyne miejsce w systemie, gdzie animacja działa bez
+   interakcji użytkownika, bo niesie informację: mecz trwa TERAZ. */
+.ui-badge--live {
+  background: var(--live-bg);
+  border-color: var(--live-border);
+  color: var(--live);
+}
+
+.ui-badge--live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  animation: ui-pulse 2s var(--ease) infinite;
+}
+
+@keyframes ui-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   KAFELEK STATYSTYKI
+   ------------------------------------------------------------------------- */
+
+.ui-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+}
+
+/* Na telefonie auto-fit schodzil do JEDNEJ kolumny - w karcie zostawalo
+   285px, a dwie kolumny po 140px potrzebowaly o kilka pikseli wiecej.
+   Dziesiec kafelkow rozkladalo sie wtedy na ekran wysokosci ekranu i
+   polowy nastepnego. Dwie kolumny sa tu decyzja, nie wynikiem zaokraglenia. */
+@media (max-width: 520px) {
+  .ui-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ui-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--layer-subtle);
+}
+
+.ui-stat__label,
+.ui-stat > span {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.ui-stat__value,
+.ui-stat > strong {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Drobny podpis pod wartoscia. ui-hint to nazwa kanoniczna - dziala wszedzie,
+   nie tylko w kafelku; ui-stat__hint zostaje, bo tak nazywa go polowa juz
+   przeniesionych widokow i obie nazwy to jedna i ta sama rzecz. */
+.ui-hint,
+.ui-stat__hint,
+.ui-stat > small {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+/* Wyróżniony kafelek - jeden na sekcję. Gdy wyróżnione jest wszystko,
+   nie jest nic. */
+.ui-stat--featured {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.ui-stat--featured .ui-stat__value,
+.ui-stat--featured > strong {
+  color: var(--accent-bright);
+}
+
+/* Kafelek na całą szerokość siatki - dla wartości, które są zdaniem,
+   a nie liczbą. */
+.ui-stat--wide {
+  grid-column: 1 / -1;
+}
+
+/* -------------------------------------------------------------------------
+   TABELA / RANKING
+   Na wąskim ekranie NIE jest ściśniętą tabelą. Wiersz rozkłada się na dwa
+   poziomy: kto (miejsce, awatar, nick) i ile (punkty, rozbicie). To jest
+   powód istnienia grid-template-areas zamiast zwykłych kolumn.
+   ------------------------------------------------------------------------- */
+
+.ui-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ui-table__head {
+  display: none; /* na mobile nagłówek kolumn nie ma czego opisywać */
+}
+
+.ui-row-item {
+  display: grid;
+  grid-template-areas:
+    "rank who score"
+    "rank meta meta";
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+
+  transition:
+    background var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.ui-row-item:hover {
+  background: var(--surface-3);
+  border-color: var(--border);
+}
+
+.ui-row-item__rank {
+  grid-area: rank;
+  min-width: 2.5ch;
+
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ui-row-item__who {
+  grid-area: who;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0; /* bez tego nick nie ma jak się skrócić i rozpycha wiersz */
+}
+
+/* Nick skraca się dopiero wtedy, gdy naprawdę nie ma miejsca - wcześniej
+   ucinał się do jednej litery, bo rodzic nie miał min-width: 0. */
+.ui-row-item__name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-row-item__score {
+  grid-area: score;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ui-row-item__meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+/* Podium. Kolor wchodzi na obramowanie i numer, nie na tło - inaczej trzy
+   pierwsze wiersze zaczynają dominować nad całą tabelą. */
+.ui-row-item--1 {
+  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.ui-row-item--1 .ui-row-item__rank {
+  color: var(--gold);
+}
+
+.ui-row-item--2 {
+  border-color: color-mix(in srgb, var(--silver) 35%, transparent);
+}
+.ui-row-item--2 .ui-row-item__rank {
+  color: var(--silver);
+}
+
+.ui-row-item--3 {
+  border-color: color-mix(in srgb, var(--bronze) 35%, transparent);
+}
+.ui-row-item--3 .ui-row-item__rank {
+  color: var(--bronze);
+}
+
+/* Wiersz zalogowanego gracza - ma się rzucać w oczy przy przewijaniu. */
+.ui-row-item--me {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+/* Od tabletu w górę wiersz spłaszcza się do jednej linii i dostaje kolumny
+   o stałej szerokości - wtedy liczby układają się w pion i czyta się to
+   jak tabelę wyników, a nie listę kart. */
+@media (min-width: 720px) {
+  .ui-row-item {
+    grid-template-areas: "rank who meta score";
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .ui-row-item__meta {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+
+  .ui-table__head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: var(--space-4);
+    padding: 0 var(--space-5) var(--space-2);
+
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   MECZ
+   Starcie dwoch stron. Nazwy druzyn dostaja rowne polowy, zeby dluzsza nie
+   spychala krotszej - przy "MOUZ" kontra "Natus Vincere" bez tego jedna
+   strona wyglada na wazniejsza.
+   ------------------------------------------------------------------------- */
+
+.ui-match {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.ui-match__team {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.ui-match__team--b {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ui-match__side {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+.ui-match__name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.ui-match__vs {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
+   AWATAR
+   ------------------------------------------------------------------------- */
+
+.ui-avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  object-fit: cover;
+}
+
+/* Zastepnik, gdy gracz nie ma awatara na Discordzie. Inicjal zamiast pustego
+   kola - kolo bez niczego wyglada jak obrazek, ktory sie nie wczytal. */
+.ui-avatar--initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+}
+
+.ui-avatar--lg {
+  width: 64px;
+  height: 64px;
+}
+
+.ui-avatar--xl {
+  width: 88px;
+  height: 88px;
+  border-width: 2px;
+}
+
+/* -------------------------------------------------------------------------
+   PRZYCISKI
+   ------------------------------------------------------------------------- */
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-3);
+  color: var(--text);
+
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease);
+}
+
+.ui-btn:hover {
+  background: var(--surface-4);
+}
+
+/* Wciśnięcie potwierdzane ruchem o 1px - tyle wystarczy, żeby kliknięcie
+   było wyczuwalne, i na tyle mało, żeby nie rozpraszało przy szybkiej pracy. */
+.ui-btn:active {
+  transform: translateY(1px);
+}
+
+.ui-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.ui-btn--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.ui-btn--ghost:hover {
+  background: var(--layer);
+  color: var(--text);
+}
+
+.ui-btn--danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.ui-btn--sm {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.ui-btn:disabled,
+.ui-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* -------------------------------------------------------------------------
+   STANY: PUSTY, BŁĄD
+   Stan pusty ma mówić, co zrobić dalej. "Brak danych" to komunikat dla
+   programisty, nie dla gracza.
+   ------------------------------------------------------------------------- */
+
+.ui-empty,
+.ui-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-12) var(--space-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.ui-empty__icon,
+.ui-error__icon {
+  font-size: var(--text-3xl);
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.ui-empty__title,
+.ui-error__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.ui-empty__text,
+.ui-error__text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  max-width: 44ch;
+}
+
+.ui-error {
+  border-style: solid;
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.ui-error__title {
+  color: var(--danger);
+}
+
+/* -------------------------------------------------------------------------
+   SZKIELET ŁADOWANIA
+   Dla list i tabel lepszy niż spinner: pokazuje, ILE i CZEGO się spodziewać,
+   więc układ nie skacze w momencie, gdy dane dojdą.
+   ------------------------------------------------------------------------- */
+
+.ui-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--layer);
+  border-radius: var(--radius-sm);
+}
+
+.ui-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: ui-shimmer 1.4s infinite;
+}
+
+@keyframes ui-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.ui-skeleton--row {
+  height: 64px;
+  border-radius: var(--radius-md);
+}
+
+.ui-skeleton--text {
+  height: 0.85em;
+  border-radius: var(--radius-pill);
+}
+
+/* -------------------------------------------------------------------------
+   PASEK PODZIAŁU
+   Dwie strony jednej całości, nie postęp. Stąd osobny komponent zamiast
+   naciągania ui-meter: tam wypełnienie mówi "ile zrobione", tu obie części
+   są danymi i obie muszą być widoczne.
+   ------------------------------------------------------------------------- */
+
+.ui-split {
+  display: flex;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--layer-sunken);
+}
+
+.ui-split__a {
+  background: var(--side-a);
+}
+
+.ui-split__b {
+  background: var(--side-b);
+}
+
+/* -------------------------------------------------------------------------
+   PASEK POSTĘPU
+   ------------------------------------------------------------------------- */
+
+.ui-meter {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--layer-sunken);
+  overflow: hidden;
+}
+
+.ui-meter__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--duration-slow) var(--ease);
+}
+
+.ui-meter__fill--ok {
+  background: var(--ok);
+}
+
+/* -------------------------------------------------------------------------
+   KAFELEK ENCJI
+   Karta z nazwą i zestawem plakietek: turniej, serwer, event na liście.
+   Jeden komponent zamiast trzech niemal identycznych.
+   ------------------------------------------------------------------------- */
+
+.ui-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.ui-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Pierwszy goly span w kafelku czytamy jako kicker - pozwala przeniesc
+   istniejace karty nawigacyjne zmiana nazwy klasy zamiast przepisywania. */
+.ui-tile > span:first-child {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent-bright);
+}
+
+.ui-tile__name,
+.ui-tile > strong {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-strong);
+}
+
+.ui-tile__meta {
+  margin-top: auto;
+}
+
+/* -------------------------------------------------------------------------
+   WYBÓR
+   Grupa przycisków, z których jeden jest zaznaczony: zwycięzca meczu, wynik
+   serii, później faza turnieju. Stan trzyma aria-pressed, a nie klasa
+   "selected" - czytnik ekranu mówi wtedy "wciśnięty", a CSS i tak ma się
+   czego złapać.
+   ------------------------------------------------------------------------- */
+
+.ui-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-choice__option {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-subtle);
+  color: var(--text-muted);
+
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  cursor: pointer;
+
+  /* Na telefonie szybkie stuknięcia zaznaczały napis na przycisku. */
+  user-select: none;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+a.ui-choice__option {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.ui-choice__option:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* aria-current dla linków (nawigacja etapów) - link nie może być
+   "wciśnięty", ale zaznaczenie ma wyglądać tak samo. */
+.ui-choice__option[aria-current="page"],
+.ui-choice__option[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-strong);
+}
+
+/* Wariant "kto wygra": dwie duże strony i VS pośrodku. Na telefonie
+   zostaje układ obok siebie - to porównanie, więc rozbicie na wiersze
+   psułoby sens. */
+.ui-choice--versus {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.ui-choice--versus .ui-choice__option {
+  padding: var(--space-5) var(--space-3);
+  font-size: var(--text-lg);
+  text-align: center;
+}
+
+.ui-choice__vs {
+  align-self: center;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
+   POLE I WYNIK
+   Wpisywanie wyniku mapy. Liczby idą fontem tabelarycznym, żeby 13 i 11
+   miały tę samą szerokość i pole nie "drgało" przy pisaniu.
+   ------------------------------------------------------------------------- */
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ui-field__label {
+  overflow: hidden;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-field__input {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-sunken);
+  color: var(--text-strong);
+
+  font-family: inherit;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+.ui-field__input:focus {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.ui-field__input:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+/* Pole strony, ktora wygrala mape. Wpisujacy wynik widzi od razu, czy
+   klepnal go w dobra kolumne. */
+.ui-field--winner .ui-field__label {
+  color: var(--ok);
+}
+
+.ui-field--winner .ui-field__input {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+}
+
+.ui-field__input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.ui-score__separator {
+  padding-bottom: var(--space-3);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
+   NOTATKA
+   Komunikat WEWNĄTRZ formularza: powód blokady, prośba o zalogowanie,
+   potwierdzenie zapisu. Osobno od ui-error, bo tamto jest stanem całego
+   ekranu i zajmuje pół widoku.
+   ------------------------------------------------------------------------- */
+
+.ui-note {
+  /* Blok, nie flex: treść notki to zdanie z linkiem w środku. Flex robił
+     z linku osobny element i łamał go w słupek przy prawej krawędzi. */
+  display: block;
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.ui-note--ok {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.ui-note--warn {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.ui-note--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ui-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------
+   WYNIK
+   Dwie nazwy i liczba pomiędzy nimi. Zwycięska strona ma jaśniejszy tekst -
+   wynik czyta się wtedy jednym spojrzeniem, bez porównywania cyfr.
+   ------------------------------------------------------------------------- */
+
+.ui-scoreline {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+
+  /* Bez ograniczenia na szerokim ekranie nazwy drużyn odjeżdżają na oba
+     krańce karty, a wynik zostaje sam pośrodku - trzy oddzielne napisy
+     zamiast jednego rezultatu. */
+  max-width: 520px;
+}
+
+.ui-scoreline__team {
+  overflow: hidden;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-scoreline__team:last-child {
+  text-align: right;
+}
+
+.ui-scoreline__score {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: var(--text-strong);
+}
+
+.ui-scoreline--a .ui-scoreline__team:first-child,
+.ui-scoreline--b .ui-scoreline__team:last-child {
+  color: var(--text-strong);
+}
+
+/* Wariant do list map, gdzie wynik jest szczegółem, a nie nagłówkiem. */
+.ui-scoreline--compact {
+  gap: var(--space-2);
+}
+
+.ui-scoreline--compact .ui-scoreline__team {
+  font-size: var(--text-xs);
+}
+
+.ui-scoreline--compact .ui-scoreline__score {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+/* Podpisy nad paskiem podziału: nazwa drużyny i jej procent w kolorze
+   swojej strony. Obie strony ui-split dostają ten sam kolor co pasek. */
+.ui-split-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-split-side strong {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.ui-split-side span {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--side-a);
+}
+
+.ui-split-side--b {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ui-split-side--b span {
+  color: var(--side-b);
+}
+
+/* Wiersz mapy: numer po lewej, wynik po prawej. */
+.ui-map-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ui-map-row__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-faint);
+}
+
+.ui-map-row .ui-scoreline {
+  justify-self: end;
+}
+
+/* Na telefonie numer mapy idzie nad zawartosc. Obok niej plakietki lamaly
+   sie na kilka linii i numer wisial przy ostatniej z nich, jakby opisywal
+   co innego. */
+@media (max-width: 520px) {
+  .ui-map-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .ui-map-row .ui-scoreline {
+    justify-self: start;
+  }
+}
+
+/* Na telefonie nazwy drużyn w wierszu mapy znikają: stoją już w wyniku
+   nad listą, a tutaj tylko się ucinały. Kolejność A:B zostaje ta sama. */
+@media (max-width: 560px) {
+  .ui-scoreline--compact .ui-scoreline__team {
+    display: none;
+  }
+}
+
+/* Siatka drużyn do wyboru w fazach turnieju. Kafelki równej szerokości,
+   bo przy flexie ostatni rząd rozciągał dwie drużyny na całą szerokość
+   i wyglądały na ważniejsze od reszty. */
+.ui-choice--grid {
+  display: grid;
+  /* 120px, nie 140: przy 140 dwie kolumny nie mieściły się w karcie na
+     telefonie (brakowało dwóch pikseli) i dziesięć drużyn rozkładało się
+     w jedną długą kolumnę. */
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+
+.ui-choice__option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-choice__option:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* Odczyt "wybrano 4/6" nad paskiem postępu. */
+.ui-count {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+.ui-count--done {
+  color: var(--ok);
+}
+
+/* -------------------------------------------------------------------------
+   ROZWIJANY WIERSZ
+   Wiersz historii, który po kliknięciu pokazuje szczegóły.
+   Cały wiersz jest przyciskiem - wcześniej klikalny był tylko div, a
+   strzałka leżała OBOK niego, więc kliknięcie w strzałkę nic nie robiło
+   i nic nie dało się rozwinąć z klawiatury.
+   ------------------------------------------------------------------------- */
+
+.ui-disclosure {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+
+  background: transparent;
+  color: inherit;
+
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.ui-disclosure:hover {
+  background: var(--layer-subtle);
+}
+
+.ui-disclosure__icon {
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+.ui-disclosure__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-disclosure__main strong {
+  overflow: hidden;
+  font-size: var(--text-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-strong);
+}
+
+.ui-disclosure__main span {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ui-disclosure__points {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-disclosure__points--scored {
+  color: var(--ok);
+}
+
+.ui-disclosure__chevron {
+  color: var(--text-faint);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.ui-disclosure[aria-expanded="true"] .ui-disclosure__chevron {
+  transform: rotate(180deg);
+}
+
+/* Na wąskim ekranie punkty schodzą pod nazwy drużyn - w jednym wierszu
+   nie mieściły się razem z nickiem i strzałką. */
+@media (max-width: 480px) {
+  .ui-disclosure {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .ui-disclosure__points {
+    grid-column: 2;
+    font-size: var(--text-md);
+  }
+}

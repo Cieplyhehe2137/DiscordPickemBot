@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { getMyStats } from "../lib/api.js";
 import socket from "../lib/socket.js";
 import BackLink from "../components/BackLink.jsx";
-import Ladowanie from "../components/Ladowanie.jsx";
+import LoginRequired from "../components/LoginRequired.jsx";
 
 const TABS = [
   { key: "general", label: "📊 Ogólne" },
@@ -30,7 +30,7 @@ function MyStatsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,7 +41,7 @@ function MyStatsPage() {
           setLoading(true);
         }
 
-        setError("");
+        setError(null);
 
         const response = await getMyStats(slug);
 
@@ -52,7 +52,10 @@ function MyStatsPage() {
         console.error("MY STATS LOAD ERROR:", err);
 
         if (!cancelled) {
-          setError(err.message || "Nie udało się pobrać statystyk.");
+          setError({
+            message: err.message || "Nie udało się pobrać statystyk.",
+            status: err.status,
+          });
         }
       } finally {
         if (!cancelled && !silent) {
@@ -81,36 +84,73 @@ function MyStatsPage() {
 
   if (loading) {
     return (
-      <main className="my-stats-page">
-        <Ladowanie>Ładowanie statystyk...</Ladowanie>
+      <main className="ui-page">
+        <div
+          className="ui-stats"
+          aria-busy="true"
+          aria-label="Ładowanie statystyk"
+        >
+          {Array.from({ length: 6 }, (_, i) => (
+            <div className="ui-skeleton ui-skeleton--row" key={i} />
+          ))}
+        </div>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="my-stats-page">
+      <main className="ui-page">
         <BackLink to={`/events/${slug}`} />
 
-        <p className="admin-feedback admin-feedback--error">{error}</p>
+        {error.status === 401 ? (
+          <LoginRequired>
+            Statystyki liczą się z Twoich typów, więc musimy wiedzieć, kto pyta.
+          </LoginRequired>
+        ) : (
+          <div className="ui-error" role="alert">
+            <span className="ui-error__icon" aria-hidden="true">
+              ⚠️
+            </span>
+
+            <strong className="ui-error__title">
+              Nie udało się wczytać statystyk
+            </strong>
+
+            <p className="ui-error__text">{error.message}</p>
+          </div>
+        )}
       </main>
     );
   }
 
   if (!data?.has_data) {
     return (
-      <main className="my-stats-page">
+      <main className="ui-page">
         <BackLink to={`/events/${slug}`} />
 
-        <div className="my-stats-empty">
-          <span className="events-kicker">Twoje dane</span>
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Twoje dane</span>
 
-          <h1>
-            Moje statystyki
-            {data?.event?.name ? ` — ${data.event.name}` : ""}
-          </h1>
+            <h2>
+              Moje statystyki
+              {data?.event?.name ? ` — ${data.event.name}` : ""}
+            </h2>
+          </div>
+        </div>
 
-          <p>Nie masz jeszcze typów meczowych w tym evencie.</p>
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            📊
+          </span>
+
+          <strong className="ui-empty__title">Brak danych do pokazania</strong>
+
+          <p className="ui-empty__text">
+            Nie masz jeszcze typów meczowych w tym evencie. Statystyki pojawią
+            się po pierwszym zapisanym typie.
+          </p>
         </div>
       </main>
     );
@@ -125,26 +165,27 @@ function MyStatsPage() {
   const trends = data.trends;
 
   return (
-    <main className="my-stats-page">
+    <main className="ui-page">
       <BackLink to={`/events/${slug}`} />
-      <div className="my-stats-page__header">
-        <span className="events-kicker">Twoje dane</span>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Twoje dane</span>
 
-        <h1>Moje statystyki — {data.event.name}</h1>
+          <h2>Moje statystyki — {data.event.name}</h2>
 
-        <p>Szczegółowe podsumowanie Twojego typowania w evencie.</p>
+          <p>Szczegółowe podsumowanie Twojego typowania w evencie.</p>
+        </div>
       </div>
 
-      <div className="my-stats-tabs">
+      <div className="ui-choice" role="tablist">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
-            className={
-              activeTab === tab.key
-                ? "my-stats-tab my-stats-tab--active"
-                : "my-stats-tab"
-            }
+            role="tab"
+            className="ui-choice__option"
+            aria-selected={activeTab === tab.key}
+            aria-pressed={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
           >
             {tab.label}
@@ -153,8 +194,8 @@ function MyStatsPage() {
       </div>
 
       {activeTab === "general" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card">
+        <section className="ui-stats">
+          <article className="ui-stat">
             <span>🏅 Ranking</span>
             <strong>
               {general.rank
@@ -169,13 +210,13 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>⭐ Punkty</span>
             <strong>{general.total_points} pkt</strong>
             <small>{general.average_points} pkt / mecz</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎭 Profil</span>
             <strong>
               {general.style?.emoji} {general.style?.name}
@@ -183,13 +224,13 @@ function MyStatsPage() {
             <small>{general.trends?.direction?.name ?? "Stabilna forma"}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎮 Typy</span>
             <strong>{general.total_predictions}</strong>
             <small>Rozliczone: {general.settled_matches}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🏆 Zwycięzcy</span>
             <strong>
               {general.winner_hits}/{general.settled_matches}
@@ -197,7 +238,7 @@ function MyStatsPage() {
             <small>{pct(general.winner_hits, general.settled_matches)}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎯 Exact serii</span>
             <strong>
               {general.series_exacts}/{general.settled_matches}
@@ -205,7 +246,7 @@ function MyStatsPage() {
             <small>{pct(general.series_exacts, general.settled_matches)}</small>
           </article>
 
-          <article className="my-stat-card my-stat-card--wide">
+          <article className="ui-stat ui-stat--wide">
             <span>🗺️ Mapy</span>
             <strong>
               Zwycięzca: {general.map_winner_hits}/{general.settled_maps}
@@ -215,7 +256,7 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card my-stat-card--wide">
+          <article className="ui-stat ui-stat--wide">
             <span>📦 Punkty</span>
             <strong>Serie: {general.series_points} pkt</strong>
             <small>Mapy: {general.map_points} pkt</small>
@@ -224,8 +265,8 @@ function MyStatsPage() {
       )}
 
       {activeTab === "accuracy" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card">
+        <section className="ui-stats">
+          <article className="ui-stat">
             <span>🏆 Zwycięzca meczu</span>
             <strong>
               {accuracy.winner_hits}/{accuracy.settled_matches}
@@ -233,7 +274,7 @@ function MyStatsPage() {
             <small>{pct(accuracy.winner_hits, accuracy.settled_matches)}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎯 Exact serii</span>
             <strong>
               {accuracy.series_exacts}/{accuracy.settled_matches}
@@ -243,7 +284,7 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🗺️ Zwycięzca mapy</span>
             <strong>
               {accuracy.map_winner_hits}/{accuracy.settled_maps}
@@ -253,7 +294,7 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>💯 Exact mapy</span>
             <strong>
               {accuracy.exact_maps}/{accuracy.settled_maps}
@@ -265,7 +306,7 @@ function MyStatsPage() {
             const stats = accuracy[`bo${bo}`];
 
             return (
-              <article className="my-stat-card" key={bo}>
+              <article className="ui-stat" key={bo}>
                 <span>BO{bo}</span>
 
                 <strong>
@@ -282,15 +323,15 @@ function MyStatsPage() {
       )}
 
       {activeTab === "form" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card my-stat-card--wide">
+        <section className="ui-stats">
+          <article className="ui-stat ui-stat--wide">
             <span>📈 Ostatnie mecze</span>
             <strong>
               {form.recent?.length ? form.recent.join(" ") : "Brak danych"}
             </strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>⚡ Ostatnie 5</span>
             <strong>
               {form.last5.hits}/{form.last5.total}
@@ -298,7 +339,7 @@ function MyStatsPage() {
             <small>{form.last5.percentage}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>📊 Ostatnie 10</span>
             <strong>
               {form.last10.hits}/{form.last10.total}
@@ -306,17 +347,17 @@ function MyStatsPage() {
             <small>{form.last10.percentage}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🔥 Aktualna seria</span>
             <strong>{form.current_streak}</strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🏅 Rekordowa seria</span>
             <strong>{form.best_streak}</strong>
           </article>
 
-          <article className="my-stat-card my-stat-card--wide">
+          <article className="ui-stat ui-stat--wide">
             <span>💎 Najlepszy mecz</span>
 
             {form.best_match ? (
@@ -340,8 +381,8 @@ function MyStatsPage() {
       )}
 
       {activeTab === "comparison" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card">
+        <section className="ui-stats">
+          <article className="ui-stat">
             <span>🏅 Ranking</span>
             <strong>
               {comparison.rank
@@ -356,19 +397,19 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>⭐ Punkty</span>
             <strong>{comparison.user.total_points}</strong>
             <small>Średnia: {comparison.community.average_total_points}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>📈 Punkty / mecz</span>
             <strong>{comparison.user.average_points}</strong>
             <small>Średnia: {comparison.community.average_points}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🏆 Zwycięzcy</span>
             <strong>{comparison.user.winner_accuracy.toFixed(1)}%</strong>
             <small>
@@ -376,7 +417,7 @@ function MyStatsPage() {
             </small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎯 Exact serii</span>
             <strong>{comparison.user.exact_accuracy.toFixed(1)}%</strong>
             <small>
@@ -387,30 +428,30 @@ function MyStatsPage() {
       )}
 
       {activeTab === "analysis" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card">
+        <section className="ui-stats">
+          <article className="ui-stat">
             <span>🟢 Najlepiej typowana</span>
             <strong>{analysis.team_stats.best?.name ?? "—"}</strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>😈 Nemesis</span>
             <strong>{analysis.team_stats.nemesis?.name ?? "—"}</strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>❤️ Najczęściej wybierana</span>
             <strong>{analysis.team_stats.mostPicked?.name ?? "—"}</strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🔥 Najbardziej jednostronny</span>
             <strong>
               {analysis.community.mostOneSided?.majorityTeam ?? "—"}
             </strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>⚔️ Najbardziej podzielony</span>
             <strong>
               {analysis.community.mostDivided?.teamA ?? "—"}
@@ -419,12 +460,12 @@ function MyStatsPage() {
             </strong>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>🎯 Popularny wynik</span>
             <strong>{analysis.community.mostPopularScore?.score ?? "—"}</strong>
           </article>
 
-          <article className="my-stat-card my-stat-card--wide">
+          <article className="ui-stat ui-stat--wide">
             <span>🗺️ Dokładność map</span>
             <strong>
               Exact: {analysis.map_accuracy.exact}/{analysis.map_accuracy.total}
@@ -438,8 +479,8 @@ function MyStatsPage() {
       )}
 
       {activeTab === "style" && (
-        <section className="my-stats-grid">
-          <article className="my-stat-card my-stat-card--wide">
+        <section className="ui-stats">
+          <article className="ui-stat ui-stat--wide">
             <span>🎭 Twój profil</span>
             <strong>
               {style.profile.emoji} {style.profile.name}
@@ -447,19 +488,19 @@ function MyStatsPage() {
             <small>{style.profile.description}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>💎 Przeciw większości</span>
             <strong>{style.contrarian.contrarianPicks}</strong>
             <small>Trafione: {style.contrarian.contrarianHits}</small>
           </article>
 
-          <article className="my-stat-card">
+          <article className="ui-stat">
             <span>👥 Z większością</span>
             <strong>{style.contrarian.majorityPicks}</strong>
             <small>Trafione: {style.contrarian.majorityHits}</small>
           </article>
 
-          <article className="my-stat-card my-stat-card--wide">
+          <article className="ui-stat ui-stat--wide">
             <span>💠 Najrzadszy trafiony pick</span>
             <strong>
               {style.contrarian.rarestHit
@@ -471,22 +512,22 @@ function MyStatsPage() {
       )}
 
       {activeTab === "trends" && (
-        <section className="my-stats-grid">
+        <section className="ui-stats">
           {!trends.enoughData ? (
-            <article className="my-stat-card my-stat-card--wide">
+            <article className="ui-stat ui-stat--wide">
               <span>📈 Trendy</span>
               <strong>Za mało danych</strong>
               <small>Rozliczone mecze: {trends.totalMatches} / 4</small>
             </article>
           ) : (
             <>
-              <article className="my-stat-card my-stat-card--wide">
+              <article className="ui-stat ui-stat--wide">
                 <span>{trends.direction.emoji} Kierunek</span>
                 <strong>{trends.direction.name}</strong>
                 <small>{trends.direction.description}</small>
               </article>
 
-              <article className="my-stat-card">
+              <article className="ui-stat">
                 <span>🏆 Zwycięzcy</span>
                 <strong>
                   {trends.first.winnerAccuracy.toFixed(1)}% →{" "}
@@ -494,7 +535,7 @@ function MyStatsPage() {
                 </strong>
               </article>
 
-              <article className="my-stat-card">
+              <article className="ui-stat">
                 <span>🎯 Exact serii</span>
                 <strong>
                   {trends.first.seriesExactAccuracy.toFixed(1)}% →{" "}
@@ -502,7 +543,7 @@ function MyStatsPage() {
                 </strong>
               </article>
 
-              <article className="my-stat-card">
+              <article className="ui-stat">
                 <span>⭐ Punkty / mecz</span>
                 <strong>
                   {trends.first.averagePoints.toFixed(2)}
@@ -511,7 +552,7 @@ function MyStatsPage() {
                 </strong>
               </article>
 
-              <article className="my-stat-card">
+              <article className="ui-stat">
                 <span>🗺️ Exact map</span>
                 <strong>
                   {trends.first.mapExactAccuracy.toFixed(1)}% →{" "}

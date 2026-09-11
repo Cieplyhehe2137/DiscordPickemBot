@@ -227,16 +227,16 @@ function PhaseResultsAdmin({ slug, teams }) {
   }
 
   return (
-    <div className="phase-admin">
-      <div className="phase-admin__tabs">
+    <div className="ui-stack">
+      <div className="ui-choice">
         {Object.entries(FAZY).map(([klucz, cfg]) => (
           <button
             key={klucz}
             type="button"
             className={
               faza === klucz
-                ? "phase-admin__tab phase-admin__tab--active"
-                : "phase-admin__tab"
+                ? "ui-stack__tab ui-stack__tab--active"
+                : "ui-stack__tab"
             }
             onClick={() => setFaza(klucz)}
           >
@@ -252,15 +252,18 @@ function PhaseResultsAdmin({ slug, teams }) {
           const wybrane = wartosci[grupa.klucz] || [];
 
           return (
-            <div className="phase-admin__group" key={grupa.klucz}>
+            <div
+              className="ui-card ui-card--flat ui-stack ui-stack--tight"
+              key={grupa.klucz}
+            >
               <h4>
                 {grupa.etykieta}
-                <span className="phase-admin__count">
+                <span className="ui-count">
                   {wybrane.length}/{grupa.limit}
                 </span>
               </h4>
 
-              <div className="phase-admin__teams">
+              <div className="ui-choice ui-choice--grid">
                 {teams.map((team) => {
                   const zaznaczona = wybrane.includes(team.name);
 
@@ -270,8 +273,8 @@ function PhaseResultsAdmin({ slug, teams }) {
                       type="button"
                       className={
                         zaznaczona
-                          ? "phase-admin__team phase-admin__team--on"
-                          : "phase-admin__team"
+                          ? "ui-stack__team ui-stack__team--on"
+                          : "ui-stack__team"
                       }
                       onClick={() =>
                         przelacz(grupa.klucz, team.name, grupa.limit)
@@ -286,14 +289,18 @@ function PhaseResultsAdmin({ slug, teams }) {
           );
         })}
 
-      <div className="phase-admin__actions">
-        <button type="button" onClick={zapisz} disabled={zapisywanie || ladowanie}>
+      <div className="ui-row ui-row--wrap">
+        <button
+          type="button"
+          onClick={zapisz}
+          disabled={zapisywanie || ladowanie}
+        >
           {zapisywanie ? "Zapisywanie..." : "Zapisz wyniki fazy"}
         </button>
 
         <button
           type="button"
-          className="phase-admin__recalc"
+          className="ui-btn"
           onClick={przelicz}
           disabled={przeliczanie}
         >
@@ -301,11 +308,9 @@ function PhaseResultsAdmin({ slug, teams }) {
         </button>
       </div>
 
-      {komunikat && (
-        <p className="admin-feedback admin-feedback--success">{komunikat}</p>
-      )}
+      {komunikat && <p className="ui-note ui-note--ok">{komunikat}</p>}
 
-      {blad && <p className="admin-feedback admin-feedback--error">{blad}</p>}
+      {blad && <p className="ui-note ui-note--danger">{blad}</p>}
     </div>
   );
 }

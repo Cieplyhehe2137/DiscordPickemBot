@@ -46,7 +46,11 @@ function StartPickemPanel({ slug }) {
     setBlad("");
 
     try {
-      const odpowiedz = await startEventPickem(slug, faza, kanal.trim() || null);
+      const odpowiedz = await startEventPickem(
+        slug,
+        faza,
+        kanal.trim() || null,
+      );
 
       setOk(
         `Zlecono start fazy ${etykieta}. Bot opublikuje panel na kanale ` +
@@ -61,17 +65,17 @@ function StartPickemPanel({ slug }) {
   }
 
   return (
-    <div className="start-pickem">
+    <div className="ui-card ui-stack">
       <h3>Uruchom typowanie</h3>
 
-      <p className="start-pickem__hint">
+      <p className="ui-hint">
         Jedyna akcja, która publikuje panel typowania na Discordzie. Turniej
-        staje się aktywny, a poprzedni otwarty zostaje zamknięty. Kanał
-        domyślny bierze się z <code>PICKEM_CHANNEL_ID</code> w configu serwera —
-        poniżej możesz go nadpisać.
+        staje się aktywny, a poprzedni otwarty zostaje zamknięty. Kanał domyślny
+        bierze się z <code>PICKEM_CHANNEL_ID</code> w configu serwera — poniżej
+        możesz go nadpisać.
       </p>
 
-      <div className="start-pickem__row">
+      <div className="ui-row ui-row--wrap">
         <select value={faza} onChange={(e) => setFaza(e.target.value)}>
           {FAZY.map((f) => (
             <option key={f.klucz} value={f.klucz}>
@@ -92,9 +96,9 @@ function StartPickemPanel({ slug }) {
         </button>
       </div>
 
-      {ok && <p className="admin-feedback admin-feedback--success">{ok}</p>}
+      {ok && <p className="ui-note ui-note--ok">{ok}</p>}
 
-      {blad && <p className="admin-feedback admin-feedback--error">{blad}</p>}
+      {blad && <p className="ui-note ui-note--danger">{blad}</p>}
     </div>
   );
 }

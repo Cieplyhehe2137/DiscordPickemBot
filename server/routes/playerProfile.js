@@ -11,7 +11,7 @@ export function registerPlayerProfileRoutes(
     assertPredictionsAllowed,
     isMatchDeadlinePassed,
     matchPanelPhaseFor,
-    nazwaZTypow,
+    findNameFromPicks,
     pool,
   },
 ) {
@@ -58,7 +58,7 @@ export function registerPlayerProfileRoutes(
       const nazwaZapasowa =
         userProfile?.displayname || userProfile?.username
           ? null
-          : await nazwaZTypow(event.id, userId);
+          : await findNameFromPicks(event.id, userId);
 
       /*
        * Punkty dla tego eventu.

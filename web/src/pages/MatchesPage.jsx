@@ -7,7 +7,6 @@ import {
 } from "react-router-dom";
 
 import { getEventMatches } from "../lib/api.js";
-import Ladowanie from "../components/Ladowanie.jsx";
 
 function MatchesPage() {
   const { slug } = useParams();
@@ -119,19 +118,22 @@ function MatchesPage() {
   }
 
   return (
-    <main className="matches-page">
-      <section className="matches-page__hero">
-        <span className="events-kicker">Pick&apos;Em</span>
+    <main className="ui-page">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Pick&apos;Em</span>
 
-        <h1>
-          {selectedPhase
-            ? `Mecze — ${phaseLabels[selectedPhase] ?? selectedPhase}`
-            : "Mecze"}
-        </h1>
+          <h2>
+            {selectedPhase
+              ? `Mecze — ${phaseLabels[selectedPhase] ?? selectedPhase}`
+              : "Mecze"}
+          </h2>
+        </div>
 
-        <Link className="matches-page__back" to={`/events/${slug}`}>
+        <Link className="ui-btn ui-btn--ghost ui-btn--sm" to={`/events/${slug}`}>
           ← Wróć do eventu
         </Link>
+      </div>
 
         {!loading && !error && selectedProgress && (
           <div className="matches-page__progress">
@@ -143,9 +145,9 @@ function MatchesPage() {
               </strong>
             </div>
 
-            <div className="matches-page__progress-bar">
+            <div className="ui-meter">
               <div
-                className="matches-page__progress-fill"
+                className="ui-meter__fill"
                 style={{
                   width:
                     selectedProgress.total > 0
@@ -168,17 +170,31 @@ function MatchesPage() {
           </div>
         )}
 
-        {loading && <Ladowanie>Ładowanie meczów...</Ladowanie>}
+        {loading && (
+          <div className="ui-stack" aria-busy="true" aria-label="Ładowanie meczów">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div className="ui-skeleton ui-skeleton--row" key={i} />
+            ))}
+          </div>
+        )}
 
-        {!loading && error && <p>{error}</p>}
+        {!loading && error && (
+          <div className="ui-error" role="alert">
+            <span className="ui-error__icon" aria-hidden="true">⚠️</span>
+            <strong className="ui-error__title">Nie udało się wczytać meczów</strong>
+            <p className="ui-error__text">{error}</p>
+          </div>
+        )}
 
         {!loading && !error && matches && (
-          <section className="matches-list">
+          <section className="ui-stack ui-stack--loose">
             {filteredMatches.length === 0 && (
-              <div className="matches-list__empty">
-                <strong>Brak meczów</strong>
-
-                <p>W tej fazie nie ma jeszcze żadnych zaplanowanych meczów.</p>
+              <div className="ui-empty">
+                <span className="ui-empty__icon" aria-hidden="true">📅</span>
+                <strong className="ui-empty__title">Brak meczów</strong>
+                <p className="ui-empty__text">
+                  W tej fazie nie ma jeszcze żadnych zaplanowanych meczów.
+                </p>
               </div>
             )}
 
@@ -186,39 +202,42 @@ function MatchesPage() {
               const predictionStatus = getPredictionStatus(match);
 
               return (
-                <article className="match-card" key={match.id}>
-                  <div className="match-card__top">
+                <article className="ui-card ui-stack" key={match.id}>
+                  <div className="ui-row ui-row--between ui-row--full">
                     <span>Mecz #{match.match_no}</span>
 
-                    <div className="match-card__badges">
+                    <div className="ui-row">
                       <span
-                        className={
-                          "match-card__prediction-status " +
-                          `match-card__prediction-status--${predictionStatus.className}`
-                        }
+                        className={`ui-badge ${
+                          {
+                            complete: "ui-badge--ok",
+                            partial: "ui-badge--warn",
+                            empty: "ui-badge--accent",
+                          }[predictionStatus.className] ?? ""
+                        }`}
                       >
                         {predictionStatus.icon} {predictionStatus.label}
                       </span>
 
-                      <strong>BO{match.best_of}</strong>
+                      <span className="ui-badge">BO{match.best_of}</span>
                     </div>
                   </div>
 
-                  <div className="match-card__teams">
-                    <div className="match-team">
-                      <span>A</span>
-                      <strong>{match.team_a}</strong>
+                  <div className="ui-match">
+                    <div className="ui-match__team">
+                      <span className="ui-match__side">A</span>
+                      <strong className="ui-match__name">{match.team_a}</strong>
                     </div>
 
-                    <div className="match-card__vs">VS</div>
+                    <span className="ui-match__vs">VS</span>
 
-                    <div className="match-team">
-                      <span>B</span>
-                      <strong>{match.team_b}</strong>
+                    <div className="ui-match__team ui-match__team--b">
+                      <span className="ui-match__side">B</span>
+                      <strong className="ui-match__name">{match.team_b}</strong>
                     </div>
                   </div>
 
-                  <div className="match-card__footer">
+                  <div className="ui-row ui-row--between ui-row--full">
                     <span>
                       {match.ui_status === "FINAL"
                         ? "Mecz zakończony"
@@ -233,21 +252,21 @@ function MatchesPage() {
 
                     {match.ui_status === "FINAL" ? (
                       <Link
-                        className="match-card__pick-button"
+                        className="ui-btn ui-btn--primary ui-btn--sm"
                         to={`/events/${slug}/matches/${match.id}`}
                       >
                         Zobacz wynik
                       </Link>
                     ) : match.predictions_allowed === false ? (
                       <Link
-                        className="match-card__pick-button"
+                        className="ui-btn ui-btn--primary ui-btn--sm"
                         to={`/events/${slug}/matches/${match.id}`}
                       >
                         Zobacz mecz
                       </Link>
                     ) : (
                       <Link
-                        className="match-card__pick-button"
+                        className="ui-btn ui-btn--primary ui-btn--sm"
                         to={`/events/${slug}/matches/${match.id}`}
                       >
                         {match.prediction_status === "complete"
@@ -263,7 +282,6 @@ function MatchesPage() {
             })}
           </section>
         )}
-      </section>
     </main>
   );
 }

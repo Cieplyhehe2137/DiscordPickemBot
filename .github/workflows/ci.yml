@@ -84,6 +84,15 @@ jobs:
       - name: Nieznane nazwy (no-undef)
         run: npm run lint
 
+      # Zaleznosci wstrzykiwane do modulow tras: app.js podaje obiekt, modul
+      # go destrukturyzuje. Rozjazd nazw miedzy tymi dwoma miejscami jest
+      # poprawnym JavaScriptem - brakujacy klucz to po prostu undefined - wiec
+      # nie widzi go ani no-undef, ani kontrola tras (trasa rejestruje sie
+      # normalnie, wywala sie dopiero przy zapytaniu). Tak po cichu padly dwa
+      # endpointy: profil gracza i moje statystyki.
+      - name: Zaleznosci modulow tras
+        run: npm run deps
+
       - name: Sprawdzenie tras
         run: npm run routes
         env:

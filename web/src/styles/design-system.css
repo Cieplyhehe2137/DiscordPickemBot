@@ -1,0 +1,263 @@
+/* =========================================================================
+   DESIGN SYSTEM
+   =========================================================================
+
+   Jedno źródło prawdy dla całego frontu. Widoki mają sięgać TYLKO po te
+   tokeny - żadnych surowych wartości w regułach ekranów.
+
+   Dlaczego to powstało: w index.css było 16 różnych rozmiarów pisma,
+   kilkanaście wartości odstępów i 187 miejsc z surowym rgba(255,255,255,...)
+   mimo istniejących zmiennych na obramowania. Efekt: każdy ekran wyglądał
+   trochę inaczej, bo każdy był strojony osobno.
+
+   Stare polskie nazwy (--tlo, --akcent, --linia...) zostają jako ALIASY na
+   dole tego pliku. Dzięki temu istniejące reguły działają bez zmian, a widoki
+   można przenosić na nowe nazwy pojedynczo, zamiast przepisywać wszystko naraz.
+
+   Nazewnictwo po angielsku - zgodnie z zasadą obowiązującą w repo.
+   ========================================================================= */
+
+/* Inter, self-hosted. Wcześniej był tylko WPISANY w font-family, ale nigdy
+   ładowany, więc na większości Windowsów front renderował się w Segoe UI.
+   Wariant zmienny daje pełen zakres grubości w jednym pliku. */
+@import "@fontsource-variable/inter";
+
+:root {
+  /* ---------------------------------------------------------------------
+     POWIERZCHNIE
+     Drabina głębi, nie zbiór przypadkowych szarości. Każdy kolejny stopień
+     jest o krok bliżej oka: tło strony -> karta -> element wewnątrz karty.
+     Ciemny motyw znosi tylko kilka stopni, zanim przestaną być rozróżnialne.
+     --------------------------------------------------------------------- */
+  --surface-0: #09090b; /* tło strony */
+  --surface-1: #111114; /* sekcja, panel */
+  --surface-2: #17171b; /* karta */
+  --surface-3: #1e1e23; /* element w karcie, hover karty */
+  --surface-4: #26262c; /* popover, aktywny stan */
+
+  /* Półprzezroczyste warstwy - kładzione NA powierzchni, gdy element ma
+     podnieść się względem swojego rodzica, nie względem strony. */
+  --layer-subtle: rgba(255, 255, 255, 0.025);
+  --layer: rgba(255, 255, 255, 0.05);
+  --layer-strong: rgba(255, 255, 255, 0.08);
+  --layer-sunken: rgba(0, 0, 0, 0.25);
+
+  /* ---------------------------------------------------------------------
+     OBRAMOWANIA
+     Na ciemnym tle obramowanie robi więcej niż cień - to ono oddziela karty.
+     --------------------------------------------------------------------- */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* ---------------------------------------------------------------------
+     TEKST
+     Cztery stopnie ważności. Więcej nie jest potrzebne, a mniej prowadzi do
+     ekranów, na których wszystko krzyczy tak samo głośno.
+     --------------------------------------------------------------------- */
+  --text-strong: #ffffff; /* nagłówki, liczby kluczowe */
+  --text: #e4e4e7; /* treść */
+  --text-muted: #a1a1aa; /* podpisy, etykiety */
+  --text-faint: #71717a; /* metadane, stany puste */
+
+  /* ---------------------------------------------------------------------
+     AKCENT
+     Fiolet zostaje - jest już rozpoznawalny. Dochodzi jeden akcent zimny,
+     używany WYŁĄCZNIE do danych na żywo (wynik, trwający mecz), żeby "live"
+     dało się odróżnić od "ważne" bez czytania.
+     --------------------------------------------------------------------- */
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-bright: #c4b5fd;
+  --accent-bg: rgba(139, 92, 246, 0.14);
+  --accent-border: rgba(139, 92, 246, 0.35);
+  --accent-glow: rgba(139, 92, 246, 0.25);
+
+  /* Dwie strony porownania - podzial typow spolecznosci, starcie druzyn.
+     Rozne odcienie, obie nasycone: gdyby jedna byla szara, wykres 50/50
+     czytalby sie jako "ta wazniejsza i ta druga". */
+  --side-a: #8b5cf6;
+  --side-b: #f43f5e;
+
+  --live: #22d3ee;
+  --live-bg: rgba(34, 211, 238, 0.12);
+  --live-border: rgba(34, 211, 238, 0.3);
+
+  /* ---------------------------------------------------------------------
+     STANY
+     --------------------------------------------------------------------- */
+  --ok: #4ade80;
+  --ok-bg: rgba(74, 222, 128, 0.12);
+  --ok-border: rgba(74, 222, 128, 0.28);
+
+  --warn: #fbbf24;
+  --warn-bg: rgba(251, 191, 36, 0.12);
+  --warn-border: rgba(251, 191, 36, 0.28);
+
+  --danger: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.12);
+  --danger-border: rgba(248, 113, 113, 0.28);
+
+  /* Medale - podium w rankingu. Własne kolory, bo złoto/srebro/brąz nie
+     należą do palety stanów, a mieszanie ich z --warn robiło z pierwszego
+     miejsca ostrzeżenie. */
+  --gold: #fbbf24;
+  --silver: #cbd5e1;
+  --bronze: #d97757;
+
+  /* ---------------------------------------------------------------------
+     TYPOGRAFIA
+     Skala zamiast listy życzeń. Wcześniej 0.7 / 0.75 / 0.8 / 0.85 / 0.9 rem
+     robiły tę samą robotę w pięciu odmianach.
+     --------------------------------------------------------------------- */
+  --font: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px - mikroetykiety, kicker */
+  --text-xs: 0.75rem; /* 12px - metadane */
+  --text-sm: 0.8125rem; /* 13px - podpisy */
+  --text-md: 0.875rem; /* 14px - treść domyślna */
+  --text-lg: 1rem; /* 16px - treść wyróżniona */
+  --text-xl: 1.125rem; /* 18px - nagłówek karty */
+  --text-2xl: 1.375rem; /* 22px - nagłówek sekcji */
+  --text-3xl: 1.75rem; /* 28px - liczba kluczowa */
+  --text-4xl: 2.25rem; /* 36px - nagłówek strony */
+  --text-display: clamp(2.25rem, 5vw, 3.5rem);
+
+  /* Rozmiar wylacznie dla naglowka powitalnego strony glownej. */
+  --text-hero: clamp(3rem, 8vw, 5rem);
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;
+
+  /* Nagłówki muszą mieć ciaśniejszą interlinię niż treść - przy 36px
+     dziedziczone 1.5 dawało 54px odstępu i nagłówek się rozjeżdżał. */
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  /* Wielkie liczby i nagłówki zyskują na ujemnym trackingu; drobny tekst
+     traci na nim czytelność, więc dodatni jest tylko dla wersalików. */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.08em;
+
+  /* ---------------------------------------------------------------------
+     ODSTĘPY
+     Skala co 4px. Wartości spoza niej (9px, 14px, 18px) były wynikiem
+     dostrajania pojedynczych ekranów i to one rozjeżdżały rytm strony.
+     --------------------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ---------------------------------------------------------------------
+     PROMIENIE
+     --------------------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* ---------------------------------------------------------------------
+     GŁĘBIA
+     Na ciemnym tle sam cień jest prawie niewidoczny, więc każdy stopień łączy
+     cień z delikatną poświatą od góry - to ona sugeruje źródło światła.
+     --------------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow-accent: 0 4px 20px var(--accent-glow);
+
+  /* ---------------------------------------------------------------------
+     RUCH
+     Krótko i jednakowo. Animacja ma potwierdzać akcję, a nie być atrakcją.
+     --------------------------------------------------------------------- */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 120ms;
+  --duration: 180ms;
+  --duration-slow: 280ms;
+
+  /* ---------------------------------------------------------------------
+     UKŁAD
+     --------------------------------------------------------------------- */
+  --content-width: 1200px;
+  --content-narrow: 840px;
+  --content-padding: var(--space-5);
+
+  /* Pierścień fokusu. Jeden na całą stronę - bez niego nawigacja klawiaturą
+     jest niewidoczna, co dyskwalifikuje produkt niezależnie od wyglądu. */
+  --focus-ring: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--accent);
+}
+
+/* =========================================================================
+   PODSTAWY
+   ========================================================================= */
+
+body {
+  font-family: var(--font);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+
+  /* Inter ma warianty kontekstowe i cyfry tabelaryczne - włączone globalnie,
+     bo liczby punktów w rankingu muszą się pionowo zgadzać. */
+  font-feature-settings:
+    "cv05" 1,
+    "ss03" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-bold);
+}
+
+/* Liczby w tabelach i statystykach - stała szerokość cyfry, żeby kolumny
+   nie drgały przy zmianie wartości. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Widoczny fokus na wszystkim, co interaktywne. :focus-visible, więc nie
+   pojawia się przy kliknięciu myszą. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Jedna reguła na cały ruch w interfejsie. Kto wyłączył animacje w systemie,
+   dostaje stronę bez nich - łącznie z tymi, które dopiero powstaną. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

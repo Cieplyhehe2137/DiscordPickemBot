@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useOutletContext, useParams } from "react-router-dom";
+import { useOutletContext, useParams } from "react-router-dom";
 
 import { getEventPlayerProfile } from "../lib/api.js";
-import Ladowanie from "../components/Ladowanie.jsx";
+import BackLink from "../components/BackLink.jsx";
 
 function PlayerProfilePage() {
   const { slug, userId } = useParams();
@@ -57,205 +57,244 @@ function PlayerProfilePage() {
   }, [realtimeRefresh, slug, userId]);
 
   if (loading) {
-    return <Ladowanie>Ładowanie profilu...</Ladowanie>;
+    return (
+      <main className="ui-page">
+        <div
+          className="ui-stats"
+          aria-busy="true"
+          aria-label="Ładowanie profilu"
+        >
+          {Array.from({ length: 6 }, (_, i) => (
+            <div className="ui-skeleton ui-skeleton--row" key={i} />
+          ))}
+        </div>
+      </main>
+    );
   }
 
   if (error) {
-    return <p>Nie udało się pobrać profilu: {error}</p>;
+    return (
+      <main className="ui-page">
+        <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
+
+          <strong className="ui-error__title">
+            Nie udało się wczytać profilu
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
+      </main>
+    );
   }
 
   if (!profile?.profile) {
-    return <p>Nie znaleziono profilu gracza.</p>;
+    return (
+      <main className="ui-page">
+        <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🔎
+          </span>
+
+          <strong className="ui-empty__title">Nie ma takiego gracza</strong>
+
+          <p className="ui-empty__text">
+            W tym evencie nikt o takim identyfikatorze nie typował.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const player = profile.profile;
 
+  const averagePoints =
+    player.finished_predictions > 0
+      ? (
+          Number(player.total_points ?? 0) / Number(player.finished_predictions)
+        ).toFixed(1)
+      : "0.0";
+
+  const mapAccuracy =
+    player.predicted_maps > 0
+      ? Math.round(
+          (Number(player.correct_maps ?? 0) / Number(player.predicted_maps)) *
+            100,
+        )
+      : 0;
+
+  const exactMapPercentage =
+    player.predicted_maps > 0
+      ? Math.round(
+          (Number(player.exact_maps ?? 0) / Number(player.predicted_maps)) *
+            100,
+        )
+      : 0;
+
   return (
-    <main className="player-profile-page">
-      <span className="events-kicker">Profil gracza</span>
+    <main className="ui-page">
+      <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
 
-      <h1>Statystyki gracza</h1>
-
-      <Link className="matches-page__back" to={`/events/${slug}/leaderboard`}>
-        ← Wróć do rankingu
-      </Link>
-
-      <section className="player-profile-card">
-        {/* Awatar mają tylko gracze z wiersza w user_profiles - reszta
-            dostaje pustą obwódkę, żeby nagłówek nie skakał. */}
-        <div className="player-profile-head">
+      <section className="ui-card ui-stack">
+        <div className="ui-row ui-row--wrap">
+          {/* Awatar mają tylko gracze z wiersza w user_profiles - reszta
+              dostaje inicjał, żeby nagłówek nie skakał. */}
           {player.avatar ? (
             <img
-              className="player-profile-avatar"
+              className="ui-avatar ui-avatar--xl"
               src={`https://cdn.discordapp.com/avatars/${player.user_id}/${player.avatar}.png?size=128`}
               alt=""
             />
           ) : (
-            <span className="player-profile-avatar player-profile-avatar--pusty" />
+            <span className="ui-avatar ui-avatar--xl ui-avatar--initials">
+              {player.displayname?.[0] ?? "?"}
+            </span>
           )}
 
-          <h2>{player.displayname}</h2>
+          <div>
+            <span className="ui-kicker">Profil gracza</span>
+
+            <h2>{player.displayname}</h2>
+          </div>
         </div>
 
-        <div className="player-profile-stats">
-          <div className="player-profile-stat">
+        <div className="ui-stats">
+          <div className="ui-stat ui-stat--featured">
             <span>Punkty</span>
             <strong>{player.total_points}</strong>
+            <small>{averagePoints} pkt / mecz</small>
           </div>
 
-          <div className="player-profile-stat">
+          <div className="ui-stat">
             <span>Ranking</span>
             <strong>{player.rank > 0 ? `#${player.rank}` : "—"}</strong>
           </div>
 
-          <div className="player-profile-stat">
+          <div className="ui-stat">
             <span>Skuteczność</span>
             <strong>{player.accuracy}%</strong>
+            <small>
+              {player.correct_winners} / {player.finished_predictions} meczów
+            </small>
           </div>
 
-          <div className="player-profile-stat">
-            <span>Trafione mecze</span>
-            <strong>
-              {player.correct_winners} / {player.finished_predictions}
-            </strong>
-          </div>
-
-          <div className="player-profile-stat">
+          <div className="ui-stat">
             <span>Exacty map</span>
             <strong>{player.exact_maps}</strong>
+            <small>{exactMapPercentage}% typowanych map</small>
           </div>
 
-          <div className="player-profile-stat">
+          <div className="ui-stat">
             <span>Trafione mapy</span>
             <strong>{player.correct_maps}</strong>
+            <small>{mapAccuracy}% skuteczności</small>
           </div>
-          <div className="player-profile-stat">
+
+          <div className="ui-stat">
+            <span>Najlepszy mecz</span>
+            <strong>{player.best_match_points ?? 0}</strong>
+            <small>punktów w jednym meczu</small>
+          </div>
+
+          <div className="ui-stat">
             <span>Punkty za serię</span>
             <strong>{player.series_points ?? 0}</strong>
           </div>
 
-          <div className="player-profile-stat">
+          <div className="ui-stat">
             <span>Punkty za mapy</span>
             <strong>{player.map_points ?? 0}</strong>
-          </div>
-
-          <div className="player-profile-stat">
-            <span>Średnia pkt / mecz</span>
-            <strong>
-              {player.finished_predictions > 0
-                ? (
-                    Number(player.total_points ?? 0) /
-                    Number(player.finished_predictions)
-                  ).toFixed(1)
-                : "0.0"}
-            </strong>
-          </div>
-
-          <div className="player-profile-stat">
-            <span>Skuteczność map</span>
-            <strong>
-              {player.predicted_maps > 0
-                ? Math.round(
-                    (Number(player.correct_maps ?? 0) /
-                      Number(player.predicted_maps)) *
-                      100,
-                  )
-                : 0}
-              %
-            </strong>
-          </div>
-          <div className="player-profile-stat">
-            <span>Najlepszy mecz</span>
-            <strong>{player.best_match_points ?? 0} pkt</strong>
-          </div>
-          <div className="player-profile-stat">
-            <span>Exacty map %</span>
-            <strong>
-              {player.predicted_maps > 0
-                ? Math.round(
-                    (Number(player.exact_maps ?? 0) /
-                      Number(player.predicted_maps)) *
-                      100,
-                  )
-                : 0}
-              %
-            </strong>
           </div>
         </div>
       </section>
 
-      <section className="player-profile-streaks">
-        <div className="player-profile-streaks__header">
-          <span className="events-kicker">Serie</span>
+      <section className="ui-card ui-stack">
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Serie</span>
 
-          <h2>Forma gracza</h2>
+            <h2>Forma gracza</h2>
+          </div>
         </div>
 
-        <div className="player-profile-streaks__grid">
-          <div className="player-profile-streak">
+        <div className="ui-stats">
+          <div className="ui-stat">
             <span>🔥 Najlepsza seria trafień</span>
-
             <strong>{player.best_correct_streak ?? 0}</strong>
-
             <small>meczów z rzędu</small>
           </div>
 
-          <div className="player-profile-streak">
+          <div className="ui-stat">
             <span>⚡ Aktualna seria trafień</span>
-
             <strong>{player.current_correct_streak ?? 0}</strong>
-
             <small>meczów z rzędu</small>
           </div>
-          <div className="player-profile-streak">
+
+          <div className="ui-stat">
             <span>💎 Perfekcyjne mecze</span>
-
             <strong>{player.perfect_matches ?? 0}</strong>
-
             <small>idealnie wytypowanych</small>
           </div>
         </div>
       </section>
 
-      <section className="player-profile-records">
-        <div className="player-profile-records__header">
-          <span className="events-kicker">Rekordy</span>
+      <section className="ui-card ui-stack">
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Rekordy</span>
 
-          <h2>Rekordy gracza</h2>
+            <h2>Rekordy gracza</h2>
+          </div>
         </div>
 
-        <div className="player-profile-records__list">
-          <div className="player-profile-record">
+        <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+          <div className="ui-row ui-row--between ui-row--full">
             <div>
-              <span>🗺️ Najlepszy wynik mapowy</span>
-              <small>Najwięcej punktów za mapy w jednym meczu</small>
+              <strong>🗺️ Najlepszy wynik mapowy</strong>
+
+              <p className="ui-stat__hint">
+                Najwięcej punktów za mapy w jednym meczu
+              </p>
             </div>
 
-            <strong>{player.best_map_match_points ?? 0} pkt</strong>
+            <span className="ui-count">
+              {player.best_map_match_points ?? 0} pkt
+            </span>
           </div>
 
-          <div className="player-profile-record">
+          <div className="ui-row ui-row--between ui-row--full">
             <div>
-              <span>📈 Średnia za trafiony mecz</span>
-              <small>Średnia punktów w meczach z trafionym zwycięzcą</small>
+              <strong>📈 Średnia za trafiony mecz</strong>
+
+              <p className="ui-stat__hint">
+                Średnia punktów w meczach z trafionym zwycięzcą
+              </p>
             </div>
 
-            <strong>
+            <span className="ui-count">
               {Number(player.average_points_correct_match ?? 0).toFixed(1)} pkt
-            </strong>
+            </span>
           </div>
         </div>
       </section>
 
       {player.event_comparison && (
-        <section className="player-profile-comparison">
-          <div className="player-profile-comparison__header">
-            <span className="events-kicker">Porównanie</span>
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">Porównanie</span>
 
-            <h2>Na tle eventu</h2>
+              <h2>Na tle eventu</h2>
+            </div>
           </div>
 
-          <div className="player-profile-comparison__grid">
+          <div className="ui-stats">
             {[
               {
                 label: "🏆 Punkty",
@@ -274,32 +313,31 @@ function PlayerProfilePage() {
                 data: player.event_comparison.correct_maps,
               },
             ].map((item) => (
-              <div className="player-profile-comparison__item" key={item.label}>
+              <div className="ui-stat" key={item.label}>
                 <span>{item.label}</span>
 
-                <strong>
-                  #{item.data?.rank ?? 0}
-                  <small> / {item.data?.total ?? 0}</small>
-                </strong>
+                <strong>#{item.data?.rank ?? 0}</strong>
 
-                <div className="player-profile-comparison__top">
-                  TOP {item.data?.top_percent ?? 0}%
-                </div>
+                <small>
+                  z {item.data?.total ?? 0} · TOP {item.data?.top_percent ?? 0}%
+                </small>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      <section className="player-profile-history">
-        <div className="player-profile-history__header">
-          <span className="events-kicker">Historia</span>
+      <section className="ui-card ui-stack">
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Historia</span>
 
-          <h2>Ostatnie typy</h2>
+            <h2>Ostatnie typy</h2>
+          </div>
         </div>
 
         {player.recent_predictions?.length ? (
-          <div className="player-profile-history__list">
+          <div className="ui-stack ui-stack--tight">
             {player.recent_predictions.map((prediction) => {
               const finished =
                 prediction.res_a !== null && prediction.res_b !== null;
@@ -311,17 +349,17 @@ function PlayerProfilePage() {
                   (prediction.pred_b > prediction.pred_a &&
                     prediction.res_b > prediction.res_a));
 
+              const expanded = expandedMatchId === prediction.match_id;
+
               return (
                 <div
+                  className="ui-card ui-card--flat ui-card--tight"
                   key={prediction.match_id}
-                  className="player-profile-history__item"
                 >
-                  <div
-                    className={`player-profile-history__row ${
-                      expandedMatchId === prediction.match_id
-                        ? "player-profile-history__row--expanded"
-                        : ""
-                    }`}
+                  <button
+                    type="button"
+                    className="ui-disclosure"
+                    aria-expanded={expanded}
                     onClick={() =>
                       setExpandedMatchId((current) =>
                         current === prediction.match_id
@@ -330,11 +368,11 @@ function PlayerProfilePage() {
                       )
                     }
                   >
-                    <div className="player-profile-history__status">
+                    <span className="ui-disclosure__icon" aria-hidden="true">
                       {finished ? (correct ? "✅" : "❌") : "⏳"}
-                    </div>
+                    </span>
 
-                    <div className="player-profile-history__match">
+                    <span className="ui-disclosure__main">
                       <strong>
                         {prediction.team_a}
                         {" vs "}
@@ -342,82 +380,89 @@ function PlayerProfilePage() {
                       </strong>
 
                       <span>
-                        Typ:{" "}
-                        <b>
-                          {prediction.pred_a}:{prediction.pred_b}
-                        </b>
-                        {finished && (
-                          <>
-                            {" · "}Wynik:{" "}
-                            <b>
-                              {prediction.res_a}:{prediction.res_b}
-                            </b>
-                          </>
-                        )}
+                        Typ: {prediction.pred_a}:{prediction.pred_b}
+                        {finished &&
+                          ` · Wynik: ${prediction.res_a}:${prediction.res_b}`}
                       </span>
-                    </div>
+                    </span>
 
-                    <div className="player-profile-history__points-wrap">
-                      <strong className="player-profile-history__points">
-                        {prediction.points > 0
-                          ? `+${prediction.points}`
-                          : prediction.points}{" "}
-                        pkt
-                      </strong>
+                    <span
+                      className={`ui-disclosure__points ${
+                        prediction.points > 0
+                          ? "ui-disclosure__points--scored"
+                          : ""
+                      }`}
+                    >
+                      {prediction.points > 0
+                        ? `+${prediction.points}`
+                        : prediction.points}{" "}
+                      pkt
+                    </span>
 
-                      {expandedMatchId === prediction.match_id && (
-                        <span className="player-profile-history__points-breakdown">
-                          Seria +{player.series_points} · Mapy +
-                          {player.map_points}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="player-profile-history__expand">
-                    {expandedMatchId === prediction.match_id ? "▲" : "▼"}
-                  </span>
+                    <span className="ui-disclosure__chevron" aria-hidden="true">
+                      ▾
+                    </span>
+                  </button>
 
-                  {expandedMatchId === prediction.match_id &&
-                    prediction.maps?.length > 0 && (
-                      <div className="player-profile-history__maps">
-                        {prediction.maps.map((map) => (
-                          <div
-                            className="player-profile-history__map"
-                            key={map.map_no}
-                          >
-                            <span>Mapa {map.map_no}</span>
+                  {expanded && (
+                    <div className="ui-stack ui-stack--tight">
+                      <p className="ui-stat__hint">
+                        Seria +{player.series_points} · Mapy +
+                        {player.map_points}
+                      </p>
 
-                            <span>
-                              Typ:{" "}
-                              <strong>
-                                {map.pred_a}:{map.pred_b}
-                              </strong>
+                      {prediction.maps?.length > 0 &&
+                        prediction.maps.map((map) => (
+                          <div className="ui-map-row" key={map.map_no}>
+                            <span className="ui-map-row__label">
+                              Mapa {map.map_no}
                             </span>
 
-                            <span>
-                              Wynik:{" "}
-                              <strong>
-                                {map.res_a}:{map.res_b}
-                              </strong>
-                            </span>
+                            <div className="ui-row ui-row--wrap">
+                              <span className="ui-badge">
+                                typ {map.pred_a}:{map.pred_b}
+                              </span>
 
-                            <span>
-                              {map.exact
-                                ? "🎯 Exact"
-                                : map.correct_winner
-                                  ? "✅ Trafiony zwycięzca"
-                                  : "❌ Nietrafiony"}
-                            </span>
+                              <span className="ui-badge">
+                                wynik {map.res_a}:{map.res_b}
+                              </span>
+
+                              <span
+                                className={`ui-badge ${
+                                  map.exact
+                                    ? "ui-badge--accent"
+                                    : map.correct_winner
+                                      ? "ui-badge--ok"
+                                      : "ui-badge--danger"
+                                }`}
+                              >
+                                {map.exact
+                                  ? "🎯 Exact"
+                                  : map.correct_winner
+                                    ? "✅ Zwycięzca"
+                                    : "❌ Pudło"}
+                              </span>
+                            </div>
                           </div>
                         ))}
-                      </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="leaderboard-empty">Brak typów w tym evencie.</div>
+          <div className="ui-empty">
+            <span className="ui-empty__icon" aria-hidden="true">
+              🗒️
+            </span>
+
+            <strong className="ui-empty__title">Brak typów</strong>
+
+            <p className="ui-empty__text">
+              Ten gracz nie zapisał jeszcze żadnego typu w tym evencie.
+            </p>
+          </div>
         )}
       </section>
     </main>

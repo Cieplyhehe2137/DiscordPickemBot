@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { apiRequest, getMatch, getMatchExactResult } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
+import ScoreLine from "../components/ScoreLine.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import { isAdminAnywhere } from "../lib/permissions.js";
 import Ladowanie from "../components/Ladowanie.jsx";
@@ -73,9 +74,9 @@ function AdminMatchResultPage() {
       current.map((map, mapIndex) =>
         mapIndex === index
           ? {
-            ...map,
-            [side]: value,
-          }
+              ...map,
+              [side]: value,
+            }
           : map,
       ),
     );
@@ -160,24 +161,24 @@ function AdminMatchResultPage() {
       const maps =
         bestOf === 1
           ? [
-            {
-              mapNo: 1,
-              exactA: Number(scoreA),
-              exactB: Number(scoreB),
-            },
-          ]
+              {
+                mapNo: 1,
+                exactA: Number(scoreA),
+                exactB: Number(scoreB),
+              },
+            ]
           : mapScores
-            .map((map, index) => ({
-              mapNo: index + 1,
-              exactA: map.exactA,
-              exactB: map.exactB,
-            }))
-            .filter((map) => map.exactA !== "" && map.exactB !== "")
-            .map((map) => ({
-              ...map,
-              exactA: Number(map.exactA),
-              exactB: Number(map.exactB),
-            }));
+              .map((map, index) => ({
+                mapNo: index + 1,
+                exactA: map.exactA,
+                exactB: map.exactB,
+              }))
+              .filter((map) => map.exactA !== "" && map.exactB !== "")
+              .map((map) => ({
+                ...map,
+                exactA: Number(map.exactA),
+                exactB: Number(map.exactB),
+              }));
 
       if (!maps.length) {
         setMessage("Wpisz przynajmniej jeden wynik mapy.");
@@ -199,11 +200,7 @@ function AdminMatchResultPage() {
         return;
       }
 
-      if (
-        maps.some(
-          (map) => !validateCs2Score(map.exactA, map.exactB),
-        )
-      ) {
+      if (maps.some((map) => !validateCs2Score(map.exactA, map.exactB))) {
         setMessage(
           "Nieprawidłowy wynik CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.",
         );
@@ -271,19 +268,19 @@ function AdminMatchResultPage() {
     bestOf === 1
       ? scoreA !== "" && scoreB !== ""
         ? [
-          {
-            exactA: Number(scoreA),
-            exactB: Number(scoreB),
-          },
-        ]
+            {
+              exactA: Number(scoreA),
+              exactB: Number(scoreB),
+            },
+          ]
         : []
       : mapScores
-        .slice(0, bestOf)
-        .filter((map) => map.exactA !== "" && map.exactB !== "")
-        .map((map) => ({
-          exactA: Number(map.exactA),
-          exactB: Number(map.exactB),
-        }));
+          .slice(0, bestOf)
+          .filter((map) => map.exactA !== "" && map.exactB !== "")
+          .map((map) => ({
+            exactA: Number(map.exactA),
+            exactB: Number(map.exactB),
+          }));
 
   const liveWinsA = liveMaps.filter((map) => map.exactA > map.exactB).length;
 
@@ -320,7 +317,7 @@ function AdminMatchResultPage() {
 
   if (authLoading) {
     return (
-      <main className="admin-result-page">
+      <main className="ui-page">
         <p>Sprawdzanie uprawnień...</p>
       </main>
     );
@@ -328,7 +325,7 @@ function AdminMatchResultPage() {
 
   if (mozeBycAdmin && dostep === "sprawdzanie") {
     return (
-      <main className="admin-result-page">
+      <main className="ui-page">
         <Ladowanie>Ładowanie meczu...</Ladowanie>
       </main>
     );
@@ -336,59 +333,71 @@ function AdminMatchResultPage() {
 
   if (!mozeBycAdmin || dostep === "brak") {
     return (
-      <main className="admin-result-page">
+      <main className="ui-page">
         <BackLink to="/">Strona główna</BackLink>
 
-        <h1>Brak uprawnień</h1>
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🚫
+          </span>
 
-        <p>
-          Wpisywanie oficjalnego wyniku wymaga uprawnień administratora na
-          serwerze, do którego należy ten mecz.
-        </p>
+          <strong className="ui-empty__title">Brak uprawnień</strong>
+
+          <p className="ui-empty__text">
+            Wpisywanie oficjalnego wyniku wymaga uprawnień administratora na
+            serwerze, do którego należy ten mecz.
+          </p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="admin-result-page">
+    <main className="ui-page">
       <BackLink to="/admin">Wróć do panelu</BackLink>
-      <h1>Ustaw wynik meczu</h1>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Oficjalny wynik · mecz #{matchId}</span>
 
-      <p>Match ID: {matchId}</p>
+          <h2>Ustaw wynik meczu</h2>
+
+          {match && (
+            <p>
+              {match.team_a} vs {match.team_b} · BO{match.best_of}
+            </p>
+          )}
+        </div>
+      </div>
 
       {match && (
-        <h2>
-          {match.team_a} vs {match.team_b} — BO
-          {match.best_of}
-        </h2>
-      )}
+        <section className="ui-card ui-stack ui-stack--tight">
+          <span className="ui-kicker">Wynik serii</span>
 
-      {match && (
-        <section className="admin-result-summary">
-          <span>Wynik serii</span>
-
-          <strong>
-            {match.team_a} {liveWinsA} : {liveWinsB} {match.team_b}
-          </strong>
+          <ScoreLine
+            teamA={match.team_a}
+            teamB={match.team_b}
+            scoreA={liveWinsA}
+            scoreB={liveWinsB}
+          />
 
           {liveWinner ? (
-            <p className="admin-result-summary__winner">
-              🏆 Zwycięzca:
-              <strong>{liveWinner}</strong>
-            </p>
+            <span className="ui-badge ui-badge--accent">🏆 {liveWinner}</span>
           ) : (
-            <p>Seria jeszcze trwa</p>
+            <span className="ui-hint">Seria jeszcze trwa</span>
           )}
         </section>
       )}
 
-      <form className="admin-result-form" onSubmit={handleSubmit}>
+      <form className="ui-stack" onSubmit={handleSubmit}>
         {Number(match?.best_of) === 1 ? (
-          <div className="admin-result-score">
-            <label>
-              <span>{match?.team_a ?? "Team A"}</span>
+          <div className="ui-score">
+            <label className="ui-field">
+              <span className="ui-field__label">
+                {match?.team_a ?? "Team A"}
+              </span>
 
               <input
+                className="ui-field__input"
                 type="number"
                 min="0"
                 value={scoreA}
@@ -396,12 +405,15 @@ function AdminMatchResultPage() {
               />
             </label>
 
-            <strong>:</strong>
+            <span className="ui-score__separator">:</span>
 
-            <label>
-              <span>{match?.team_b ?? "Team B"}</span>
+            <label className="ui-field">
+              <span className="ui-field__label">
+                {match?.team_b ?? "Team B"}
+              </span>
 
               <input
+                className="ui-field__input"
                 type="number"
                 min="0"
                 value={scoreB}
@@ -410,7 +422,7 @@ function AdminMatchResultPage() {
             </label>
           </div>
         ) : (
-          <div className="admin-result-maps">
+          <div className="ui-stack">
             {mapScores
               .slice(0, Number(match?.best_of) || 0)
               .map((map, index) => {
@@ -430,23 +442,23 @@ function AdminMatchResultPage() {
                   Number(map.exactB) > Number(map.exactA);
 
                 return (
-                  <div className="admin-result-map" key={index}>
-                    <span className="admin-result-map__label">
+                  <div
+                    className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
+                    key={index}
+                  >
+                    <span className="ui-kicker">
                       Mapa {mapNo}
                       {disabled && " — nie rozegrano"}
                     </span>
 
-                    <div className="admin-result-score">
+                    <div className="ui-score">
                       <label
-                        className={
-                          teamAWon
-                            ? "admin-result-score__team admin-result-score__team--winner"
-                            : "admin-result-score__team"
-                        }
+                        className={`ui-field ${teamAWon ? "ui-field--winner" : ""}`}
                       >
-                        <span>{match?.team_a}</span>
+                        <span className="ui-field__label">{match?.team_a}</span>
 
                         <input
+                          className="ui-field__input"
                           type="number"
                           min="0"
                           value={map.exactA}
@@ -457,18 +469,15 @@ function AdminMatchResultPage() {
                         />
                       </label>
 
-                      <strong>:</strong>
+                      <span className="ui-score__separator">:</span>
 
                       <label
-                        className={
-                          teamBWon
-                            ? "admin-result-score__team admin-result-score__team--winner"
-                            : "admin-result-score__team"
-                        }
+                        className={`ui-field ${teamBWon ? "ui-field--winner" : ""}`}
                       >
-                        <span>{match?.team_b}</span>
+                        <span className="ui-field__label">{match?.team_b}</span>
 
                         <input
+                          className="ui-field__input"
                           type="number"
                           min="0"
                           value={map.exactB}
@@ -485,17 +494,20 @@ function AdminMatchResultPage() {
           </div>
         )}
 
-        <button className="admin-result-submit" type="submit" disabled={saving}>
+        <button
+          className="ui-btn ui-btn--primary"
+          type="submit"
+          disabled={saving}
+        >
           {saving ? "Zapisywanie..." : "Zapisz wynik"}
         </button>
       </form>
 
       {message && (
         <p
-          className={`admin-feedback ${message === "Wynik zapisany."
-            ? "admin-feedback--success"
-            : "admin-feedback--error"
-            }`}
+          className={`ui-note ${
+            message === "Wynik zapisany." ? "ui-note--ok" : "ui-note--danger"
+          }`}
         >
           {message}
         </p>

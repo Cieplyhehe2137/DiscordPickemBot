@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
 
 import { getPlayinPickem, savePlayinPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
+import { SAVED_MESSAGE } from "../lib/saveMessages.js";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PhaseResults from "../components/PhaseResults.jsx";
-import Ladowanie from "../components/Ladowanie.jsx";
+import BackLink from "../components/BackLink.jsx";
+import PickCounter from "../components/PickCounter.jsx";
 
 function PlayinPickemPage() {
   const { slug } = useParams();
@@ -51,120 +53,154 @@ function PlayinPickemPage() {
   }, [slug]);
 
   if (loading) {
-    return <Ladowanie>Ładowanie Play-In Pick'Em...</Ladowanie>;
+    return (
+      <main className="ui-page">
+        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+          <div className="ui-skeleton ui-skeleton--row" />
+
+          <div className="ui-skeleton ui-skeleton--row" />
+        </div>
+      </main>
+    );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return (
+      <main className="ui-page">
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
+
+          <strong className="ui-error__title">
+            Nie udało się wczytać fazy
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
+      </main>
+    );
   }
 
+  const isComplete = selectedTeams.length === limitDruzyn;
+
   return (
-    <main className="playin-pickem-page">
-      <Link to={`/events/${slug}`}>← Wróć do eventu</Link>
-      <h1>Play-In Pick'Em</h1>
+    <main className="ui-page">
+      <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
 
-      <p className="playin-pickem__description">
-        Wybierz {limitDruzyn} {druzyny(limitDruzyn)} do awansu z fazy Play-In.
-      </p>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Faza turnieju</span>
 
-      <p>
-        Event: <strong>{slug}</strong>
-      </p>
+          <h2>Play-In Pick&apos;Em</h2>
 
-      <PhaseFormat faza="playin" limity={data?.limity} />
-      <p className="playin-pickem__counter">
-        Wybrano: <strong>{selectedTeams.length}/{limitDruzyn}</strong>
-      </p>
-      {!data?.lock?.allowed && data?.lock?.message && (
-        <p className="playin-pickem__lock-message">❌ {data.lock.message}</p>
-      )}
-
-      {!authLoading && !user && (
-        <a
-          href={`/api/auth/discord?returnTo=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`}
-          className="playin-pickem__login"
-        >
-          Zaloguj się przez Discord, aby typować
-        </a>
-      )}
-
-      <div className="playin-pickem__teams">
-        {data?.teams?.map((team) => {
-          const selected = selectedTeams.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={
-                selected
-                  ? "playin-pickem__team is-selected"
-                  : "playin-pickem__team"
-              }
-              disabled={
-                authLoading ||
-                !user ||
-                !data?.lock?.allowed ||
-                (!selected && selectedTeams.length >= limitDruzyn)
-              }
-              onClick={() => {
-                setSaveMessage("");
-
-                setSelectedTeams((current) => {
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
+          <p>
+            Wybierz {limitDruzyn} {druzyny(limitDruzyn)} do awansu z fazy
+            Play-In.
+          </p>
+        </div>
       </div>
-      <button
-        type="button"
-        className="playin-pickem__save"
-        disabled={
-          saving ||
-          authLoading ||
-          !user ||
-          !data?.lock?.allowed ||
-          selectedTeams.length !== limitDruzyn ||
-          !isDirty
-        }
-        onClick={async () => {
-          try {
-            setSaving(true);
-            setSaveMessage("");
 
-            await savePlayinPickem(slug, selectedTeams);
-            setData((current) => ({
-              ...current,
-              prediction: {
-                teams: selectedTeams,
-              },
-            }));
+      <section className="ui-card ui-stack">
+        <PhaseFormat faza="playin" limity={data?.limity} />
 
-            setSaveMessage("Typy zapisane ✅");
-          } catch (err) {
-            console.error("PLAY-IN SAVE ERROR:", err);
-            setSaveMessage(err.message || "Nie udało się zapisać typów.");
-          } finally {
-            setSaving(false);
+        <PickCounter selected={selectedTeams.length} limit={limitDruzyn} />
+
+        {!data?.lock?.allowed && data?.lock?.message && (
+          <p className="ui-note ui-note--warn">🔒 {data.lock.message}</p>
+        )}
+
+        {!authLoading && !user && (
+          <a
+            className="ui-btn"
+            href={`/api/auth/discord?returnTo=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`}
+          >
+            Zaloguj się przez Discord, aby typować
+          </a>
+        )}
+
+        <div className="ui-choice ui-choice--grid">
+          {data?.teams?.map((team) => {
+            const selected = selectedTeams.includes(team.name);
+
+            return (
+              <button
+                key={team.id}
+                type="button"
+                className="ui-choice__option"
+                aria-pressed={selected}
+                disabled={
+                  authLoading ||
+                  !user ||
+                  !data?.lock?.allowed ||
+                  (!selected && isComplete)
+                }
+                onClick={() => {
+                  setSaveMessage("");
+
+                  setSelectedTeams((current) => {
+                    if (current.includes(team.name)) {
+                      return current.filter((name) => name !== team.name);
+                    }
+
+                    return [...current, team.name];
+                  });
+                }}
+              >
+                {team.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {saveMessage && (
+          <p
+            className={`ui-note ${
+              saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+            }`}
+          >
+            {saveMessage}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="ui-btn ui-btn--primary"
+          disabled={
+            saving ||
+            authLoading ||
+            !user ||
+            !data?.lock?.allowed ||
+            !isComplete ||
+            !isDirty
           }
-        }}
-      >
-        {saving ? "Zapisywanie..." : "Zapisz typy"}
-      </button>
+          onClick={async () => {
+            try {
+              setSaving(true);
+              setSaveMessage("");
 
-      {saveMessage && (
-        <p className="playin-pickem__save-message">{saveMessage}</p>
-      )}
+              await savePlayinPickem(slug, selectedTeams);
+              setData((current) => ({
+                ...current,
+                prediction: {
+                  teams: selectedTeams,
+                },
+              }));
+
+              setSaveMessage(SAVED_MESSAGE);
+            } catch (err) {
+              console.error("PLAY-IN SAVE ERROR:", err);
+              setSaveMessage(err.message || "Nie udało się zapisać typów.");
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? "Zapisywanie..." : "Zapisz typy"}
+        </button>
+      </section>
 
       {/* Oficjalny wynik fazy + trafienia + punkty.
           Renderuje sie dopiero po opublikowaniu wyniku. */}

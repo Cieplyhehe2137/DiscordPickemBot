@@ -31,6 +31,16 @@ import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 import Ladowanie from "../components/Ladowanie.jsx";
+import LoginRequired from "../components/LoginRequired.jsx";
+// Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
+// "admin-badge--status-" i statusu z API - czyli CSS musial znac z gory kazda
+// wartosc, jaka backend kiedykolwiek zwroci, a literowka byla niewidoczna.
+const TON_STATUSU = {
+  OPEN: "ui-badge--ok",
+  LOCKED: "ui-badge--danger",
+  FINAL: "",
+};
+
 export default function AdminPage() {
   const { user, authLoading } = useAuth();
   const [servers, setServers] = useState([]);
@@ -43,20 +53,20 @@ export default function AdminPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [activeAdminSection, setActiveAdminSection] = useState(null);
   const [changingStatus, setChangingStatus] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState(null);
   const [changingPhase, setChangingPhase] = useState(false);
-  const [phaseMessage, setPhaseMessage] = useState("");
+  const [phaseMessage, setPhaseMessage] = useState(null);
   const [newEventName, setNewEventName] = useState("");
   const [newEventSlug, setNewEventSlug] = useState("");
   const [creatingEvent, setCreatingEvent] = useState(false);
-  const [createEventMessage, setCreateEventMessage] = useState("");
+  const [createEventMessage, setCreateEventMessage] = useState(null);
   const [newMatchPhase, setNewMatchPhase] = useState("SWISS");
   const [newMatchTeamA, setNewMatchTeamA] = useState("");
   const [newMatchTeamB, setNewMatchTeamB] = useState("");
   const [newMatchBestOf, setNewMatchBestOf] = useState("3");
   const [newMatchStartTime, setNewMatchStartTime] = useState("");
   const [creatingMatch, setCreatingMatch] = useState(false);
-  const [createMatchMessage, setCreateMatchMessage] = useState("");
+  const [createMatchMessage, setCreateMatchMessage] = useState(null);
   const [adminTeamsStan, setAdminTeams] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [teamsError, setTeamsError] = useState("");
@@ -87,9 +97,9 @@ export default function AdminPage() {
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [editingTeamName, setEditingTeamName] = useState("");
   const [savingTeamEdit, setSavingTeamEdit] = useState(false);
-  const [teamEditMessage, setTeamEditMessage] = useState("");
+  const [teamEditMessage, setTeamEditMessage] = useState(null);
   const [deletingTeamId, setDeletingTeamId] = useState(null);
-  const [teamDeleteMessage, setTeamDeleteMessage] = useState("");
+  const [teamDeleteMessage, setTeamDeleteMessage] = useState(null);
   const [togglingTeamId, setTogglingTeamId] = useState(null);
   const [eventLeaderboardStan, setEventLeaderboard] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
@@ -151,7 +161,7 @@ export default function AdminPage() {
         setEventsError("");
         setSelectedEvent(null);
         setActiveAdminSection(null);
-        setCreateMatchMessage("");
+        setCreateMatchMessage(null);
 
         const data = await getAdminEvents(selectedServer.guild_id);
 
@@ -297,7 +307,7 @@ export default function AdminPage() {
 
     try {
       setChangingStatus(true);
-      setStatusMessage("");
+      setStatusMessage(null);
 
       const data = await setAdminEventStatus(selectedEvent.slug, status);
 
@@ -311,17 +321,20 @@ export default function AdminPage() {
         current.map((event) =>
           event.id === selectedEvent.id
             ? {
-              ...event,
-              status: data.status,
-              is_archived: data.is_archived,
-            }
+                ...event,
+                status: data.status,
+                is_archived: data.is_archived,
+              }
             : event,
         ),
       );
 
-      setStatusMessage("Status eventu został zmieniony.");
+      setStatusMessage({ text: "Status eventu został zmieniony.", ok: true });
     } catch (err) {
-      setStatusMessage(err.message || "Nie udało się zmienić statusu.");
+      setStatusMessage({
+        text: err.message || "Nie udało się zmienić statusu.",
+        ok: false,
+      });
     } finally {
       setChangingStatus(false);
     }
@@ -334,7 +347,7 @@ export default function AdminPage() {
 
     try {
       setChangingPhase(true);
-      setPhaseMessage("");
+      setPhaseMessage(null);
 
       const data = await setAdminEventPhase(selectedEvent.slug, phase);
 
@@ -347,16 +360,19 @@ export default function AdminPage() {
         current.map((event) =>
           event.id === selectedEvent.id
             ? {
-              ...event,
-              phase: data.phase,
-            }
+                ...event,
+                phase: data.phase,
+              }
             : event,
         ),
       );
 
-      setPhaseMessage("Faza eventu została zmieniona.");
+      setPhaseMessage({ text: "Faza eventu została zmieniona.", ok: true });
     } catch (err) {
-      setPhaseMessage(err.message || "Nie udało się zmienić fazy.");
+      setPhaseMessage({
+        text: err.message || "Nie udało się zmienić fazy.",
+        ok: false,
+      });
     } finally {
       setChangingPhase(false);
     }
@@ -371,7 +387,7 @@ export default function AdminPage() {
 
     try {
       setCreatingEvent(true);
-      setCreateEventMessage("");
+      setCreateEventMessage(null);
 
       const data = await createAdminEvent(selectedServer.guild_id, {
         name: newEventName.trim(),
@@ -385,9 +401,12 @@ export default function AdminPage() {
       setNewEventName("");
       setNewEventSlug("");
 
-      setCreateEventMessage("Event został utworzony.");
+      setCreateEventMessage({ text: "Event został utworzony.", ok: true });
     } catch (err) {
-      setCreateEventMessage(err.message || "Nie udało się utworzyć eventu.");
+      setCreateEventMessage({
+        text: err.message || "Nie udało się utworzyć eventu.",
+        ok: false,
+      });
     } finally {
       setCreatingEvent(false);
     }
@@ -429,7 +448,7 @@ export default function AdminPage() {
 
   if (authLoading) {
     return (
-      <div className="admin-page">
+      <div className="ui-page">
         <p>Sprawdzanie uprawnień...</p>
       </div>
     );
@@ -471,7 +490,7 @@ export default function AdminPage() {
 
     try {
       setSavingTeamEdit(true);
-      setTeamEditMessage("");
+      setTeamEditMessage(null);
 
       await updateAdminTeam(selectedServer.guild_id, teamId, {
         name: editingTeamName.trim(),
@@ -484,9 +503,12 @@ export default function AdminPage() {
       setEditingTeamId(null);
       setEditingTeamName("");
 
-      setTeamEditMessage("Drużyna została zaktualizowana.");
+      setTeamEditMessage({ text: "Drużyna została zaktualizowana.", ok: true });
     } catch (err) {
-      setTeamEditMessage(err.message || "Nie udało się zaktualizować drużyny.");
+      setTeamEditMessage({
+        text: err.message || "Nie udało się zaktualizować drużyny.",
+        ok: false,
+      });
     } finally {
       setSavingTeamEdit(false);
     }
@@ -505,7 +527,7 @@ export default function AdminPage() {
 
     try {
       setDeletingTeamId(team.id);
-      setTeamDeleteMessage("");
+      setTeamDeleteMessage(null);
 
       await deleteAdminTeam(selectedServer.guild_id, team.id);
 
@@ -513,9 +535,12 @@ export default function AdminPage() {
 
       setAdminTeams(teamsData.teams ?? []);
 
-      setTeamDeleteMessage("Drużyna została usunięta.");
+      setTeamDeleteMessage({ text: "Drużyna została usunięta.", ok: true });
     } catch (err) {
-      setTeamDeleteMessage(err.message || "Nie udało się usunąć drużyny.");
+      setTeamDeleteMessage({
+        text: err.message || "Nie udało się usunąć drużyny.",
+        ok: false,
+      });
     } finally {
       setDeletingTeamId(null);
     }
@@ -528,7 +553,7 @@ export default function AdminPage() {
 
     try {
       setTogglingTeamId(team.id);
-      setTeamEditMessage("");
+      setTeamEditMessage(null);
 
       await updateAdminTeam(selectedServer.guild_id, team.id, {
         active: !team.active,
@@ -540,13 +565,14 @@ export default function AdminPage() {
 
       setTeamEditMessage(
         team.active
-          ? "Drużyna została dezaktywowana."
-          : "Drużyna została aktywowana.",
+          ? { text: "Drużyna została dezaktywowana.", ok: true }
+          : { text: "Drużyna została aktywowana.", ok: true },
       );
     } catch (err) {
-      setTeamEditMessage(
-        err.message || "Nie udało się zmienić statusu drużyny.",
-      );
+      setTeamEditMessage({
+        text: err.message || "Nie udało się zmienić statusu drużyny.",
+        ok: false,
+      });
     } finally {
       setTogglingTeamId(null);
     }
@@ -561,7 +587,7 @@ export default function AdminPage() {
 
     try {
       setCreatingMatch(true);
-      setCreateMatchMessage("");
+      setCreateMatchMessage(null);
 
       await createAdminMatch(selectedServer.guild_id, selectedEvent.slug, {
         phase: newMatchPhase,
@@ -579,9 +605,12 @@ export default function AdminPage() {
       setNewMatchTeamB("");
       setNewMatchStartTime("");
 
-      setCreateMatchMessage("Mecz został utworzony.");
+      setCreateMatchMessage({ text: "Mecz został utworzony.", ok: true });
     } catch (err) {
-      setCreateMatchMessage(err.message || "Nie udało się utworzyć meczu.");
+      setCreateMatchMessage({
+        text: err.message || "Nie udało się utworzyć meczu.",
+        ok: false,
+      });
     } finally {
       setCreatingMatch(false);
     }
@@ -762,465 +791,423 @@ export default function AdminPage() {
 
   if (!user) {
     return (
-      <div className="admin-page">
-        <p>Musisz się zalogować przez Discord.</p>
+      <div className="ui-page">
+        <LoginRequired>
+          Panel administratora jest dostępny po zalogowaniu.
+        </LoginRequired>
       </div>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="admin-page">
-        <p>Brak uprawnień administratora.</p>
+      <div className="ui-page">
+        <div className="ui-empty">
+          <span className="ui-empty__icon" aria-hidden="true">
+            🚫
+          </span>
+
+          <strong className="ui-empty__title">
+            Brak uprawnień administratora
+          </strong>
+
+          <p className="ui-empty__text">
+            Twoje konto nie ma uprawnień do zarządzania żadnym serwerem.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-page">
-      <header className="admin-page__header">
-        <span>⚙️ ADMIN</span>
-        <h1>Panel administratora</h1>
-        <p>Zarządzanie turniejami, meczami, wynikami i typowaniem.</p>
-      </header>
+    <div className="ui-page">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">⚙️ Administracja</span>
 
-      <section className="admin-servers">
+          <h2>Panel administratora</h2>
+
+          <p>Zarządzanie turniejami, meczami, wynikami i typowaniem.</p>
+        </div>
+      </div>
+      <section className="ui-card ui-stack">
         <h2>Twoje serwery</h2>
-
         {loadingServers && <Ladowanie>Ładowanie serwerów...</Ladowanie>}
-
         {serversError && <p>{serversError}</p>}
-
         {!loadingServers && !serversError && adminServers.length === 0 && (
           <p>Nie znaleziono serwerów, którymi możesz zarządzać.</p>
         )}
-
         {!loadingServers &&
           adminServers.map((server) => (
             <button
               key={server.guild_id}
               type="button"
-              className={`admin-server ${selectedServer?.guild_id === server.guild_id
-                ? "admin-server--active"
-                : ""
-                }`}
+              className="ui-choice__option"
+              aria-pressed={`ui-card ui-card--flat ui-card--row ui-card--interactive ${selectedServer?.guild_id === server.guild_id ? "ui-card--selected" : ""}`}
               onClick={() => setSelectedServer(server)}
             >
-              <strong>{server.name}</strong>
-
+              {" "}
+              <strong>{server.name}</strong>{" "}
               <span>
+                {" "}
                 {server.events_count ?? 0}{" "}
-                {odmien(server.events_count ?? 0, "event", "eventy", "eventów")}
-              </span>
+                {odmien(
+                  server.events_count ?? 0,
+                  "event",
+                  "eventy",
+                  "eventów",
+                )}{" "}
+              </span>{" "}
             </button>
-          ))}
-      </section>
-
+          ))}{" "}
+      </section>{" "}
       {selectedServer && (
-        <section className="admin-events">
-          <h2>Eventy</h2>
-
-          {loadingEvents && <Ladowanie>Ładowanie eventów...</Ladowanie>}
-
-          {eventsError && <p>{eventsError}</p>}
-
+        <section className="ui-card ui-stack">
+          {" "}
+          <h2>Eventy</h2>{" "}
+          {loadingEvents && <Ladowanie>Ładowanie eventów...</Ladowanie>}{" "}
+          {eventsError && <p>{eventsError}</p>}{" "}
           {!loadingEvents && !eventsError && serverEvents.length === 0 && (
             <p>Brak eventów na tym serwerze.</p>
-          )}
-
+          )}{" "}
           {!loadingEvents &&
             serverEvents.map((event) => (
               <button
                 key={event.id}
                 type="button"
-                className={`admin-event ${selectedEvent?.id === event.id ? "admin-event--active" : ""
-                  }`}
+                className="ui-choice__option"
+                aria-pressed={`ui-card ui-card--flat ui-card--row ui-card--interactive ${selectedEvent?.id === event.id ? "ui-card--selected" : ""}`}
                 onClick={() => setSelectedEvent(event)}
               >
-                <strong>{event.name}</strong>
-
+                {" "}
+                <strong>{event.name}</strong>{" "}
                 <span>
-                  {event.phase} · {event.status}
-                </span>
+                  {" "}
+                  {event.phase} · {event.status}{" "}
+                </span>{" "}
               </button>
-            ))}
+            ))}{" "}
         </section>
-      )}
-
-      <div className="admin-page__grid">
+      )}{" "}
+      <div className="ui-tiles">
+        {" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "events" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "events" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("events")}
         >
-          <span>🏆 Eventy</span>
-
-          <strong>Zarządzaj turniejem</strong>
-
+          {" "}
+          <span>🏆 Eventy</span> <strong>Zarządzaj turniejem</strong>{" "}
           <p>
+            {" "}
             {selectedEvent
               ? `Wybrano: ${selectedEvent.name}`
-              : "Najpierw wybierz event."}
-          </p>
-        </button>
-
+              : "Najpierw wybierz event."}{" "}
+          </p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "matches" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "matches" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("matches")}
         >
-          <span>🎯 Mecze</span>
-
-          <strong>Zarządzaj meczami</strong>
-
+          {" "}
+          <span>🎯 Mecze</span> <strong>Zarządzaj meczami</strong>{" "}
           <p>
+            {" "}
             {selectedEvent
               ? `Wybrano: ${selectedEvent.name}`
-              : "Najpierw wybierz event."}
-          </p>
-        </button>
-
+              : "Najpierw wybierz event."}{" "}
+          </p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "locks" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "locks" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("locks")}
         >
-          <span>🔒 Typowanie</span>
-
-          <strong>Locki i deadline'y</strong>
-
+          {" "}
+          <span>🔒 Typowanie</span> <strong>Locki i deadline'y</strong>{" "}
           <p>
+            {" "}
             {selectedEvent
               ? `Wybrano: ${selectedEvent.name}`
-              : "Najpierw wybierz event."}
-          </p>
-        </button>
-
+              : "Najpierw wybierz event."}{" "}
+          </p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className="admin-card"
+          className="ui-card ui-card--interactive ui-tile"
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("results")}
         >
-          <span>📊 Wyniki</span>
-          <strong>Wyniki Pick'Em</strong>
-          <p>Ustawianie wyników meczów i zarządzanie rezultatami.</p>
-        </button>
-
+          {" "}
+          <span>📊 Wyniki</span> <strong>Wyniki Pick'Em</strong>{" "}
+          <p>Ustawianie wyników meczów i zarządzanie rezultatami.</p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "phases" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "phases" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("phases")}
         >
-          <span>🏁 Wyniki faz</span>
-          <strong>Swiss / Playoffs / Play-In / DE</strong>
-          <p>Oficjalne wyniki faz Pick'Em i przeliczanie punktów.</p>
-        </button>
-
+          {" "}
+          <span>🏁 Wyniki faz</span>{" "}
+          <strong>Swiss / Playoffs / Play-In / DE</strong>{" "}
+          <p>Oficjalne wyniki faz Pick'Em i przeliczanie punktów.</p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "pickemcfg" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "pickemcfg" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("pickemcfg")}
         >
-          <span>🧩 Typowanie drużyn</span>
-          <strong>Fazy i liczby drużyn</strong>
-          <p>Konfiguracja typowania drużyn dla tego eventu.</p>
-        </button>
-
+          {" "}
+          <span>🧩 Typowanie drużyn</span> <strong>Fazy i liczby drużyn</strong>{" "}
+          <p>Konfiguracja typowania drużyn dla tego eventu.</p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "mvp" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "mvp" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("mvp")}
         >
-          <span>⭐ MVP</span>
-          <strong>Kandydaci i zwycięzca</strong>
-          <p>Lista kandydatów oraz wskazanie MVP turnieju.</p>
-        </button>
-
+          {" "}
+          <span>⭐ MVP</span> <strong>Kandydaci i zwycięzca</strong>{" "}
+          <p>Lista kandydatów oraz wskazanie MVP turnieju.</p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "ops" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "ops" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("ops")}
         >
-          <span>🛠️ Operacje</span>
-          <strong>Mecze hurtem, kopie, zamknięcie</strong>
+          {" "}
+          <span>🛠️ Operacje</span>{" "}
+          <strong>Mecze hurtem, kopie, zamknięcie</strong>{" "}
           <p>
+            {" "}
             Tworzenie meczów, propozycje wyników, backupy, koniec turnieju.
-            Start typowania jest w „Zarządzanie eventem”.
-          </p>
-        </button>
-
+            Start typowania jest w „Zarządzanie eventem”.{" "}
+          </p>{" "}
+        </button>{" "}
         <button
           type="button"
-          className={`admin-card ${activeAdminSection === "teams" ? "admin-card--active" : ""
-            }`}
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "teams" ? "ui-card--selected" : ""}`}
           disabled={!selectedServer}
           onClick={() => setActiveAdminSection("teams")}
         >
-          <span>👥 Drużyny</span>
-
-          <strong>Zarządzaj drużynami</strong>
-
-          <p>Dodawanie, edycja i zarządzanie drużynami na serwerze.</p>
-        </button>
-      </div>
-
+          {" "}
+          <span>👥 Drużyny</span> <strong>Zarządzaj drużynami</strong>{" "}
+          <p>Dodawanie, edycja i zarządzanie drużynami na serwerze.</p>{" "}
+        </button>{" "}
+      </div>{" "}
       {activeAdminSection === "events" && selectedEvent && (
-        <section className="admin-section">
-          <h2>Zarządzanie eventem</h2>
-
+        <section className="ui-card ui-stack">
+          {" "}
+          <h2>Zarządzanie eventem</h2>{" "}
           <p>
-            Aktualnie edytujesz: <strong>{selectedEvent.name}</strong>
-          </p>
-
-          <StartPickemPanel slug={selectedEvent.slug} />
-
-          {/* Przyciski poniżej zmieniają wyłącznie status w bazie. Panel na
-              Discordzie publikuje tylko "Uruchom typowanie" powyżej - bez
-              tego rozróżnienia ludzie klikali "Otwórz event" i czekali na
-              panel, który nigdy się nie pojawiał. */}
-          <h3 className="admin-subheading">Status turnieju</h3>
-
-          <p className="admin-hint">
+            {" "}
+            Aktualnie edytujesz: <strong>{selectedEvent.name}</strong>{" "}
+          </p>{" "}
+          <StartPickemPanel slug={selectedEvent.slug} />{" "}
+          {/* Przyciski poniżej zmieniają wyłącznie status w bazie. Panel na Discordzie publikuje tylko "Uruchom typowanie" powyżej - bez tego rozróżnienia ludzie klikali "Otwórz event" i czekali na panel, który nigdy się nie pojawiał. */}{" "}
+          <h3 className="ui-kicker">Status turnieju</h3>{" "}
+          <p className="ui-hint">
+            {" "}
             Zmienia tylko stan zapisany w bazie. Nie publikuje ani nie usuwa
-            panelu na Discordzie.
-          </p>
-
-          <div className="admin-section__actions">
+            panelu na Discordzie.{" "}
+          </p>{" "}
+          <div className="ui-row ui-row--wrap">
+            {" "}
             <button
               type="button"
-              className={
-                selectedEvent.status === "OPEN"
-                  ? "admin-status-button admin-status-button--active"
-                  : "admin-status-button"
-              }
+              className={selectedEvent.status === "OPEN"}
               disabled={changingStatus}
               onClick={() => handleEventStatusChange("OPEN")}
             >
-              Otwórz event
-            </button>
-
+              {" "}
+              Otwórz event{" "}
+            </button>{" "}
             <button
               type="button"
-              className={
-                selectedEvent.status === "CLOSED"
-                  ? "admin-status-button admin-status-button--active"
-                  : "admin-status-button"
-              }
+              className="ui-choice__option"
+              aria-pressed={selectedEvent.status === "CLOSED"}
               disabled={changingStatus}
               onClick={() => handleEventStatusChange("CLOSED")}
             >
-              Zamknij event
-            </button>
-
+              {" "}
+              Zamknij event{" "}
+            </button>{" "}
             <button
               type="button"
-              className={
-                Number(selectedEvent.is_archived) === 1
-                  ? "admin-status-button admin-status-button--active"
-                  : "admin-status-button"
-              }
+              className="ui-choice__option"
+              aria-pressed={Number(selectedEvent.is_archived) === 1}
               disabled={changingStatus}
               onClick={() => handleEventStatusChange("ARCHIVED")}
             >
-              Archiwizuj
-            </button>
-
-            <div className="admin-section__field">
-              <label htmlFor="event-phase">Faza eventu</label>
-
+              {" "}
+              Archiwizuj{" "}
+            </button>{" "}
+            <div className="ui-field">
+              {" "}
+              <label htmlFor="event-phase">Faza eventu</label>{" "}
               <select
                 id="event-phase"
                 value={selectedEvent.phase ?? "NOT_STARTED"}
                 disabled={changingPhase}
                 onChange={(event) => handleEventPhaseChange(event.target.value)}
               >
-                <option value="NOT_STARTED">Nie rozpoczęto</option>
-
-                <option value="PLAY_IN">Play-In</option>
-
-                <option value="SWISS">Swiss</option>
-
-                <option value="SWISS_STAGE_1">Swiss — Stage 1</option>
-
-                <option value="SWISS_STAGE_2">Swiss — Stage 2</option>
-
-                <option value="SWISS_STAGE_3">Swiss — Stage 3</option>
-
-                <option value="PLAYOFFS">Playoffs</option>
-
-                <option value="DOUBLE_ELIM">Double Elimination</option>
-
-                <option value="FINISHED">Zakończony</option>
-              </select>
-            </div>
-
+                {" "}
+                <option value="NOT_STARTED">Nie rozpoczęto</option>{" "}
+                <option value="PLAY_IN">Play-In</option>{" "}
+                <option value="SWISS">Swiss</option>{" "}
+                <option value="SWISS_STAGE_1">Swiss — Stage 1</option>{" "}
+                <option value="SWISS_STAGE_2">Swiss — Stage 2</option>{" "}
+                <option value="SWISS_STAGE_3">Swiss — Stage 3</option>{" "}
+                <option value="PLAYOFFS">Playoffs</option>{" "}
+                <option value="DOUBLE_ELIM">Double Elimination</option>{" "}
+                <option value="FINISHED">Zakończony</option>{" "}
+              </select>{" "}
+            </div>{" "}
             {phaseMessage && (
               <p
-                className={`admin-feedback ${phaseMessage.includes("zosta")
-                  ? "admin-feedback--success"
-                  : "admin-feedback--error"
-                  }`}
+                className={`ui-note ${phaseMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
               >
-                {phaseMessage}
+                {" "}
+                {phaseMessage.text}{" "}
               </p>
-            )}
-          </div>
-
+            )}{" "}
+          </div>{" "}
           {statusMessage && (
             <p
-              className={`admin-feedback ${statusMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`ui-note ${statusMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
             >
-              {statusMessage}
+              {" "}
+              {statusMessage.text}{" "}
             </p>
-          )}
+          )}{" "}
         </section>
-      )}
-
+      )}{" "}
       {activeAdminSection === "matches" && selectedEvent && (
-        <section className="admin-section">
-          <h2>Zarządzanie meczami</h2>
-
+        <section className="ui-card ui-stack">
+          {" "}
+          <h2>Zarządzanie meczami</h2>{" "}
           <p>
-            Aktualnie edytujesz mecze dla: <strong>{selectedEvent.name}</strong>
-          </p>
-          <form className="admin-create-match" onSubmit={handleCreateMatch}>
+            {" "}
+            Aktualnie edytujesz mecze dla:{" "}
+            <strong>{selectedEvent.name}</strong>{" "}
+          </p>{" "}
+          <form className="ui-card ui-stack" onSubmit={handleCreateMatch}>
+            {" "}
             <select
               value={newMatchPhase}
               onChange={(event) => setNewMatchPhase(event.target.value)}
               disabled={creatingMatch}
             >
-              <option value="SWISS">SWISS</option>
-              <option value="PLAY_IN">PLAY_IN</option>
-              <option value="PLAYOFFS">PLAYOFFS</option>
-              <option value="DOUBLE_ELIM">DOUBLE_ELIM</option>
-            </select>
-
-            {loadingTeams && <Ladowanie>Ładowanie drużyn...</Ladowanie>}
-
-            {teamsError && <p>{teamsError}</p>}
-
+              {" "}
+              <option value="SWISS">SWISS</option>{" "}
+              <option value="PLAY_IN">PLAY_IN</option>{" "}
+              <option value="PLAYOFFS">PLAYOFFS</option>{" "}
+              <option value="DOUBLE_ELIM">DOUBLE_ELIM</option>{" "}
+            </select>{" "}
+            {loadingTeams && <Ladowanie>Ładowanie drużyn...</Ladowanie>}{" "}
+            {teamsError && <p>{teamsError}</p>}{" "}
             <select
               value={newMatchTeamA}
               onChange={(event) => setNewMatchTeamA(event.target.value)}
               disabled={creatingMatch || loadingTeams}
               required
             >
-              <option value="">Wybierz Team A</option>
-
+              {" "}
+              <option value="">Wybierz Team A</option>{" "}
               {adminTeams.map((team) => (
                 <option key={team.id} value={team.name}>
-                  {team.name}
+                  {" "}
+                  {team.name}{" "}
                 </option>
-              ))}
-            </select>
-
+              ))}{" "}
+            </select>{" "}
             <select
               value={newMatchTeamB}
               onChange={(event) => setNewMatchTeamB(event.target.value)}
               disabled={creatingMatch || loadingTeams}
               required
             >
-              <option value="">Wybierz Team B</option>
-
+              {" "}
+              <option value="">Wybierz Team B</option>{" "}
               {adminTeams.map((team) => (
                 <option
                   key={team.id}
                   value={team.name}
                   disabled={team.name === newMatchTeamA}
                 >
-                  {team.name}
+                  {" "}
+                  {team.name}{" "}
                 </option>
-              ))}
-            </select>
-
+              ))}{" "}
+            </select>{" "}
             <select
               value={newMatchBestOf}
               onChange={(event) => setNewMatchBestOf(event.target.value)}
               disabled={creatingMatch}
             >
-              <option value="1">BO1</option>
-              <option value="3">BO3</option>
-              <option value="5">BO5</option>
-            </select>
-
+              {" "}
+              <option value="1">BO1</option> <option value="3">BO3</option>{" "}
+              <option value="5">BO5</option>{" "}
+            </select>{" "}
             <input
               type="datetime-local"
               value={newMatchStartTime}
               onChange={(event) => setNewMatchStartTime(event.target.value)}
               disabled={creatingMatch}
-            />
-
+            />{" "}
             <button
               type="submit"
               disabled={
                 creatingMatch || !newMatchTeamA.trim() || !newMatchTeamB.trim()
               }
             >
-              {creatingMatch ? "Tworzenie..." : "Utwórz mecz"}
-            </button>
-
+              {" "}
+              {creatingMatch ? "Tworzenie..." : "Utwórz mecz"}{" "}
+            </button>{" "}
             {createMatchMessage && (
               <p
-                className={`admin-feedback ${createMatchMessage.includes("zosta")
-                  ? "admin-feedback--success"
-                  : "admin-feedback--error"
-                  }`}
+                className={`ui-note ${createMatchMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
               >
-                {createMatchMessage}
+                {" "}
+                {createMatchMessage.text}{" "}
               </p>
-            )}
-          </form>
-          <div className="admin-matches-list">
-            <h3>Mecze eventu</h3>
-
-            {/* Akcje na meczach (start, blokada, edycja, usuwanie) ustawiały
-                komunikat, którego nikt nie renderował - admin klikał i nie
-                dostawał zadnej informacji zwrotnej, takze przy bledzie. */}
+            )}{" "}
+          </form>{" "}
+          <div className="ui-stack ui-stack--tight">
+            {" "}
+            <h3>Mecze eventu</h3>{" "}
+            {/* Akcje na meczach (start, blokada, edycja, usuwanie) ustawiały komunikat, którego nikt nie renderował - admin klikał i nie dostawał zadnej informacji zwrotnej, takze przy bledzie. */}{" "}
             {matchActionMessage && (
               <p
-                className={`admin-feedback ${
-                  matchActionMessage.ok
-                    ? "admin-feedback--success"
-                    : "admin-feedback--error"
-                }`}
+                className={`ui-note ${matchActionMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
               >
-                {matchActionMessage.tekst}
+                {" "}
+                {matchActionMessage.tekst}{" "}
               </p>
-            )}
-
-            {loadingMatches && <Ladowanie>Ładowanie meczów...</Ladowanie>}
-
-            {matchesError && <p>{matchesError}</p>}
-
+            )}{" "}
+            {loadingMatches && <Ladowanie>Ładowanie meczów...</Ladowanie>}{" "}
+            {matchesError && <p>{matchesError}</p>}{" "}
             {!loadingMatches && !matchesError && adminMatches.length === 0 && (
               <p>Brak meczów w tym evencie.</p>
-            )}
-
+            )}{" "}
             {adminMatches.map((match) => (
-              <div key={match.id} className="admin-match-row">
+              <div
+                key={match.id}
+                className="ui-card ui-card--flat ui-card--row ui-card--tight"
+              >
+                {" "}
                 <button
                   type="button"
                   onClick={() => {
                     setEditingMatchStartId(match.id);
-
                     if (match.start_time_utc) {
                       const date = new Date(match.start_time_utc);
                       const localValue = new Date(
@@ -1228,57 +1215,42 @@ export default function AdminPage() {
                       )
                         .toISOString()
                         .slice(0, 16);
-
                       setEditingMatchStartValue(localValue);
                     } else {
                       setEditingMatchStartValue("");
                     }
-
                     setMatchActionMessage(null);
                   }}
                 >
-                  🕒 Ustaw start
-                </button>
-
+                  {" "}
+                  🕒 Ustaw start{" "}
+                </button>{" "}
                 <button
                   type="button"
-                  className={
-                    match.lock_override === 1
-                      ? "admin-lock-button admin-lock-button--active"
-                      : "admin-lock-button"
-                  }
+                  className={match.lock_override === 1}
                   disabled={lockingMatchId === match.id}
                   onClick={() => handleSetMatchLockMode(match, "lock")}
                 >
                   🔒 LOCK
                 </button>
-
                 <button
                   type="button"
-                  className={
-                    match.lock_override === 0
-                      ? "admin-lock-button admin-lock-button--active"
-                      : "admin-lock-button"
-                  }
+                  className="ui-choice__option"
+                  aria-pressed={match.lock_override === 0}
                   disabled={lockingMatchId === match.id}
                   onClick={() => handleSetMatchLockMode(match, "unlock")}
                 >
                   🔓 UNLOCK
                 </button>
-
                 <button
                   type="button"
-                  className={
-                    match.lock_override === null
-                      ? "admin-lock-button admin-lock-button--active"
-                      : "admin-lock-button"
-                  }
+                  className="ui-choice__option"
+                  aria-pressed={match.lock_override === null}
                   disabled={lockingMatchId === match.id}
                   onClick={() => handleSetMatchLockMode(match, "auto")}
                 >
                   ⚙️ AUTO
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
@@ -1291,20 +1263,19 @@ export default function AdminPage() {
                 >
                   ✏️ Edytuj
                 </button>
-
                 <Link to={`/admin/matches/${match.id}/result`}>
                   📝 Ustaw wynik
                 </Link>
                 <button
                   type="button"
-                  className="admin-danger-button"
+                  className="ui-btn ui-btn--danger"
                   disabled={loadingMatchDeletePreview}
                   onClick={() => handleOpenDeleteMatch(match.id)}
                 >
                   🗑️ Usuń
                 </button>
                 {deletingMatchId === match.id && matchDeletePreview && (
-                  <div className="admin-match-delete-preview">
+                  <div className="ui-card ui-card--flat ui-card--danger ui-card--tight">
                     <strong>⚠️ Usunąć ten mecz?</strong>
 
                     <p>
@@ -1336,10 +1307,10 @@ export default function AdminPage() {
                       <br />
                       Punkty: {matchDeletePreview.usunie.punkty}
                     </p>
-                    <div className="admin-match-delete-preview__actions">
+                    <div className="ui-row ui-row--wrap">
                       <button
                         type="button"
-                        className="admin-danger-button"
+                        className="ui-btn ui-btn--danger"
                         onClick={() => handleDeleteMatch(match.id)}
                       >
                         🗑️ Tak, usuń mecz
@@ -1359,8 +1330,8 @@ export default function AdminPage() {
                   </div>
                 )}
                 {editingMatchStartId === match.id && (
-                  <div className="admin-match-start-editor">
-                    <div className="admin-match-start-editor__controls">
+                  <div className="ui-card ui-card--flat ui-card--tight">
+                    <div className="ui-row ui-row--wrap ui-row--full">
                       <input
                         type="datetime-local"
                         value={editingMatchStartValue}
@@ -1398,10 +1369,9 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
-
                 {editingMatchId === match.id && (
-                  <div className="admin-match-edit">
-                    <div className="admin-match-edit__controls">
+                  <div className="ui-card ui-card--flat ui-card--tight">
+                    <div className="ui-row ui-row--wrap ui-row--full">
                       <select
                         value={editingMatchTeamA}
                         onChange={(event) =>
@@ -1460,12 +1430,12 @@ export default function AdminPage() {
 
                       <button
                         type="button"
-                        className="admin-danger-button"
+                        className="ui-btn ui-btn--danger"
                         disabled={loadingMatchDeletePreview}
                         onClick={() => handleOpenDeleteMatch(match.id)}
                       >
                         {loadingMatchDeletePreview &&
-                          deletingMatchId === match.id
+                        deletingMatchId === match.id
                           ? "Sprawdzanie..."
                           : "🗑️ Usuń"}
                       </button>
@@ -1475,15 +1445,13 @@ export default function AdminPage() {
                 <strong>
                   #{match.match_no} {match.team_a} vs {match.team_b}
                 </strong>
-
-                <span className="admin-match-meta">
+                <span className="ui-hint">
                   {match.phase} · BO{match.best_of}
                 </span>
-
                 <span>
                   Status:{" "}
                   <strong
-                    className={`admin-badge admin-badge--status-${match.ui_status.toLowerCase()}`}
+                    className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
                   >
                     {match.ui_status}
                   </strong>
@@ -1491,12 +1459,13 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`admin-badge admin-badge--${match.lock_override === 1
-                      ? "lock"
-                      : match.lock_override === 0
-                        ? "unlock"
-                        : "auto"
-                      }`}
+                    className={`ui-badge ui-badge--${
+                      match.lock_override === 1
+                        ? "lock"
+                        : match.lock_override === 0
+                          ? "unlock"
+                          : "auto"
+                    }`}
                   >
                     {match.lock_override === 1
                       ? "LOCK"
@@ -1505,8 +1474,7 @@ export default function AdminPage() {
                         : "AUTO"}
                   </strong>
                 </div>
-
-                <span className="admin-match-start">
+                <span className="ui-hint">
                   Start:{" "}
                   {match.start_time_utc
                     ? new Date(match.start_time_utc).toLocaleString()
@@ -1517,15 +1485,17 @@ export default function AdminPage() {
           </div>
         </section>
       )}
-
       {activeAdminSection === "locks" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Locki i deadline&apos;y</h2>
 
           <p>
             Zarządzasz typowaniem dla: <strong>{selectedEvent.name}</strong>
           </p>
-          <form className="admin-deadline" onSubmit={handleSaveDeadline}>
+          <form
+            className="ui-card ui-card--flat ui-card--row ui-card--tight"
+            onSubmit={handleSaveDeadline}
+          >
             <select
               value={deadlinePhase}
               onChange={(event) => setDeadlinePhase(event.target.value)}
@@ -1559,10 +1529,11 @@ export default function AdminPage() {
 
             {deadlineValue && (
               <p
-                className={`admin-deadline-status ${new Date(deadlineValue) < new Date()
-                  ? "admin-deadline-status--expired"
-                  : "admin-deadline-status--active"
-                  }`}
+                className={`ui-badge ${
+                  new Date(deadlineValue) < new Date()
+                    ? "ui-badge--danger"
+                    : "ui-badge--ok"
+                }`}
               >
                 {new Date(deadlineValue) < new Date()
                   ? "⛔ Deadline minął"
@@ -1584,10 +1555,11 @@ export default function AdminPage() {
 
             {deadlineMessage && (
               <p
-                className={`admin-deadline-message ${deadlineMessage.includes("został")
-                  ? "admin-deadline-message--success"
-                  : "admin-deadline-message--error"
-                  }`}
+                className={`ui-note ${
+                  deadlineMessage.includes("został")
+                    ? "ui-note--ok"
+                    : "ui-note--danger"
+                }`}
               >
                 {deadlineMessage}
               </p>
@@ -1595,16 +1567,15 @@ export default function AdminPage() {
           </form>
         </section>
       )}
-
       {activeAdminSection === "results" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Wyniki meczów</h2>
 
           <p>
             Event: <strong>{selectedEvent.name}</strong>
           </p>
 
-          <div className="admin-matches-list">
+          <div className="ui-stack ui-stack--tight">
             {loadingMatches && <Ladowanie>Ładowanie meczów...</Ladowanie>}
 
             {matchesError && <p>{matchesError}</p>}
@@ -1614,19 +1585,22 @@ export default function AdminPage() {
             )}
 
             {adminMatches.map((match) => (
-              <div key={match.id} className="admin-match-row">
+              <div
+                key={match.id}
+                className="ui-card ui-card--flat ui-card--row ui-card--tight"
+              >
                 <strong>
                   #{match.match_no} {match.team_a} vs {match.team_b}
                 </strong>
 
-                <span className="admin-match-meta">
+                <span className="ui-hint">
                   {match.phase} · BO{match.best_of}
                 </span>
 
                 <span>
                   Status:{" "}
                   <strong
-                    className={`admin-badge admin-badge--status-${match.ui_status.toLowerCase()}`}
+                    className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
                   >
                     {match.ui_status}
                   </strong>
@@ -1635,12 +1609,13 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`admin-badge admin-badge--${match.lock_override === 1
-                      ? "lock"
-                      : match.lock_override === 0
-                        ? "unlock"
-                        : "auto"
-                      }`}
+                    className={`ui-badge ui-badge--${
+                      match.lock_override === 1
+                        ? "lock"
+                        : match.lock_override === 0
+                          ? "unlock"
+                          : "auto"
+                    }`}
                   >
                     {match.lock_override === 1
                       ? "LOCK"
@@ -1650,7 +1625,7 @@ export default function AdminPage() {
                   </strong>
                 </div>
 
-                <span className="admin-match-start">
+                <span className="ui-hint">
                   Start:{" "}
                   {match.start_time_utc
                     ? new Date(match.start_time_utc).toLocaleString()
@@ -1660,10 +1635,11 @@ export default function AdminPage() {
                 <span>
                   Wynik:{" "}
                   <strong
-                    className={`admin-badge ${match.ui_status === "FINAL"
-                      ? "admin-badge--result-set"
-                      : "admin-badge--result-missing"
-                      }`}
+                    className={`ui-badge ${
+                      match.ui_status === "FINAL"
+                        ? "ui-badge--ok"
+                        : "ui-badge--warn"
+                    }`}
                   >
                     {match.ui_status === "FINAL" ? "USTAWIONY" : "BRAK WYNIKU"}
                   </strong>
@@ -1680,31 +1656,28 @@ export default function AdminPage() {
         </section>
       )}
       {activeAdminSection === "phases" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Wyniki faz — {selectedEvent.name}</h2>
 
           <PhaseResultsAdmin slug={selectedEvent.slug} teams={adminTeams} />
         </section>
       )}
-
       {activeAdminSection === "pickemcfg" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Typowanie drużyn — {selectedEvent.name}</h2>
 
           <PickemConfigPanel slug={selectedEvent.slug} />
         </section>
       )}
-
       {activeAdminSection === "mvp" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>MVP — {selectedEvent.name}</h2>
 
           <MvpAdminPanel slug={selectedEvent.slug} />
         </section>
       )}
-
       {activeAdminSection === "ops" && selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Operacje turniejowe — {selectedEvent.name}</h2>
 
           <TournamentOpsPanel
@@ -1713,12 +1686,11 @@ export default function AdminPage() {
           />
         </section>
       )}
-
       {activeAdminSection === "teams" && selectedServer && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Zarządzanie drużynami</h2>
 
-          <form className="admin-create-team" onSubmit={handleCreateTeam}>
+          <form className="ui-card ui-stack" onSubmit={handleCreateTeam}>
             <input
               type="text"
               placeholder="Nazwa drużyny"
@@ -1740,27 +1712,21 @@ export default function AdminPage() {
 
           {teamEditMessage && (
             <p
-              className={`admin-feedback ${teamEditMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`ui-note ${teamEditMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
             >
-              {teamEditMessage}
+              {teamEditMessage.text}
             </p>
           )}
 
           {teamDeleteMessage && (
             <p
-              className={`admin-feedback ${teamDeleteMessage.includes("zosta")
-                ? "admin-feedback--success"
-                : "admin-feedback--error"
-                }`}
+              className={`ui-note ${teamDeleteMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
             >
-              {teamDeleteMessage}
+              {teamDeleteMessage.text}
             </p>
           )}
 
-          <div className="admin-teams-list">
+          <div className="ui-stack ui-stack--tight">
             {loadingTeams && <Ladowanie>Ładowanie drużyn...</Ladowanie>}
 
             {teamsError && <p>{teamsError}</p>}
@@ -1770,9 +1736,12 @@ export default function AdminPage() {
             )}
 
             {adminTeams.map((team) => (
-              <div key={team.id} className="admin-team-row">
+              <div
+                key={team.id}
+                className="ui-card ui-card--flat ui-card--row ui-card--tight"
+              >
                 {editingTeamId === team.id ? (
-                  <div className="admin-team-edit">
+                  <div className="ui-row ui-row--wrap ui-row--full">
                     <input
                       type="text"
                       value={editingTeamName}
@@ -1808,10 +1777,9 @@ export default function AdminPage() {
                     <span>
                       Status:{" "}
                       <strong
-                        className={`admin-badge ${team.active
-                          ? "admin-badge--team-active"
-                          : "admin-badge--team-inactive"
-                          }`}
+                        className={`ui-badge ${
+                          team.active ? "ui-badge--ok" : "ui-badge--danger"
+                        }`}
                       >
                         {team.active ? "AKTYWNA" : "NIEAKTYWNA"}
                       </strong>
@@ -1822,7 +1790,7 @@ export default function AdminPage() {
                       onClick={() => {
                         setEditingTeamId(team.id);
                         setEditingTeamName(team.name);
-                        setTeamEditMessage("");
+                        setTeamEditMessage(null);
                       }}
                     >
                       Edytuj
@@ -1842,7 +1810,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
-                      className="admin-danger-button"
+                      className="ui-btn ui-btn--danger"
                       onClick={() => handleDeleteTeam(team)}
                       disabled={deletingTeamId === team.id}
                     >
@@ -1856,15 +1824,13 @@ export default function AdminPage() {
         </section>
       )}
       {selectedEvent && (
-        <section className="admin-section">
+        <section className="ui-card ui-stack">
           <h2>Ranking eventu</h2>
 
           {loadingLeaderboard && <Ladowanie>Ładowanie rankingu...</Ladowanie>}
 
           {leaderboardError && (
-            <p className="admin-feedback admin-feedback--error">
-              {leaderboardError}
-            </p>
+            <p className="ui-note ui-note--danger">{leaderboardError}</p>
           )}
 
           {!loadingLeaderboard &&
@@ -1890,10 +1856,11 @@ export default function AdminPage() {
 
                 {eventLeaderboard.map((player) => (
                   <div
-                    className={`admin-leaderboard__row ${player.rank <= 3
-                      ? `admin-leaderboard__row--top-${player.rank}`
-                      : ""
-                      }`}
+                    className={`admin-leaderboard__row ${
+                      player.rank <= 3
+                        ? `admin-leaderboard__row--top-${player.rank}`
+                        : ""
+                    }`}
                     key={player.user_id}
                   >
                     <span>#{player.rank}</span>
@@ -1921,11 +1888,10 @@ export default function AdminPage() {
             )}
         </section>
       )}
-
-      <form className="admin-create-event" onSubmit={handleCreateEvent}>
+      <form className="ui-card ui-stack" onSubmit={handleCreateEvent}>
         <h3>Utwórz nowy event</h3>
 
-        <div className="admin-create-event__fields">
+        <div className="ui-row ui-row--wrap ui-row--full">
           <input
             type="text"
             placeholder="Nazwa eventu"
@@ -1958,16 +1924,13 @@ export default function AdminPage() {
 
         {createEventMessage && (
           <p
-            className={`admin-feedback ${createEventMessage.includes("zosta")
-              ? "admin-feedback--success"
-              : "admin-feedback--error"
-              }`}
+            className={`ui-note ${createEventMessage.ok ? "ui-note--ok" : "ui-note--danger"}`}
           >
-            {createEventMessage}
+            {createEventMessage.text}
           </p>
         )}
       </form>
-      <Link to="/" className="admin-page__back">
+      <Link to="/" className="ui-btn ui-btn--ghost ui-btn--sm">
         ← Powrót
       </Link>
     </div>

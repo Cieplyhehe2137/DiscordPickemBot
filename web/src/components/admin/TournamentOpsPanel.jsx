@@ -34,8 +34,8 @@ const FAZY_MECZOWE = [
 function Komunikaty({ ok, blad }) {
   return (
     <>
-      {ok && <p className="admin-feedback admin-feedback--success">{ok}</p>}
-      {blad && <p className="admin-feedback admin-feedback--error">{blad}</p>}
+      {ok && <p className="ui-note ui-note--ok">{ok}</p>}
+      {blad && <p className="ui-note ui-note--danger">{blad}</p>}
     </>
   );
 }
@@ -79,15 +79,15 @@ function HurtoweMecze({ guildId, slug }) {
   }
 
   return (
-    <div className="ops-block">
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
       <h4>Hurtowe tworzenie meczów</h4>
 
-      <p className="ops-hint">
+      <p className="ui-hint">
         Jeden mecz na linię: <code>Team A vs Team B</code>, opcjonalnie z BO na
         końcu (<code>NAVI vs G2 BO3</code>).
       </p>
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <select value={faza} onChange={(e) => setFaza(e.target.value)}>
           {FAZY_MECZOWE.map((f) => (
             <option key={f.klucz} value={f.klucz}>
@@ -110,7 +110,7 @@ function HurtoweMecze({ guildId, slug }) {
         placeholder={"NAVI vs G2 BO3\nVitality vs FaZe"}
       />
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <button type="button" onClick={() => uruchom(true)} disabled={pracuje}>
           Podgląd
         </button>
@@ -126,7 +126,7 @@ function HurtoweMecze({ guildId, slug }) {
       </div>
 
       {podglad && (
-        <div className="ops-preview">
+        <div className="ui-card ui-card--flat ui-card--tight">
           <strong>Podgląd</strong>
 
           <pre>{JSON.stringify(podglad, null, 2).slice(0, 1500)}</pre>
@@ -188,14 +188,14 @@ function CzyszczenieFazy({ slug }) {
   }
 
   return (
-    <div className="ops-block ops-block--danger">
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight ui-card--danger">
       <h4>Wyczyść fazę</h4>
 
-      <p className="ops-hint">
+      <p className="ui-hint">
         Usuwa mecze, typy, wyniki i punkty wybranej fazy. Nieodwracalne.
       </p>
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <select value={faza} onChange={(e) => setFaza(e.target.value)}>
           {FAZY_MECZOWE.map((f) => (
             <option key={f.klucz} value={f.klucz}>
@@ -210,13 +210,13 @@ function CzyszczenieFazy({ slug }) {
       </div>
 
       {podglad && (
-        <div className="ops-preview">
+        <div className="ui-card ui-card--flat ui-card--tight">
           <strong>Do usunięcia:</strong> mecze {podglad.matches} · typy{" "}
           {podglad.predictions} · wyniki {podglad.results} · punkty{" "}
           {podglad.points}
           <button
             type="button"
-            className="ops-danger-button"
+            className="ui-btn ui-btn--danger"
             onClick={wyczysc}
             disabled={pracuje}
           >
@@ -277,7 +277,9 @@ function PropozycjeWynikow({ slug }) {
       if (akcja === "accept") await acceptResultProposal(id);
       else await rejectResultProposal(id);
 
-      setOk(akcja === "accept" ? "Wynik zatwierdzony." : "Propozycja odrzucona.");
+      setOk(
+        akcja === "accept" ? "Wynik zatwierdzony." : "Propozycja odrzucona.",
+      );
       await wczytaj();
     } catch (err) {
       setBlad(err.message || "Nie udało się rozstrzygnąć propozycji.");
@@ -287,15 +289,15 @@ function PropozycjeWynikow({ slug }) {
   const propozycje = dane?.proposals ?? [];
 
   return (
-    <div className="ops-block">
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
       <h4>Propozycje wyników</h4>
 
-      <p className="ops-hint">
+      <p className="ui-hint">
         Wyniki pobrane automatycznie od dostawcy — zatwierdzasz albo odrzucasz.
         {dane && !dane.providerConfigured && " (Dostawca nieskonfigurowany.)"}
       </p>
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <button type="button" onClick={wczytaj} disabled={pracuje}>
           Pokaż propozycje
         </button>
@@ -306,16 +308,16 @@ function PropozycjeWynikow({ slug }) {
       </div>
 
       {dane && propozycje.length === 0 && (
-        <p className="ops-hint">Brak oczekujących propozycji.</p>
+        <p className="ui-hint">Brak oczekujących propozycji.</p>
       )}
 
       {propozycje.map((p) => (
-        <div className="ops-proposal" key={p.id}>
+        <div className="ui-card ui-card--flat ui-card--tight" key={p.id}>
           <span>
             #{p.match_id} {p.team_a} {p.res_a}:{p.res_b} {p.team_b}
           </span>
 
-          <div className="ops-row">
+          <div className="ui-row ui-row--wrap">
             <button type="button" onClick={() => rozstrzygnij(p.id, "accept")}>
               Zatwierdź
             </button>
@@ -394,10 +396,10 @@ function Backupy({ guildId }) {
   }
 
   return (
-    <div className="ops-block">
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
       <h4>Kopie zapasowe</h4>
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <button type="button" onClick={wczytaj} disabled={pracuje}>
           Pokaż kopie
         </button>
@@ -408,17 +410,20 @@ function Backupy({ guildId }) {
       </div>
 
       {lista && lista.length === 0 && (
-        <p className="ops-hint">Brak kopii zapasowych.</p>
+        <p className="ui-hint">Brak kopii zapasowych.</p>
       )}
 
       {(lista ?? []).map((kopia) => {
         const nazwa = kopia.fileName ?? kopia.name ?? kopia;
 
         return (
-          <div className="ops-backup" key={nazwa}>
+          <div
+            className="ui-row ui-row--between ui-row--wrap ui-row--full"
+            key={nazwa}
+          >
             <span>{nazwa}</span>
 
-            <div className="ops-row">
+            <div className="ui-row ui-row--wrap">
               <a href={backupDownloadUrl(guildId, nazwa)}>Pobierz</a>
 
               <button type="button" onClick={() => przywroc(nazwa)}>
@@ -469,15 +474,15 @@ function ZamknijTurniej({ slug }) {
   }
 
   return (
-    <div className="ops-block ops-block--danger">
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight ui-card--danger">
       <h4>Zakończ turniej</h4>
 
-      <p className="ops-hint">
+      <p className="ui-hint">
         Generuje archiwum XLSX i zamyka turniej. Z opcją czyszczenia usuwa dane
         robocze — klasyfikacja końcowa zostaje.
       </p>
 
-      <div className="ops-row">
+      <div className="ui-row ui-row--wrap">
         <input
           type="text"
           value={nazwa}
@@ -488,7 +493,7 @@ function ZamknijTurniej({ slug }) {
         <a href={classificationExportUrl(slug)}>Pobierz klasyfikację</a>
       </div>
 
-      <label className="ops-checkbox">
+      <label className="ui-row">
         <input
           type="checkbox"
           checked={cleanup}
@@ -499,7 +504,7 @@ function ZamknijTurniej({ slug }) {
 
       <button
         type="button"
-        className="ops-danger-button"
+        className="ui-btn ui-btn--danger"
         onClick={zakoncz}
         disabled={pracuje}
       >
@@ -513,7 +518,7 @@ function ZamknijTurniej({ slug }) {
 
 function TournamentOpsPanel({ guildId, slug }) {
   return (
-    <div className="ops-panel">
+    <div className="ui-stack">
       <HurtoweMecze guildId={guildId} slug={slug} />
       <PropozycjeWynikow slug={slug} />
       <Backupy guildId={guildId} />
