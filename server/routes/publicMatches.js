@@ -46,7 +46,7 @@ export function registerPublicMatchRoutes(
     runInTransaction,
     safeFileBase,
     sprawdzWynik,
-    sqlMeczeZTypem,
+    buildMatchesWithPickSql,
     stanTypowaniaMeczu,
     validateCs2Score,
   },
@@ -56,7 +56,7 @@ export function registerPublicMatchRoutes(
       const { matchId } = req.params;
       const userId = req.session?.user?.id || null;
 
-      const [wiersze] = await pool.query(sqlMeczeZTypem("m.id = ?"), [
+      const [wiersze] = await pool.query(buildMatchesWithPickSql("m.id = ?"), [
         userId,
         userId,
         userId,

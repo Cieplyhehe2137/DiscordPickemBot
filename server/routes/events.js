@@ -27,7 +27,7 @@ export function registerEventRoutes(
     pool,
     registerGuildRoutes,
     requireGuildAdmin,
-    sqlMeczeZTypem,
+    buildMatchesWithPickSql,
     stanTypowaniaMeczu,
     teamsStore,
   },
@@ -496,7 +496,7 @@ export function registerEventRoutes(
       // ============================================
 
       const [matches] = await pool.query(
-        sqlMeczeZTypem("m.event_id = ?"),
+        buildMatchesWithPickSql("m.event_id = ?"),
         [userId, userId, userId, event.id],
       );
 
