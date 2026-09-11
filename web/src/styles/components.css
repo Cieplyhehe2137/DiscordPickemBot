@@ -787,3 +787,310 @@
 .ui-tile__meta {
   margin-top: auto;
 }
+
+/* -------------------------------------------------------------------------
+   WYBÓR
+   Grupa przycisków, z których jeden jest zaznaczony: zwycięzca meczu, wynik
+   serii, później faza turnieju. Stan trzyma aria-pressed, a nie klasa
+   "selected" - czytnik ekranu mówi wtedy "wciśnięty", a CSS i tak ma się
+   czego złapać.
+   ------------------------------------------------------------------------- */
+
+.ui-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-choice__option {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-subtle);
+  color: var(--text-muted);
+
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  cursor: pointer;
+
+  /* Na telefonie szybkie stuknięcia zaznaczały napis na przycisku. */
+  user-select: none;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.ui-choice__option:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.ui-choice__option[aria-pressed="true"] {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--text-strong);
+}
+
+/* Wariant "kto wygra": dwie duże strony i VS pośrodku. Na telefonie
+   zostaje układ obok siebie - to porównanie, więc rozbicie na wiersze
+   psułoby sens. */
+.ui-choice--versus {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.ui-choice--versus .ui-choice__option {
+  padding: var(--space-5) var(--space-3);
+  font-size: var(--text-lg);
+  text-align: center;
+}
+
+.ui-choice__vs {
+  align-self: center;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
+   POLE I WYNIK
+   Wpisywanie wyniku mapy. Liczby idą fontem tabelarycznym, żeby 13 i 11
+   miały tę samą szerokość i pole nie "drgało" przy pisaniu.
+   ------------------------------------------------------------------------- */
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ui-field__label {
+  overflow: hidden;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-field__input {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-sunken);
+  color: var(--text-strong);
+
+  font-family: inherit;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+.ui-field__input:focus {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.ui-field__input:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.ui-score__separator {
+  padding-bottom: var(--space-3);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
+   NOTATKA
+   Komunikat WEWNĄTRZ formularza: powód blokady, prośba o zalogowanie,
+   potwierdzenie zapisu. Osobno od ui-error, bo tamto jest stanem całego
+   ekranu i zajmuje pół widoku.
+   ------------------------------------------------------------------------- */
+
+.ui-note {
+  /* Blok, nie flex: treść notki to zdanie z linkiem w środku. Flex robił
+     z linku osobny element i łamał go w słupek przy prawej krawędzi. */
+  display: block;
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.ui-note--ok {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+
+.ui-note--warn {
+  border-color: var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.ui-note--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ui-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------
+   WYNIK
+   Dwie nazwy i liczba pomiędzy nimi. Zwycięska strona ma jaśniejszy tekst -
+   wynik czyta się wtedy jednym spojrzeniem, bez porównywania cyfr.
+   ------------------------------------------------------------------------- */
+
+.ui-scoreline {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+
+  /* Bez ograniczenia na szerokim ekranie nazwy drużyn odjeżdżają na oba
+     krańce karty, a wynik zostaje sam pośrodku - trzy oddzielne napisy
+     zamiast jednego rezultatu. */
+  max-width: 520px;
+}
+
+.ui-scoreline__team {
+  overflow: hidden;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.ui-scoreline__team:last-child {
+  text-align: right;
+}
+
+.ui-scoreline__score {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  color: var(--text-strong);
+}
+
+.ui-scoreline--a .ui-scoreline__team:first-child,
+.ui-scoreline--b .ui-scoreline__team:last-child {
+  color: var(--text-strong);
+}
+
+/* Wariant do list map, gdzie wynik jest szczegółem, a nie nagłówkiem. */
+.ui-scoreline--compact {
+  gap: var(--space-2);
+}
+
+.ui-scoreline--compact .ui-scoreline__team {
+  font-size: var(--text-xs);
+}
+
+.ui-scoreline--compact .ui-scoreline__score {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+}
+
+/* Podpisy nad paskiem podziału: nazwa drużyny i jej procent w kolorze
+   swojej strony. Obie strony ui-split dostają ten sam kolor co pasek. */
+.ui-split-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ui-split-side strong {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.ui-split-side span {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--side-a);
+}
+
+.ui-split-side--b {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ui-split-side--b span {
+  color: var(--side-b);
+}
+
+/* Wiersz mapy: numer po lewej, wynik po prawej. */
+.ui-map-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ui-map-row__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-faint);
+}
+
+.ui-map-row .ui-scoreline {
+  justify-self: end;
+}
+
+/* Na telefonie nazwy drużyn w wierszu mapy znikają: stoją już w wyniku
+   nad listą, a tutaj tylko się ucinały. Kolejność A:B zostaje ta sama. */
+@media (max-width: 560px) {
+  .ui-scoreline--compact .ui-scoreline__team {
+    display: none;
+  }
+}

@@ -13,7 +13,6 @@ import {
 } from "../lib/api.js";
 import { getMapLabel } from "../lib/mapLabels.js";
 import BackLink from "../components/BackLink.jsx";
-import Ladowanie from "../components/Ladowanie.jsx";
 
 function validateCs2Score(a, b) {
   const scoreA = Number(a);
@@ -84,20 +83,20 @@ function validateSeries(seriesScore, mapScores, bestOf) {
   const expectedScores =
     Number(bestOf) === 3
       ? {
-        "2:0": [2, 0],
-        "2:1": [2, 1],
-        "1:2": [1, 2],
-        "0:2": [0, 2],
-      }
+          "2:0": [2, 0],
+          "2:1": [2, 1],
+          "1:2": [1, 2],
+          "0:2": [0, 2],
+        }
       : Number(bestOf) === 5
         ? {
-          "3:0": [3, 0],
-          "3:1": [3, 1],
-          "3:2": [3, 2],
-          "2:3": [2, 3],
-          "1:3": [1, 3],
-          "0:3": [0, 3],
-        }
+            "3:0": [3, 0],
+            "3:1": [3, 1],
+            "3:2": [3, 2],
+            "2:3": [2, 3],
+            "1:3": [1, 3],
+            "0:3": [0, 3],
+          }
         : null;
 
   if (!expectedScores) {
@@ -182,7 +181,7 @@ function getRequiredMaps(seriesScore) {
 
 function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
   return (
-    <div className="bo3-pick__options">
+    <div className="ui-choice">
       {getSeriesOptions(bestOf).map((score) => {
         const [scoreA, scoreB] = score.split(":").map(Number);
 
@@ -195,7 +194,8 @@ function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
           <button
             key={score}
             type="button"
-            className={seriesScore === score ? "selected" : ""}
+            className="ui-choice__option"
+            aria-pressed={seriesScore === score}
             onClick={() => onSelect(score)}
           >
             {teamLabel}
@@ -208,12 +208,16 @@ function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
 
 function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
   return (
-    <div className="bo3-pick__maps">
+    <div className="ui-stack">
       {mapScores.slice(0, getRequiredMaps(seriesScore)).map((map, index) => (
-        <div className="bo3-map" key={index}>
-          <div className="bo3-map__title">
-            Mapa {index + 1}
-            <span className="bo3-map__pick">
+        <div
+          className="ui-card ui-card--tight ui-stack ui-stack--tight"
+          key={index}
+        >
+          <div className="ui-row ui-row--between">
+            <strong>Mapa {index + 1}</strong>
+
+            <span className="ui-badge">
               {getMapLabel(
                 index + 1,
                 match.best_of,
@@ -223,40 +227,51 @@ function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
             </span>
           </div>
 
-          <div className="bo3-map__score">
-            <input
-              type="number"
-              min="0"
-              placeholder={match.team_a}
-              value={map.scoreA}
-              onChange={(event) => {
-                const value = event.target.value;
+          {/* Nazwa drużyny była wcześniej placeholderem, więc znikała w chwili
+              wpisania wyniku - dokładnie wtedy, gdy trzeba wiedzieć, czyj to
+              wynik. Teraz jest etykietą i zostaje na ekranie. */}
+          <div className="ui-score">
+            <label className="ui-field">
+              <span className="ui-field__label">{match.team_a}</span>
 
-                setMapScores((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, scoreA: value } : item,
-                  ),
-                );
-              }}
-            />
+              <input
+                className="ui-field__input"
+                type="number"
+                min="0"
+                value={map.scoreA}
+                onChange={(event) => {
+                  const value = event.target.value;
 
-            <span>:</span>
+                  setMapScores((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, scoreA: value } : item,
+                    ),
+                  );
+                }}
+              />
+            </label>
 
-            <input
-              type="number"
-              min="0"
-              placeholder={match.team_b}
-              value={map.scoreB}
-              onChange={(event) => {
-                const value = event.target.value;
+            <span className="ui-score__separator">:</span>
 
-                setMapScores((current) =>
-                  current.map((item, itemIndex) =>
-                    itemIndex === index ? { ...item, scoreB: value } : item,
-                  ),
-                );
-              }}
-            />
+            <label className="ui-field">
+              <span className="ui-field__label">{match.team_b}</span>
+
+              <input
+                className="ui-field__input"
+                type="number"
+                min="0"
+                value={map.scoreB}
+                onChange={(event) => {
+                  const value = event.target.value;
+
+                  setMapScores((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, scoreB: value } : item,
+                    ),
+                  );
+                }}
+              />
+            </label>
           </div>
         </div>
       ))}
@@ -296,8 +311,18 @@ function SeriesPick({
   onSave,
 }) {
   return (
-    <section className="bo3-pick">
-      <h2>Typ serii BO{match.best_of}</h2>
+    <section className="ui-card ui-stack">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Twój typ</span>
+
+          <h2>Wynik serii BO{match.best_of}</h2>
+
+          <p>
+            Najpierw wybierz wynik serii, potem uzupełnij wyniki kolejnych map.
+          </p>
+        </div>
+      </div>
 
       <SeriesOptions
         bestOf={match.best_of}
@@ -317,13 +342,13 @@ function SeriesPick({
       )}
 
       {match.ui_status !== "FINAL" && match.predictions_allowed === false && (
-        <p className="bo1-pick__error">
+        <p className="ui-note ui-note--warn">
           🔒 {match.lock_reason ?? "Typowanie tego meczu jest zablokowane."}
         </p>
       )}
 
       {!currentUser && (
-        <p className="bo1-pick__error">
+        <p className="ui-note">
           Zaloguj się przez Discord, żeby zapisać swój typ.{" "}
           <a
             href={`/api/auth/discord?returnTo=${encodeURIComponent(
@@ -334,10 +359,17 @@ function SeriesPick({
           </a>
         </p>
       )}
+
+      {validationError && (
+        <p className="ui-note ui-note--danger">{validationError}</p>
+      )}
+
+      {saveMessage && <p className="ui-note ui-note--ok">✅ {saveMessage}</p>}
+
       {match.ui_status !== "FINAL" && (
         <button
           type="button"
-          className="bo1-pick__save"
+          className="ui-btn ui-btn--primary"
           disabled={
             saving ||
             authLoading ||
@@ -349,9 +381,6 @@ function SeriesPick({
           {saving ? "Zapisywanie..." : "Zapisz typ"}
         </button>
       )}
-      {validationError && <p className="bo1-pick__error">{validationError}</p>}
-
-      {saveMessage && <p className="bo1-pick__success">{saveMessage}</p>}
     </section>
   );
 }
@@ -411,34 +440,45 @@ function Bo1Pick({
   onSave,
 }) {
   return (
-    <section className="bo1-pick">
-      <h2>Twój typ</h2>
+    <section className="ui-card ui-stack">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Twój typ</span>
 
-      <div className="bo1-pick__teams">
+          <h2>Kto wygra?</h2>
+
+          <p>Wskaż zwycięzcę i podaj wynik rund.</p>
+        </div>
+      </div>
+
+      <div className="ui-choice ui-choice--versus">
         <button
           type="button"
-          className={winner === "A" ? "selected" : ""}
+          className="ui-choice__option"
+          aria-pressed={winner === "A"}
           onClick={() => setWinner("A")}
         >
           {match.team_a}
         </button>
 
-        <span>VS</span>
+        <span className="ui-choice__vs">VS</span>
 
         <button
           type="button"
-          className={winner === "B" ? "selected" : ""}
+          className="ui-choice__option"
+          aria-pressed={winner === "B"}
           onClick={() => setWinner("B")}
         >
           {match.team_b}
         </button>
       </div>
 
-      <div className="bo1-pick__score">
-        <label>
-          {match.team_a}
+      <div className="ui-score">
+        <label className="ui-field">
+          <span className="ui-field__label">{match.team_a}</span>
 
           <input
+            className="ui-field__input"
             type="number"
             min="0"
             value={scoreA}
@@ -447,12 +487,13 @@ function Bo1Pick({
           />
         </label>
 
-        <span>:</span>
+        <span className="ui-score__separator">:</span>
 
-        <label>
-          {match.team_b}
+        <label className="ui-field">
+          <span className="ui-field__label">{match.team_b}</span>
 
           <input
+            className="ui-field__input"
             type="number"
             min="0"
             value={scoreB}
@@ -462,11 +503,21 @@ function Bo1Pick({
         </label>
       </div>
 
-      {validationError && <p className="bo1-pick__error">{validationError}</p>}
+      {match.ui_status !== "FINAL" && match.predictions_allowed === false && (
+        <p className="ui-note ui-note--warn">
+          🔒 {match.lock_reason ?? "Typowanie tego meczu jest zablokowane."}
+        </p>
+      )}
+
+      {validationError && (
+        <p className="ui-note ui-note--danger">{validationError}</p>
+      )}
+
+      {saveMessage && <p className="ui-note ui-note--ok">✅ {saveMessage}</p>}
 
       {!authLoading && !currentUser && (
         <a
-          className="bo1-pick__login"
+          className="ui-btn"
           href={`/api/auth/discord?returnTo=${encodeURIComponent(
             window.location.pathname + window.location.search,
           )}`}
@@ -475,14 +526,9 @@ function Bo1Pick({
         </a>
       )}
 
-      {match.ui_status !== "FINAL" && match.predictions_allowed === false && (
-        <p className="bo1-pick__error">
-          🔒 {match.lock_reason ?? "Typowanie tego meczu jest zablokowane."}
-        </p>
-      )}
       {match.ui_status !== "FINAL" && (
         <button
-          className="bo1-pick__save"
+          className="ui-btn ui-btn--primary"
           type="button"
           disabled={
             saving ||
@@ -499,8 +545,6 @@ function Bo1Pick({
               : "Zapisz typ"}
         </button>
       )}
-
-      {saveMessage && <p className="bo1-pick__success">{saveMessage}</p>}
     </section>
   );
 }
@@ -546,6 +590,113 @@ function validateSeriesPrediction(seriesScore, mapScores, bestOf) {
   }
 
   return null;
+}
+
+function countMapWins(maps = [], side) {
+  return maps.filter((map) => {
+    if (map.exactA == null || map.exactB == null) {
+      return false;
+    }
+
+    return side === "A"
+      ? Number(map.exactA) > Number(map.exactB)
+      : Number(map.exactB) > Number(map.exactA);
+  }).length;
+}
+
+function ScoreLine({ teamA, teamB, scoreA, scoreB, compact = false }) {
+  const a = Number(scoreA);
+  const b = Number(scoreB);
+
+  const winner =
+    Number.isFinite(a) && Number.isFinite(b) && a !== b
+      ? a > b
+        ? "a"
+        : "b"
+      : null;
+
+  const classes = [
+    "ui-scoreline",
+    compact ? "ui-scoreline--compact" : "",
+    winner ? `ui-scoreline--${winner}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className={classes}>
+      <span className="ui-scoreline__team">{teamA}</span>
+
+      <span className="ui-scoreline__score">
+        {scoreA}:{scoreB}
+      </span>
+
+      <span className="ui-scoreline__team">{teamB}</span>
+    </div>
+  );
+}
+
+function MapBreakdown({ teamA, teamB, maps }) {
+  if (maps.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+      {maps.map((map) => (
+        <div className="ui-map-row" key={map.no}>
+          <span className="ui-map-row__label">Mapa {map.no}</span>
+
+          <ScoreLine
+            compact
+            teamA={teamA}
+            teamB={teamB}
+            scoreA={map.scoreA}
+            scoreB={map.scoreB}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CommunitySplit({ teamA, teamB, sideA, sideB }) {
+  const percentageA = sideA?.percentage ?? 0;
+  const percentageB = sideB?.percentage ?? 0;
+
+  return (
+    <div className="ui-stack ui-stack--tight">
+      <div className="ui-row ui-row--between ui-row--full">
+        <span className="ui-split-side">
+          <strong>{teamA}</strong>
+
+          <span>{percentageA}%</span>
+        </span>
+
+        <span className="ui-split-side ui-split-side--b">
+          <strong>{teamB}</strong>
+
+          <span>{percentageB}%</span>
+        </span>
+      </div>
+
+      <div className="ui-split">
+        <div className="ui-split__a" style={{ width: `${percentageA}%` }} />
+
+        <div className="ui-split__b" style={{ width: `${percentageB}%` }} />
+      </div>
+
+      <div className="ui-row ui-row--between ui-row--full">
+        <span className="ui-stat__hint">
+          {formatPicksCount(sideA?.picks ?? 0)}
+        </span>
+
+        <span className="ui-stat__hint">
+          {formatPicksCount(sideB?.picks ?? 0)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function MatchPage() {
@@ -856,331 +1007,367 @@ function MatchPage() {
   }
 
   return (
-    <main className="match-page">
+    <main className="ui-page">
       <BackLink to={`/events/${slug}/matches`}>Wróć do listy meczów</BackLink>
-      <section className="match-page__hero">
-        <span className="ui-kicker">Pick&apos;Em</span>
 
-        <h1>Typowanie meczu</h1>
+      {loading && (
+        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie meczu">
+          <div className="ui-skeleton ui-skeleton--row" />
 
-        {loading && <Ladowanie>Ładowanie meczu...</Ladowanie>}
+          <div className="ui-skeleton ui-skeleton--row" />
+        </div>
+      )}
 
-        {!loading && error && <p>{error}</p>}
+      {!loading && error && (
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
 
-        {!loading && !error && match && (
-          <>
-            <p>
-              {match.team_a} vs {match.team_b} · BO{match.best_of}
-            </p>
+          <strong className="ui-error__title">
+            Nie udało się wczytać meczu
+          </strong>
 
-            {match.ui_status === "FINAL" && matchResult && (
-              <section className="match-result">
-                <h2>Wynik meczu</h2>
+          <p className="ui-error__text">{error}</p>
+        </div>
+      )}
 
-                {Number(match.best_of) === 1 ? (
-                  <p className="match-result__score">
-                    {match.team_a} {matchResult.maps?.[0]?.exactA}:
-                    {matchResult.maps?.[0]?.exactB} {match.team_b}
-                  </p>
-                ) : (
-                  <>
-                    <p className="match-result__score">
-                      {match.team_a}{" "}
-                      {
-                        matchResult.maps.filter(
-                          (map) =>
-                            map.exactA != null &&
-                            map.exactB != null &&
-                            Number(map.exactA) > Number(map.exactB),
-                        ).length
-                      }
-                      :
-                      {
-                        matchResult.maps.filter(
-                          (map) =>
-                            map.exactA != null &&
-                            map.exactB != null &&
-                            Number(map.exactB) > Number(map.exactA),
-                        ).length
-                      }{" "}
-                      {match.team_b}
-                    </p>
+      {!loading && !error && match && (
+        <>
+          <section className="ui-card ui-stack">
+            <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+              <span className="ui-kicker">
+                Pick&apos;Em · BO{match.best_of}
+              </span>
 
-                    <div className="match-result__maps">
-                      {matchResult.maps
-                        .filter(
-                          (map) => map.exactA != null && map.exactB != null,
-                        )
-                        .map((map) => (
-                          <p key={map.mapNo}>
-                            Mapa {map.mapNo}:{" "}
-                            <strong>
-                              {match.team_a} {map.exactA}:{map.exactB}{" "}
-                              {match.team_b}
-                            </strong>
-                          </p>
-                        ))}
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
+              {match.ui_status === "FINAL" ? (
+                <span className="ui-badge">Mecz zakończony</span>
+              ) : match.predictions_allowed === false ? (
+                <span className="ui-badge ui-badge--warn">
+                  Typowanie zamknięte
+                </span>
+              ) : (
+                <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+              )}
+            </div>
+
+            <div className="ui-match">
+              <div className="ui-match__team">
+                <span className="ui-match__side">A</span>
+
+                <strong className="ui-match__name">{match.team_a}</strong>
+              </div>
+
+              <span className="ui-match__vs">VS</span>
+
+              <div className="ui-match__team ui-match__team--b">
+                <span className="ui-match__side">B</span>
+
+                <strong className="ui-match__name">{match.team_b}</strong>
+              </div>
+            </div>
 
             {canAdminMatch && (
               <Link
-                className="match-page__admin-result"
+                className="ui-btn ui-btn--ghost ui-btn--sm"
                 to={`/admin/matches/${match.id}/result`}
               >
                 Ustaw wynik
               </Link>
             )}
+          </section>
 
-            {match.ui_status === "FINAL" && !currentUser && (
-              <section className="match-result">
-                <h2>Twój typ</h2>
-                <p>
-                  Zaloguj się przez Discord, żeby zobaczyć swój zapisany typ.
-                </p>
-              </section>
-            )}
+          {match.ui_status === "FINAL" && matchResult && (
+            <section className="ui-card ui-stack">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">Rezultat</span>
 
-            {match.ui_status === "FINAL" && currentUser && myPoints && (
-              <section className="match-result">
-                <h2>Zdobyte punkty</h2>
-
-                <p className="match-result__score">⭐ {myPoints.total} pkt</p>
-
-                <div className="match-result__maps">
-                  <p>
-                    Seria: <strong>{myPoints.series} pkt</strong>
-                  </p>
-
-                  <p>
-                    Mapy: <strong>{myPoints.maps} pkt</strong>
-                  </p>
+                  <h2>Wynik meczu</h2>
                 </div>
-              </section>
-            )}
+              </div>
 
-            {pickStats?.locked && (
-              <section className="match-community-stats">
-                <div className="match-community-stats__header">
+              {Number(match.best_of) === 1 ? (
+                <ScoreLine
+                  teamA={match.team_a}
+                  teamB={match.team_b}
+                  scoreA={matchResult.maps?.[0]?.exactA}
+                  scoreB={matchResult.maps?.[0]?.exactB}
+                />
+              ) : (
+                <>
+                  <ScoreLine
+                    teamA={match.team_a}
+                    teamB={match.team_b}
+                    scoreA={countMapWins(matchResult.maps, "A")}
+                    scoreB={countMapWins(matchResult.maps, "B")}
+                  />
+
+                  <MapBreakdown
+                    teamA={match.team_a}
+                    teamB={match.team_b}
+                    maps={matchResult.maps
+                      .filter((map) => map.exactA != null && map.exactB != null)
+                      .map((map) => ({
+                        no: map.mapNo,
+                        scoreA: map.exactA,
+                        scoreB: map.exactB,
+                      }))}
+                  />
+                </>
+              )}
+            </section>
+          )}
+
+          {match.ui_status === "FINAL" && !currentUser && (
+            <section className="ui-card ui-stack">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">Twój typ</span>
+
+                  <h2>Zobacz, jak Ci poszło</h2>
+                </div>
+              </div>
+
+              <p className="ui-note">
+                Zaloguj się przez Discord, żeby zobaczyć swój zapisany typ.
+              </p>
+
+              <a
+                className="ui-btn"
+                href={`/api/auth/discord?returnTo=${encodeURIComponent(
+                  window.location.pathname + window.location.search,
+                )}`}
+              >
+                Zaloguj przez Discord
+              </a>
+            </section>
+          )}
+
+          {match.ui_status === "FINAL" && currentUser && myPoints && (
+            <section className="ui-card ui-card--accent ui-stack">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">Twój wynik</span>
+
+                  <h2>Zdobyte punkty</h2>
+                </div>
+              </div>
+
+              <div className="ui-stats">
+                <div className="ui-stat ui-stat--featured">
+                  <span>Łącznie</span>
+
+                  <strong>⭐ {myPoints.total}</strong>
+
+                  <small>punktów za ten mecz</small>
+                </div>
+
+                <div className="ui-stat">
+                  <span>Seria</span>
+
+                  <strong>{myPoints.series}</strong>
+
+                  <small>za wynik meczu</small>
+                </div>
+
+                <div className="ui-stat">
+                  <span>Mapy</span>
+
+                  <strong>{myPoints.maps}</strong>
+
+                  <small>za wyniki map</small>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {pickStats?.locked && (
+            <section className="ui-card ui-stack">
+              <div className="ui-section-head">
+                <div>
                   <span className="ui-kicker">Społeczność</span>
 
                   <h2>Jak typowała społeczność?</h2>
                 </div>
-                {(pickStats.picks?.total ?? 0) === 0 ? (
-                  <p className="match-community-stats__empty">
-                    Brak typów dla tego meczu.
-                  </p>
-                ) : (
-                  <>
-                    <div className="match-community-stats__teams">
-                      <div>
-                        <strong>{match.team_a}</strong>
-                        <span>{pickStats.picks?.team_a?.percentage ?? 0}%</span>
-                      </div>
+              </div>
 
-                      <div>
-                        <strong>{match.team_b}</strong>
-                        <span>{pickStats.picks?.team_b?.percentage ?? 0}%</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div className="match-community-stats__teams">
-                  <div>
-                    <strong>{match.team_a}</strong>
-                    <span>{pickStats.picks?.team_a?.percentage ?? 0}%</span>
-                  </div>
-
-                  <div>
-                    <strong>{match.team_b}</strong>
-                    <span>{pickStats.picks?.team_b?.percentage ?? 0}%</span>
-                  </div>
-                </div>
-
-                <div className="match-community-stats__bar">
-                  <div
-                    className="match-community-stats__bar-a"
-                    style={{
-                      width: `${pickStats.picks?.team_a?.percentage ?? 0}%`,
-                    }}
-                  />
-
-                  <div
-                    className="match-community-stats__bar-b"
-                    style={{
-                      width: `${pickStats.picks?.team_b?.percentage ?? 0}%`,
-                    }}
-                  />
-                </div>
-
-                <div className="match-community-stats__counts">
-                  <span>{pickStats.picks?.team_a?.picks ?? 0}</span>
-
-                  <span>{pickStats.picks?.team_b?.picks ?? 0}</span>
-                </div>
-
-                <div className="match-community-stats__summary">
-                  <span>
-                    Łącznie typów:{" "}
-                    <strong>{pickStats.picks?.total ?? 0}</strong>
+              {(pickStats.picks?.total ?? 0) === 0 ? (
+                <div className="ui-empty">
+                  <span className="ui-empty__icon" aria-hidden="true">
+                    🤷
                   </span>
 
-                  {pickStats.popular_score && (
-                    <span>
-                      Najpopularniejszy wynik:{" "}
-                      <strong>
-                        {pickStats.popular_score.score_a}:
-                        {pickStats.popular_score.score_b}
-                      </strong>{" "}
-                      ({formatPicksCount(pickStats.popular_score.picks)})
-                    </span>
-                  )}
+                  <strong className="ui-empty__title">
+                    Nikt nie typował tego meczu
+                  </strong>
+
+                  <p className="ui-empty__text">
+                    Typowanie zamknęło się bez ani jednego zapisanego typu.
+                  </p>
                 </div>
+              ) : (
+                <>
+                  {/* Podpisy, pasek i liczby to jeden blok - wcześniej ten sam
+                      podpis renderował się dwa razy, raz warunkowo i raz na
+                      stałe, więc przy zerze typów widać było komunikat "brak"
+                      i zaraz pod nim 0% dla obu drużyn. */}
+                  <CommunitySplit
+                    teamA={match.team_a}
+                    teamB={match.team_b}
+                    sideA={pickStats.picks?.team_a}
+                    sideB={pickStats.picks?.team_b}
+                  />
 
-                {pickStats.maps?.length > 0 && (
-                  <div className="match-community-maps">
-                    <div className="match-community-maps__header">
-                      <span className="ui-kicker">Mapy</span>
+                  <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+                    <span className="ui-stat__hint">
+                      Łącznie typów:{" "}
+                      <strong>{pickStats.picks?.total ?? 0}</strong>
+                    </span>
 
-                      <h3>Jak typowano mapy?</h3>
-                    </div>
+                    {pickStats.popular_score && (
+                      <span className="ui-stat__hint">
+                        Najpopularniejszy wynik:{" "}
+                        <strong>
+                          {pickStats.popular_score.score_a}:
+                          {pickStats.popular_score.score_b}
+                        </strong>{" "}
+                        ({formatPicksCount(pickStats.popular_score.picks)})
+                      </span>
+                    )}
+                  </div>
 
-                    <div className="match-community-maps__list">
+                  {pickStats.maps?.length > 0 && (
+                    <div className="ui-stack">
+                      <div className="ui-section-head">
+                        <div>
+                          <span className="ui-kicker">Mapy</span>
+
+                          <h3>Jak typowano mapy?</h3>
+                        </div>
+                      </div>
+
                       {pickStats.maps.map((map) => (
-                        <div className="match-community-map" key={map.map_no}>
-                          <div className="match-community-map__title">
-                            Mapa {map.map_no}
-                          </div>
+                        <div
+                          className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
+                          key={map.map_no}
+                        >
+                          <span className="ui-kicker">Mapa {map.map_no}</span>
 
-                          <div className="match-community-map__teams">
-                            <div>
-                              <strong>{match.team_a}</strong>
-                              <span>{map.team_a.percentage}%</span>
-                            </div>
-
-                            <div>
-                              <strong>{match.team_b}</strong>
-                              <span>{map.team_b.percentage}%</span>
-                            </div>
-                          </div>
-
-                          <div className="match-community-map__bar">
-                            <div
-                              className="match-community-map__bar-a"
-                              style={{
-                                width: `${map.team_a.percentage}%`,
-                              }}
-                            />
-
-                            <div
-                              className="match-community-map__bar-b"
-                              style={{
-                                width: `${map.team_b.percentage}%`,
-                              }}
-                            />
-                          </div>
-
-                          <div className="match-community-map__counts">
-                            <span>{formatPicksCount(map.team_a.picks)}</span>
-
-                            <span>{formatPicksCount(map.team_b.picks)}</span>
-                          </div>
+                          <CommunitySplit
+                            teamA={match.team_a}
+                            teamB={match.team_b}
+                            sideA={map.team_a}
+                            sideB={map.team_b}
+                          />
                         </div>
                       ))}
                     </div>
+                  )}
+                </>
+              )}
+            </section>
+          )}
+
+          {match.ui_status === "FINAL" &&
+            Number(match.best_of) === 1 &&
+            currentUser && (
+              <section className="ui-card ui-stack">
+                <div className="ui-section-head">
+                  <div>
+                    <span className="ui-kicker">Twój typ</span>
+
+                    <h2>Co obstawiłeś</h2>
                   </div>
+                </div>
+
+                {scoreA !== "" && scoreB !== "" ? (
+                  <ScoreLine
+                    teamA={match.team_a}
+                    teamB={match.team_b}
+                    scoreA={scoreA}
+                    scoreB={scoreB}
+                  />
+                ) : (
+                  <p className="ui-note">Nie typowałeś tego meczu.</p>
                 )}
               </section>
             )}
 
-            {match.ui_status === "FINAL" &&
-              Number(match.best_of) === 1 &&
-              currentUser && (
-                <section className="match-result">
-                  <h2>Twój typ</h2>
+          {match.ui_status !== "FINAL" && Number(match.best_of) === 1 && (
+            <Bo1Pick
+              match={match}
+              winner={winner}
+              setWinner={setWinner}
+              scoreA={scoreA}
+              setScoreA={setScoreA}
+              scoreB={scoreB}
+              setScoreB={setScoreB}
+              saving={saving}
+              authLoading={authLoading}
+              currentUser={currentUser}
+              validationError={validationError}
+              saveMessage={saveMessage}
+              onSave={handleBo1Save}
+            />
+          )}
 
-                  {scoreA !== "" && scoreB !== "" ? (
-                    <p className="match-result__score">
-                      {match.team_a} {scoreA}:{scoreB} {match.team_b}
-                    </p>
-                  ) : (
-                    <p>Nie typowałeś tego meczu.</p>
-                  )}
-                </section>
-              )}
+          {match.ui_status === "FINAL" &&
+            isSeriesMatch(match.best_of) &&
+            currentUser && (
+              <section className="ui-card ui-stack">
+                <div className="ui-section-head">
+                  <div>
+                    <span className="ui-kicker">Twój typ</span>
 
-            {match.ui_status !== "FINAL" && Number(match.best_of) === 1 && (
-              <Bo1Pick
-                match={match}
-                winner={winner}
-                setWinner={setWinner}
-                scoreA={scoreA}
-                setScoreA={setScoreA}
-                scoreB={scoreB}
-                setScoreB={setScoreB}
-                saving={saving}
-                authLoading={authLoading}
-                currentUser={currentUser}
-                validationError={validationError}
-                saveMessage={saveMessage}
-                onSave={handleBo1Save}
-              />
+                    <h2>Co obstawiłeś</h2>
+                  </div>
+                </div>
+
+                {seriesScore ? (
+                  <>
+                    <ScoreLine
+                      teamA={match.team_a}
+                      teamB={match.team_b}
+                      scoreA={seriesScore.split(":")[0]}
+                      scoreB={seriesScore.split(":")[1]}
+                    />
+
+                    <MapBreakdown
+                      teamA={match.team_a}
+                      teamB={match.team_b}
+                      maps={mapScores
+                        .slice(0, getRequiredMaps(seriesScore))
+                        .map((map, index) => ({
+                          no: index + 1,
+                          scoreA: map.scoreA,
+                          scoreB: map.scoreB,
+                        }))}
+                    />
+                  </>
+                ) : (
+                  <p className="ui-note">Nie typowałeś tego meczu.</p>
+                )}
+              </section>
             )}
 
-            {match.ui_status === "FINAL" &&
-              isSeriesMatch(match.best_of) &&
-              currentUser && (
-                <section className="match-result">
-                  <h2>Twój typ</h2>
-
-                  {seriesScore ? (
-                    <>
-                      <p className="match-result__score">
-                        {match.team_a} {seriesScore} {match.team_b}
-                      </p>
-
-                      <div className="match-result__maps">
-                        {mapScores
-                          .slice(0, getRequiredMaps(seriesScore))
-                          .map((map, index) => (
-                            <p key={index}>
-                              Mapa {index + 1}:{" "}
-                              <strong>
-                                {match.team_a} {map.scoreA}:{map.scoreB}{" "}
-                                {match.team_b}
-                              </strong>
-                            </p>
-                          ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p>Nie typowałeś tego meczu.</p>
-                  )}
-                </section>
-              )}
-
-            {match.ui_status !== "FINAL" && isSeriesMatch(match.best_of) && (
-              <SeriesPick
-                match={match}
-                seriesScore={seriesScore}
-                setSeriesScore={setSeriesScore}
-                mapScores={mapScores}
-                setMapScores={setMapScores}
-                saving={saving}
-                authLoading={authLoading}
-                currentUser={currentUser}
-                validationError={validationError}
-                saveMessage={saveMessage}
-                onSave={() => handleSeriesSave(Number(match.best_of))}
-              />
-            )}
-          </>
-        )}
-      </section>
+          {match.ui_status !== "FINAL" && isSeriesMatch(match.best_of) && (
+            <SeriesPick
+              match={match}
+              seriesScore={seriesScore}
+              setSeriesScore={setSeriesScore}
+              mapScores={mapScores}
+              setMapScores={setMapScores}
+              saving={saving}
+              authLoading={authLoading}
+              currentUser={currentUser}
+              validationError={validationError}
+              saveMessage={saveMessage}
+              onSave={() => handleSeriesSave(Number(match.best_of))}
+            />
+          )}
+        </>
+      )}
     </main>
   );
 }
