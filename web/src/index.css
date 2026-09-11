@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/design-system.css";
 
 /* =========================================================
    TOKENY
@@ -11,62 +12,6 @@
    Nie zmieniaja wygladu istniejacych komponentow - sluza nowym
    i migracji starych bez polowania na heksy. */
 
-:root {
-  /* powierzchnie */
-  --tlo: #0b0b0d;
-  --tlo-podniesione: rgba(255, 255, 255, 0.025);
-  --tlo-mocniejsze: rgba(255, 255, 255, 0.05);
-  --tlo-pole: rgba(0, 0, 0, 0.25);
-  /* Nieprzezroczyste tla kart i sekcji. Przezroczyste --tlo-* nakladaja
-     sie na siebie przy zagniezdzeniu, wiec te dwa sa pelne. */
-  --tlo-karta: #18181b;
-  --tlo-glebokie: #111113;
-
-  /* obramowania */
-  --linia: rgba(255, 255, 255, 0.08);
-  --linia-mocna: rgba(255, 255, 255, 0.12);
-  --linia-slaba: rgba(255, 255, 255, 0.06);
-
-  /* tekst */
-  --tekst: #e4e4e7;
-  --tekst-jasny: #ffffff;
-  --tekst-drugi: #a1a1aa;
-  --tekst-slaby: #71717a;
-
-  /* akcent */
-  --akcent: #8b5cf6;
-  --akcent-ciemny: #7c3aed;
-  --akcent-jasny: #c4b5fd;
-  --akcent-tlo: rgba(124, 58, 237, 0.14);
-  --akcent-linia: rgba(124, 58, 237, 0.35);
-
-  /* semantyka */
-  --ok: #86efac;
-  --ok-tlo: rgba(134, 239, 172, 0.14);
-  --ok-linia: rgba(134, 239, 172, 0.32);
-  --uwaga: #fcd34d;
-  --uwaga-tlo: rgba(252, 211, 77, 0.14);
-  --blad: #fca5a5;
-  --blad-tlo: rgba(239, 68, 68, 0.14);
-  --blad-linia: rgba(239, 68, 68, 0.3);
-
-  /* ksztalt */
-  --r-mala: 8px;
-  --r-srednia: 12px;
-  --r-karta: 18px;
-  --r-pigulka: 999px;
-
-  /* odstepy */
-  --odstep-karta: 24px;
-
-  /* przyciski - wartosci ustalone przez .admin-section__actions > button */
-  --przycisk: #27272a;
-  --przycisk-hover: #3f3f46;
-  --przycisk-linia: #3f3f46;
-  --przycisk-linia-hover: #52525b;
-
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-}
 
 * {
   box-sizing: border-box;
@@ -86,13 +31,7 @@ body {
   background: #09090b;
   color: var(--tekst-jasny);
 
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font);
 }
 
 button,
