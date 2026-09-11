@@ -537,10 +537,43 @@ registerMatchOpsRoutes(app, {
   validateSeriesMapOrder,
 });
 
+// Te trzy rejestracje stały PO bloku produkcyjnym, mimo że komentarz nad nim
+// mówi, że jest rejestrowany jako ostatni. Nie szkodziło to dziś, bo wzorzec
+// fallbacku wyklucza /api, ale całe bezpieczeństwo wisiało na tym jednym
+// wyrażeniu - a express.static i tak biegł przed nimi. Wszystkie ich trasy to
+// /api/*, więc przestawienie niczego nie zmienia poza usunięciem tej pułapki.
+
+// Przeniesione do server/routes/playerProfile.js. Wywolanie stoi tam, gdzie byly trasy -
+// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
+registerPlayerProfileRoutes(app, {
+  assertPredictionsAllowed,
+  isMatchDeadlinePassed,
+  matchPanelPhaseFor,
+  findNameFromPicks,
+  pool,
+});
+
+// Przeniesione do server/routes/eventStats.js. Wywolanie stoi tam, gdzie byly trasy -
+// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
+registerEventStatsRoutes(app, {
+  assertPredictionsAllowed,
+  isMatchDeadlinePassed,
+  isMatchLocked,
+  matchPanelPhaseFor,
+  pool,
+});
+
+// Przeniesione do server/routes/myPicks.js. Wywolanie stoi tam, gdzie byly trasy -
+// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
+registerMyPicksRoutes(app, {
+  isGuildMember,
+  pool,
+});
+
 // Serve the built web/ frontend (npm run build -> web/dist) as static files
 // in production, so one process/port handles both the API and the SPA -
 // no separate web host, no second exposed port, no cross-origin cookies.
-// Registered last so it never shadows an /api/* route above. The wildcard
+// Rejestrowany jako ostatni, żeby nigdy nie przesłonił trasy /api/*. Wzorzec
 // only needs to exclude /api and /socket.io - everything else is a client
 // side route handled by React Router, so it always falls back to index.html.
 if (IS_PRODUCTION) {
@@ -604,33 +637,6 @@ if (IS_PRODUCTION) {
   });
 }
 
-
-// Przeniesione do server/routes/playerProfile.js. Wywolanie stoi tam, gdzie byly trasy -
-// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerPlayerProfileRoutes(app, {
-  assertPredictionsAllowed,
-  isMatchDeadlinePassed,
-  matchPanelPhaseFor,
-  findNameFromPicks,
-  pool,
-});
-
-// Przeniesione do server/routes/eventStats.js. Wywolanie stoi tam, gdzie byly trasy -
-// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerEventStatsRoutes(app, {
-  assertPredictionsAllowed,
-  isMatchDeadlinePassed,
-  isMatchLocked,
-  matchPanelPhaseFor,
-  pool,
-});
-
-// Przeniesione do server/routes/myPicks.js. Wywolanie stoi tam, gdzie byly trasy -
-// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerMyPicksRoutes(app, {
-  isGuildMember,
-  pool,
-});
 
 // Aplikacja jest budowana tutaj, ale NIE uruchamiana - nasluchiwanie, odbiornik
 // logow CS2 i obsluga sygnalow siedza w index.js. Dzieki temu ten modul da sie
