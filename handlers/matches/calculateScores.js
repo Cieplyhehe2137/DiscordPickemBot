@@ -148,68 +148,18 @@ module.exports = async function calculateScores(guildId, eventId) {
       eventId,
     });
 
-    await pool.query(
-      `
-  DELETE FROM swiss_scores
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM playoffs_scores
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM doubleelim_scores
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM playin_scores
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM mvp_scores
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM match_points
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
-
-    await pool.query(
-      `
-  DELETE FROM leaderboard
-  WHERE guild_id = ?
-    AND event_id = ?
-  `,
-      [guildId, eventId],
-    );
+    // Kasowanie przeniesione do poszczególnych faz.
+    //
+    // Wcześniej stały tu DELETE na wszystkich sześciu tabelach punktowych
+    // i na leaderboard, wykonywane ZANIM cokolwiek zostało policzone. Faza
+    // bez aktywnego wyniku była potem pomijana i zostawała pusta, choć miała
+    // wcześniej policzone punkty. Tak z IEM Kraków 2026 zniknęło 1450 pkt za
+    // fazy - ranking spadł z 7788 na 7706, a jedenastu graczy wypadło
+    // z klasyfikacji.
+    //
+    // Teraz każda faza czyści swoje punkty dopiero wtedy, gdy ma wynik,
+    // z którego policzy nowe. Klasyfikację kasuje i odbudowuje w całości
+    // rebuildEventLeaderboard na końcu przebiegu.
 
     /* =========================
        SWISS
@@ -239,6 +189,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           guildId,
           eventId,
         });
+      } else {
+        await pool.query(
+          `
+          DELETE FROM swiss_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId],
+        );
       }
 
       for (const correct of rows) {
@@ -334,6 +293,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           eventId,
         });
       } else {
+        await pool.query(
+          `
+          DELETE FROM playoffs_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId],
+        );
+
         const correct = rows[0];
 
         const [preds] = await pool.query(
@@ -412,15 +380,6 @@ module.exports = async function calculateScores(guildId, eventId) {
        DOUBLE ELIM
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM doubleelim_scores
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId],
-      );
-
       const [rows] = await pool.query(
         `
         SELECT *
@@ -440,6 +399,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           eventId,
         });
       } else {
+        await pool.query(
+          `
+          DELETE FROM doubleelim_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId],
+        );
+
         const correct = rows[0];
 
         const [preds] = await pool.query(
@@ -515,15 +483,6 @@ module.exports = async function calculateScores(guildId, eventId) {
        PLAY-IN
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM playin_scores
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId],
-      );
-
       const [rows] = await pool.query(
         `
         SELECT *
@@ -543,6 +502,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           eventId,
         });
       } else {
+        await pool.query(
+          `
+          DELETE FROM playin_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId],
+        );
+
         const correct = rows[0];
 
         const official =
@@ -784,15 +752,6 @@ module.exports = async function calculateScores(guildId, eventId) {
        MVP
     ========================= */
     try {
-      await pool.query(
-        `
-        DELETE FROM mvp_scores
-        WHERE guild_id = ?
-          AND event_id = ?
-        `,
-        [guildId, eventId],
-      );
-
       const [resultRows] = await pool.query(
         `
         SELECT candidate_id
@@ -812,6 +771,15 @@ module.exports = async function calculateScores(guildId, eventId) {
           eventId,
         });
       } else {
+        await pool.query(
+          `
+          DELETE FROM mvp_scores
+          WHERE guild_id = ?
+            AND event_id = ?
+          `,
+          [guildId, eventId],
+        );
+
         const correctCandidateId = Number(resultRows[0].candidate_id);
 
         const [preds] = await pool.query(
