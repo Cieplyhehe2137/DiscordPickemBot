@@ -17,6 +17,7 @@ import { buildMatchesWithPickSql } from "./lib/matchQueries.js";
 import { createFrozenPhases } from "./lib/frozenPhases.js";
 import { createPredictionGate } from "./lib/predictionGate.js";
 import { createBackupFiles } from "./lib/backupFiles.js";
+import { createGuildBackupTools } from "./lib/guildBackup.js";
 import {
   ADMINISTRATOR_PERMISSION,
   hasAdminPermission,
@@ -179,104 +180,6 @@ const isAllowedOrigin = createOriginCheck({
 // podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
 const PRIMARY_WEB_ORIGIN = ALLOWED_ORIGINS[0] || "http://localhost:5173";
 
-async function getDatabaseTablesAndColumns(cfg) {
-  const connection = await mysql2.createConnection({
-    host: cfg.DB_HOST,
-    port: Number(cfg.DB_PORT) || 3306,
-    user: cfg.DB_USER,
-    password: cfg.DB_PASS || cfg.DB_PASSWORD,
-    database: cfg.DB_NAME,
-  });
-
-  try {
-    const [rows] = await connection.query(
-      `
-      SELECT TABLE_NAME, COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = ?
-      ORDER BY TABLE_NAME, ORDINAL_POSITION
-      `,
-      [cfg.DB_NAME],
-    );
-
-    const map = new Map();
-
-    for (const row of rows) {
-      if (!map.has(row.TABLE_NAME)) {
-        map.set(row.TABLE_NAME, new Set());
-      }
-
-      map.get(row.TABLE_NAME).add(row.COLUMN_NAME);
-    }
-
-    return map;
-  } finally {
-    await connection.end();
-  }
-}
-
-async function createGuildBackup(guildId) {
-  const cfg = guildRegistry.getGuildConfig(guildId);
-  if (!cfg) throw new Error(`Missing DB config for guildId=${guildId}`);
-
-  guildRegistry.ensureGuildDirs(guildId);
-
-  const { backupDir } = guildRegistry.getGuildPaths(guildId);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const fileName = `backup_${guildId}_${timestamp}.sql`;
-  const filePath = path.join(backupDir, fileName);
-
-  // Backup gildii zrzuca WYŁĄCZNIE tabele z kolumną guild_id. Tabele bez
-  // niej (sessions, admin_users) są globalne - filtr po guild_id z definicji
-  // ich nie obejmuje, więc trafiały do pliku w całości. Admin jednej gildii
-  // pobierał w ten sposób sesje logowania wszystkich użytkowników panelu.
-  // Nie są to zresztą dane turniejowe, więc nie ma czego z nich odtwarzać.
-  const tablesMap = await getDatabaseTablesAndColumns(cfg);
-  const where = {};
-  const skippedTables = [];
-  const escapedGuildId = sqlEscape(guildId);
-
-  for (const [table, columns] of tablesMap.entries()) {
-    if (columns.has("guild_id")) {
-      where[table] = `guild_id = '${escapedGuildId}'`;
-    } else {
-      skippedTables.push(table);
-    }
-  }
-
-  const tables = Object.keys(where);
-
-  await mysqldump({
-    connection: {
-      host: cfg.DB_HOST,
-      port: Number(cfg.DB_PORT) || 3306,
-      user: cfg.DB_USER,
-      password: cfg.DB_PASS || cfg.DB_PASSWORD,
-      database: cfg.DB_NAME,
-    },
-    dump: {
-      tables,
-      // `where` należy do DataDumpOptions (dump.data.where), a nie do
-      // dump.where - biblioteka po cichu ignoruje nieznane pola, więc
-      // filtr po guild_id nie działał i backup jednej gildii zawierał
-      // CAŁĄ bazę, czyli też dane pozostałych serwerów.
-      data: { where },
-    },
-    dumpToFile: filePath,
-  });
-
-  const removed = pruneGuildBackups(guildId);
-
-  return {
-    fileName,
-    filePath,
-    tablesCount: tables.length,
-    filteredTablesCount: tables.length,
-    skippedTablesCount: skippedTables.length,
-    prunedFiles: removed,
-  };
-}
-
 // Ile backupów trzymamy na gildię. Zrzut to ~40 KB, więc 10 sztuk to
 // pół megabajta - limit istnieje po to, żeby katalog nie rósł w nieskończoność
 // przy adminie klikającym "Utwórz backup" przed każdą zmianą, a nie po to,
@@ -290,6 +193,17 @@ const { listGuildBackups, pruneGuildBackups } = createBackupFiles({
   retention: BACKUP_RETENTION,
   logWarn,
 });
+
+// getDatabaseTablesAndColumns zostaje wewnatrz modulu - uzywa jej tylko
+// createGuildBackup, a fabryka oddaje ja na potrzeby testu.
+const { createGuildBackup } = createGuildBackupTools({
+    mysql2,
+    mysqldump,
+    guildRegistry,
+    path,
+    sqlEscape,
+    pruneGuildBackups,
+  });
 
 const app = express();
 
