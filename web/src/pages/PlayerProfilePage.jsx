@@ -72,7 +72,7 @@ function PlayerProfilePage() {
 
   return (
     <main className="player-profile-page">
-      <span className="events-kicker">Profil gracza</span>
+      <span className="ui-kicker">Profil gracza</span>
 
       <h1>Statystyki gracza</h1>
 
@@ -186,7 +186,7 @@ function PlayerProfilePage() {
 
       <section className="player-profile-streaks">
         <div className="player-profile-streaks__header">
-          <span className="events-kicker">Serie</span>
+          <span className="ui-kicker">Serie</span>
 
           <h2>Forma gracza</h2>
         </div>
@@ -219,7 +219,7 @@ function PlayerProfilePage() {
 
       <section className="player-profile-records">
         <div className="player-profile-records__header">
-          <span className="events-kicker">Rekordy</span>
+          <span className="ui-kicker">Rekordy</span>
 
           <h2>Rekordy gracza</h2>
         </div>
@@ -250,7 +250,7 @@ function PlayerProfilePage() {
       {player.event_comparison && (
         <section className="player-profile-comparison">
           <div className="player-profile-comparison__header">
-            <span className="events-kicker">Porównanie</span>
+            <span className="ui-kicker">Porównanie</span>
 
             <h2>Na tle eventu</h2>
           </div>
@@ -293,7 +293,7 @@ function PlayerProfilePage() {
 
       <section className="player-profile-history">
         <div className="player-profile-history__header">
-          <span className="events-kicker">Historia</span>
+          <span className="ui-kicker">Historia</span>
 
           <h2>Ostatnie typy</h2>
         </div>

@@ -121,7 +121,7 @@ function MatchesPage() {
   return (
     <main className="matches-page">
       <section className="matches-page__hero">
-        <span className="events-kicker">Pick&apos;Em</span>
+        <span className="ui-kicker">Pick&apos;Em</span>
 
         <h1>
           {selectedPhase

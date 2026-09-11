@@ -241,13 +241,15 @@
   background: var(--layer-subtle);
 }
 
-.ui-stat__label {
+.ui-stat__label,
+.ui-stat > span {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--text-muted);
 }
 
-.ui-stat__value {
+.ui-stat__value,
+.ui-stat > strong {
   font-size: var(--text-3xl);
   font-weight: var(--weight-bold);
   line-height: var(--leading-tight);
@@ -256,7 +258,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ui-stat__hint {
+.ui-stat__hint,
+.ui-stat > small {
   font-size: var(--text-xs);
   color: var(--text-faint);
 }

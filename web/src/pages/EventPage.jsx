@@ -240,10 +240,10 @@ function EventPage() {
   })();
 
   return (
-    <main className="event-page">
+    <main className="ui-page">
       <BackLink to="/events">Wróć do listy turniejów</BackLink>
       <section className="event-page__hero">
-        <span className="events-kicker">Event</span>
+        <span className="ui-kicker">Event</span>
 
         <h1>
           {loading
@@ -292,8 +292,8 @@ function EventPage() {
 
       {!loading && !error && event && (
         <>
-          <section className="event-stats">
-            <div className="event-stat">
+          <section className="ui-stats">
+            <div className="ui-stat">
               <span>🎯 Mecze</span>
 
               <strong>{event.stats?.matches ?? 0}</strong>
@@ -304,37 +304,37 @@ function EventPage() {
               </small>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>👥 Uczestnicy</span>
 
               <strong>{eventStats?.participants ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>✓ Oddane typy</span>
 
               <strong>{eventStats?.total_predictions ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🗺️ Typy map</span>
 
               <strong>{eventStats?.total_map_predictions ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>📊 Średnia punktów</span>
 
               <strong>{eventStats?.average_points ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🎯 Exacty map</span>
 
               <strong>{eventStats?.exact_maps ?? 0}</strong>
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🔥 Najlepszy wynik</span>
 
               <strong>{eventStats?.best_score ?? 0} pkt</strong>
@@ -350,7 +350,7 @@ function EventPage() {
               )}
             </div>
 
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🎯 Najwięcej exactów</span>
 
               <strong>{eventStats?.best_exact_player?.exact_maps ?? 0}</strong>
@@ -365,7 +365,7 @@ function EventPage() {
                 </small>
               )}
             </div>
-            <div className="event-stat">
+            <div className="ui-stat">
               <span>🏹 Najlepsza skuteczność</span>
 
               <strong>
@@ -392,7 +392,7 @@ function EventPage() {
             </div>
 
             {eventStats?.favorite_team && (
-              <div className="event-stat">
+              <div className="ui-stat">
                 <span>💜 Ulubieniec graczy</span>
 
                 <strong>{eventStats.favorite_team.team}</strong>
@@ -413,7 +413,7 @@ function EventPage() {
           {profilEventu && (
             <section className="event-my-summary">
               <div className="event-my-summary__header">
-                <span className="events-kicker">Twój wynik</span>
+                <span className="ui-kicker">Twój wynik</span>
 
                 <h2>Twoje podsumowanie eventu</h2>
               </div>
@@ -492,7 +492,7 @@ function EventPage() {
           {topPlayers.length > 0 && (
             <section className="event-podium">
               <div className="event-podium__header">
-                <span className="events-kicker">TOP 3</span>
+                <span className="ui-kicker">TOP 3</span>
 
                 <h2>Liderzy eventu</h2>
               </div>
@@ -543,7 +543,7 @@ function EventPage() {
             Number(eventStats.closest_match.total_picks) >= 3 && (
               <section className="event-close-match">
                 <div className="event-close-match__header">
-                  <span className="events-kicker">
+                  <span className="ui-kicker">
                     ⚔️ Najbardziej wyrównane
                   </span>
 
@@ -596,7 +596,7 @@ function EventPage() {
             Number(eventStats.biggest_upset.winner_percentage) < 50 && (
               <section className="event-upset">
                 <div className="event-upset__header">
-                  <span className="events-kicker">💥 Największy upset</span>
+                  <span className="ui-kicker">💥 Największy upset</span>
 
                   <h2>Społeczność się przeliczyła</h2>
                 </div>

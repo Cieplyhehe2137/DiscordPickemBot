@@ -90,7 +90,7 @@ function MyPicksPage() {
     <main className="my-picks-page">
       <BackLink to={`/events/${slug}`} />
       <div className="my-picks-page__header">
-        <span className="events-kicker">Twoje dane</span>
+        <span className="ui-kicker">Twoje dane</span>
 
         <h1>
           Moje typy

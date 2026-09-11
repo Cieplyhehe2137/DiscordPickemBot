@@ -859,7 +859,7 @@ function MatchPage() {
     <main className="match-page">
       <BackLink to={`/events/${slug}/matches`}>Wróć do listy meczów</BackLink>
       <section className="match-page__hero">
-        <span className="events-kicker">Pick&apos;Em</span>
+        <span className="ui-kicker">Pick&apos;Em</span>
 
         <h1>Typowanie meczu</h1>
 
@@ -965,7 +965,7 @@ function MatchPage() {
             {pickStats?.locked && (
               <section className="match-community-stats">
                 <div className="match-community-stats__header">
-                  <span className="events-kicker">Społeczność</span>
+                  <span className="ui-kicker">Społeczność</span>
 
                   <h2>Jak typowała społeczność?</h2>
                 </div>
@@ -1044,7 +1044,7 @@ function MatchPage() {
                 {pickStats.maps?.length > 0 && (
                   <div className="match-community-maps">
                     <div className="match-community-maps__header">
-                      <span className="events-kicker">Mapy</span>
+                      <span className="ui-kicker">Mapy</span>
 
                       <h3>Jak typowano mapy?</h3>
                     </div>

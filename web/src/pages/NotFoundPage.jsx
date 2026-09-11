@@ -8,7 +8,7 @@ function NotFoundPage() {
 
   return (
     <main className="notfound-page">
-      <span className="events-kicker">Błąd 404</span>
+      <span className="ui-kicker">Błąd 404</span>
 
       <h1>Nie ma takiej strony</h1>
 

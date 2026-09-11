@@ -103,7 +103,7 @@ function MyStatsPage() {
         <BackLink to={`/events/${slug}`} />
 
         <div className="my-stats-empty">
-          <span className="events-kicker">Twoje dane</span>
+          <span className="ui-kicker">Twoje dane</span>
 
           <h1>
             Moje statystyki
@@ -128,7 +128,7 @@ function MyStatsPage() {
     <main className="my-stats-page">
       <BackLink to={`/events/${slug}`} />
       <div className="my-stats-page__header">
-        <span className="events-kicker">Twoje dane</span>
+        <span className="ui-kicker">Twoje dane</span>
 
         <h1>Moje statystyki — {data.event.name}</h1>
 
