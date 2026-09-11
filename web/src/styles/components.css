@@ -828,11 +828,20 @@
     color var(--duration-fast) var(--ease);
 }
 
+a.ui-choice__option {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 .ui-choice__option:hover {
   border-color: var(--border-strong);
   color: var(--text);
 }
 
+/* aria-current dla linków (nawigacja etapów) - link nie może być
+   "wciśnięty", ale zaznaczenie ma wyglądać tak samo. */
+.ui-choice__option[aria-current="page"],
 .ui-choice__option[aria-pressed="true"] {
   border-color: var(--accent-border);
   background: var(--accent-bg);
@@ -1093,4 +1102,38 @@
   .ui-scoreline--compact .ui-scoreline__team {
     display: none;
   }
+}
+
+/* Siatka drużyn do wyboru w fazach turnieju. Kafelki równej szerokości,
+   bo przy flexie ostatni rząd rozciągał dwie drużyny na całą szerokość
+   i wyglądały na ważniejsze od reszty. */
+.ui-choice--grid {
+  display: grid;
+  /* 120px, nie 140: przy 140 dwie kolumny nie mieściły się w karcie na
+     telefonie (brakowało dwóch pikseli) i dziesięć drużyn rozkładało się
+     w jedną długą kolumnę. */
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+
+.ui-choice__option:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ui-choice__option:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+/* Odczyt "wybrano 4/6" nad paskiem postępu. */
+.ui-count {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+.ui-count--done {
+  color: var(--ok);
 }

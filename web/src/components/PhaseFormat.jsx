@@ -24,9 +24,12 @@ const GRUPY = {
 
 // Rzeczownik odmieniany przez liczebnik: [1, 2-4, 5+].
 const OPIS = {
-  x3_0: (n) => `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 3-0`,
-  x0_3: (n) => `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 0-3`,
-  advancing: (n) => `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} do awansu`,
+  x3_0: (n) =>
+    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 3-0`,
+  x0_3: (n) =>
+    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 0-3`,
+  advancing: (n) =>
+    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} do awansu`,
   // Rzeczownik i przymiotnik odmieniają się razem: "1 drużyna awansująca",
   // "2 drużyny awansujące", "8 drużyn awansujących".
   teams: (n) =>
@@ -34,7 +37,8 @@ const OPIS = {
     odmien(n, "awansująca", "awansujące", "awansujących"),
   semifinalists: (n) =>
     `${n} ${odmien(n, "półfinalista", "półfinalistów", "półfinalistów")}`,
-  finalists: (n) => `${n} ${odmien(n, "finalista", "finalistów", "finalistów")}`,
+  finalists: (n) =>
+    `${n} ${odmien(n, "finalista", "finalistów", "finalistów")}`,
   winner: (n) => `${n} ${odmien(n, "zwycięzca", "zwycięzców", "zwycięzców")}`,
   third: (n) => `${n} na 3. miejscu`,
   upperFinalA: (n) => `Upper Final A: ${n}`,
@@ -63,11 +67,11 @@ function PhaseFormat({ faza, limity }) {
   if (!czesci.length) return null;
 
   return (
-    <p className="phase-format">
-      <span className="phase-format__etykieta">Format tej fazy</span>
+    <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+      <span className="ui-kicker">Format tej fazy</span>
 
-      <span className="phase-format__wartosc">{czesci.join(" · ")}</span>
-    </p>
+      <span>{czesci.join(" · ")}</span>
+    </div>
   );
 }
 

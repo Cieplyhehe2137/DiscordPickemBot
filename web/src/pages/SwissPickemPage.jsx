@@ -3,12 +3,13 @@ import { Link, useParams } from "react-router-dom";
 
 import { getSwissPickem, saveSwissPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
+import { SAVED_MESSAGE } from "../lib/saveMessages.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
-import Ladowanie from "../components/Ladowanie.jsx";
+import TeamPickGroup from "../components/TeamPickGroup.jsx";
 
 function SwissPickemPage() {
   const { slug, stage } = useParams();
@@ -60,16 +61,30 @@ function SwissPickemPage() {
 
   if (loading) {
     return (
-      <main className="swiss-pickem-page">
-        <Ladowanie>Ładowanie Swiss Pick'Em...</Ladowanie>
+      <main className="ui-page">
+        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+          <div className="ui-skeleton ui-skeleton--row" />
+
+          <div className="ui-skeleton ui-skeleton--row" />
+        </div>
       </main>
     );
   }
 
   if (error) {
     return (
-      <main className="swiss-pickem-page">
-        <p>{error}</p>
+      <main className="ui-page">
+        <div className="ui-error" role="alert">
+          <span className="ui-error__icon" aria-hidden="true">
+            ⚠️
+          </span>
+
+          <strong className="ui-error__title">
+            Nie udało się wczytać fazy
+          </strong>
+
+          <p className="ui-error__text">{error}</p>
+        </div>
       </main>
     );
   }
@@ -93,195 +108,132 @@ function SwissPickemPage() {
     JSON.stringify(advancing) !==
       JSON.stringify(savedPrediction.advancing || []);
 
+  const pickingLocked = !data?.lock?.allowed || authLoading || !user;
+
+  // Przełącza nazwę w liście: usuwa, jeśli już jest, dopisuje, jeśli mieści
+  // się w limicie. Ten sam ruch dla wszystkich trzech grup.
+  const toggle = (setList, limit) => (name) => {
+    setSaveMessage("");
+
+    setList((current) => {
+      if (current.includes(name)) {
+        return current.filter((item) => item !== name);
+      }
+
+      if (current.length >= limit) {
+        return current;
+      }
+
+      return [...current, name];
+    });
+  };
+
   return (
-    <main className="swiss-pickem-page">
+    <main className="ui-page">
       <BackLink to={`/events/${slug}`} />
-      <h1>Swiss Pick'Em</h1>
 
-      <p>
-        Event: <strong>{data?.event?.name}</strong>
-      </p>
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Faza szwajcarska · {stageLabel}</span>
 
-      <p>
-        Etap: <strong>{stageLabel}</strong>
-      </p>
+          <h2>Swiss Pick&apos;Em</h2>
 
-      <PhaseFormat faza={stage} limity={limity} />
+          <p>{data?.event?.name}</p>
+        </div>
 
-      <nav className="swiss-pickem__stages">
+        <div className="ui-row ui-row--wrap">
+          <span className="ui-badge">
+            {data?.teams?.length ?? 0} {druzyny(data?.teams?.length ?? 0)}
+          </span>
+
+          {!user ? (
+            <span className="ui-badge ui-badge--warn">Wymaga logowania</span>
+          ) : data?.lock?.allowed ? (
+            <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+          ) : (
+            <span className="ui-badge ui-badge--warn">Typowanie zamknięte</span>
+          )}
+        </div>
+      </div>
+
+      <nav className="ui-choice" aria-label="Etapy fazy szwajcarskiej">
         {["stage1", "stage2", "stage3"].map((stageName, index) => (
           <Link
             key={stageName}
             to={`/events/${slug}/swiss/${stageName}`}
-            className={
-              stage === stageName
-                ? "swiss-pickem__stage is-active"
-                : "swiss-pickem__stage"
-            }
+            className="ui-choice__option"
+            aria-current={stage === stageName ? "page" : undefined}
           >
             Stage {index + 1}
           </Link>
         ))}
       </nav>
 
-      <p>
-        Drużyn: <strong>{data?.teams?.length ?? 0}</strong>
-      </p>
+      <PhaseFormat faza={stage} limity={limity} />
 
-      <p>
-        Typowanie:{" "}
-        <strong>
-          {!user
-            ? "WYMAGA LOGOWANIA"
-            : data?.lock?.allowed
-              ? "OTWARTE"
-              : "ZABLOKOWANE"}
-        </strong>
-      </p>
+      {!data?.lock?.allowed && data?.lock?.message && (
+        <p className="ui-note ui-note--warn">🔒 {data.lock.message}</p>
+      )}
 
       {!authLoading && !user && (
-        <p>
-          <a
-            href={`/api/auth/discord?returnTo=${encodeURIComponent(
-              window.location.pathname + window.location.search,
-            )}`}
-          >
-            Zaloguj się przez Discord
-          </a>{" "}
-          aby wybrać i zapisać swoje typy.
+        <a
+          className="ui-btn"
+          href={`/api/auth/discord?returnTo=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`}
+        >
+          Zaloguj się przez Discord, aby typować
+        </a>
+      )}
+
+      <TeamPickGroup
+        title="Bilans 3-0"
+        description={`Wybierz dokładnie ${limit30} ${druzyny(limit30)} z bilansem 3-0.`}
+        teams={data?.teams}
+        selected={threeZero}
+        limit={limit30}
+        disabled={pickingLocked}
+        isBlocked={() => false}
+        onToggle={toggle(setThreeZero, limit30)}
+      />
+
+      <TeamPickGroup
+        title="Bilans 0-3"
+        description={`Wybierz dokładnie ${limit03} ${druzyny(limit03)} z bilansem 0-3.`}
+        teams={data?.teams}
+        selected={zeroThree}
+        limit={limit03}
+        disabled={pickingLocked}
+        isBlocked={(name) => threeZero.includes(name)}
+        onToggle={toggle(setZeroThree, limit03)}
+      />
+
+      <TeamPickGroup
+        title="Awans"
+        description={`Wybierz dokładnie ${limitAwans} ${druzyny(limitAwans)} do awansu.`}
+        teams={data?.teams}
+        selected={advancing}
+        limit={limitAwans}
+        disabled={pickingLocked}
+        isBlocked={(name) =>
+          threeZero.includes(name) || zeroThree.includes(name)
+        }
+        onToggle={toggle(setAdvancing, limitAwans)}
+      />
+
+      {saveMessage && (
+        <p
+          className={`ui-note ${
+            saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+          }`}
+        >
+          {saveMessage}
         </p>
       )}
-      {!data?.lock?.allowed && data?.lock?.message && (
-        <p>{data.lock.message}</p>
-      )}
-      <section className="swiss-pickem__teams">
-        <h2>3-0</h2>
-
-        <p>Wybierz dokładnie {limit30} {druzyny(limit30)} z bilansem 3-0.</p>
-
-        {data?.teams?.map((team) => {
-          const selected = threeZero.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              disabled={!data?.lock?.allowed || authLoading || !user}
-              className={`swiss-pickem__team ${selected ? "is-selected" : ""}`}
-              onClick={() => {
-                setSaveMessage("");
-
-                setThreeZero((current) => {
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  if (current.length >= limit30) {
-                    return current;
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-
-        <p className="swiss-pickem__counter">
-          Wybrano: <strong>{threeZero.length}/{limit30}</strong>
-        </p>
-      </section>
-      <section className="swiss-pickem__teams">
-        <h2>0-3</h2>
-
-        <p>Wybierz dokładnie {limit03} {druzyny(limit03)} z bilansem 0-3.</p>
-
-        {data?.teams?.map((team) => {
-          const selected = zeroThree.includes(team.name);
-          const usedInThreeZero = threeZero.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={`swiss-pickem__team ${selected ? "is-selected" : ""}`}
-              disabled={
-                !data?.lock?.allowed || authLoading || !user || usedInThreeZero
-              }
-              onClick={() => {
-                setSaveMessage("");
-
-                setZeroThree((current) => {
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  if (current.length >= limit03) {
-                    return current;
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-
-        <p className="swiss-pickem__counter">
-          Wybrano: <strong>{zeroThree.length}/{limit03}</strong>
-        </p>
-      </section>
-      <section className="swiss-pickem__teams">
-        <h2>Awans</h2>
-
-        <p>Wybierz dokładnie {limitAwans} {druzyny(limitAwans)} do awansu.</p>
-
-        {data?.teams?.map((team) => {
-          const selected = advancing.includes(team.name);
-          const usedElsewhere =
-            threeZero.includes(team.name) || zeroThree.includes(team.name);
-
-          return (
-            <button
-              key={team.id}
-              type="button"
-              className={`swiss-pickem__team ${selected ? "is-selected" : ""}`}
-              disabled={
-                !data?.lock?.allowed || authLoading || !user || usedElsewhere
-              }
-              onClick={() => {
-                setSaveMessage("");
-
-                setAdvancing((current) => {
-                  if (current.includes(team.name)) {
-                    return current.filter((name) => name !== team.name);
-                  }
-
-                  if (current.length >= limitAwans) {
-                    return current;
-                  }
-
-                  return [...current, team.name];
-                });
-              }}
-            >
-              {team.name}
-            </button>
-          );
-        })}
-
-        <p className="swiss-pickem__counter">
-          Wybrano: <strong>{advancing.length}/{limitAwans}</strong>
-        </p>
-      </section>
 
       <button
         type="button"
-        className="swiss-pickem__save"
+        className="ui-btn ui-btn--primary"
         disabled={
           saving ||
           authLoading ||
@@ -312,7 +264,7 @@ function SwissPickemPage() {
               },
             }));
 
-            setSaveMessage("Typy zapisane ✅");
+            setSaveMessage(SAVED_MESSAGE);
           } catch (err) {
             console.error(err);
             setSaveMessage(err.message || "Nie udało się zapisać typów.");
@@ -323,10 +275,6 @@ function SwissPickemPage() {
       >
         {saving ? "Zapisywanie..." : "Zapisz typy"}
       </button>
-
-      {saveMessage && (
-        <p className="swiss-pickem__save-message">{saveMessage}</p>
-      )}
 
       {/* Oficjalny wynik fazy + trafienia + punkty.
           Renderuje sie dopiero po opublikowaniu wyniku. */}

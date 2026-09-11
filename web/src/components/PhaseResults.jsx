@@ -20,26 +20,29 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
   const liczbaTrafien = pozycje.filter((p) => p.hit).length;
 
   return (
-    <div className="phase-results__block">
-      <h4>
-        {tytul}
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
+      <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+        <strong>{tytul}</strong>
+
         {pozycje.length > 0 && (
-          <span className="phase-results__hits">
+          <span
+            className={`ui-badge ${liczbaTrafien > 0 ? "ui-badge--ok" : ""}`}
+          >
             {liczbaTrafien}/{pozycje.length} trafione
             {punktyZa ? ` · ${liczbaTrafien * punktyZa} pkt` : ""}
           </span>
         )}
-      </h4>
+      </div>
 
-      <div className="phase-results__official">
-        <span className="phase-results__label">Oficjalnie</span>
+      <div className="ui-stack ui-stack--tight">
+        <span className="ui-stat__hint">Oficjalnie</span>
 
-        <div className="phase-results__teams">
+        <div className="ui-row ui-row--wrap">
           {(poprawne || []).length === 0 ? (
-            <em>—</em>
+            <span className="ui-stat__hint">—</span>
           ) : (
             poprawne.map((team) => (
-              <span className="phase-team phase-team--official" key={team}>
+              <span className="ui-badge ui-badge--accent" key={team}>
                 {team}
               </span>
             ))
@@ -48,13 +51,13 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
       </div>
 
       {pozycje.length > 0 && (
-        <div className="phase-results__mine">
-          <span className="phase-results__label">Twój typ</span>
+        <div className="ui-stack ui-stack--tight">
+          <span className="ui-stat__hint">Twój typ</span>
 
-          <div className="phase-results__teams">
+          <div className="ui-row ui-row--wrap">
             {pozycje.map(({ team, hit }) => (
               <span
-                className={hit ? "phase-team phase-team--hit" : "phase-team phase-team--miss"}
+                className={`ui-badge ${hit ? "ui-badge--ok" : "ui-badge--danger"}`}
                 key={team}
               >
                 {hit ? "✓" : "✕"} {team}
@@ -98,17 +101,21 @@ function PhaseResults({ slug, phase }) {
   const { results, prediction, points, kind } = dane;
 
   return (
-    <section className="phase-results">
-      <header className="phase-results__head">
-        <h3>Wyniki fazy</h3>
+    <section className="ui-card ui-stack">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Rozstrzygnięcie</span>
+
+          <h2>Wyniki fazy</h2>
+        </div>
 
         {points !== null && (
-          <span className="phase-results__points">{points} pkt</span>
+          <span className="ui-badge ui-badge--accent">{points} pkt</span>
         )}
-      </header>
+      </div>
 
       {!prediction && (
-        <p className="phase-results__note">
+        <p className="ui-note">
           Nie masz zapisanego typu dla tej fazy — poniżej sam oficjalny wynik.
         </p>
       )}
