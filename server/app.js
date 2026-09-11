@@ -18,6 +18,9 @@ import { createFrozenPhases } from "./lib/frozenPhases.js";
 import { createPredictionGate } from "./lib/predictionGate.js";
 import { createBackupFiles } from "./lib/backupFiles.js";
 import { createGuildBackupTools } from "./lib/guildBackup.js";
+import { registerPickemConfigRoutes } from "./routes/pickemConfig.js";
+import { registerResultProposalRoutes } from "./routes/resultProposals.js";
+import { registerMatchOpsRoutes } from "./routes/matchOps.js";
 import {
   ADMINISTRATOR_PERMISSION,
   hasAdminPermission,
@@ -418,587 +421,101 @@ registerPublicEventRoutes(app, {
 //
 // Brak zapisanej konfiguracji = wartości domyślne, więc turnieje sprzed tej
 // funkcji działają dalej bez żadnej migracji danych.
-app.get(
-  "/api/events/:slug/pickem-config",
-  requireGuildAdmin(guildIdFromEventSlug),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-
-      const [[event]] = await pool.query(
-        "SELECT id, name FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
-        [guildId, req.params.slug],
-      );
-
-      if (!event) {
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
-      }
-
-      const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
-      const zamrozone = await getFrozenPhases(event.id);
-
-      return res.json({
-        event: { id: event.id, name: event.name },
-        skonfigurowany: konfiguracja.skonfigurowany,
-        fazy: FAZY_PICKEM.map((faza) => ({
-          faza,
-          enabled: konfiguracja.fazy[faza].enabled,
-          limity: konfiguracja.fazy[faza].limity,
-          zamrozona: Boolean(zamrozone[faza]),
-          powodZamrozenia: zamrozone[faza] || null,
-        })),
-      });
-    } catch (err) {
-      console.error("PICKEM CONFIG GET:", err);
-      return res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-app.put(
-  "/api/events/:slug/pickem-config",
-  requireGuildAdmin(guildIdFromEventSlug),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-      const { fazy } = req.body || {};
-
-      if (!Array.isArray(fazy) || !fazy.length) {
-        return res
-          .status(400)
-          .json({ error: "fazy musi być niepustą tablicą." });
-      }
-
-      const [[event]] = await pool.query(
-        "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
-        [guildId, req.params.slug],
-      );
-
-      if (!event) {
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
-      }
-
-      // API i panel mówią o fazie "faza", moduł konfiguracji - "phase".
-      // Bez tego mapowania wpisy były po cichu pomijane (jestFaza(undefined)
-      // zwraca false), endpoint odpowiadał 200, a nic się nie zapisywało.
-      const doZapisu = fazy.map((wpis) => ({
-        phase: wpis?.phase ?? wpis?.faza,
-        enabled: Boolean(wpis?.enabled),
-        limity: wpis?.limity,
-      }));
-
-      const nieznane = doZapisu.filter((w) => !FAZY_PICKEM.includes(w.phase));
-
-      if (nieznane.length) {
-        return res.status(400).json({
-          error: `Nieznane fazy: ${nieznane.map((w) => w.phase).join(", ")}`,
-        });
-      }
-
-      // Zamrożonej fazy nie wolno przestawić - zapisane typy były sprawdzane
-      // wobec innych liczb, a zakończony turniej musi zostać opisany tak, jak
-      // faktycznie został rozegrany.
-      const zamrozone = await getFrozenPhases(event.id);
-      const biezaca = await getEventPickemConfig(pool, guildId, event.id);
-
-      const naruszenia = doZapisu.filter((wpis) => {
-        if (!zamrozone[wpis.phase]) return false;
-
-        const stare = biezaca.fazy[wpis.phase];
-
-        if (Boolean(stare.enabled) !== Boolean(wpis.enabled)) return true;
-
-        return Object.entries(stare.limity || {}).some(
-          ([grupa, wartosc]) =>
-            Number(wpis.limity?.[grupa] ?? wartosc) !== Number(wartosc),
-        );
-      });
-
-      if (naruszenia.length) {
-        return res.status(409).json({
-          error:
-            "Nie można zmienić tych faz: " +
-            naruszenia
-              .map((w) => `${w.phase} (${zamrozone[w.phase]})`)
-              .join(", ") +
-            ".",
-          zamrozone: naruszenia.map((w) => w.phase),
-        });
-      }
-
-      await setEventPickemConfig(pool, guildId, event.id, doZapisu);
-
-      const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
-
-      logInfo("pickem", "Event pickem config saved", {
-        guildId,
-        eventId: event.id,
-        by: req.session?.user?.id,
-        extra: {
-          wlaczone: FAZY_PICKEM.filter((f) => konfiguracja.fazy[f].enabled),
-        },
-      });
-
-      emitDashboardRefresh({
-        slug: req.params.slug,
-        guildId,
-        reason: "pickem_config_updated",
-      });
-
-      const poZapisie = await getFrozenPhases(event.id);
-
-      return res.json({
-        ok: true,
-        fazy: FAZY_PICKEM.map((faza) => ({
-          faza,
-          enabled: konfiguracja.fazy[faza].enabled,
-          limity: konfiguracja.fazy[faza].limity,
-          zamrozona: Boolean(poZapisie[faza]),
-          powodZamrozenia: poZapisie[faza] || null,
-        })),
-      });
-    } catch (err) {
-      console.error("PICKEM CONFIG PUT:", err);
-      return res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-// Przeniesione do server/routes/publicOverview.js. Wywolanie stoi tam, gdzie byly trasy -
+// Przeniesione do server/routes/pickemConfig.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerPublicOverviewRoutes(app, {
+registerPickemConfigRoutes(app, {
+  getFrozenPhases,
+  FAZY_PICKEM,
   buildPublicMatch,
-  guildRegistry,
-  pool,
-});
-
-// Przeniesione do server/routes/guildEvents.js. Wywolanie stoi tam, gdzie byly trasy -
-// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerGuildEventRoutes(app, {
+  emitDashboardRefresh,
+  getEventPickemConfig,
   getOpenEventId,
+  guildIdFromEventSlug,
+  guildRegistry,
   io,
   logInfo,
   parseMatchList,
   pool,
+  registerGuildEventRoutes,
+  registerPublicOverviewRoutes,
   requireGuildAdmin,
   runInTransaction,
+  setEventPickemConfig,
 });
 
-app.post(
-  "/api/matches/:matchId/result",
-  requireGuildAdmin(guildIdFromMatchId),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-      const { guildId } = req;
-      const resA = Number(req.body.resA);
-      const resB = Number(req.body.resB);
-
-      if (
-        !Number.isInteger(resA) ||
-        !Number.isInteger(resB) ||
-        resA < 0 ||
-        resB < 0
-      ) {
-        return res.status(400).json({
-          error: "Wyniki muszą być nieujemnymi liczbami całkowitymi.",
-        });
-      }
-
-      const match = await matchesStore.getMatchById(pool, guildId, matchId);
-
-      if (!match) {
-        return res.status(404).json({ error: "Nie znaleziono meczu." });
-      }
-
-      await applyMatchResult(pool, { guildId, match, resA, resB });
-
-      const [[eventRow]] = await pool.query(
-        "SELECT slug FROM events WHERE id = ? LIMIT 1",
-        [match.event_id],
-      );
-
-      if (eventRow?.slug) {
-        io.emit("dashboard:refresh", { slug: eventRow.slug });
-      }
-
-      res.json({ ok: true, matchId: Number(matchId), resA, resB });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Błąd bazy danych.",
-      });
-    }
-  },
-);
-
-// ============================================================
-// Propozycje wyników z zewnętrznego dostawcy
-//
-// Wynik NIGDY nie zapisuje się sam: synchronizacja tylko odkłada propozycje
-// do kolejki, a dopiero zatwierdzenie przez admina wpisuje wynik i przelicza
-// punkty. Automat piszący wprost do match_results rozjechałby ranking przy
-// pierwszej błędnej albo częściowej odpowiedzi API - bez śladu w interfejsie.
-// ============================================================
-
-app.post(
-  "/api/events/:slug/result-proposals/sync",
-  requireGuildAdmin(guildIdFromEventSlug),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-
-      const provider = getResultProvider();
-
-      if (!provider) {
-        return res.status(400).json({
-          error:
-            "Dostawca wyników nie jest skonfigurowany (RESULT_PROVIDER w server/.env)",
-        });
-      }
-
-      const [[event]] = await pool.query(
-        "SELECT id, slug, external_tournament_id FROM events WHERE slug = ? AND guild_id = ? LIMIT 1",
-        [req.params.slug, guildId],
-      );
-
-      if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
-
-      const podsumowanie = await resultProposalsStore.syncProposals(pool, {
-        guildId,
-        event,
-        provider,
-      });
-
-      logInfo("results", "Result proposals synced", {
-        guildId,
-        slug: event.slug,
-        ...podsumowanie,
-        by: req.session?.user?.id,
-      });
-
-      res.json({
-        ok: true,
-        summary: podsumowanie,
-        proposals: await resultProposalsStore.listProposals(
-          pool,
-          guildId,
-          event.id,
-        ),
-      });
-    } catch (err) {
-      console.error(err);
-
-      if (err.code === "NO_EXTERNAL_TOURNAMENT") {
-        return res.status(400).json({ error: err.message });
-      }
-
-      logError("results", "Result proposal sync failed", {
-        guildId: req.guildId,
-        slug: req.params.slug,
-        message: err?.message,
-      });
-
-      res
-        .status(502)
-        .json({ error: `Nie udało się pobrać wyników: ${err.message}` });
-    }
-  },
-);
-
-app.get(
-  "/api/events/:slug/result-proposals",
-  requireGuildAdmin(guildIdFromEventSlug),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-
-      const [[event]] = await pool.query(
-        "SELECT id, external_tournament_id FROM events WHERE slug = ? AND guild_id = ? LIMIT 1",
-        [req.params.slug, guildId],
-      );
-
-      if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
-
-      res.json({
-        proposals: await resultProposalsStore.listProposals(
-          pool,
-          guildId,
-          event.id,
-        ),
-        externalTournamentId: event.external_tournament_id,
-        providerConfigured: !!getResultProvider(),
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-app.post(
-  "/api/result-proposals/:proposalId/accept",
-  requireGuildAdmin(guildIdFromProposalId),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-      const proposal = await resultProposalsStore.getProposal(
-        pool,
-        guildId,
-        req.params.proposalId,
-      );
-
-      if (!proposal)
-        return res.status(404).json({ error: "Propozycja nie istnieje" });
-
-      if (proposal.status !== "PENDING") {
-        return res
-          .status(409)
-          .json({ error: `Propozycja jest już ${proposal.status}` });
-      }
-
-      const match = await matchesStore.getMatchById(
-        pool,
-        guildId,
-        proposal.match_id,
-      );
-      if (!match) return res.status(404).json({ error: "Mecz nie istnieje" });
-
-      // Ta sama ścieżka, którą idzie ręczne wpisanie wyniku - jeden zapis,
-      // jedno przeliczenie punktów, żeby obie drogi nie mogły się rozjechać.
-      await applyMatchResult(pool, {
-        guildId,
-        match,
-        resA: proposal.res_a,
-        resB: proposal.res_b,
-      });
-
-      await resultProposalsStore.markResolved(
-        pool,
-        guildId,
-        proposal.id,
-        "ACCEPTED",
-        req.session?.user?.id,
-      );
-
-      logWarn("results", "Result proposal accepted", {
-        guildId,
-        matchId: match.id,
-        resA: proposal.res_a,
-        resB: proposal.res_b,
-        source: proposal.source,
-        by: req.session?.user?.id,
-      });
-
-      const [[eventRow]] = await pool.query(
-        "SELECT slug FROM events WHERE id = ? LIMIT 1",
-        [match.event_id],
-      );
-
-      if (eventRow?.slug) io.emit("dashboard:refresh", { slug: eventRow.slug });
-
-      res.json({
-        ok: true,
-        matchId: match.id,
-        resA: proposal.res_a,
-        resB: proposal.res_b,
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-app.post(
-  "/api/result-proposals/:proposalId/reject",
-  requireGuildAdmin(guildIdFromProposalId),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-      const proposal = await resultProposalsStore.getProposal(
-        pool,
-        guildId,
-        req.params.proposalId,
-      );
-
-      if (!proposal)
-        return res.status(404).json({ error: "Propozycja nie istnieje" });
-
-      await resultProposalsStore.markResolved(
-        pool,
-        guildId,
-        proposal.id,
-        "REJECTED",
-        req.session?.user?.id,
-      );
-
-      logInfo("results", "Result proposal rejected", {
-        guildId,
-        matchId: proposal.match_id,
-        by: req.session?.user?.id,
-      });
-
-      res.json({ ok: true });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-// Powiązanie eventu z turniejem u dostawcy oraz drużyny z jej nazwą u
-// dostawcy. Bez tego nie da się dopasować niczego automatycznie.
-app.patch(
-  "/api/events/:slug/external-link",
-  requireGuildAdmin(guildIdFromEventSlug),
-  async (req, res) => {
-    try {
-      const { guildId } = req;
-      const wartosc =
-        String(req.body?.externalTournamentId ?? "").trim() || null;
-
-      const [result] = await pool.query(
-        "UPDATE events SET external_tournament_id = ? WHERE slug = ? AND guild_id = ?",
-        [wartosc, req.params.slug, guildId],
-      );
-
-      if (!result.affectedRows)
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
-
-      res.json({ ok: true, externalTournamentId: wartosc });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
-    }
-  },
-);
-
-app.get(
-  "/api/matches/:matchId",
-  requireGuildAdmin(guildIdFromMatchId),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-      const { guildId } = req;
-
-      const match = await matchesStore.getMatchById(pool, guildId, matchId);
-
-      if (!match) {
-        return res.status(404).json({
-          error: "Nie znaleziono meczu.",
-        });
-      }
-
-      res.json({ match });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Błąd bazy danych.",
-      });
-    }
-  },
-);
-
-app.get(
-  "/api/matches/:matchId/exact",
-  requireGuildAdmin(guildIdFromMatchId),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-      const { guildId } = req;
-
-      const match = await matchesStore.getMatchById(pool, guildId, matchId);
-
-      if (!match) {
-        return res.status(404).json({ error: "Nie znaleziono meczu." });
-      }
-
-      const maxMaps = maxMapsFromBo(match.best_of);
-      const maps = [];
-
-      if (maxMaps === 1) {
-        const [[row]] = await pool.query(
-          "SELECT exact_a, exact_b FROM match_results WHERE match_id = ? AND guild_id = ? LIMIT 1",
-          [matchId, guildId],
-        );
-
-        maps.push({
-          mapNo: 1,
-          exactA: row?.exact_a ?? null,
-          exactB: row?.exact_b ?? null,
-        });
-      } else {
-        const [rows] = await pool.query(
-          "SELECT map_no, exact_a, exact_b FROM match_map_results WHERE match_id = ? AND guild_id = ?",
-          [matchId, guildId],
-        );
-
-        const byMap = new Map(rows.map((r) => [Number(r.map_no), r]));
-
-        for (let i = 1; i <= maxMaps; i += 1) {
-          const r = byMap.get(i);
-          maps.push({
-            mapNo: i,
-            exactA: r?.exact_a ?? null,
-            exactB: r?.exact_b ?? null,
-          });
-        }
-      }
-
-      res.json({ bestOf: match.best_of, maxMaps, maps });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Błąd bazy danych.",
-      });
-    }
-  },
-);
-
-// Pojedynczy mecz w tym samym ksztalcie co element listy.
-//
-// Bez tego strona meczu wolala /api/events/:slug/matches i szukala jednego
-// meczu w calej tablicy - przy 106 meczach kazde wejscie i kazde odswiezenie
-// po zdarzeniu realtime ciagnelo pelna liste.
-//
-// Publiczny, bo dokladnie te dane pokazuje lista meczow, ktora tez jest
-// publiczna. Typ gracza (pred_*) dokleja sie tylko dla zalogowanego -
-// zapytanie joinuje match_predictions po user_id z sesji.
-// Przeniesione do server/routes/publicMatches.js. Wywolanie stoi tam, gdzie byly trasy -
+// Przeniesione do server/routes/resultProposals.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerPublicMatchRoutes(app, {
+registerResultProposalRoutes(app, {
+  applyMatchResult,
+  getResultProvider,
+  guildIdFromEventSlug,
+  guildIdFromMatchId,
+  guildIdFromProposalId,
+  io,
+  logError,
+  logInfo,
+  logWarn,
+  matchesStore,
+  pool,
+  requireGuildAdmin,
+  resultProposalsStore,
+});
+
+// Przeniesione do server/routes/matchOps.js. Wywolanie stoi tam, gdzie byly trasy -
+// kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
+registerMatchOpsRoutes(app, {
+  checkPickemGate,
+  countParticipants,
+  createGuildBackup,
+  listGuildBackups,
+  resolveMatchPredictionState,
   FAZA_PANELU,
   FAZY_PANELU_CONFIG,
   assertPredictionsAllowed,
   assertSafeBackupFileName,
+  buildMatchesWithPickSql,
+  calculateCommunityAnalysis,
+  calculateContrarianStats,
+  calculateMapAccuracy,
+  calculatePlayerStyle,
+  calculateRecentForm,
   calculateScores,
-  createGuildBackup,
+  calculateStreaks,
+  calculateTeamStats,
+  calculateTrendStats,
   emitDashboardRefresh,
   exportClassification,
   fs,
+  getBoStats,
   getCurrentDoubleElimResults,
   getCurrentPlayinResults,
   getCurrentPlayoffs,
   getCurrentSwissResults,
   getLockBeforeSec,
+  getOpenEventId,
   getPhaseLimits,
   guildIdFromEventSlug,
   guildIdFromMatchId,
   guildRegistry,
   io,
+  isGuildMember,
+  isMapExact,
+  isMapWinnerCorrect,
+  isMatchDeadlinePassed,
+  isMatchLocked,
   isMatchStarted,
-  listGuildBackups,
+  isSeriesExact,
+  isWinnerCorrect,
   loadActiveTeams,
   logError,
   logInfo,
   logWarn,
+  matchPanelPhaseFor,
   matchesStore,
   maxMapsFromBo,
+  parseCsvPick,
   path,
+  percentageNumber,
   pool,
   recalculateMatchPoints,
   registerBackupRoutes,
@@ -1007,234 +524,18 @@ registerPublicMatchRoutes(app, {
   registerMatchExactRoutes,
   registerMatchRoutes,
   registerPhaseResultRoutes,
+  registerPublicMatchRoutes,
+  registerPublicPickemRoutes,
   requireGuildAdmin,
   restoreBackup,
   runInTransaction,
   safeFileBase,
-  sprawdzWynik,
-  buildMatchesWithPickSql,
-  resolveMatchPredictionState,
-  validateCs2Score,
-});
-
-
-app.post(
-  "/api/dev/matches/:matchId/score",
-  requireGuildAdmin(guildIdFromMatchId),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-      const { score_a, score_b } = req.body;
-
-      await pool.query(
-        `
-  INSERT INTO live_match_scores (match_id, score_a, score_b)
-  VALUES (?, ?, ?)
-  ON DUPLICATE KEY UPDATE
-    score_a = VALUES(score_a),
-    score_b = VALUES(score_b),
-    updated_at = CURRENT_TIMESTAMP
-  `,
-        [matchId, score_a, score_b],
-      );
-
-      io.emit("match:score_updated", {
-        matchId: Number(matchId),
-        score_a: Number(score_a),
-        score_b: Number(score_b),
-        current_map: 1,
-        live_status: "LIVE",
-        ui_status: "LIVE",
-      });
-
-      res.json({
-        ok: true,
-        matchId: Number(matchId),
-        score_a: Number(score_a),
-        score_b: Number(score_b),
-      });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Score update failed",
-      });
-    }
-  },
-);
-
-app.post(
-  "/api/dev/matches/:matchId/final",
-  requireGuildAdmin(guildIdFromMatchId),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-
-      await pool.query(
-        `
-            UPDATE live_match_scores
-            SET status = 'FINAL',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE match_id = ?
-            `,
-        [matchId],
-      );
-
-      const [[liveScore]] = await pool.query(
-        `
-    SELECT score_a, score_b, current_map
-    FROM live_match_scores
-    WHERE match_id = ?
-    LIMIT 1
-    `,
-        [matchId],
-      );
-
-      io.emit("match:score_updated", {
-        matchId: Number(matchId),
-
-        score_a: Number(liveScore?.score_a || 0),
-        score_b: Number(liveScore?.score_b || 0),
-
-        current_map: Number(liveScore?.current_map || 1),
-
-        live_status: "FINAL",
-        ui_status: "FINAL",
-      });
-
-      res.json({
-        ok: true,
-        matchId: Number(matchId),
-        status: "FINAL",
-      });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Final update failed",
-      });
-    }
-  },
-);
-
-
-// Publiczne trasy typowania siedza w server/routes/publicPickem.js.
-// Wywolanie stoi tam, gdzie byly - kolejnosc rejestracji jest zachowaniem.
-registerPublicPickemRoutes(app, {
-  assertPredictionsAllowed,
-  calculateCommunityAnalysis,
-  calculateContrarianStats,
-  calculateMapAccuracy,
-  calculatePlayerStyle,
-  calculateRecentForm,
-  calculateStreaks,
-  calculateTeamStats,
-  calculateTrendStats,
-  fs,
-  getBoStats,
-  getOpenEventId,
-  getPhaseLimits,
-  isGuildMember,
-  isMapExact,
-  isMapWinnerCorrect,
-  isMatchDeadlinePassed,
-  isMatchLocked,
-  isSeriesExact,
-  isWinnerCorrect,
-  toWebMessage,
-  loadActiveTeams,
-  matchPanelPhaseFor,
-  parseCsvPick,
-  path,
-  percentageNumber,
-  checkPickemGate,
-  countParticipants,
-  pool,
-  runInTransaction,
   sprawdzTyp,
+  sprawdzWynik,
+  toWebMessage,
   validateCs2Score,
   validateSeriesMapOrder,
 });
-
-app.post(
-  "/api/matches/:matchId/start",
-  requireGuildAdmin(async (req) => {
-    const { matchId } = req.params;
-
-    const [[match]] = await pool.query(
-      `
-      SELECT guild_id
-      FROM matches
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [matchId],
-    );
-
-    return match?.guild_id || null;
-  }),
-  async (req, res) => {
-    try {
-      const { matchId } = req.params;
-      const { startTimeUtc } = req.body;
-
-      const [[match]] = await pool.query(
-        `
-        SELECT id, guild_id, team_a, team_b
-        FROM matches
-        WHERE id = ?
-        LIMIT 1
-        `,
-        [matchId],
-      );
-
-      if (!match) {
-        return res.status(404).json({
-          error: "Nie znaleziono meczu.",
-        });
-      }
-
-      const startDate = startTimeUtc ? new Date(startTimeUtc) : null;
-
-      if (startDate && Number.isNaN(startDate.getTime())) {
-        return res.status(400).json({
-          error: "Invalid start time",
-        });
-      }
-
-      const lockBeforeSec = getLockBeforeSec();
-
-      const shouldLock =
-        startDate !== null &&
-        isMatchStarted({ start_time_utc: startDate }, undefined, lockBeforeSec);
-
-      await pool.query(
-        `
-  UPDATE matches
-  SET
-    start_time_utc = ?,
-    is_locked = ?
-  WHERE id = ?
-  `,
-        [startDate, shouldLock ? 1 : 0, matchId],
-      );
-
-      res.json({
-        ok: true,
-        match: {
-          id: match.id,
-          start_time_utc: startTimeUtc || null,
-        },
-      });
-    } catch (err) {
-      console.error(err);
-
-      res.status(500).json({
-        error: "Błąd bazy danych.",
-      });
-    }
-  },
-);
 
 // Serve the built web/ frontend (npm run build -> web/dist) as static files
 // in production, so one process/port handles both the API and the SPA -
