@@ -13,6 +13,7 @@ import {
 } from "../lib/api.js";
 import { getMapLabel } from "../lib/mapLabels.js";
 import BackLink from "../components/BackLink.jsx";
+import ScoreLine from "../components/ScoreLine.jsx";
 
 function validateCs2Score(a, b) {
   const scoreA = Number(a);
@@ -602,38 +603,6 @@ function countMapWins(maps = [], side) {
       ? Number(map.exactA) > Number(map.exactB)
       : Number(map.exactB) > Number(map.exactA);
   }).length;
-}
-
-function ScoreLine({ teamA, teamB, scoreA, scoreB, compact = false }) {
-  const a = Number(scoreA);
-  const b = Number(scoreB);
-
-  const winner =
-    Number.isFinite(a) && Number.isFinite(b) && a !== b
-      ? a > b
-        ? "a"
-        : "b"
-      : null;
-
-  const classes = [
-    "ui-scoreline",
-    compact ? "ui-scoreline--compact" : "",
-    winner ? `ui-scoreline--${winner}` : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div className={classes}>
-      <span className="ui-scoreline__team">{teamA}</span>
-
-      <span className="ui-scoreline__score">
-        {scoreA}:{scoreB}
-      </span>
-
-      <span className="ui-scoreline__team">{teamB}</span>
-    </div>
-  );
 }
 
 function MapBreakdown({ teamA, teamB, maps }) {

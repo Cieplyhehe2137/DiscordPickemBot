@@ -285,8 +285,15 @@
   border-color: var(--accent-border);
 }
 
-.ui-stat--featured .ui-stat__value {
+.ui-stat--featured .ui-stat__value,
+.ui-stat--featured > strong {
   color: var(--accent-bright);
+}
+
+/* Kafelek na całą szerokość siatki - dla wartości, które są zdaniem,
+   a nie liczbą. */
+.ui-stat--wide {
+  grid-column: 1 / -1;
 }
 
 /* -------------------------------------------------------------------------

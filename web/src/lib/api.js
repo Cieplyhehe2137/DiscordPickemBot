@@ -37,7 +37,14 @@ async function apiRequest(path, options = {}) {
       // Backend nie zwrócił JSON-a.
     }
 
-    throw new Error(message);
+    // Kod HTTP przy błędzie: pozwala odróżnić "zaloguj się" (401) od
+    // awarii. Bez niego każdy nieudany strzał wyglądał na ekranie tak samo
+    // - czerwona ramka z komunikatem, także wtedy, gdy trzeba było tylko
+    // się zalogować.
+    const error = new Error(message);
+    error.status = response.status;
+
+    throw error;
   }
 
   if (response.status === 204) {
@@ -364,7 +371,10 @@ export async function getMyEventPredictions(slug, phase, page = 0) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.error || "Nie udało się pobrać typów.");
+    const error = new Error(data?.error || "Nie udało się pobrać typów.");
+    error.status = response.status;
+
+    throw error;
   }
 
   return data;
@@ -381,7 +391,10 @@ export async function getMyStats(slug) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.error || "Nie udało się pobrać statystyk.");
+    const error = new Error(data?.error || "Nie udało się pobrać statystyk.");
+    error.status = response.status;
+
+    throw error;
   }
 
   return data;
