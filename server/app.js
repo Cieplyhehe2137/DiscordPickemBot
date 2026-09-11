@@ -10,6 +10,12 @@ import { registerEventAdminRoutes } from "./routes/eventAdmin.js";
 import { registerPublicOverviewRoutes } from "./routes/publicOverview.js";
 import { createGuildInfo } from "./lib/guildInfo.js";
 import { createParticipantQueries } from "./lib/participants.js";
+import {
+  ADMINISTRATOR_PERMISSION,
+  hasAdminPermission,
+  isGuildMember,
+  requireGuildAdmin,
+} from "./lib/permissions.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerPublicEventRoutes } from "./routes/publicEvents.js";
 import { registerPublicMatchRoutes } from "./routes/publicMatches.js";
@@ -159,7 +165,6 @@ const isAllowedOrigin = createOriginCheck({
 // Pierwszy wpis zostaje adresem, na który wraca logowanie przez Discorda -
 // podglądy Pages nie mogą tu trafić, bo redirect URI jest jeden i stały.
 const PRIMARY_WEB_ORIGIN = ALLOWED_ORIGINS[0] || "http://localhost:5173";
-const ADMINISTRATOR_PERMISSION = 0x8n;
 
 async function getDatabaseTablesAndColumns(cfg) {
   const connection = await mysql2.createConnection({
@@ -390,58 +395,6 @@ app.use(
     },
   }),
 );
-
-// Discord's permission bitfield can exceed 32 bits, so it must be compared as a BigInt.
-function hasAdminPermission(user, guildId) {
-  if (!user || !guildId) return false;
-  const guild = (user.guilds || []).find((g) => g.id === String(guildId));
-  if (!guild) return false;
-
-  try {
-    return (
-      (BigInt(guild.permissions) & ADMINISTRATOR_PERMISSION) ===
-      ADMINISTRATOR_PERMISSION
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isGuildMember(user, guildId) {
-  if (!user || !guildId) return false;
-  return (user.guilds || []).some((g) => g.id === String(guildId));
-}
-
-// resolveGuildId(req) -> guildId | Promise<guildId>; runs after the login check so it can safely query the DB.
-function requireGuildAdmin(resolveGuildId) {
-  return async (req, res, next) => {
-    const user = req.session?.user;
-
-    if (!user) {
-      return res.status(401).json({ error: "Musisz być zalogowany." });
-    }
-
-    try {
-      const guildId = await resolveGuildId(req);
-
-      if (!guildId) {
-        return res.status(404).json({ error: "Nie znaleziono." });
-      }
-
-      if (!hasAdminPermission(user, guildId)) {
-        return res
-          .status(403)
-          .json({ error: "Wymagane uprawnienia administratora na tym serwerze." });
-      }
-
-      req.guildId = String(guildId);
-      next();
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: "Nie udało się zweryfikować uprawnień." });
-    }
-  };
-}
 
 // Kind values used by the pickem endpoints -> phase strings stored in
 // active_panels (matches what /set_deadline writes; swiss additionally
