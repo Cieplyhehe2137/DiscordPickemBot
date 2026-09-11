@@ -1,5 +1,6 @@
 {
   "dev": [
+    "GET /api/health",
     "GET /api/auth/me",
     "GET /api/auth/discord",
     "GET /api/auth/discord/callback",
@@ -97,6 +98,7 @@
     "GET /api/public/matches/:matchId/my-points"
   ],
   "prod": [
+    "GET /api/health",
     "GET /api/auth/me",
     "GET /api/auth/discord",
     "GET /api/auth/discord/callback",
@@ -186,11 +188,11 @@
     "POST /api/public/events/:slug/doubleelim-pickem",
     "GET /api/public/archives/:id/download",
     "POST /api/matches/:matchId/start",
-    "GET /^(?!\\/api|\\/socket\\.io).*/",
     "GET /api/public/events/:slug/players/:userId",
     "GET /api/events/:slug/stats",
     "GET /api/events/:slug/matches/:matchId/pick-stats",
     "GET /api/public/events/:slug/my-predictions/:phase",
-    "GET /api/public/matches/:matchId/my-points"
+    "GET /api/public/matches/:matchId/my-points",
+    "GET /^(?!\\/api|\\/socket\\.io).*/"
   ]
 }

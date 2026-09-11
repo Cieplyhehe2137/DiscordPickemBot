@@ -55,6 +55,17 @@ export default [
     },
     rules: {
       "no-undef": "error",
+
+      // Dolozone, gdy okazalo sie, ze w dwoch najciezszych trasach stoi
+      // praca bez odbiorcy: zapytanie do bazy i petla z await na kazdy mecz,
+      // ktorych wynik byl wyrzucany. no-undef tego nie widzi.
+      //
+      // args: none - nieuzywane parametry handlera (req, next) sa normalne.
+      // varsIgnorePattern - `_` w petli po indeksach jest celowe.
+      "no-unused-vars": [
+        "error",
+        { args: "none", caughtErrors: "none", varsIgnorePattern: "^_$" },
+      ],
     },
   },
 ];

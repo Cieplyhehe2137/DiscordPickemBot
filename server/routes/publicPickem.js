@@ -39,13 +39,13 @@ export function registerPublicPickemRoutes(
     isMatchLocked,
     isSeriesExact,
     isWinnerCorrect,
-    komunikatNaWWW,
+    toWebMessage,
     loadActiveTeams,
     matchPanelPhaseFor,
     parseCsvPick,
     path,
     percentageNumber,
-    pickemGate,
+    checkPickemGate,
     policzUczestnikow,
     pool,
     runInTransaction,
@@ -762,7 +762,7 @@ export function registerPublicPickemRoutes(
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie meczów jest aktualnie zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie meczów jest aktualnie zamknięte."),
         });
       }
 
@@ -1476,11 +1476,11 @@ export function registerPublicPickemRoutes(
       /*
        * Ten sam gate co Discord + webowy odpowiednik deadline.
        */
-      const gate = await pickemGate(event.guild_id, "SWISS", stage);
+      const gate = await checkPickemGate(event.guild_id, "SWISS", stage);
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
         });
       }
 
@@ -1735,7 +1735,7 @@ export function registerPublicPickemRoutes(
         prediction?.advancing,
       );
 
-      const gate = await pickemGate(
+      const gate = await checkPickemGate(
         event.guild_id,
         "SWISS",
         stage,
@@ -1761,7 +1761,7 @@ export function registerPublicPickemRoutes(
           allowed: Boolean(gate.allowed),
           message: gate.allowed
             ? null
-            : komunikatNaWWW(gate.message, "Typowanie tej fazy jest zamknięte."),
+            : toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
         },
       });
     } catch (err) {
@@ -1877,7 +1877,7 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYIN");
+      const gate = await checkPickemGate(event.guild_id, "PLAYIN");
 
       const [teams] = await pool.query(
         `
@@ -1930,7 +1930,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -1982,11 +1982,11 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYIN");
+      const gate = await checkPickemGate(event.guild_id, "PLAYIN");
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Play-In jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Play-In jest zamknięte."),
         });
       }
 
@@ -2121,7 +2121,7 @@ export function registerPublicPickemRoutes(
         return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYOFFS");
+      const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
 
       const [teams] = await pool.query(
         `
@@ -2182,7 +2182,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -2236,11 +2236,11 @@ export function registerPublicPickemRoutes(
       // GATE
       // ============================================
 
-      const gate = await pickemGate(event.guild_id, "PLAYOFFS");
+      const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Playoffs jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Playoffs jest zamknięte."),
         });
       }
 
@@ -2449,7 +2449,7 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "DOUBLEELIM");
+      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
 
       const [teams] = await pool.query(
         `
@@ -2515,7 +2515,7 @@ export function registerPublicPickemRoutes(
         prediction,
         lock: {
           allowed: gate.allowed,
-          message: komunikatNaWWW(gate.message, null),
+          message: toWebMessage(gate.message, null),
         },
       });
     } catch (err) {
@@ -2570,11 +2570,11 @@ export function registerPublicPickemRoutes(
       // GATE
       // ============================================
 
-      const gate = await pickemGate(event.guild_id, "DOUBLEELIM");
+      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
 
       if (!gate.allowed) {
         return res.status(403).json({
-          error: komunikatNaWWW(gate.message, "Typowanie Double Elimination jest zamknięte."),
+          error: toWebMessage(gate.message, "Typowanie Double Elimination jest zamknięte."),
         });
       }
 
