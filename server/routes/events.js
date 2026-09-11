@@ -144,24 +144,6 @@ export function registerEventRoutes(
 
       const uczestnicy = await countParticipants(event.id);
 
-      const user = req.session?.user;
-
-      let myPredictions = 0;
-
-      if (user) {
-        const [[myPredictionStats]] = await pool.query(
-          `
-      SELECT COUNT(*) AS predictions
-      FROM match_predictions
-      WHERE event_id = ?
-        AND user_id = ?
-      `,
-          [event.id, user.id],
-        );
-
-        myPredictions = myPredictionStats?.predictions || 0;
-      }
-
       const [[statusStats]] = await pool.query(
         `
     SELECT
