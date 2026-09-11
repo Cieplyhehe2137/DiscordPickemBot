@@ -23,12 +23,12 @@ export function registerEventRoutes(
     io,
     normalizePhase,
     parseDeadlineInput,
-    pickemGate,
+    checkPickemGate,
     pool,
     registerGuildRoutes,
     requireGuildAdmin,
     buildMatchesWithPickSql,
-    stanTypowaniaMeczu,
+    resolveMatchPredictionState,
     teamsStore,
   },
 ) {
@@ -387,10 +387,10 @@ export function registerEventRoutes(
       const fazaAktywna = MAPA_BIEZACEJ[biezaca] || null;
 
       // Typowanie drużyn jest otwarte tylko w bieżącej fazie i tylko przed
-      // deadline'em - pickemGate sprawdza jedno i drugie, tak samo jak zapis.
+      // deadline'em - checkPickemGate sprawdza jedno i drugie, tak samo jak zapis.
       let typowanieOtwarte = false;
 
-      // pickemGate pyta o AKTUALNIE OTWARTY event gildii, nie o ten z URL-a.
+      // checkPickemGate pyta o AKTUALNIE OTWARTY event gildii, nie o ten z URL-a.
       // Bez tego porównania zamknięty turniej, którego faza zgadza się z fazą
       // trwającego turnieju, raportował "typowanie otwarte" i front pokazywałby
       // na historycznym evencie przycisk "Typuj teraz".
@@ -403,7 +403,7 @@ export function registerEventRoutes(
           ? "SWISS"
           : fazaAktywna.toUpperCase();
 
-        const bramka = await pickemGate(
+        const bramka = await checkPickemGate(
           event.guild_id,
           rodzaj,
           fazaAktywna.startsWith("stage") ? fazaAktywna : null,
@@ -517,7 +517,7 @@ export function registerEventRoutes(
 
       const matchesWithPredictionState = await Promise.all(
         matches.map((match) =>
-          stanTypowaniaMeczu({
+          resolveMatchPredictionState({
             match,
             gate,
             guildId: event.guild_id,

@@ -15,6 +15,7 @@ import { toWebMessage } from "./lib/messages.js";
 import { parseCsvPick } from "./lib/picks.js";
 import { buildMatchesWithPickSql } from "./lib/matchQueries.js";
 import { createFrozenPhases } from "./lib/frozenPhases.js";
+import { createPredictionGate } from "./lib/predictionGate.js";
 import {
   ADMINISTRATOR_PERMISSION,
   hasAdminPermission,
@@ -435,102 +436,19 @@ function matchPanelPhaseFor(phase) {
   if (!phase) return null;
   return MATCH_PANEL_PHASE[normalizePhase(phase)] || null;
 }
-// Dolicza do wiersza meczu to, czego nie da sie policzyc w SQL:
-// globalny gate turnieju, blokade meczu i deadline meczowy fazy.
-//
-// deadlineCache trzyma obietnice per faza panelu - lista 106 meczow pyta
-// wtedy o deadline raz na faze, a nie raz na mecz.
-async function stanTypowaniaMeczu({ match, gate, guildId, deadlineCache }) {
-  const base = {
-    ...match,
-    saved_maps: Number(match.saved_maps || 0),
-  };
 
-  if (match.ui_status === "FINAL") {
-    return {
-      ...base,
-      predictions_allowed: false,
-      lock_reason: "Mecz został zakończony.",
-      ui_status: "FINAL",
-    };
-  }
-
-  if (!gate.allowed) {
-    return {
-      ...base,
-      predictions_allowed: false,
-      lock_reason: toWebMessage(
-        gate.message,
-        "Typowanie meczów jest aktualnie zamknięte.",
-      ),
-      ui_status: "LOCKED",
-    };
-  }
-
-  if (isMatchLocked(match)) {
-    return {
-      ...base,
-      predictions_allowed: false,
-      lock_reason: "Mecz jest zablokowany.",
-      ui_status: "LOCKED",
-    };
-  }
-
-  const matchPanelPhase = matchPanelPhaseFor(match.phase);
-
-  if (matchPanelPhase) {
-    if (!deadlineCache.has(matchPanelPhase)) {
-      deadlineCache.set(
-        matchPanelPhase,
-        isMatchDeadlinePassed(pool, guildId, matchPanelPhase),
-      );
-    }
-
-    const { passed } = await deadlineCache.get(matchPanelPhase);
-
-    if (passed) {
-      return {
-        ...base,
-        predictions_allowed: false,
-        lock_reason: "Deadline typowania wyników meczów dla tej fazy minął.",
-        ui_status: "LOCKED",
-      };
-    }
-  }
-
-  return {
-    ...base,
-    predictions_allowed: true,
-    lock_reason: null,
-    ui_status: "OPEN",
-  };
-}
-
-// Tournament-state gate + panel deadline gate in one place. Discord only
-// enforces deadlines by disabling message components, which the web API
-// never sees - this adds the equivalent server-side block for web saves.
-async function pickemGate(guildId, kind, stage = null) {
-  const gate = await assertPredictionsAllowed({ guildId, kind, stage });
-
-  if (!gate.allowed) return gate;
-
-  const { passed } = await isPickDeadlinePassed(
-    pool,
-    guildId,
-    PICKEM_PANEL_PHASE[kind],
-    stage,
-  );
-
-  if (passed) {
-    return {
-      allowed: false,
-      message: "Deadline typowania dla tej fazy minął.",
-    };
-  }
-
-  return gate;
-}
-
+// Za definicjami map faz i matchPanelPhaseFor - fabryka czyta je od razu,
+// wiec wczesniej byloby to siegniecie po const przed inicjalizacja.
+const { resolveMatchPredictionState, checkPickemGate } = createPredictionGate({
+  pool,
+  assertPredictionsAllowed,
+  isPickDeadlinePassed,
+  isMatchDeadlinePassed,
+  isMatchLocked,
+  matchPanelPhaseFor,
+  toWebMessage,
+  pickemPanelPhase: PICKEM_PANEL_PHASE,
+});
 async function guildIdFromEventSlug(req) {
   const [[event]] = await pool.query(
     "SELECT guild_id FROM events WHERE slug = ? LIMIT 1",
@@ -583,12 +501,12 @@ registerEventRoutes(app, {
   io,
   normalizePhase,
   parseDeadlineInput,
-  pickemGate,
+  checkPickemGate,
   pool,
   registerGuildRoutes,
   requireGuildAdmin,
   buildMatchesWithPickSql,
-  stanTypowaniaMeczu,
+  resolveMatchPredictionState,
   teamsStore,
 });
 
@@ -1219,7 +1137,7 @@ registerPublicMatchRoutes(app, {
   safeFileBase,
   sprawdzWynik,
   buildMatchesWithPickSql,
-  stanTypowaniaMeczu,
+  resolveMatchPredictionState,
   validateCs2Score,
 });
 
@@ -1353,7 +1271,7 @@ registerPublicPickemRoutes(app, {
   parseCsvPick,
   path,
   percentageNumber,
-  pickemGate,
+  checkPickemGate,
   countParticipants,
   pool,
   runInTransaction,

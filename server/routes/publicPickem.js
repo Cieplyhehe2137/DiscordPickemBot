@@ -45,7 +45,7 @@ export function registerPublicPickemRoutes(
     parseCsvPick,
     path,
     percentageNumber,
-    pickemGate,
+    checkPickemGate,
     policzUczestnikow,
     pool,
     runInTransaction,
@@ -1476,7 +1476,7 @@ export function registerPublicPickemRoutes(
       /*
        * Ten sam gate co Discord + webowy odpowiednik deadline.
        */
-      const gate = await pickemGate(event.guild_id, "SWISS", stage);
+      const gate = await checkPickemGate(event.guild_id, "SWISS", stage);
 
       if (!gate.allowed) {
         return res.status(403).json({
@@ -1735,7 +1735,7 @@ export function registerPublicPickemRoutes(
         prediction?.advancing,
       );
 
-      const gate = await pickemGate(
+      const gate = await checkPickemGate(
         event.guild_id,
         "SWISS",
         stage,
@@ -1877,7 +1877,7 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYIN");
+      const gate = await checkPickemGate(event.guild_id, "PLAYIN");
 
       const [teams] = await pool.query(
         `
@@ -1982,7 +1982,7 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYIN");
+      const gate = await checkPickemGate(event.guild_id, "PLAYIN");
 
       if (!gate.allowed) {
         return res.status(403).json({
@@ -2121,7 +2121,7 @@ export function registerPublicPickemRoutes(
         return res.status(404).json({ error: "Nie znaleziono turnieju." });
       }
 
-      const gate = await pickemGate(event.guild_id, "PLAYOFFS");
+      const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
 
       const [teams] = await pool.query(
         `
@@ -2236,7 +2236,7 @@ export function registerPublicPickemRoutes(
       // GATE
       // ============================================
 
-      const gate = await pickemGate(event.guild_id, "PLAYOFFS");
+      const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
 
       if (!gate.allowed) {
         return res.status(403).json({
@@ -2449,7 +2449,7 @@ export function registerPublicPickemRoutes(
         });
       }
 
-      const gate = await pickemGate(event.guild_id, "DOUBLEELIM");
+      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
 
       const [teams] = await pool.query(
         `
@@ -2570,7 +2570,7 @@ export function registerPublicPickemRoutes(
       // GATE
       // ============================================
 
-      const gate = await pickemGate(event.guild_id, "DOUBLEELIM");
+      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
 
       if (!gate.allowed) {
         return res.status(403).json({

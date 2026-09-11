@@ -47,7 +47,7 @@ export function registerPublicMatchRoutes(
     safeFileBase,
     sprawdzWynik,
     buildMatchesWithPickSql,
-    stanTypowaniaMeczu,
+    resolveMatchPredictionState,
     validateCs2Score,
   },
 ) {
@@ -83,7 +83,7 @@ export function registerPublicMatchRoutes(
         kind: "MATCHES",
       });
 
-      const wzbogacony = await stanTypowaniaMeczu({
+      const wzbogacony = await resolveMatchPredictionState({
         match,
         gate,
         guildId: event.guild_id,
