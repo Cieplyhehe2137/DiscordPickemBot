@@ -351,9 +351,14 @@
 
 .ui-row-item {
   display: grid;
+  /* Miejsce stoi tylko w pierwszym wierszu, a nie rozpina sie na oba.
+     Rozpiete i wysrodkowane w pionie ladowalo miedzy nickiem a plakietkami,
+     czyli obok niczego. Plakietki dostaja przez to cala szerokosc - przy
+     375px "DOUBLE ELIM 3" i "MECZE 139" nie mieszcza sie w jednej linii,
+     jesli zaczynaja za kolumna miejsca. */
   grid-template-areas:
     "rank who score"
-    "rank meta meta";
+    "meta meta meta";
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--space-1) var(--space-3);
@@ -594,7 +599,8 @@
   transition:
     background var(--duration-fast) var(--ease),
     border-color var(--duration-fast) var(--ease),
-    transform var(--duration-fast) var(--ease);
+    transform var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
 }
 
 .ui-btn:hover {
@@ -1301,4 +1307,165 @@ a.ui-choice__option {
     grid-column: 2;
     font-size: var(--text-md);
   }
+}
+
+/* =========================================================================
+   WYKOŃCZENIE
+   Rzeczy, które nie zmieniają układu ani zachowania - tylko to, czy strona
+   wygląda na skończony produkt, czy na działający prototyp.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   PODIUM
+   Pierwsza trójka rankingu. Sama liczba miejsca była małą cyfrą w kolorze,
+   a całą robotę robiło obramowanie karty - czyli miejsce na podium czytało
+   się dopiero po chwili. Metaliczny gradient na cyfrze daje to od razu
+   i jest jedynym takim akcentem na stronie, więc nie spowszednieje.
+   ------------------------------------------------------------------------- */
+
+.ui-row-item--1 .ui-row-item__rank,
+.ui-row-item--2 .ui-row-item__rank,
+.ui-row-item--3 .ui-row-item__rank {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-black);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* Gradient wchodzi tylko tam, gdzie przeglądarka umie przyciąć tło do
+   liter. Bez tego color: transparent zostawiłby puste miejsce zamiast cyfry,
+   więc kolor z reguł wyżej zostaje jako to, co widać zawsze. */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .ui-row-item--1 .ui-row-item__rank,
+  .ui-row-item--2 .ui-row-item__rank,
+  .ui-row-item--3 .ui-row-item__rank {
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+
+  .ui-row-item--1 .ui-row-item__rank {
+    background-image: linear-gradient(160deg, #fef3c7, var(--gold) 50%, #d97706);
+  }
+
+  .ui-row-item--2 .ui-row-item__rank {
+    background-image: linear-gradient(160deg, #ffffff, var(--silver) 50%, #94a3b8);
+  }
+
+  .ui-row-item--3 .ui-row-item__rank {
+    background-image: linear-gradient(160deg, #fed7aa, var(--bronze) 50%, #b45309);
+  }
+}
+
+/* Awatar podium dostaje pierścień w kolorze medalu. Przy braku zdjęcia -
+   a większość graczy go nie ma - to jedyne, co odróżnia te kółka od siebie. */
+.ui-row-item--1 .ui-avatar {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 0 14px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+
+.ui-row-item--2 .ui-avatar {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--silver);
+}
+
+.ui-row-item--3 .ui-avatar {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--bronze);
+}
+
+/* Własny wiersz gracza świeci akcentem - ma się znaleźć wzrokiem w tabeli
+   na 250 nazwisk, także wtedy, gdy nie jest w pierwszej trójce. */
+.ui-row-item--me {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* -------------------------------------------------------------------------
+   PASKI DANYCH
+   Podział głosów społeczności i pasek postępu. Płaskie wypełnienie czyta się
+   jak dwa kolorowe prostokąty; gradient wzdłuż paska i cień wewnętrzny na
+   torze robią z tego element, który ktoś zaprojektował.
+   ------------------------------------------------------------------------- */
+
+.ui-split,
+.ui-meter {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.ui-split__a {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--side-a) 70%, #000),
+    var(--side-a)
+  );
+}
+
+.ui-split__b {
+  background-image: linear-gradient(
+    90deg,
+    var(--side-b),
+    color-mix(in srgb, var(--side-b) 70%, #000)
+  );
+}
+
+.ui-meter__fill {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 65%, #000),
+    var(--accent)
+  );
+}
+
+.ui-meter__fill--ok {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ok) 65%, #000),
+    var(--ok)
+  );
+}
+
+/* -------------------------------------------------------------------------
+   KARTA POD KURSOREM
+   Karta już się unosiła; brakowało jej reakcji na to, że jest celem kliknięcia.
+   Obramowanie ciepleje w stronę akcentu, a cień dostaje jego odcień - to samo
+   światło, które świeci nad stroną.
+   ------------------------------------------------------------------------- */
+
+.ui-card--interactive:hover {
+  border-color: var(--accent-border);
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Aktywny przycisk wyboru dostaje delikatną poświatę zamiast samego tła -
+   przy dziesięciu drużynach w siatce zaznaczenie musi być widoczne kątem oka. */
+.ui-choice__option[aria-current="page"],
+.ui-choice__option[aria-pressed="true"] {
+  box-shadow: 0 0 0 1px var(--accent-border);
+}
+
+/* Przycisk główny: gradient zamiast płaskiego fioletu i cień w kolorze akcentu.
+   To jedyny przycisk, który ma przyciągać wzrok, więc tylko on to dostaje. */
+.ui-btn--primary {
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 88%, #fff),
+    var(--accent)
+  );
+  box-shadow: var(--shadow-accent);
+}
+
+.ui-btn--primary:hover {
+  background-image: linear-gradient(
+    180deg,
+    var(--accent),
+    var(--accent-hover)
+  );
+}
+
+.ui-btn--primary:disabled {
+  background-image: none;
+  box-shadow: none;
 }
