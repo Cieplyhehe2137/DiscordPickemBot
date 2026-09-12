@@ -525,33 +525,6 @@ p {
   background: var(--layer-strong);
 }
 
-.admin-leaderboard {
-  margin-top: 16px;
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  width: 100%;
-  overflow-x: auto;
-}
-
-.admin-leaderboard__header,
-.admin-leaderboard__row {
-  display: grid;
-  grid-template-columns: 50px minmax(160px, 2fr) repeat(8, minmax(80px, 1fr));
-  gap: var(--space-3);
-  align-items: center;
-  min-width: 1050px;
-}
-
-.admin-leaderboard__header {
-  background: var(--layer);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.75;
-}
-
 .event-close-match {
   width: min(900px, calc(100% - 32px));
   margin: 42px auto 48px;

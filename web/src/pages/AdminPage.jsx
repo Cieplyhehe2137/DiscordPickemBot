@@ -35,6 +35,32 @@ import LoginRequired from "../components/LoginRequired.jsx";
 // Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
 // "admin-badge--status-" i statusu z API - czyli CSS musial znac z gory kazda
 // wartosc, jaka backend kiedykolwiek zwroci, a literowka byla niewidoczna.
+// Nagłówki kolumn klasyfikacji. Ta sama lista trafia do nagłówka tabeli i -
+// przez data-label na komórkach - do podpisów na telefonie, więc nie da się
+// ich rozjechać.
+const KOLUMNY_KLASYFIKACJI = [
+  "Miejsce",
+  "Gracz",
+  "Punkty",
+  "Seria",
+  "Mapy",
+  "Typy",
+  "Trafione",
+  "Mapy traf.",
+  "Exacty",
+  "Skuteczność",
+];
+
+// Klasa czołówki. Tablica, a nie sklejanie `ui-datatable__row--${rank}`:
+// przy sklejaniu nazwa nie występuje w kodzie dosłownie, więc czyszczenie
+// martwego CSS jej nie widzi. Dokładnie tak zniknęło poprzednie wyróżnienie
+// pierwszej trójki w tej tabeli.
+const PODIUM_KLASYFIKACJI = {
+  1: " ui-datatable__row--1",
+  2: " ui-datatable__row--2",
+  3: " ui-datatable__row--3",
+};
+
 const TON_STATUSU = {
   OPEN: "ui-badge--ok",
   LOCKED: "ui-badge--danger",
@@ -1840,48 +1866,57 @@ export default function AdminPage() {
           {!loadingLeaderboard &&
             !leaderboardError &&
             eventLeaderboard.length > 0 && (
-              <div className="admin-leaderboard">
-                <div className="admin-leaderboard__header">
-                  <span>#</span>
-                  <span>Gracz</span>
-                  <span>Punkty</span>
-                  <span>Seria</span>
-                  <span>Mapy</span>
-                  <span>Typy</span>
-                  <span>Trafione</span>
-                  <span>Mapy traf.</span>
-                  <span>Exacty</span>
-                  <span>Skuteczność</span>
+              <div className="ui-datatable">
+                <div className="ui-datatable__head" aria-hidden="true">
+                  {KOLUMNY_KLASYFIKACJI.map((kolumna) => (
+                    <span key={kolumna}>{kolumna}</span>
+                  ))}
                 </div>
 
                 {eventLeaderboard.map((player) => (
                   <div
-                    className={`admin-leaderboard__row ${
-                      player.rank <= 3
-                        ? `admin-leaderboard__row--top-${player.rank}`
-                        : ""
+                    className={`ui-datatable__row${
+                      PODIUM_KLASYFIKACJI[player.rank] ?? ""
                     }`}
                     key={player.user_id}
                   >
-                    <span>#{player.rank}</span>
+                    <span data-label="Miejsce">#{player.rank}</span>
 
-                    <strong>{player.displayname ?? player.user_id}</strong>
+                    <strong data-label="Gracz">
+                      {player.displayname ?? player.user_id}
+                    </strong>
 
-                    <span>{Number(player.total_points ?? 0)}</span>
+                    <span data-label="Punkty">
+                      {Number(player.total_points ?? 0)}
+                    </span>
 
-                    <span>{Number(player.series_points ?? 0)}</span>
+                    <span data-label="Seria">
+                      {Number(player.series_points ?? 0)}
+                    </span>
 
-                    <span>{Number(player.map_points ?? 0)}</span>
+                    <span data-label="Mapy">
+                      {Number(player.map_points ?? 0)}
+                    </span>
 
-                    <span>{Number(player.total_predictions ?? 0)}</span>
+                    <span data-label="Typy">
+                      {Number(player.total_predictions ?? 0)}
+                    </span>
 
-                    <span>{Number(player.correct_winners ?? 0)}</span>
+                    <span data-label="Trafione">
+                      {Number(player.correct_winners ?? 0)}
+                    </span>
 
-                    <span>{Number(player.correct_maps ?? 0)}</span>
+                    <span data-label="Mapy traf.">
+                      {Number(player.correct_maps ?? 0)}
+                    </span>
 
-                    <span>{Number(player.exact_maps ?? 0)}</span>
+                    <span data-label="Exacty">
+                      {Number(player.exact_maps ?? 0)}
+                    </span>
 
-                    <span>{Number(player.accuracy ?? 0)}%</span>
+                    <span data-label="Skuteczność">
+                      {Number(player.accuracy ?? 0)}%
+                    </span>
                   </div>
                 ))}
               </div>
