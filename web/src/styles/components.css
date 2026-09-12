@@ -1469,3 +1469,162 @@ a.ui-choice__option {
   background-image: none;
   box-shadow: none;
 }
+
+/* -------------------------------------------------------------------------
+   TABELA DANYCH
+   Wiele kolumn liczbowych - klasyfikacja w panelu admina. Na szerokim ekranie
+   to naprawdę tabela: dziesięć kolumn obok siebie skanuje się wzrokiem w dół.
+   Na wąskim NIE jest ściśniętą tabelą ani poziomym przewijaniem - wcześniej
+   miała min-width 1050px w kontenerze z overflow-x, więc na telefonie widać
+   było dwie kolumny z dziesięciu i resztę trzeba było przesuwać palcem.
+   Każdy wiersz staje się tam kartą, a nagłówki kolumn wracają jako podpisy
+   przy wartościach - stąd data-label na komórkach.
+
+   Szerokości kolumn siedzą w zmiennej, więc druga taka tabela nie wymaga
+   kopiowania komponentu, tylko nadpisania jednej wartości.
+   ------------------------------------------------------------------------- */
+
+.ui-datatable {
+  --ui-datatable-columns: 48px minmax(150px, 2fr) repeat(8, minmax(72px, 1fr));
+
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ui-datatable__head {
+  display: none;
+}
+
+.ui-datatable__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+}
+
+.ui-datatable__row + .ui-datatable__row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ui-datatable__row > * {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  /* Nick bywa jednym dlugim ciagiem bez spacji i bez tego rozpychal karte
+     poza kontener, ktory go potem przycinal. */
+  overflow-wrap: anywhere;
+
+  font-variant-numeric: tabular-nums;
+}
+
+/* Podpis kolumny przy wartości. Bierze się z data-label, więc nagłówek tabeli
+   i podpis na telefonie nie mogą się rozjechać - to jeden napis. */
+.ui-datatable__row > *[data-label]::before {
+  content: attr(data-label);
+
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Nick i miejsce zajmują cały wiersz na górze karty - to one identyfikują
+   gracza, reszta to liczby do porównywania. */
+.ui-datatable__row > *:nth-child(1),
+.ui-datatable__row > *:nth-child(2) {
+  grid-column: span 1;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-strong);
+}
+
+/* 1000px, nie 900: dziesiec kolumn z odstepami potrzebuje okolo 880px, a
+   strona i karta zabieraja jeszcze ~90px. Przy nizszym progu tabela pojawiala
+   sie od razu z wewnetrznym przewijaniem, czyli w najgorszej z obu postaci. */
+@media (min-width: 1000px) {
+  .ui-datatable {
+    overflow-x: auto;
+  }
+
+  .ui-datatable__head,
+  .ui-datatable__row {
+    display: grid;
+    grid-template-columns: var(--ui-datatable-columns);
+
+    /* 8px, nie 12: przy dwunastu dziewiec odstepow dokladalo 108px i tabela
+       nie miescila sie w progu o piec pikseli. Cieśniejsze kolumny czytaja
+       sie w gestej tabeli liczb i tak lepiej. */
+    gap: var(--space-2);
+    align-items: center;
+    min-width: 860px;
+  }
+
+  .ui-datatable__head {
+    padding: var(--space-3) var(--space-4);
+
+    background: var(--layer);
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .ui-datatable__row > * {
+    flex-direction: row;
+    align-items: baseline;
+    font-size: var(--text-md);
+  }
+
+  /* Na szerokim ekranie kolumnę opisuje nagłówek tabeli, więc podpis przy
+     każdej wartości byłby tym samym napisem powtórzonym w każdym wierszu. */
+  .ui-datatable__row > *[data-label]::before {
+    content: none;
+  }
+
+  .ui-datatable__row > *:nth-child(1),
+  .ui-datatable__row > *:nth-child(2) {
+    font-size: var(--text-md);
+  }
+
+  .ui-datatable__row > *:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Czołówka. Ten sam zestaw medali co w rankingu publicznym - admin patrzy na
+   tę samą stawkę, więc nie ma powodu, żeby pierwsza trójka wyglądała inaczej. */
+.ui-datatable__row--1 {
+  background: color-mix(in srgb, var(--gold) 7%, var(--surface-2));
+}
+
+.ui-datatable__row--2 {
+  background: color-mix(in srgb, var(--silver) 5%, var(--surface-2));
+}
+
+.ui-datatable__row--3 {
+  background: color-mix(in srgb, var(--bronze) 6%, var(--surface-2));
+}
+
+.ui-datatable__row--1 > *:first-child {
+  color: var(--gold);
+}
+
+.ui-datatable__row--2 > *:first-child {
+  color: var(--silver);
+}
+
+.ui-datatable__row--3 > *:first-child {
+  color: var(--bronze);
+}
