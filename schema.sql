@@ -348,7 +348,7 @@ CREATE TABLE `matches` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `event_id` int NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_matches_scope` (`guild_id`,`event_id`,`phase`,`match_no`),
+  UNIQUE KEY `uniq_matches_scope` (`guild_id`,`event_id`,`match_no`),
   KEY `idx_matches_lockwatch` (`is_locked`,`start_time_utc`),
   KEY `idx_matches_panel` (`panel_channel_id`,`panel_message_id`),
   KEY `fk_matches_event` (`event_id`),
