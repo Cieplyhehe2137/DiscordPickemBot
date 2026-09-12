@@ -5,7 +5,6 @@ import { apiRequest, getMatch, getMatchExactResult } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import ScoreLine from "../components/ScoreLine.jsx";
 import { useAuth } from "../auth/useAuth.js";
-import { isAdminAnywhere } from "../lib/permissions.js";
 import Ladowanie from "../components/Ladowanie.jsx";
 
 function validateCs2Score(a, b) {
@@ -38,7 +37,7 @@ function validateCs2Score(a, b) {
 
 function AdminMatchResultPage() {
   const { matchId } = useParams();
-  const { user, authLoading } = useAuth();
+  const { user, canAccessAdmin, authLoading } = useAuth();
 
   // Strona nie miała żadnej kontroli uprawnień - komponent RequireAdmin,
   // który to robił, zniknął przy przepisywaniu frontu. Zapis był bezpieczny
@@ -53,7 +52,7 @@ function AdminMatchResultPage() {
   // Wstępny filtr po stronie klienta. Ostateczną odpowiedź i tak daje serwer:
   // getMatch() jest za requireGuildAdmin, więc admin innego serwera dostanie
   // 403 i wyląduje w tym samym ekranie "brak uprawnień".
-  const mozeBycAdmin = !authLoading && Boolean(user) && isAdminAnywhere(user);
+  const mozeBycAdmin = !authLoading && Boolean(user) && canAccessAdmin;
 
   const [scoreA, setScoreA] = useState("");
   const [scoreB, setScoreB] = useState("");

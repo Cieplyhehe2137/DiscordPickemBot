@@ -7,6 +7,9 @@
 //
 // Dlatego oprocz wlasnych przypadkow ostatni test porownuje obie kopie wprost.
 // Zadna nie importuje niczego, wiec dziala to bez instalowania zaleznosci.
+//
+// O samym WEJSCIU do panelu ten plik juz nie decyduje - to /api/auth/me
+// (test/authMe.test.js), bo wymaga listy serwerow, ktore bot obsluguje.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -21,30 +24,10 @@ function user(guilds) {
   return { id: "1", guilds };
 }
 
-test("admin gdziekolwiek decyduje o wejsciu do panelu w nawigacji", async () => {
-  const { isAdminAnywhere } = await import(WEB);
-
-  assert.equal(
-    isAdminAnywhere(user([{ id: "111", permissions: BRAK_ADMINA }])),
-    false,
-  );
-  assert.equal(
-    isAdminAnywhere(
-      user([
-        { id: "111", permissions: BRAK_ADMINA },
-        { id: "222", permissions: ADMIN },
-      ]),
-    ),
-    true,
-    "wystarczy jeden serwer",
-  );
-});
-
 test("brak uzytkownika albo listy serwerow nie wysypuje widoku", async () => {
-  const { isAdminAnywhere, adminGuildIds, isAdminOfGuild } = await import(WEB);
+  const { adminGuildIds, isAdminOfGuild } = await import(WEB);
 
   for (const pusty of [null, undefined, {}, user(undefined)]) {
-    assert.equal(isAdminAnywhere(pusty), false);
     assert.deepEqual([...adminGuildIds(pusty)], []);
     assert.equal(isAdminOfGuild(pusty, "111"), false);
   }

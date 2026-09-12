@@ -369,6 +369,7 @@ registerAuthRoutes(app, {
   isProduction: IS_PRODUCTION,
   webOrigin: PRIMARY_WEB_ORIGIN,
   administratorPermission: ADMINISTRATOR_PERMISSION,
+  hasAdminPermission,
 });
 
 // Przeniesione do server/routes/events.js. Wywolanie stoi tam, gdzie byly trasy -

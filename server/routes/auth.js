@@ -13,11 +13,42 @@
 
 export function registerAuthRoutes(
   app,
-  { pool, guildRegistry, isProduction, webOrigin, administratorPermission },
+  {
+    pool,
+    guildRegistry,
+    isProduction,
+    webOrigin,
+    administratorPermission,
+    hasAdminPermission,
+  },
 ) {
+  // Czy uzytkownik ma czym zarzadzac: administrator na serwerze, ktory bot
+  // FAKTYCZNIE obsluguje. Sam bit ADMINISTRATOR nie wystarcza - Discord daje
+  // go tez na prywatnym serwerze zalozonym przez samego uzytkownika, a taki
+  // ktos widzialby w nawigacji "Panel" prowadzacy do pustej listy.
+  //
+  // Wyliczane na serwerze, bo tylko on zna guildRegistry; front dostaje
+  // gotowa odpowiedz zamiast zgadywac z samej bitmaski.
+  //
+  // To nadal warstwa prezentacji - o tym, czy akcja przejdzie, decyduje
+  // requireGuildAdmin przy kazdej trasie z osobna.
+  function canAccessAdmin(user) {
+    if (!user) return false;
+
+    const knownGuildIds = new Set(guildRegistry.getAllGuildIds());
+
+    return (user.guilds || []).some(
+      (guild) =>
+        knownGuildIds.has(guild.id) && hasAdminPermission(user, guild.id),
+    );
+  }
+
   app.get("/api/auth/me", (req, res) => {
+    const user = req.session?.user || null;
+
     res.json({
-      user: req.session?.user || null,
+      user,
+      canAccessAdmin: canAccessAdmin(user),
     });
   });
 

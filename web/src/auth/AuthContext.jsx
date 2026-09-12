@@ -5,6 +5,13 @@ import { AuthContext } from "./authContext.js";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+
+  // Czy uzytkownik administruje serwerem, ktory bot obsluguje. Liczy to
+  // serwer w /api/auth/me, bo tylko on wie, ktore serwery bot zna - sama
+  // bitmaska uprawnien pokazalaby panel takze komus, kto jest adminem
+  // wylacznie na swoim prywatnym serwerze.
+  const [canAccessAdmin, setCanAccessAdmin] = useState(false);
+
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
@@ -13,8 +20,10 @@ export function AuthProvider({ children }) {
         const data = await getCurrentUser();
 
         setUser(data.user ?? null);
+        setCanAccessAdmin(Boolean(data.canAccessAdmin));
       } catch {
         setUser(null);
+        setCanAccessAdmin(false);
       } finally {
         setAuthLoading(false);
       }
@@ -26,10 +35,12 @@ export function AuthProvider({ children }) {
   async function logout() {
     await logoutRequest();
     setUser(null);
+    setCanAccessAdmin(false);
   }
 
   const value = {
     user,
+    canAccessAdmin,
     authLoading,
     logout,
   };

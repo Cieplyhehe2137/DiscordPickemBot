@@ -4,12 +4,11 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
 import { recordVisit } from "../../lib/api.js";
-import { isAdminAnywhere } from "../../lib/permissions.js";
 
 import { apiUrl } from "../../lib/apiUrl.js";
 
 function AppLayout() {
-  const { user, authLoading, logout } = useAuth();
+  const { user, canAccessAdmin, authLoading, logout } = useAuth();
 
   const [realtimeRefresh, setRealtimeRefresh] = useState({
     version: 0,
@@ -63,8 +62,12 @@ function AppLayout() {
 
             {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
                 nawet dla kont z uprawnieniami. Widoczność to sama wygoda;
-                dostęp i tak pilnuje requireGuildAdmin na serwerze. */}
-            {isAdminAnywhere(user) && (
+                dostęp i tak pilnuje requireGuildAdmin na serwerze.
+
+                Warunek liczy serwer (/api/auth/me), nie sama bitmaska:
+                administrator prywatnego serwera, na którym bota nie ma,
+                widziałby zakładkę prowadzącą do pustej listy. */}
+            {canAccessAdmin && (
               <NavLink
                 to="/admin"
                 className={({ isActive }) => (isActive ? "active" : "")}

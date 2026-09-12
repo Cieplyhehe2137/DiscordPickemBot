@@ -7,6 +7,12 @@
 // UWAGA: to jest wyłącznie warstwa prezentacji. O tym, czy akcja przejdzie,
 // decyduje requireGuildAdmin na serwerze. Tutaj chodzi o to, żeby nie
 // pokazywać ludziom paneli, których i tak nie użyją.
+//
+// Nie ma tu odpowiednika "admin gdziekolwiek". Sama bitmaska nie odróżnia
+// serwera obsługiwanego przez bota od dowolnego innego, a Discord daje bit
+// ADMINISTRATOR także na prywatnym serwerze założonym przez użytkownika.
+// O wejściu do panelu decyduje `canAccessAdmin` z /api/auth/me - tam
+// guildRegistry jest pod ręką.
 
 const ADMINISTRATOR = 8n;
 
@@ -16,12 +22,6 @@ function maAdmina(guild) {
   } catch {
     return false;
   }
-}
-
-// Czy użytkownik jest adminem na DOWOLNYM serwerze - decyduje o pokazaniu
-// wejścia do panelu w nawigacji.
-export function isAdminAnywhere(user) {
-  return (user?.guilds ?? []).some(maAdmina);
 }
 
 // Zbiór guild_id, na których użytkownik ma uprawnienia administratora.
