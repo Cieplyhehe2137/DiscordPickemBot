@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
+import { recordVisit } from "../../lib/api.js";
 import { isAdminAnywhere } from "../../lib/permissions.js";
 
 import { apiUrl } from "../../lib/apiUrl.js";
@@ -14,6 +15,13 @@ function AppLayout() {
     version: 0,
     payload: null,
   });
+
+  // Wejscie liczymy TUTAJ, nie na stronie glownej: layout zostaje zamontowany
+  // przez cala wizyte, wiec efekt odpala sie raz na zaladowanie strony i lapie
+  // takze kogos, kto wszedl prosto w link do rankingu albo do meczu.
+  useEffect(() => {
+    recordVisit();
+  }, []);
 
   useEffect(() => {
     function handleDashboardRefresh(payload) {

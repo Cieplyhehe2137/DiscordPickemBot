@@ -589,3 +589,15 @@ export function saveEventPickemConfig(slug, fazy) {
     body: JSON.stringify({ fazy }),
   });
 }
+
+// --- Licznik odwiedzin ---
+
+// Zapis wejścia. Celowo NIE rzuca przy błędzie: licznik odwiedzin nie jest
+// powodem, żeby strona główna pokazała komunikat o awarii.
+export function recordVisit() {
+  return apiRequest("/public/visit", { method: "POST" }).catch(() => null);
+}
+
+export function getVisitStats() {
+  return apiRequest("/public/visits");
+}

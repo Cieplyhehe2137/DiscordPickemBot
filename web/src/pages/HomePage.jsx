@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getAdminServers, getAllEvents } from "../lib/api.js";
+import { getAdminServers, getAllEvents, getVisitStats } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
 
 // Strona główna pokazywała wcześniej WYMYŚLONY mecz: "Team Alpha 2 : 1
@@ -50,6 +50,27 @@ function Hero() {
 function Statystyki({ events }) {
   const suma = liczby(events);
 
+  // Licznik odwiedzin osobno od reszty: te liczby przychodza z /events, a ta
+  // z wlasnego zapytania. Gdy padnie, kafelek po prostu znika - trzy pozostale
+  // statystyki nie maja powodu czekac na licznik ani znikac razem z nim.
+  const [odwiedziny, setOdwiedziny] = useState(null);
+
+  useEffect(() => {
+    let anulowane = false;
+
+    getVisitStats()
+      .then((dane) => {
+        if (!anulowane) setOdwiedziny(dane);
+      })
+      .catch(() => {
+        // Cisza jest tu zamierzona - patrz komentarz wyzej.
+      });
+
+    return () => {
+      anulowane = true;
+    };
+  }, []);
+
   if (!suma.turnieje) return null;
 
   return (
@@ -57,7 +78,9 @@ function Statystyki({ events }) {
       <div className="ui-stat ui-stat--featured">
         <span className="ui-stat__label">Typujących</span>
         <strong className="ui-stat__value">{suma.gracze}</strong>
-        <span className="ui-stat__hint">suma zgłoszeń we wszystkich turniejach</span>
+        <span className="ui-stat__hint">
+          suma zgłoszeń we wszystkich turniejach
+        </span>
       </div>
 
       <div className="ui-stat">
@@ -71,6 +94,14 @@ function Statystyki({ events }) {
         <strong className="ui-stat__value">{suma.mecze}</strong>
         <span className="ui-stat__hint">do wytypowania</span>
       </div>
+
+      {odwiedziny && (
+        <div className="ui-stat">
+          <span className="ui-stat__label">Odwiedzin</span>
+          <strong className="ui-stat__value">{odwiedziny.total}</strong>
+          <span className="ui-stat__hint">{odwiedziny.today} dzisiaj</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -115,7 +146,11 @@ function KartaTurnieju({ event }) {
 function Turnieje({ events, loading, blad }) {
   if (loading) {
     return (
-      <div className="ui-stats" aria-busy="true" aria-label="Ładowanie turniejów">
+      <div
+        className="ui-stats"
+        aria-busy="true"
+        aria-label="Ładowanie turniejów"
+      >
         {Array.from({ length: 3 }, (_, i) => (
           <div className="ui-skeleton ui-skeleton--row" key={i} />
         ))}
@@ -174,7 +209,8 @@ function Serwery() {
       } catch (err) {
         console.error("SERVERS ERROR:", err);
 
-        if (!anulowane) setBlad(err.message || "Nie udało się pobrać serwerów.");
+        if (!anulowane)
+          setBlad(err.message || "Nie udało się pobrać serwerów.");
       }
     })();
 
@@ -258,7 +294,8 @@ function HomePage() {
       } catch (err) {
         console.error("HOME EVENTS ERROR:", err);
 
-        if (!anulowane) setBlad(err.message || "Nie udało się pobrać turniejów.");
+        if (!anulowane)
+          setBlad(err.message || "Nie udało się pobrać turniejów.");
       } finally {
         if (!anulowane) setLoading(false);
       }

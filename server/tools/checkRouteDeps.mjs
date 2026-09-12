@@ -55,8 +55,17 @@ function wnetrzeObiektu(tekst, od) {
 }
 
 // Nazwy kluczy z listy destrukturyzacji albo z literalu obiektu.
-// Pomija zagniezdzone poziomy, komentarze i wartosci domyslne.
-function kluczeNajwyzszegoPoziomu(blok) {
+// Pomija zagniezdzone poziomy i komentarze.
+//
+// `zOpcjonalnymi` rozdziela dwa przypadki, ktore w tym narzedziu znacza co
+// innego:
+//
+//   { pool }              - brak klucza to undefined przy pierwszym uzyciu,
+//                           czyli dokladnie ten blad, ktory tu scigamy;
+//   { env = process.env } - wartosc domyslna sprawia, ze brak klucza jest
+//                           poprawny, wiec zgloszenie go byloby falszywym
+//                           alarmem.
+function kluczeNajwyzszegoPoziomu(blok, { zOpcjonalnymi = true } = {}) {
   const klucze = new Set();
 
   let depth = 0;
@@ -71,6 +80,10 @@ function kluczeNajwyzszegoPoziomu(blok) {
     biezacy = "";
 
     if (!linia || linia.startsWith("...")) return;
+
+    const maWartoscDomyslna = /^[^:]*=/.test(linia);
+
+    if (!zOpcjonalnymi && maWartoscDomyslna) return;
 
     const nazwa = linia.split(/[:=]/)[0].trim();
 
@@ -136,7 +149,11 @@ function definicjeModulow(katalog) {
       const blok = wnetrzeObiektu(tresc, nawias);
 
       if (blok !== null) {
-        wynik.set(m[1], { plik, oczekiwane: kluczeNajwyzszegoPoziomu(blok) });
+        wynik.set(m[1], {
+          plik,
+          oczekiwane: kluczeNajwyzszegoPoziomu(blok),
+          wymagane: kluczeNajwyzszegoPoziomu(blok, { zOpcjonalnymi: false }),
+        });
       }
     }
   }
@@ -178,7 +195,7 @@ const moduly = definicjeModulow(KATALOG_TRAS);
 
 let bledy = 0;
 
-for (const [nazwa, { plik, oczekiwane }] of moduly) {
+for (const [nazwa, { plik, oczekiwane, wymagane }] of moduly) {
   const dostarczone = podane.get(nazwa);
 
   if (!dostarczone) {
@@ -187,7 +204,9 @@ for (const [nazwa, { plik, oczekiwane }] of moduly) {
     continue;
   }
 
-  const brakujace = [...oczekiwane].filter((k) => !dostarczone.has(k));
+  // Brakuje = modul tego POTRZEBUJE i nikt tego nie podaje. Klucze z wartoscia
+  // domyslna sa poza ta lista, bo ich brak jest poprawny.
+  const brakujace = [...wymagane].filter((k) => !dostarczone.has(k));
   const nadmiarowe = [...dostarczone].filter((k) => !oczekiwane.has(k));
 
   if (brakujace.length === 0 && nadmiarowe.length === 0) continue;

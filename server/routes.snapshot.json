@@ -1,6 +1,8 @@
 {
   "dev": [
     "GET /api/health",
+    "POST /api/public/visit",
+    "GET /api/public/visits",
     "GET /api/auth/me",
     "GET /api/auth/discord",
     "GET /api/auth/discord/callback",
@@ -99,6 +101,8 @@
   ],
   "prod": [
     "GET /api/health",
+    "POST /api/public/visit",
+    "GET /api/public/visits",
     "GET /api/auth/me",
     "GET /api/auth/discord",
     "GET /api/auth/discord/callback",
