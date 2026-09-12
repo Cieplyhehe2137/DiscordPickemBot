@@ -609,6 +609,43 @@ function countMapWins(maps = [], side) {
   }).length;
 }
 
+function hasMapScores(maps = []) {
+  return maps.some((map) => map.exactA != null && map.exactB != null);
+}
+
+// Wynik serii. Normalnie liczba wygranych map, ale gdy map w bazie nie ma -
+// wynik zatwierdzony z zewnętrznego dostawcy zapisuje samo 2:1, bez rozbicia -
+// bierzemy serię wprost. Bez tego suma wygranych map dawała 0:0, czyli liczbę
+// nieprawdziwą pokazaną tak samo pewnie jak prawdziwa.
+function resolveSeriesScore(result) {
+  if (hasMapScores(result.maps)) {
+    return {
+      a: countMapWins(result.maps, "A"),
+      b: countMapWins(result.maps, "B"),
+    };
+  }
+
+  return {
+    a: result.series?.a ?? null,
+    b: result.series?.b ?? null,
+  };
+}
+
+// Wynik meczu BO1 to wynik jedynej mapy. Gdy go nie ma, zostaje sama seria
+// (1:0) - mówi, kto wygrał, choć nie mówi, jakim wynikiem.
+function resolveSingleMapScore(result) {
+  const mapa = result.maps?.[0];
+
+  if (mapa?.exactA != null && mapa?.exactB != null) {
+    return { a: mapa.exactA, b: mapa.exactB };
+  }
+
+  return {
+    a: result.series?.a ?? null,
+    b: result.series?.b ?? null,
+  };
+}
+
 function MapBreakdown({ teamA, teamB, maps }) {
   if (maps.length === 0) {
     return null;
@@ -701,6 +738,11 @@ function MatchPage() {
   const canAdminMatch = match && currentUser ? canAdminMatchStan : false;
   const matchResult = finalowy ? matchResultStan : null;
   const myPoints = finalowy && currentUser ? myPointsStan : null;
+
+  // Wynik do pokazania w karcie "Rezultat". Dwie liczby, bo BO1 pokazuje
+  // wynik jedynej mapy (13:10), a dłuższa seria liczbę wygranych map (2:1).
+  const wynikSerii = matchResult ? resolveSeriesScore(matchResult) : null;
+  const wynikMapy = matchResult ? resolveSingleMapScore(matchResult) : null;
 
   function resetPredictionForm() {
     setWinner(null);
@@ -1064,16 +1106,16 @@ function MatchPage() {
                 <ScoreLine
                   teamA={match.team_a}
                   teamB={match.team_b}
-                  scoreA={matchResult.maps?.[0]?.exactA}
-                  scoreB={matchResult.maps?.[0]?.exactB}
+                  scoreA={wynikMapy.a}
+                  scoreB={wynikMapy.b}
                 />
               ) : (
                 <>
                   <ScoreLine
                     teamA={match.team_a}
                     teamB={match.team_b}
-                    scoreA={countMapWins(matchResult.maps, "A")}
-                    scoreB={countMapWins(matchResult.maps, "B")}
+                    scoreA={wynikSerii.a}
+                    scoreB={wynikSerii.b}
                   />
 
                   <MapBreakdown
