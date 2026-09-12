@@ -19,6 +19,7 @@ import { createPredictionGate } from "./lib/predictionGate.js";
 import { createBackupFiles } from "./lib/backupFiles.js";
 import { createGuildBackupTools } from "./lib/guildBackup.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerVisitRoutes } from "./routes/visits.js";
 import { registerPickemConfigRoutes } from "./routes/pickemConfig.js";
 import { registerResultProposalRoutes } from "./routes/resultProposals.js";
 import { registerMatchOpsRoutes } from "./routes/matchOps.js";
@@ -359,6 +360,7 @@ async function guildIdFromProposalId(req) {
 // Healthcheck rejestrowany przed reszta tras: ma odpowiadac takze wtedy,
 // gdy cos dalej sie sypie, bo to po nim automaty poznaja stan procesu.
 registerHealthRoutes(app, { pool });
+registerVisitRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,

@@ -793,3 +793,17 @@ CREATE TABLE `match_result_proposals` (
   CONSTRAINT `fk_match_result_proposals_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_match_result_proposals_match` FOREIGN KEY (`match_id`) REFERENCES `matches` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- site_visits (migrations/0007_add_site_visits.sql)
+-- Licznik odwiedzin. Zero danych identyfikujacych: do tabeli trafia
+-- wylacznie nieodwracalny skrot z sola zmieniana co dobe, trzymana
+-- poza baza (server/lib/visitorHash.js).
+-- ============================================================
+CREATE TABLE `site_visits` (
+  `day` date NOT NULL,
+  `visitor_hash` binary(16) NOT NULL,
+  `first_seen_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`day`,`visitor_hash`),
+  KEY `idx_site_visits_day` (`day`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
