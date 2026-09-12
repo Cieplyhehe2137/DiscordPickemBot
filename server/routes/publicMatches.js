@@ -158,8 +158,9 @@ export function registerPublicMatchRoutes(
       // Mapy czytamy dla KAZDEGO formatu, takze dla BO1. Wczesniej galaz BO1
       // siegala wylacznie po match_results.exact_*, wiec kazdy mecz BO1,
       // ktorego wynik trafil do bazy inna droga niz formularz admina, mial
-      // na stronie sama nazwe druzyn bez liczb - tak wyglada caly Play-In
-      // IEM Cologne 2026 (40 meczow zaimportowanych hurtem).
+      // na stronie sama nazwe druzyn bez liczb - tak wygladaly wszystkie
+      // 40 meczow BO1 w IEM Cologne 2026 (Swiss stage 1 i 2, po 20),
+      // zaimportowanych hurtem.
       const [rows] = await pool.query(
         `
         SELECT
