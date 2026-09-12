@@ -1,4 +1,9 @@
 // ecosystem.config.js
+//
+// UWAGA: ta lista nie opisuje calego wdrozenia. API ma drugi punkt wejscia -
+// web-server.js - ktory uruchamia Plesk poza PM2. Gdy strone obsluguje on,
+// `pm2 restart pickembot-server` nie ma zadnego wplywu na to, co widzi
+// przegladarka. Patrz sekcja "Deploying" w README.
 module.exports = {
   apps: [
     {

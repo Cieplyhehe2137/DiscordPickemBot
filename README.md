@@ -160,13 +160,34 @@ cd web && npm run lint && npm run build
 
 ## Deploying
 
+**Find out which process runs the API before restarting anything.** There are
+two entry points into the same `server/app.js`, and only one of them is PM2's:
+
+| Entry point | Started by | Restarted by |
+| --- | --- | --- |
+| `server/index.js` | PM2, as `pickembot-server` | `pm2 restart pickembot-server` |
+| `web-server.js` | Plesk's Node.js extension | **Restart App** in Plesk, or `touch tmp/restart.txt` |
+
+`ecosystem.config.js` lists only the PM2 pair, so nothing in it hints that the
+second one exists. Restarting PM2 when the site is served by Plesk succeeds,
+reports success, and changes nothing — the browser keeps getting the old code
+from a process PM2 never touched. This has already cost one debugging session:
+an API fix was merged, built and "restarted", and the site kept serving the
+previous behaviour.
+
+A quick way to tell which code is live: pick a field the fix added and request
+the endpoint directly in a browser. A field that is simply absent is proof the
+old code is answering — more reliable than reading values, which can look
+plausible either way.
+
 ```bash
 cd web && npm ci && npm run build
-pm2 restart pickembot pickembot-server
+pm2 restart pickembot pickembot-server   # only if PM2 serves the API
 ```
 
 A front-end-only change needs the build but not the restart: the API serves
-`web/dist` from disk. A change to the bot or the API needs the restart.
+`web/dist` from disk. A change to the bot or the API needs the restart — of
+whichever process is actually serving it.
 
 `ecosystem.config.js` sets `kill_timeout: 10000` on both processes. PM2's
 default of 1600 ms is not enough to close the MySQL pool and disconnect from
