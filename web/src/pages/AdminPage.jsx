@@ -24,7 +24,7 @@ import {
   getAdminMatchDeletePreview,
   deleteAdminMatch,
 } from "../lib/api.js";
-import { isAdminAnywhere, adminGuildIds } from "../lib/permissions.js";
+import { adminGuildIds } from "../lib/permissions.js";
 import PhaseResultsAdmin from "../components/admin/PhaseResultsAdmin.jsx";
 import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
@@ -68,7 +68,7 @@ const TON_STATUSU = {
 };
 
 export default function AdminPage() {
-  const { user, authLoading } = useAuth();
+  const { user, canAccessAdmin, authLoading } = useAuth();
   const [servers, setServers] = useState([]);
   const [loadingServers, setLoadingServers] = useState(true);
   const [serversError, setServersError] = useState("");
@@ -131,10 +131,11 @@ export default function AdminPage() {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [leaderboardErrorStan, setLeaderboardError] = useState("");
 
-  // Ta sama reguła co w navbarze i na stronie wpisywania wyniku -
-  // trzymana w jednym miejscu, żeby nie rozjechały się trzy kopie
-  // porównywania bitmaski uprawnień.
-  const isAdmin = isAdminAnywhere(user);
+  // Ta sama reguła co w navbarze: administrator serwera, który bot
+  // obsługuje. Wylicza to /api/auth/me, więc front nie ma tu własnej kopii
+  // porównywania bitmaski - a ktoś, kto wejdzie na /admin ręcznie, widzi
+  // "brak uprawnień" zamiast pustej listy serwerów.
+  const isAdmin = canAccessAdmin;
 
   const guildIds = adminGuildIds(user);
 
