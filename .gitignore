@@ -13,7 +13,6 @@ coverage/
 # wykluczonego katalogu, więc przy 'config/' późniejsze
 # !config/*.env.example nie miało żadnego efektu.
 config/*
-.md
 config/*.env
 *.env
 # runtime / uploads / backups (jeśli masz)
