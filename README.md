@@ -160,8 +160,23 @@ cd web && npm run lint && npm run build
 
 ## Deploying
 
-**Find out which process runs the API before restarting anything.** There are
-two entry points into the same `server/app.js`, and only one of them is PM2's:
+**Merging a pull request changes nothing on the server.** The host has its own
+checkout; the code gets there by `git pull`, run on the host, in the directory
+the app actually runs from. Nothing else pulls it in - not the build, not a
+restart, not PM2, not Plesk. Both of them will happily restart the old code
+and report success.
+
+```bash
+git pull
+```
+
+Everything below assumes that ran first. Skipping it is the single cheapest
+way to lose an afternoon: the fix is merged, the build is green, the restart
+says OK, and the site keeps behaving exactly as before.
+
+**Then find out which process runs the API before restarting anything.** There
+are two entry points into the same `server/app.js`, and only one of them is
+PM2's:
 
 | Entry point | Started by | Restarted by |
 | --- | --- | --- |
@@ -178,9 +193,16 @@ previous behaviour.
 A quick way to tell which code is live: pick a field the fix added and request
 the endpoint directly in a browser. A field that is simply absent is proof the
 old code is answering — more reliable than reading values, which can look
-plausible either way.
+plausible either way. Add a dummy query parameter (`?x=1`) so a cache in front
+of the host cannot answer for it.
+
+When that field is missing, check in this order, in the app's directory:
+`git log --oneline -3` (did the commit arrive at all?), then whether the
+restarted process is the one serving the site. The first question is the one
+that is usually wrong, and it is the cheaper of the two to answer.
 
 ```bash
+git pull
 cd web && npm ci && npm run build
 pm2 restart pickembot pickembot-server   # only if PM2 serves the API
 ```
