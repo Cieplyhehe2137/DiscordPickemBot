@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
 import { isAdminAnywhere } from "../../lib/permissions.js";
 
-const API_URL = import.meta.env.VITE_API_URL || "";
+import { apiUrl } from "../../lib/apiUrl.js";
 
 function AppLayout() {
   const { user, authLoading, logout } = useAuth();
@@ -97,9 +97,11 @@ function AppLayout() {
             ) : (
               <a
                 className="app-login"
-                href={`${API_URL}/api/auth/discord?returnTo=${encodeURIComponent(
-                  window.location.pathname + window.location.search,
-                )}`}
+                href={apiUrl(
+                  `/api/auth/discord?returnTo=${encodeURIComponent(
+                    window.location.pathname + window.location.search,
+                  )}`,
+                )}
               >
                 Zaloguj
               </a>

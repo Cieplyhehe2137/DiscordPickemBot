@@ -8,6 +8,7 @@ import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import TeamPickGroup from "../components/TeamPickGroup.jsx";
+import { apiUrl } from "../lib/apiUrl.js";
 
 function DoubleElimPickemPage() {
   const { slug } = useParams();
@@ -185,9 +186,11 @@ function DoubleElimPickemPage() {
       {!authLoading && !user && (
         <a
           className="ui-btn"
-          href={`/api/auth/discord?returnTo=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`}
+          href={apiUrl(
+            `/api/auth/discord?returnTo=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`,
+          )}
         >
           Zaloguj się przez Discord, aby typować
         </a>
@@ -240,9 +243,8 @@ function DoubleElimPickemPage() {
 
       {saveMessage && (
         <p
-          className={`ui-note ${
-            saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-          }`}
+          className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+            }`}
         >
           {saveMessage}
         </p>

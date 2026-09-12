@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
-
+import { apiUrl } from "../lib/apiUrl.js";
 import {
   getPublicMatch,
   getMatch,
@@ -84,20 +84,20 @@ function validateSeries(seriesScore, mapScores, bestOf) {
   const expectedScores =
     Number(bestOf) === 3
       ? {
-          "2:0": [2, 0],
-          "2:1": [2, 1],
-          "1:2": [1, 2],
-          "0:2": [0, 2],
-        }
+        "2:0": [2, 0],
+        "2:1": [2, 1],
+        "1:2": [1, 2],
+        "0:2": [0, 2],
+      }
       : Number(bestOf) === 5
         ? {
-            "3:0": [3, 0],
-            "3:1": [3, 1],
-            "3:2": [3, 2],
-            "2:3": [2, 3],
-            "1:3": [1, 3],
-            "0:3": [0, 3],
-          }
+          "3:0": [3, 0],
+          "3:1": [3, 1],
+          "3:2": [3, 2],
+          "2:3": [2, 3],
+          "1:3": [1, 3],
+          "0:3": [0, 3],
+        }
         : null;
 
   if (!expectedScores) {
@@ -352,9 +352,11 @@ function SeriesPick({
         <p className="ui-note">
           Zaloguj się przez Discord, żeby zapisać swój typ.{" "}
           <a
-            href={`/api/auth/discord?returnTo=${encodeURIComponent(
-              window.location.pathname + window.location.search,
-            )}`}
+            href={apiUrl(
+              `/api/auth/discord?returnTo=${encodeURIComponent(
+                window.location.pathname + window.location.search,
+              )}`,
+            )}
           >
             Zaloguj przez Discord
           </a>
@@ -519,9 +521,11 @@ function Bo1Pick({
       {!authLoading && !currentUser && (
         <a
           className="ui-btn"
-          href={`/api/auth/discord?returnTo=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`}
+          href={apiUrl(
+            `/api/auth/discord?returnTo=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`,
+          )}
         >
           Zaloguj przez Discord
         </a>
@@ -1104,9 +1108,11 @@ function MatchPage() {
 
               <a
                 className="ui-btn"
-                href={`/api/auth/discord?returnTo=${encodeURIComponent(
-                  window.location.pathname + window.location.search,
-                )}`}
+                href={apiUrl(
+                  `/api/auth/discord?returnTo=${encodeURIComponent(
+                    window.location.pathname + window.location.search,
+                  )}`,
+                )}
               >
                 Zaloguj przez Discord
               </a>

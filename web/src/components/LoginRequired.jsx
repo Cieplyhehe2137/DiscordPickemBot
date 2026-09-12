@@ -4,6 +4,8 @@
 // czerwone pudełko co błąd serwera, razem z komunikatem "Musisz być
 // zalogowany.". Tutaj jest stan pusty z jednym oczywistym przyciskiem.
 
+import { apiUrl } from "../lib/apiUrl.js";
+
 function LoginRequired({ children }) {
   const returnTo = encodeURIComponent(
     window.location.pathname + window.location.search,
@@ -21,7 +23,7 @@ function LoginRequired({ children }) {
 
       <a
         className="ui-btn ui-btn--primary"
-        href={`/api/auth/discord?returnTo=${returnTo}`}
+        href={apiUrl(`/api/auth/discord?returnTo=${returnTo}`)}
       >
         Zaloguj przez Discord
       </a>

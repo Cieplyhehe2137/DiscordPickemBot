@@ -8,6 +8,7 @@ import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PickCounter from "../components/PickCounter.jsx";
+import { apiUrl } from "../lib/apiUrl.js";
 
 function PlayoffsPickemPage() {
   const { slug } = useParams();
@@ -165,9 +166,11 @@ function PlayoffsPickemPage() {
       {!authLoading && !user && (
         <a
           className="ui-btn"
-          href={`/api/auth/discord?returnTo=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`}
+          href={apiUrl(
+            `/api/auth/discord?returnTo=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`,
+          )}
         >
           Zaloguj się przez Discord, aby typować
         </a>
@@ -372,9 +375,8 @@ function PlayoffsPickemPage() {
 
       {saveMessage && (
         <p
-          className={`ui-note ${
-            saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-          }`}
+          className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+            }`}
         >
           {saveMessage}
         </p>

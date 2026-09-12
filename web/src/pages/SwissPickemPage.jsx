@@ -10,6 +10,7 @@ import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import TeamPickGroup from "../components/TeamPickGroup.jsx";
+import { apiUrl } from "../lib/apiUrl.js";
 
 function SwissPickemPage() {
   const { slug, stage } = useParams();
@@ -102,11 +103,11 @@ function SwissPickemPage() {
   const hasChanges =
     !savedPrediction ||
     JSON.stringify(threeZero) !==
-      JSON.stringify(savedPrediction.three_zero || []) ||
+    JSON.stringify(savedPrediction.three_zero || []) ||
     JSON.stringify(zeroThree) !==
-      JSON.stringify(savedPrediction.zero_three || []) ||
+    JSON.stringify(savedPrediction.zero_three || []) ||
     JSON.stringify(advancing) !==
-      JSON.stringify(savedPrediction.advancing || []);
+    JSON.stringify(savedPrediction.advancing || []);
 
   const pickingLocked = !data?.lock?.allowed || authLoading || !user;
 
@@ -178,9 +179,11 @@ function SwissPickemPage() {
       {!authLoading && !user && (
         <a
           className="ui-btn"
-          href={`/api/auth/discord?returnTo=${encodeURIComponent(
-            window.location.pathname + window.location.search,
-          )}`}
+          href={apiUrl(
+            `/api/auth/discord?returnTo=${encodeURIComponent(
+              window.location.pathname + window.location.search,
+            )}`,
+          )}
         >
           Zaloguj się przez Discord, aby typować
         </a>
@@ -223,9 +226,8 @@ function SwissPickemPage() {
 
       {saveMessage && (
         <p
-          className={`ui-note ${
-            saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-          }`}
+          className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
+            }`}
         >
           {saveMessage}
         </p>
