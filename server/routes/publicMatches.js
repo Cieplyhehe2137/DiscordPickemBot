@@ -154,46 +154,64 @@ export function registerPublicMatchRoutes(
       }
 
       const maxMaps = maxMapsFromBo(match.best_of);
+
+      // Mapy czytamy dla KAZDEGO formatu, takze dla BO1. Wczesniej galaz BO1
+      // siegala wylacznie po match_results.exact_*, wiec kazdy mecz BO1,
+      // ktorego wynik trafil do bazy inna droga niz formularz admina, mial
+      // na stronie sama nazwe druzyn bez liczb - tak wyglada caly Play-In
+      // IEM Cologne 2026 (40 meczow zaimportowanych hurtem).
+      const [rows] = await pool.query(
+        `
+        SELECT
+          map_no,
+          exact_a,
+          exact_b
+        FROM match_map_results
+        WHERE match_id = ?
+          AND guild_id = ?
+          AND event_id = ?
+        ORDER BY map_no ASC
+        `,
+        [match.id, match.guild_id, match.event_id],
+      );
+
+      const byMap = new Map(rows.map((row) => [Number(row.map_no), row]));
+
       const maps = [];
 
-      if (maxMaps === 1) {
+      for (let i = 1; i <= maxMaps; i += 1) {
+        const row = byMap.get(i);
+
         maps.push({
-          mapNo: 1,
-          exactA: result.exact_a ?? null,
-          exactB: result.exact_b ?? null,
+          mapNo: i,
+          exactA: row?.exact_a ?? null,
+          exactB: row?.exact_b ?? null,
         });
-      } else {
-        const [rows] = await pool.query(
-          `
-          SELECT
-            map_no,
-            exact_a,
-            exact_b
-          FROM match_map_results
-          WHERE match_id = ?
-            AND guild_id = ?
-            AND event_id = ?
-          ORDER BY map_no ASC
-          `,
-          [match.id, match.guild_id, match.event_id],
-        );
+      }
 
-        const byMap = new Map(rows.map((row) => [Number(row.map_no), row]));
-
-        for (let i = 1; i <= maxMaps; i += 1) {
-          const row = byMap.get(i);
-
-          maps.push({
-            mapNo: i,
-            exactA: row?.exact_a ?? null,
-            exactB: row?.exact_b ?? null,
-          });
-        }
+      // Przy BO1 match_results.exact_* ma pierwszenstwo: to tam pisze
+      // formularz admina, a wiersze map moga byc pozostaloscia po meczu,
+      // ktory byl wczesniej BO3 (zmiana formatu nie kasuje starych map).
+      if (maxMaps === 1 && result.exact_a != null && result.exact_b != null) {
+        maps[0] = {
+          mapNo: 1,
+          exactA: result.exact_a,
+          exactB: result.exact_b,
+        };
       }
 
       return res.json({
         bestOf: Number(match.best_of),
         maxMaps,
+        // Wynik serii wprost z match_results. Liczenie go z wygranych map nie
+        // wystarcza: zatwierdzenie propozycji zewnetrznego dostawcy zapisuje
+        // sam res_a/res_b, bez ani jednej mapy (services/applyMatchResult.js),
+        // a wtedy suma wygranych map to 0:0 - liczba nieprawdziwa, pokazana
+        // z takim samym przekonaniem jak prawdziwa.
+        series: {
+          a: result.res_a ?? null,
+          b: result.res_b ?? null,
+        },
         maps,
       });
     } catch (err) {
