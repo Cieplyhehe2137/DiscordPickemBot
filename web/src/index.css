@@ -152,7 +152,7 @@ a {
 }
 
 .app-nav a {
-  padding: 10px 14px;
+  padding: var(--space-3) var(--space-4);
 
   border-radius: var(--radius-sm);
 
@@ -220,7 +220,7 @@ p {
     min-height: 64px;
 
     flex-wrap: wrap;
-    gap: 8px 12px;
+    gap: var(--space-2) var(--space-3);
     padding: 10px 0;
   }
 
@@ -229,7 +229,7 @@ p {
   }
 
   .app-nav a {
-    padding: 8px 9px;
+    padding: var(--space-2);
 
     font-size: var(--text-sm);
   }
@@ -253,7 +253,7 @@ p {
   }
 
   .app-logout {
-    padding: 6px 10px;
+    padding: var(--space-2) var(--space-3);
     font-size: var(--text-sm);
   }
 
@@ -278,7 +278,7 @@ p {
 .event-page__hero {
   width: min(1200px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 72px 0 40px;
+  padding: var(--space-20) 0 var(--space-10);
 }
 
 .event-page__hero h1 {
@@ -302,7 +302,7 @@ p {
 
   .event-page__hero {
     width: min(100% - 24px, 1200px);
-    padding: 52px 0 30px;
+    padding: var(--space-12) 0 var(--space-8);
   }
 }
 
@@ -315,7 +315,7 @@ p {
 }
 
 .event-page__meta span {
-  padding: 9px 12px;
+  padding: var(--space-2) var(--space-3);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -351,7 +351,7 @@ p {
 }
 
 .app-login {
-  padding: 9px 14px;
+  padding: var(--space-2) var(--space-4);
 
   border: 1px solid rgba(88, 101, 242, 0.35);
   border-radius: var(--radius-sm);
@@ -368,7 +368,7 @@ p {
 }
 
 .app-logout {
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -439,7 +439,7 @@ p {
 }
 
 .event-phases__item {
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--layer-subtle);
@@ -504,7 +504,7 @@ p {
 .event-next-match a {
   display: inline-block;
   margin-top: 16px;
-  padding: 10px 16px;
+  padding: var(--space-3) var(--space-4);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -527,7 +527,7 @@ p {
 
 .event-close-match {
   width: min(900px, calc(100% - 32px));
-  margin: 42px auto 48px;
+  margin: var(--space-10) auto var(--space-12);
 }
 
 .event-close-match__header {
@@ -584,7 +584,7 @@ p {
 
 .event-upset {
   width: min(900px, calc(100% - 32px));
-  margin: 42px auto 48px;
+  margin: var(--space-10) auto var(--space-12);
 }
 
 .event-upset__header {
@@ -656,7 +656,7 @@ p {
   justify-content: center;
   gap: var(--space-2);
 
-  margin: 6px 0 18px;
+  margin: var(--space-2) 0 var(--space-5);
 }
 
 .event-upset__result strong {
@@ -697,8 +697,8 @@ p {
 ====================================================== */
 
 .matches-page__progress {
-  margin: 28px 0 32px;
-  padding: 18px 20px;
+  margin: var(--space-8) 0 var(--space-8);
+  padding: var(--space-5) var(--space-5);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -881,7 +881,7 @@ main > .matches-page__back {
   gap: var(--space-3);
 
   margin-top: 20px;
-  padding: 14px 16px;
+  padding: var(--space-4) var(--space-4);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -987,7 +987,7 @@ main > .matches-page__back {
   gap: var(--space-4);
 
   margin: 0 auto;
-  padding: 56px 24px;
+  padding: var(--space-16) var(--space-6);
 
   color: var(--text-muted);
   font-size: var(--text-xl);
@@ -1053,7 +1053,7 @@ main > .matches-page__back {
 
 @media (max-width: 640px) {
   .ladowanie {
-    padding: 40px 16px;
+    padding: var(--space-10) var(--space-4);
   }
 
   .app-content > .ladowanie {
