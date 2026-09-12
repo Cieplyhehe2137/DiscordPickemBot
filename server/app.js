@@ -71,6 +71,7 @@ const teamsStore = require("../utils/teamsStore");
 const matchesStore = require("../utils/matchesStore");
 const recalculateMatchPoints = require("../services/recalculateMatchPoints");
 const applyMatchResult = require("../services/applyMatchResult");
+const { nextMatchNumber } = require("../utils/matchNumbers");
 // emitDashboardRefresh było używane w /api/events/:slug/status, ale nigdy
 // nie zostało zaimportowane - zmiana statusu turnieju zapisywała się w bazie,
 // a potem wywalała się na ReferenceError i zwracała 500.
@@ -441,6 +442,7 @@ registerPickemConfigRoutes(app, {
   guildRegistry,
   io,
   logInfo,
+  nextMatchNumber,
   parseMatchList,
   pool,
   registerGuildEventRoutes,

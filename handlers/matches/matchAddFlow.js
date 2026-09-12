@@ -9,6 +9,7 @@ const {
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
+const { nextMatchNumber } = require("../../utils/matchNumbers");
 
 const PAGE_SIZE = 24;
 const state = new Map(); // `${guildId}:${userId}`
@@ -252,17 +253,8 @@ async function onTeamBSelect(interaction) {
       });
     }
 
-    // 🔹 2. Liczymy kolejny numer meczu w ramach eventu + fazy
-    const [[next]] = await pool.query(
-      `
-      SELECT COALESCE(MAX(match_no),0)+1 AS nextNo
-      FROM matches
-      WHERE guild_id = ?
-        AND event_id = ?
-        AND phase = ?
-      `,
-      [guildId, eventId, st.phase],
-    );
+    // 🔹 2. Kolejny numer meczu - CIAGLY w calym evencie, nie od nowa w fazie.
+    const nextNo = await nextMatchNumber(pool, guildId, eventId);
 
     // 🔹 3. INSERT z event_id
     const [res] = await pool.query(
@@ -279,7 +271,7 @@ async function onTeamBSelect(interaction) {
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, 0)
       `,
-      [guildId, eventId, st.phase, next.nextNo, st.teamA, teamB, st.bestOf],
+      [guildId, eventId, st.phase, nextNo, st.teamA, teamB, st.bestOf],
     );
 
     const matchId = res.insertId;

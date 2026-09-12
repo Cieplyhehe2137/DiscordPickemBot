@@ -9,6 +9,7 @@ export function registerGuildEventRoutes(
     getOpenEventId,
     io,
     logInfo,
+    nextMatchNumber,
     parseMatchList,
     pool,
     requireGuildAdmin,
@@ -196,13 +197,8 @@ export function registerGuildEventRoutes(
           });
         }
 
-        const [[next]] = await pool.query(
-          `SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo
-                 FROM matches WHERE guild_id = ? AND event_id = ? AND phase = ?`,
-          [guildId, event.id, phase],
-        );
-
-        let numer = Number(next.nextNo);
+        // Numer ciagly w calym evencie - patrz utils/matchNumbers.js.
+        let numer = await nextMatchNumber(pool, guildId, event.id);
 
         const utworzone = await runInTransaction(pool, async (conn) => {
           const lista = [];
@@ -284,14 +280,7 @@ export function registerGuildEventRoutes(
           });
         }
 
-        const [[next]] = await pool.query(
-          `
-              SELECT COALESCE(MAX(match_no), 0) + 1 AS nextNo
-              FROM matches
-              WHERE guild_id = ? AND event_id = ? AND phase = ?
-              `,
-          [guildId, event.id, phase],
-        );
+        const numerMeczu = await nextMatchNumber(pool, guildId, event.id);
 
         const [result] = await pool.query(
           `
@@ -304,7 +293,7 @@ export function registerGuildEventRoutes(
             guildId,
             event.id,
             phase,
-            next.nextNo,
+            numerMeczu,
             teamA,
             teamB,
             Number(bestOf),
@@ -319,7 +308,7 @@ export function registerGuildEventRoutes(
             guild_id: guildId,
             event_id: event.id,
             phase,
-            match_no: next.nextNo,
+            match_no: numerMeczu,
             team_a: teamA,
             team_b: teamB,
             best_of: Number(bestOf),
