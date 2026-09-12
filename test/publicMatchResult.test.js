@@ -1,9 +1,10 @@
 // Wynik meczu na stronie publicznej: /api/public/matches/:id/result.
 //
 // Galaz BO1 siegala wylacznie po match_results.exact_a/exact_b. Tam pisze
-// formularz admina - ale nie kazdy wynik przychodzi ta droga. Caly Play-In
-// IEM Cologne 2026 (40 meczow BO1) trafil do bazy hurtem, z wynikiem map
-// w match_map_results, a exact_a/exact_b zostalo NULL-em. Efekt: karta
+// formularz admina - ale nie kazdy wynik przychodzi ta droga. Wszystkie
+// 40 meczow BO1 w IEM Cologne 2026 (Swiss stage 1 i 2, po 20) trafilo do
+// bazy hurtem, z wynikiem map w match_map_results, a exact_a/exact_b
+// zostalo NULL-em. Efekt: karta
 // "Rezultat" pokazywala same nazwy druzyn, bez ani jednej liczby, mimo ze
 // punkty za ten mecz byly policzone - bo punkty licza sie z innej tabeli.
 //
