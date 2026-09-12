@@ -18,6 +18,16 @@ function rozbicieNaFazy(player) {
   ].filter(([, punkty]) => Number(punkty) > 0);
 }
 
+// Klasa miejsca na podium. Tablica, a nie sklejanie `ui-row-item--${rank}`:
+// przy sklejaniu nazwa nie wystepuje w kodzie doslownie, wiec narzedzie do
+// usuwania martwego CSS nie widzi jej jako uzywanej i skasowaloby cale
+// podium razem z medalami.
+const PODIUM = {
+  1: " ui-row-item--1",
+  2: " ui-row-item--2",
+  3: " ui-row-item--3",
+};
+
 function LeaderboardPage() {
   const { slug } = useParams();
   const { realtimeRefresh } = useOutletContext();
@@ -177,7 +187,10 @@ function LeaderboardPage() {
           )}
         </div>
 
-        <Link className="ui-btn ui-btn--ghost ui-btn--sm" to={`/events/${slug}`}>
+        <Link
+          className="ui-btn ui-btn--ghost ui-btn--sm"
+          to={`/events/${slug}`}
+        >
           ← Wróć do eventu
         </Link>
       </div>
@@ -241,7 +254,9 @@ function LeaderboardPage() {
             </>
           ) : (
             <>
-              <strong className="ui-empty__title">Nikt jeszcze nie typował</strong>
+              <strong className="ui-empty__title">
+                Nikt jeszcze nie typował
+              </strong>
 
               <p className="ui-empty__text">
                 Ranking pojawi się, gdy pierwsi gracze oddadzą typy.
@@ -262,7 +277,7 @@ function LeaderboardPage() {
             // Miejsce bierzemy z pola rank, policzonego po stronie serwera na
             // pełnej liście. Wcześniej szło z indeksu w tablicy, więc każda
             // strona zaczynała się od pierwszego miejsca i medali.
-            const podium = player.rank <= 3 ? ` ui-row-item--${player.rank}` : "";
+            const podium = PODIUM[player.rank] ?? "";
 
             const ja =
               user?.id && String(user.id) === String(player.user_id)

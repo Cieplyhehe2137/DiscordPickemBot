@@ -28,10 +28,67 @@ body,
 body {
   min-height: 100vh;
 
-  background: #09090b;
   color: var(--text-strong);
-
   font-family: var(--font);
+
+  /* Światło sceniczne nad treścią.
+     Płaska czerń wygląda na niedokończoną - dwie bardzo rozmyte plamy
+     u góry dają głębię, której nie da żaden cień na kartach. Fiolet jest
+     kolorem marki, cyjan tym samym, którym oznaczamy rzeczy na żywo.
+     Bez background-attachment: fixed - przyklejone tło kosztuje przemalowanie
+     przy każdym przewinięciu na telefonie, a tutaj i tak ma świecić nad
+     nagłówkiem, nie wędrować za czytelnikiem. */
+  background-color: var(--surface-0);
+  background-image:
+    radial-gradient(
+      ellipse 110% 560px at 50% -80px,
+      rgba(139, 92, 246, 0.15),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 360px at 88% -40px,
+      rgba(34, 211, 238, 0.05),
+      transparent 70%
+    );
+  background-repeat: no-repeat;
+}
+
+/* Zaznaczenie tekstu w kolorze marki. Domyślne systemowe niebieskie
+   przecina ciemny motyw na pół. */
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+  color: var(--text-strong);
+}
+
+/* Pasek przewijania.
+   Domyślny jasny pasek na ciemnej stronie widać z drugiego pokoju i jest
+   pierwszą rzeczą, która zdradza, że motyw jest doklejony. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+
+  /* padding-box zostawia te 2px jako odstęp, więc suwak nie dotyka krawędzi. */
+  background: var(--border-strong);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+  background-clip: padding-box;
 }
 
 button,
@@ -1039,7 +1096,6 @@ main > .matches-page__back {
    ========================================================================= */
 
 .home-hero {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1047,23 +1103,6 @@ main > .matches-page__back {
 
   padding: var(--space-16) var(--space-4) var(--space-12);
   text-align: center;
-}
-
-/* Poświata za nagłówkiem. Daje głębię bez dokładania elementu do DOM -
-   i znika przy prefers-reduced-motion razem z resztą ozdobników, bo jest
-   tylko tłem, a nie treścią. */
-.home-hero::before {
-  content: "";
-  position: absolute;
-  inset: -20% 0 40%;
-  z-index: -1;
-
-  background: radial-gradient(
-    ellipse at 50% 0%,
-    var(--accent-glow),
-    transparent 65%
-  );
-  pointer-events: none;
 }
 
 .home-hero h1 {
