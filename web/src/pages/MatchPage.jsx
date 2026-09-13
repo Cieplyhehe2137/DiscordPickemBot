@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
+import { useToast } from "../components/ui/useToast.js";
 import { apiUrl } from "../lib/apiUrl.js";
 import {
   getPublicMatch,
@@ -308,7 +309,6 @@ function SeriesPick({
   authLoading,
   currentUser,
   validationError,
-  saveMessage,
   onSave,
 }) {
   return (
@@ -366,8 +366,6 @@ function SeriesPick({
       {validationError && (
         <p className="ui-note ui-note--danger">{validationError}</p>
       )}
-
-      {saveMessage && <p className="ui-note ui-note--ok">✅ {saveMessage}</p>}
 
       {match.ui_status !== "FINAL" && (
         <button
@@ -439,7 +437,6 @@ function Bo1Pick({
   authLoading,
   currentUser,
   validationError,
-  saveMessage,
   onSave,
 }) {
   return (
@@ -515,8 +512,6 @@ function Bo1Pick({
       {validationError && (
         <p className="ui-note ui-note--danger">{validationError}</p>
       )}
-
-      {saveMessage && <p className="ui-note ui-note--ok">✅ {saveMessage}</p>}
 
       {!authLoading && !currentUser && (
         <a
@@ -714,6 +709,12 @@ function MatchPage() {
   const { realtimeRefresh } = useOutletContext();
   const { user: currentUser, authLoading } = useAuth();
 
+  // Potwierdzenie zapisu idzie powiadomieniem, a nie notatką w treści:
+  // przycisk "Zapisz typ" stoi pod pięcioma mapami, więc komunikat
+  // w stałym miejscu strony lądował poza ekranem i wyglądało to tak,
+  // jakby kliknięcie nic nie zrobiło.
+  const toast = useToast();
+
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -722,7 +723,6 @@ function MatchPage() {
   const [scoreB, setScoreB] = useState("");
   const [validationError, setValidationError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState(null);
   const [seriesScore, setSeriesScore] = useState(null);
   const [mapScores, setMapScores] = useState(createEmptyMapScores());
   const [canAdminMatchStan, setCanAdminMatch] = useState(false);
@@ -832,7 +832,6 @@ function MatchPage() {
         }
 
         resetPredictionForm();
-        setSaveMessage(null);
         setValidationError(null);
 
         setMatch(foundMatch);
@@ -899,7 +898,6 @@ function MatchPage() {
     async function loadPrediction() {
       try {
         setValidationError(null);
-        setSaveMessage(null);
 
         const data = await getMatchPrediction(match.id);
 
@@ -948,14 +946,12 @@ function MatchPage() {
 
     if (!currentUser) {
       resetPredictionForm();
-      setSaveMessage(null);
       setValidationError(null);
     }
   }
 
   async function handleBo1Save() {
     setValidationError(null);
-    setSaveMessage(null);
 
     if (!currentUser) {
       setValidationError("Najpierw zaloguj się przez Discord.");
@@ -977,7 +973,7 @@ function MatchPage() {
         buildBo1Payload(winner, scoreA, scoreB),
       );
 
-      setSaveMessage("Typ zapisany.");
+      toast.success("Typ zapisany.");
     } catch (err) {
       setValidationError(err.message);
     } finally {
@@ -987,7 +983,6 @@ function MatchPage() {
 
   async function handleSeriesSave(bestOf) {
     setValidationError(null);
-    setSaveMessage(null);
 
     if (!currentUser) {
       setValidationError("Najpierw zaloguj się przez Discord.");
@@ -1012,7 +1007,7 @@ function MatchPage() {
 
       await saveMatchPrediction(match.id, payload);
 
-      setSaveMessage("Typ zapisany.");
+      toast.success("Typ zapisany.");
     } catch (err) {
       console.error(`BO${bestOf} SAVE ERROR:`, err);
       setValidationError(err.message);
@@ -1324,7 +1319,6 @@ function MatchPage() {
               authLoading={authLoading}
               currentUser={currentUser}
               validationError={validationError}
-              saveMessage={saveMessage}
               onSave={handleBo1Save}
             />
           )}
@@ -1379,7 +1373,6 @@ function MatchPage() {
               authLoading={authLoading}
               currentUser={currentUser}
               validationError={validationError}
-              saveMessage={saveMessage}
               onSave={() => handleSeriesSave(Number(match.best_of))}
             />
           )}

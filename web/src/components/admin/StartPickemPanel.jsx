@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { startEventPickem } from "../../lib/api.js";
+import { useConfirm } from "../ui/useConfirm.js";
 
 // Uruchomienie typowania z WWW ma dać dokładnie to samo, co komenda na
 // Discordzie: przestawienie stanu turnieju i panel na kanale. Robi to jedna
@@ -22,6 +23,8 @@ const FAZY = [
 ];
 
 function StartPickemPanel({ slug }) {
+  const confirm = useConfirm();
+
   const [faza, setFaza] = useState("swiss_stage1");
   const [kanal, setKanal] = useState("");
   const [pracuje, setPracuje] = useState(false);
@@ -31,13 +34,15 @@ function StartPickemPanel({ slug }) {
   const etykieta = FAZY.find((f) => f.klucz === faza)?.etykieta ?? faza;
 
   async function uruchom() {
-    if (
-      !window.confirm(
-        `Uruchomić typowanie fazy ${etykieta}?\n\n` +
-          "Bot opublikuje panel na Discordzie i oznaczy ten turniej jako " +
-          "aktywny. Dotychczasowy otwarty turniej zostanie zamknięty.",
-      )
-    ) {
+    const potwierdzone = await confirm({
+      title: `Uruchomić typowanie fazy ${etykieta}?`,
+      description:
+        "Bot opublikuje panel na Discordzie i oznaczy ten turniej jako " +
+        "aktywny. Dotychczasowy otwarty turniej zostanie zamknięty.",
+      confirmLabel: "Uruchom typowanie",
+    });
+
+    if (!potwierdzone) {
       return;
     }
 

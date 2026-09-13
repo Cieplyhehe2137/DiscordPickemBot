@@ -15,6 +15,7 @@ import {
   classificationExportUrl,
   endTournament,
 } from "../../lib/api.js";
+import { useConfirm } from "../ui/useConfirm.js";
 
 // Operacje turniejowe, które po przepisaniu frontu zostały wyłącznie
 // na Discordzie: hurtowe tworzenie meczów, czyszczenie fazy, propozycje
@@ -141,6 +142,8 @@ function HurtoweMecze({ guildId, slug }) {
 /* ---------------- Czyszczenie fazy ---------------- */
 
 function CzyszczenieFazy({ slug }) {
+  const confirm = useConfirm();
+
   const [faza, setFaza] = useState("swiss_stage1");
   const [podglad, setPodglad] = useState(null);
   const [pracuje, setPracuje] = useState(false);
@@ -163,12 +166,20 @@ function CzyszczenieFazy({ slug }) {
 
   async function wyczysc() {
     // Operacja nieodwracalna - podgląd jest obowiązkowy, a potwierdzenie
-    // wymaga zobaczenia liczb, które zniknią.
-    if (
-      !window.confirm(
-        `Usunąć wszystkie dane fazy ${faza}? Meczów: ${podglad?.matches ?? "?"}, typów: ${podglad?.predictions ?? "?"}. Tego nie da się cofnąć.`,
-      )
-    ) {
+    // wymaga zobaczenia liczb, które zniknią. Idą osobną listą, bo przy
+    // takim pytaniu to one są treścią, a nie zdanie obok nich.
+    const potwierdzone = await confirm({
+      title: `Usunąć wszystkie dane fazy ${faza}?`,
+      description: "Tego nie da się cofnąć.",
+      details: [
+        { label: "Meczów", value: podglad?.matches ?? "?" },
+        { label: "Typów graczy", value: podglad?.predictions ?? "?" },
+      ],
+      confirmLabel: "Usuń dane fazy",
+      tone: "danger",
+    });
+
+    if (!potwierdzone) {
       return;
     }
 
@@ -337,6 +348,8 @@ function PropozycjeWynikow({ slug }) {
 /* ---------------- Kopie zapasowe ---------------- */
 
 function Backupy({ guildId }) {
+  const confirm = useConfirm();
+
   const [lista, setLista] = useState(null);
   const [pracuje, setPracuje] = useState(false);
   const [ok, setOk] = useState("");
@@ -373,11 +386,16 @@ function Backupy({ guildId }) {
   }
 
   async function przywroc(nazwa) {
-    if (
-      !window.confirm(
-        `Przywrócić kopię ${nazwa}? Bieżące dane tego serwera zostaną zastąpione.`,
-      )
-    ) {
+    const potwierdzone = await confirm({
+      title: `Przywrócić kopię ${nazwa}?`,
+      description:
+        "Bieżące dane tego serwera zostaną zastąpione zawartością kopii. " +
+        "Wszystko, co powstało po jej zrobieniu, przepadnie.",
+      confirmLabel: "Przywróć kopię",
+      tone: "danger",
+    });
+
+    if (!potwierdzone) {
       return;
     }
 
@@ -442,6 +460,8 @@ function Backupy({ guildId }) {
 /* ---------------- Zamknięcie turnieju ---------------- */
 
 function ZamknijTurniej({ slug }) {
+  const confirm = useConfirm();
+
   const [nazwa, setNazwa] = useState("");
   const [cleanup, setCleanup] = useState(false);
   const [pracuje, setPracuje] = useState(false);
@@ -449,13 +469,17 @@ function ZamknijTurniej({ slug }) {
   const [blad, setBlad] = useState("");
 
   async function zakoncz() {
-    if (
-      !window.confirm(
-        cleanup
-          ? "Zakończyć turniej i USUNĄĆ dane robocze? Zostanie tylko klasyfikacja końcowa i plik archiwum."
-          : "Zakończyć turniej? Zostanie zarchiwizowany i zamknięty na typowanie.",
-      )
-    ) {
+    const potwierdzone = await confirm({
+      title: "Zakończyć turniej?",
+      description: cleanup
+        ? "Dane robocze zostaną usunięte - zostanie tylko klasyfikacja " +
+          "końcowa i plik archiwum."
+        : "Turniej zostanie zarchiwizowany i zamknięty na typowanie.",
+      confirmLabel: cleanup ? "Zakończ i usuń dane" : "Zakończ turniej",
+      tone: cleanup ? "danger" : undefined,
+    });
+
+    if (!potwierdzone) {
       return;
     }
 

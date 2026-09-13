@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
+import { useConfirm } from "../components/ui/useConfirm.js";
 import { odmien } from "../lib/odmiana.js";
 import { useEffect, useState } from "react";
 import {
@@ -87,6 +88,11 @@ const ETYKIETA_BLOKADY = {
 
 export default function AdminPage() {
   const { user, canAccessAdmin, authLoading } = useAuth();
+
+  // Pytanie "na pewno?" własnym oknem zamiast window.confirm - powody
+  // w components/ui/ConfirmProvider.jsx.
+  const confirm = useConfirm();
+
   const [servers, setServers] = useState([]);
   const [loadingServers, setLoadingServers] = useState(true);
   const [serversError, setServersError] = useState("");
@@ -341,9 +347,13 @@ export default function AdminPage() {
     }
 
     if (status === "ARCHIVED") {
-      const confirmed = window.confirm(
-        `Na pewno zarchiwizować event "${selectedEvent.name}"?`,
-      );
+      const confirmed = await confirm({
+        title: "Zarchiwizować turniej?",
+        description:
+          `"${selectedEvent.name}" zniknie z listy aktywnych turniejów ` +
+          "i zostanie zamknięty na typowanie.",
+        confirmLabel: "Archiwizuj",
+      });
 
       if (!confirmed) {
         return;
@@ -564,7 +574,15 @@ export default function AdminPage() {
       return;
     }
 
-    const confirmed = window.confirm(`Na pewno usunąć drużynę "${team.name}"?`);
+    const confirmed = await confirm({
+      title: "Usunąć drużynę?",
+      description:
+        `"${team.name}" zniknie z listy drużyn tego serwera. Jeśli gra ` +
+        "w jakimkolwiek meczu, serwer odmówi - wtedy zamiast kasowania " +
+        "trzeba ją wyłączyć.",
+      confirmLabel: "Usuń drużynę",
+      tone: "danger",
+    });
 
     if (!confirmed) {
       return;
@@ -702,7 +720,13 @@ export default function AdminPage() {
       return;
     }
 
-    const confirmed = window.confirm("Na pewno wyczyścić ten deadline?");
+    const confirmed = await confirm({
+      title: "Wyczyścić termin?",
+      description:
+        "Typowanie tej fazy przestanie zamykać się samo o ustalonej " +
+        "godzinie. Terminy pozostałych faz zostają bez zmian.",
+      confirmLabel: "Wyczyść termin",
+    });
 
     if (!confirmed) {
       return;

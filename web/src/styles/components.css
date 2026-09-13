@@ -1904,3 +1904,241 @@ textarea.ui-input {
     padding: var(--space-10) var(--space-4);
   }
 }
+
+/* -------------------------------------------------------------------------
+   OKNO MODALNE
+   Natywny `<dialog>` otwierany przez `showModal()`. Wszystko poniżej to samo
+   wykończenie - pułapkę fokusu, tło, Esc i warstwę nad stroną daje
+   przeglądarka. Dlatego nie ma tu ani `position`, ani `z-index`: warstwa
+   szczytowa stoi nad każdym z-indeksem na stronie, także nad nagłówkiem.
+   ------------------------------------------------------------------------- */
+
+.ui-dialog {
+  /* Zerowanie stylu przeglądarki: białe tło, czarny tekst, ramka `solid`
+     i padding 1em są wpisane w arkusz domyślny. */
+  margin: auto;
+  padding: 0;
+
+  width: min(440px, calc(100vw - 2 * var(--space-5)));
+  max-height: calc(100vh - 2 * var(--space-8));
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface-4);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+
+  overflow: hidden;
+}
+
+.ui-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+}
+
+/* Okno pytające o rzecz nieodwracalną ma czerwoną krawędź górną - widać to,
+   zanim zacznie się czytać treść. */
+.ui-dialog--danger {
+  border-top: 2px solid var(--danger-border);
+}
+
+.ui-dialog__box {
+  display: grid;
+  gap: var(--space-4);
+
+  padding: var(--space-6);
+
+  /* Treść dłuższa niż ekran przewija się w środku okna, a nie razem ze
+     stroną pod spodem. */
+  max-height: calc(100vh - 2 * var(--space-8));
+  overflow-y: auto;
+}
+
+.ui-dialog__title {
+  margin: 0;
+
+  color: var(--text-strong);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
+.ui-dialog__text {
+  margin: 0;
+
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+}
+
+/* Co dokładnie zniknie. Liczby po prawej, wyrównane do siebie - przy
+   czyszczeniu fazy to one są treścią pytania, a nie zdanie obok. */
+.ui-dialog__details {
+  display: grid;
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-sunken);
+
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.ui-dialog__details li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+
+  color: var(--text-muted);
+}
+
+.ui-dialog__details strong {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+
+  /* Na wąskim ekranie przyciski idą w słupek, a potwierdzenie zostaje na
+     górze - kciuk sięga tam pewniej niż w dolny róg. */
+  flex-wrap: wrap-reverse;
+}
+
+.ui-dialog[open] {
+  animation: ui-dialog-in var(--duration) var(--ease);
+}
+
+@keyframes ui-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* -------------------------------------------------------------------------
+   POWIADOMIENIE
+   Potwierdzenie akcji widoczne niezależnie od przewinięcia strony. Do
+   potwierdzeń, nie do błędów - błąd musi zostać na ekranie, dopóki nie
+   zostanie przeczytany, więc te renderują się w miejscu jako `ui-note`.
+   ------------------------------------------------------------------------- */
+
+.ui-toasts {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 60; /* nad nagłówkiem, który stoi na 50 */
+
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+
+  /* Pusty stos nie może przechwytywać kliknięć w róg strony - wskazywanie
+     wraca dopiero na samych kafelkach. */
+  pointer-events: none;
+}
+
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  max-width: min(360px, calc(100vw - 2 * var(--space-5)));
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-4);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+
+  pointer-events: auto;
+  animation: ui-toast-in var(--duration) var(--ease);
+}
+
+.ui-toast--ok {
+  border-color: var(--ok-border);
+  color: var(--ok);
+}
+
+.ui-toast--warn {
+  border-color: var(--warn-border);
+  color: var(--warn);
+}
+
+.ui-toast__text {
+  /* Tekst zabiera całą wolną szerokość, żeby krzyżyk został przy prawej
+     krawędzi - inaczej doklejał się do końca zdania i przy krótkim
+     komunikacie lądował na środku kafelka. */
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-toast__close {
+  flex-shrink: 0;
+
+  display: grid;
+  place-items: center;
+
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--text-lg);
+  line-height: 1;
+
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.ui-toast__close:hover {
+  color: var(--text);
+}
+
+@keyframes ui-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Na wąskim ekranie stos idzie przez całą szerokość - kafelek przyklejony do
+   prawej krawędzi telefonu wygląda jak ucięty. */
+@media (max-width: 520px) {
+  .ui-toasts {
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-4);
+
+    justify-items: stretch;
+  }
+
+  .ui-toast {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialog[open],
+  .ui-toast {
+    animation: none;
+  }
+}
