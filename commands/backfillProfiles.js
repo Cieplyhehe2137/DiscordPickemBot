@@ -89,8 +89,12 @@ module.exports = {
         });
 
         if (wynik.sprawdzonych === 0) {
+          // "Nie ma kogo sprawdzać", a nie "wszyscy mają awatar" - część kont
+          // nie ma własnego obrazka i nigdy go mieć nie będzie. Takie pytamy
+          // ponownie raz na miesiąc, nie przy każdym uruchomieniu.
           return interaction.editReply(
-            "✅ Wszyscy gracze z rankingu mają już nick i awatar.",
+            "✅ Nie ma kogo uzupełniać — każdy gracz z rankingu ma nick, " +
+              "a konta bez awatara sprawdzono niedawno.",
           );
         }
 
@@ -103,6 +107,12 @@ module.exports = {
           linie.push(
             `👻 Kont, których Discord nie zna: **${wynik.nieznanych}** ` +
               "(skasowane — zostaną przy inicjale)",
+          );
+        }
+
+        if (wynik.zapisanych < wynik.sprawdzonych - wynik.nieznanych) {
+          linie.push(
+            "ℹ️ Część kont nie ma własnego awatara — zostaną przy inicjale.",
           );
         }
 

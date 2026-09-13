@@ -26,6 +26,21 @@
 // graczach niecałe cztery minuty, a ryzyko trafienia w limit żadne.
 const ODSTEP_MS = 200;
 
+// Po ilu dniach wolno dopytać Discorda o profil, który już istnieje, ale nie
+// ma awatara.
+//
+// Bez tej granicy warunek "brak awatara" wybierał w kółko te same konta: 61
+// graczy po prostu nie ma własnego obrazka, Discord zwraca dla nich null
+// i żadne kolejne uruchomienie tego nie zmieni. Komenda nigdy nie mówiła
+// "wszyscy gotowi", tylko za każdym razem raportowała kilkadziesiąt
+// sprawdzonych i zero zapisanych.
+//
+// Sam warunek na awatar jest potrzebny - wiersz mógł powstać, zanim awatary
+// w ogóle były zapisywane. Chodzi tylko o to, żeby nie pytać o to samo
+// codziennie. Trzydzieści dni to kompromis: konto bez obrazka sprawdzimy
+// ponownie raz na miesiąc, na wypadek gdyby ktoś sobie awatar ustawił.
+const ODSWIEZ_PO_DNIACH = 30;
+
 // Ile graczy na jedno uruchomienie. Token odpowiedzi na interakcję Discorda
 // żyje 15 minut, więc jedno wywołanie nie może chodzić dowolnie długo.
 // Kolejne uruchomienie samo weźmie tych, których zabrakło - zapytanie pobiera
@@ -37,11 +52,17 @@ async function uspij(ms) {
 }
 
 // Kogo trzeba dopytać: gracz z rankingu tej gildii, który nie ma wiersza
-// w user_profiles albo ma go bez awatara.
+// w user_profiles, albo ma go bez awatara i nie był sprawdzany od dawna.
 //
-// Warunek na awatar jest ważny: wiersz mógł powstać przy logowaniu na stronie
-// jeszcze zanim zapisywaliśmy awatar, i taki gracz ma nick, a nie ma obrazka.
-async function znajdzBrakujacych(pool, guildId, limit) {
+// Brak wiersza to zawsze powód do zapytania. Brak awatara - tylko wtedy, gdy
+// profil jest starszy niż ODSWIEZ_PO_DNIACH, bo inaczej konta bez własnego
+// obrazka wracałyby przy każdym uruchomieniu w nieskończoność.
+async function znajdzBrakujacych(
+  pool,
+  guildId,
+  limit,
+  odswiezPoDniach = ODSWIEZ_PO_DNIACH,
+) {
   const [rows] = await pool.query(
     `
     SELECT DISTINCT lb.user_id
@@ -49,11 +70,17 @@ async function znajdzBrakujacych(pool, guildId, limit) {
     LEFT JOIN user_profiles up
       ON up.user_id = lb.user_id
     WHERE lb.guild_id = ?
-      AND (up.user_id IS NULL OR up.avatar IS NULL)
+      AND (
+        up.user_id IS NULL
+        OR (
+          up.avatar IS NULL
+          AND up.updated_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+        )
+      )
     ORDER BY lb.user_id
     LIMIT ?
     `,
-    [guildId, limit],
+    [guildId, odswiezPoDniach, limit],
   );
 
   return rows.map((r) => String(r.user_id));
@@ -95,10 +122,16 @@ async function backfillProfiles({
   fetchUser,
   limit = DOMYSLNY_LIMIT,
   delayMs = ODSTEP_MS,
+  odswiezPoDniach = ODSWIEZ_PO_DNIACH,
   onProgress = null,
   sleep = uspij,
 }) {
-  const identyfikatory = await znajdzBrakujacych(pool, guildId, limit);
+  const identyfikatory = await znajdzBrakujacych(
+    pool,
+    guildId,
+    limit,
+    odswiezPoDniach,
+  );
 
   const wynik = {
     sprawdzonych: identyfikatory.length,
@@ -142,4 +175,5 @@ module.exports = {
   znajdzBrakujacych,
   DOMYSLNY_LIMIT,
   ODSTEP_MS,
+  ODSWIEZ_PO_DNIACH,
 };
