@@ -237,6 +237,15 @@ h4 {
   font-weight: var(--weight-bold);
 }
 
+/* Pola wyboru idą kolorem akcentu zamiast systemowego niebieskiego. Jedna
+   właściwość zamiast własnego checkboxa: natywny zachowuje obsługę klawiaturą
+   i czytnikiem ekranu, a przerysowany trzeba by odtwarzać razem ze stanem
+   nieokreślonym i wyłączonym. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
 /* Widoczny fokus na wszystkim, co interaktywne. :focus-visible, więc nie
    pojawia się przy kliknięciu myszą. */
 a:focus-visible,

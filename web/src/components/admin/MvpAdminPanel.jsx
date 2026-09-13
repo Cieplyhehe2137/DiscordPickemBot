@@ -2,12 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   deleteMvpCandidate,
+  deleteMvpCandidates,
   getMvp,
   saveMvpCandidates,
   saveMvpResult,
 } from "../../lib/api.js";
 import Ladowanie from "../../components/Ladowanie.jsx";
 import { odmien } from "../../lib/odmiana.js";
+import {
+  isGroupSelected,
+  toggleGroup,
+  toggleSelected,
+} from "../../lib/selection.js";
 
 // MVP turnieju: lista kandydatów i wskazanie zwycięzcy.
 //
@@ -54,6 +60,14 @@ function MvpAdminPanel({ slug }) {
   // są na liście - reszta czeka za przełącznikiem, zamiast robić z panelu
   // stumetrowy przewijak.
   const [pokazPozaLista, setPokazPozaLista] = useState(false);
+
+  // Zaznaczenie do kasowania hurtowego. Set, nie tablica: pytanie "czy ten
+  // wiersz jest zaznaczony" pada raz na kandydata przy każdym renderze, a
+  // przy stu kandydatach szukanie w tablicy robi z tego sto przebiegów.
+  const [zaznaczone, setZaznaczone] = useState(() => new Set());
+  const [potwierdzHurt, setPotwierdzHurt] = useState(false);
+  const [kasowanieHurtowe, setKasowanieHurtowe] = useState(false);
+  const [odrzucone, setOdrzucone] = useState([]);
 
   // Wywoływane też ręcznie po zapisaniu kandydatów - stąd useCallback.
   const wczytaj = useCallback(async () => {
@@ -163,6 +177,58 @@ function MvpAdminPanel({ slug }) {
     }
   }
 
+  function przelaczZaznaczenie(id) {
+    setZaznaczone((teraz) => toggleSelected(teraz, id));
+  }
+
+  // Zaznaczenie grupowe działa na JEDNEJ grupie - osobno dla tych na liście
+  // i tych poza nią. Jedno wspólne "zaznacz wszystko" zaznaczałoby też wiersze
+  // schowane pod przełącznikiem, czyli takie, których nie widać.
+  function czyGrupaZaznaczona(grupa) {
+    return isGroupSelected(
+      zaznaczone,
+      grupa.map((k) => k.id),
+    );
+  }
+
+  function przelaczGrupe(grupa) {
+    const identyfikatory = grupa.map((k) => k.id);
+
+    setZaznaczone((teraz) => toggleGroup(teraz, identyfikatory));
+  }
+
+  async function usunZaznaczone() {
+    setBlad("");
+    setKomunikat("");
+    setOdrzucone([]);
+    setKasowanieHurtowe(true);
+
+    try {
+      const wynikKasowania = await deleteMvpCandidates(slug, [...zaznaczone]);
+
+      const usunietych = wynikKasowania.deleted?.length ?? 0;
+      const odmowy = wynikKasowania.refused ?? [];
+
+      setOdrzucone(odmowy);
+      setZaznaczone(new Set());
+      setPotwierdzHurt(false);
+
+      // Komunikat mówi obie liczby, także gdy jedna jest zerem: "usunięto 0"
+      // po kliknięciu "usuń 13" musi być widoczne, a nie ciche.
+      setKomunikat(
+        odmowy.length
+          ? `Usunięto ${usunietych}, pominięto ${odmowy.length} — szczegóły poniżej.`
+          : `Usunięto ${usunietych} ${odmien(usunietych, "kandydata", "kandydatów", "kandydatów")}.`,
+      );
+
+      await wczytaj();
+    } catch (err) {
+      setBlad(err.message || "Nie udało się usunąć zaznaczonych.");
+    } finally {
+      setKasowanieHurtowe(false);
+    }
+  }
+
   // Jeden wiersz listy kandydatów. Zwykła funkcja, nie komponent: wołana
   // jako wierszKandydata(k), więc React wstawia zwrócone elementy w drzewo
   // rodzica i nic się nie przemontowuje przy każdym renderze. Stoi w jednym
@@ -178,6 +244,13 @@ function MvpAdminPanel({ slug }) {
         className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
       >
         <div className="ui-row ui-row--between ui-row--wrap">
+          <input
+            type="checkbox"
+            checked={zaznaczone.has(kandydat.id)}
+            onChange={() => przelaczZaznaczenie(kandydat.id)}
+            aria-label={`Zaznacz ${kandydat.nickname}`}
+          />
+
           <button
             type="button"
             className="ui-choice__option ui-choice__option--stacked"
@@ -265,9 +338,23 @@ function MvpAdminPanel({ slug }) {
         )}
 
         {!ladowanie && aktywni.length > 0 && (
-          <div className="ui-stack ui-stack--tight">
-            {aktywni.map(wierszKandydata)}
-          </div>
+          <>
+            <label className="ui-row">
+              <input
+                type="checkbox"
+                checked={czyGrupaZaznaczona(aktywni)}
+                onChange={() => przelaczGrupe(aktywni)}
+              />
+
+              <span className="ui-hint">
+                Zaznacz wszystkich na liście ({aktywni.length})
+              </span>
+            </label>
+
+            <div className="ui-stack ui-stack--tight">
+              {aktywni.map(wierszKandydata)}
+            </div>
+          </>
         )}
 
         {!ladowanie && pozaLista.length > 0 && (
@@ -283,13 +370,107 @@ function MvpAdminPanel({ slug }) {
             </button>
 
             {pokazPozaLista && (
-              <div className="ui-stack ui-stack--tight">
-                {pozaLista.map(wierszKandydata)}
-              </div>
+              <>
+                <label className="ui-row">
+                  <input
+                    type="checkbox"
+                    checked={czyGrupaZaznaczona(pozaLista)}
+                    onChange={() => przelaczGrupe(pozaLista)}
+                  />
+
+                  <span className="ui-hint">
+                    Zaznacz wszystkich poza listą ({pozaLista.length})
+                  </span>
+                </label>
+
+                <div className="ui-stack ui-stack--tight">
+                  {pozaLista.map(wierszKandydata)}
+                </div>
+              </>
             )}
           </>
         )}
+
+        {zaznaczone.size > 0 && (
+          <div className="ui-actions">
+            {potwierdzHurt ? (
+              <>
+                <span className="ui-note ui-note--danger">
+                  Usunąć {zaznaczone.size}{" "}
+                  {odmien(
+                    zaznaczone.size,
+                    "kandydata",
+                    "kandydatów",
+                    "kandydatów",
+                  )}
+                  ? Ci, których ktoś wytypował, zostaną pominięci.
+                </span>
+
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm ui-btn--danger"
+                  disabled={kasowanieHurtowe}
+                  onClick={usunZaznaczone}
+                >
+                  {kasowanieHurtowe
+                    ? "Usuwanie..."
+                    : "🗑️ Tak, usuń zaznaczonych"}
+                </button>
+
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm ui-btn--ghost"
+                  disabled={kasowanieHurtowe}
+                  onClick={() => setPotwierdzHurt(false)}
+                >
+                  Anuluj
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm ui-btn--danger"
+                  onClick={() => {
+                    setBlad("");
+                    setKomunikat("");
+                    setOdrzucone([]);
+                    setPotwierdzHurt(true);
+                  }}
+                >
+                  🗑️ Usuń zaznaczonych ({zaznaczone.size})
+                </button>
+
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm ui-btn--ghost"
+                  onClick={() => setZaznaczone(new Set())}
+                >
+                  Odznacz wszystkich
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Odmowy z kasowania hurtowego. Osobno od jednego komunikatu, bo każda
+          ma własny powód i własne nazwisko - zbite w jedno zdanie nie dałyby
+          się przeczytać, a to jest lista rzeczy do zrobienia ręcznie. */}
+      {odrzucone.length > 0 && (
+        <div className="ui-card ui-card--flat ui-card--danger ui-card--tight ui-stack ui-stack--tight">
+          <strong>
+            Pominięto {odrzucone.length}{" "}
+            {odmien(odrzucone.length, "kandydata", "kandydatów", "kandydatów")}
+          </strong>
+
+          {odrzucone.map((wpis) => (
+            <span className="ui-hint" key={wpis.id}>
+              {wpis.reason}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
         <h4>Dodaj kandydatów</h4>
