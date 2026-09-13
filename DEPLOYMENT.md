@@ -80,7 +80,13 @@ DB_NAME=s25345_pickemdb
 DISCORD_CLIENT_ID=...
 DISCORD_CLIENT_SECRET=...
 DISCORD_REDIRECT_URI=https://TWOJA-DOMENA/api/auth/discord/callback
-SESSION_SECRET=wygeneruj-losowy-dlugi-ciag
+# Wygeneruj WŁASNY. Nie kopiuj tej wartości i nie bierz jej z innego
+# wdrożenia: tym kluczem podpisywane są ciasteczka sesji, więc dwie
+# instalacje z tym samym kluczem przyjmą nawzajem swoje ciasteczka -
+# sesja admina z jednej loguje w drugiej.
+#
+#   openssl rand -base64 32
+SESSION_SECRET=...
 
 WEB_ORIGIN=https://TWOJA-DOMENA
 NODE_ENV=production
