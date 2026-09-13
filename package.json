@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "discord.js": "^14.26.4",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "luxon": "^3.3.0",
-    "mysql2": "^3.17.1",
+    "mysql2": "^3.24.4",
     "mysqldump": "^3.2.0",
     "pm2": "^5.4.0",
     "winston": "^3.19.0"
