@@ -16,6 +16,7 @@ const assert = require("node:assert/strict");
 const {
   backfillProfiles,
   DOMYSLNY_LIMIT,
+  ODSWIEZ_PO_DNIACH,
 } = require("../services/backfillProfiles.js");
 
 const GUILD = "111";
@@ -225,13 +226,80 @@ test("zapytanie bierze tylko brakujacych, z tej gildii i z limitem", async () =>
 
   assert.match(zapytanie.sql, /FROM leaderboard/);
   assert.match(zapytanie.sql, /LEFT JOIN user_profiles/);
-  assert.match(
-    zapytanie.sql,
-    /up\.user_id IS NULL OR up\.avatar IS NULL/,
-    "wiersz bez awatara tez wymaga dopytania - mogl powstac, zanim awatar byl zapisywany",
-  );
+  assert.match(zapytanie.sql, /up\.user_id IS NULL/);
   assert.match(zapytanie.sql, /lb\.guild_id = \?/);
-  assert.deepEqual(zapytanie.params, [GUILD, 250]);
+  assert.deepEqual(zapytanie.params, [GUILD, ODSWIEZ_PO_DNIACH, 250]);
+});
+
+test("konto bez wlasnego awatara nie wraca przy kazdym uruchomieniu", async () => {
+  // 61 graczy na produkcji po prostu nie ma wlasnego obrazka - Discord zwraca
+  // dla nich null i zadne kolejne uruchomienie tego nie zmieni. Bez granicy
+  // czasowej warunek "brak awatara" wybieral je w kolko, wiec komenda nigdy
+  // nie mowila "wszyscy gotowi", tylko raportowala zero zapisanych.
+  const pool = fakePool([]);
+  const { sleep } = bezCzekania();
+
+  await backfillProfiles({
+    pool,
+    guildId: GUILD,
+    fetchUser: async () => null,
+    sleep,
+  });
+
+  const { sql, params } = pool.zapytania[0];
+
+  // Bialе znaki znormalizowane - wzorzec ma pilnowac warunku, a nie tego,
+  // jak SQL jest polamany na linie.
+  const jednymCiagiem = sql.replace(/\s+/g, " ");
+
+  assert.match(
+    jednymCiagiem,
+    /up\.avatar IS NULL AND up\.updated_at < DATE_SUB/,
+    "brak awatara ma byc powodem do zapytania tylko dla starego profilu",
+  );
+  assert.equal(
+    params[1],
+    ODSWIEZ_PO_DNIACH,
+    "granica wieku profilu idzie parametrem, a nie jest wklejona w SQL",
+  );
+});
+
+test("granice odswiezania da sie ustawic", async () => {
+  const pool = fakePool([]);
+  const { sleep } = bezCzekania();
+
+  await backfillProfiles({
+    pool,
+    guildId: GUILD,
+    fetchUser: async () => null,
+    odswiezPoDniach: 7,
+    sleep,
+  });
+
+  assert.equal(pool.zapytania[0].params[1], 7);
+});
+
+test("brak wiersza w profilach jest powodem zawsze, bez wzgledu na daty", async () => {
+  // Warunek czasowy dotyczy WYLACZNIE profili, ktore juz istnieja. Gracz bez
+  // wiersza musi trafic do zapytania przy pierwszym uruchomieniu.
+  const pool = fakePool([]);
+  const { sleep } = bezCzekania();
+
+  await backfillProfiles({
+    pool,
+    guildId: GUILD,
+    fetchUser: async () => null,
+    sleep,
+  });
+
+  const { sql } = pool.zapytania[0];
+  const warunek = sql.slice(sql.indexOf("WHERE")).replace(/\s+/g, " ");
+
+  assert.match(
+    warunek,
+    /up\.user_id IS NULL OR/,
+    "brak profilu ma byc osobnym powodem, polaczonym przez OR",
+  );
 });
 
 test("postep raportuje po kazdym graczu", async () => {
