@@ -22,10 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      # Bez npm ci celowo: testy dotykają wyłącznie czystej logiki i nie
-      # wymagają żadnego pakietu spoza standardowej biblioteki Node. Gdyby
-      # kiedyś zaczęły, ten krok się wywali i będzie to widać od razu.
+      - name: Instalacja
+        run: npm ci
+
       - name: Testy jednostkowe
         run: npm test
 
@@ -68,7 +70,11 @@ jobs:
           cache: npm
           cache-dependency-path: server/package-lock.json
 
-      - name: Instalacja
+      - name: Instalacja zależności głównych
+        run: npm ci
+        working-directory: .
+
+      - name: Instalacja serwera
         run: npm ci
 
       # Buduje aplikacje (bez nasluchiwania) i porownuje zarejestrowane trasy
