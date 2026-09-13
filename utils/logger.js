@@ -3,9 +3,29 @@ const path = require("path");
 
 const { createLogger, format, transports } = require("winston");
 
+// Czy proces chodzi pod uruchamiaczem testów.
+//
+// Bez tego `npm test` dopisywał się do PRAWDZIWYCH logów bota: 2130 z 11237
+// linii bot.log miało guildId "111", czyli identyfikator z atrap w test/.
+// Jeden przebieg testów to ponad osiem kilobajtów wpisów, a szuka się w tym
+// pliku prawdziwych awarii.
+//
+// Trzy sposoby wykrycia, bo uruchamiacz Node'a zachowuje się różnie:
+// NODE_TEST_CONTEXT ustawia sam Node w procesach potomnych (tak działa
+// domyślna izolacja), --test w execArgv zostaje przy izolacji wyłączonej,
+// a NODE_ENV to furtka dla kogoś, kto odpala testy inaczej. Żaden z nich
+// nie wymaga zmiany w package.json ani paczki od zmiennych środowiskowych,
+// co na Windowsie ma znaczenie - `NODE_ENV=test node ...` tam nie działa.
+const RUNNING_TESTS =
+  Boolean(process.env.NODE_TEST_CONTEXT) ||
+  process.env.NODE_ENV === "test" ||
+  process.execArgv.includes("--test");
+
 const logsDir = path.join(process.cwd(), "logs");
 
-if (!fs.existsSync(logsDir)) {
+// Katalog powstaje tylko wtedy, gdy naprawdę będzie do czego pisać. Samo
+// zaimportowanie loggera w teście nie ma tworzyć niczego na dysku.
+if (!RUNNING_TESTS && !fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, {
     recursive: true,
   });
@@ -238,31 +258,39 @@ const logger = createLogger({
     jsonFormat,
   ),
 
-  transports: [
-    new transports.File({
-      filename: path.join(logsDir, "bot.log"),
+  // W testach jeden transport, który nic nie robi. Zero transportów nie
+  // wchodzi w grę - winston wypisuje wtedy ostrzeżenie przy każdym wpisie,
+  // czyli hałas zamiast ciszy.
+  //
+  // Konsola milknie razem z plikami, bo logi szły też tam: jeden plik testów
+  // wypluwał pięć linii "No ... data, skipping phase" pomiędzy nazwy testów.
+  transports: RUNNING_TESTS
+    ? [new transports.Console({ silent: true })]
+    : [
+        new transports.File({
+          filename: path.join(logsDir, "bot.log"),
 
-      level: "info",
-    }),
+          level: "info",
+        }),
 
-    new transports.File({
-      filename: path.join(logsDir, "errors.log"),
+        new transports.File({
+          filename: path.join(logsDir, "errors.log"),
 
-      level: "error",
-    }),
+          level: "error",
+        }),
 
-    new transports.File({
-      filename: path.join(logsDir, "warnings.log"),
+        new transports.File({
+          filename: path.join(logsDir, "warnings.log"),
 
-      level: "warn",
-    }),
+          level: "warn",
+        }),
 
-    new transports.Console({
-      level: process.env.NODE_ENV === "production" ? "warn" : "info",
+        new transports.Console({
+          level: process.env.NODE_ENV === "production" ? "warn" : "info",
 
-      format: format.combine(format.colorize(), format.simple()),
-    }),
-  ],
+          format: format.combine(format.colorize(), format.simple()),
+        }),
+      ],
 });
 
 // ======================================================
@@ -361,6 +389,7 @@ function logCommandError(interaction, error) {
 
 module.exports = {
   logger,
+  RUNNING_TESTS,
 
   logInfo,
   logWarn,
