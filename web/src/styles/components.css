@@ -950,6 +950,60 @@ a.ui-choice__option {
 }
 
 /* -------------------------------------------------------------------------
+   POLE FORMULARZA
+   Zwykły input, select i textarea. Do tej pory nie było takiego komponentu:
+   jedyne stylowane pole to ui-field__input, czyli WYNIK MAPY - wyśrodkowany,
+   pogrubiony, 18px, cyfry tabelaryczne. Użyte do nazwiska albo daty wygląda
+   jak licznik, więc panel admina zostawał przy polach natywnych.
+
+   Niżej, nie wyżej: pole ma być czytelne, a nie przyciągać wzrok. Tło jest
+   wklęsłe (--layer-sunken), bo to miejsce na treść, a nie element, który
+   sam coś mówi.
+   ------------------------------------------------------------------------- */
+
+.ui-input {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--layer-sunken);
+  color: var(--text);
+
+  font-family: inherit;
+  font-size: var(--text-md);
+
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+/* Textarea zawsze na pełną szerokość rodzica i tylko w pionie - rozciąganie
+   w bok rozwala układ karty, a i tak nikt tego nie chce. */
+textarea.ui-input {
+  width: 100%;
+  min-height: auto;
+  line-height: var(--leading-normal);
+  resize: vertical;
+}
+
+.ui-input:focus {
+  border-color: var(--accent-border);
+  outline: none;
+}
+
+.ui-input:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.ui-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* -------------------------------------------------------------------------
    POLE I WYNIK
    Wpisywanie wyniku mapy. Liczby idą fontem tabelarycznym, żeby 13 i 11
    miały tę samą szerokość i pole nie "drgało" przy pisaniu.

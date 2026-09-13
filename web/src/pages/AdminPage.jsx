@@ -1442,7 +1442,7 @@ export default function AdminPage() {
 
                     <div className="ui-row ui-row--wrap ui-row--full">
                       <input
-                        className="ui-field__input"
+                        className="ui-input"
                         type="datetime-local"
                         value={editingMatchStartValue}
                         onChange={(event) =>
@@ -1489,7 +1489,7 @@ export default function AdminPage() {
 
                     <div className="ui-row ui-row--wrap ui-row--full">
                       <select
-                        className="ui-field__input"
+                        className="ui-input"
                         value={editingMatchTeamA}
                         onChange={(event) =>
                           setEditingMatchTeamA(event.target.value)
@@ -1503,7 +1503,7 @@ export default function AdminPage() {
                       </select>
 
                       <select
-                        className="ui-field__input"
+                        className="ui-input"
                         value={editingMatchTeamB}
                         onChange={(event) =>
                           setEditingMatchTeamB(event.target.value)
@@ -1517,7 +1517,7 @@ export default function AdminPage() {
                       </select>
 
                       <select
-                        className="ui-field__input"
+                        className="ui-input"
                         value={editingMatchBestOf}
                         onChange={(event) =>
                           setEditingMatchBestOf(event.target.value)
