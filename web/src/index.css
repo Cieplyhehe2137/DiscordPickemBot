@@ -42,12 +42,12 @@ body {
   background-image:
     radial-gradient(
       ellipse 110% 560px at 50% -80px,
-      rgba(139, 92, 246, 0.15),
+      color-mix(in srgb, var(--accent) 15%, transparent),
       transparent 70%
     ),
     radial-gradient(
       ellipse 60% 360px at 88% -40px,
-      rgba(34, 211, 238, 0.05),
+      color-mix(in srgb, var(--live) 5%, transparent),
       transparent 70%
     );
   background-repeat: no-repeat;
@@ -56,7 +56,7 @@ body {
 /* Zaznaczenie tekstu w kolorze marki. Domyślne systemowe niebieskie
    przecina ciemny motyw na pół. */
 ::selection {
-  background: rgba(139, 92, 246, 0.35);
+  background: var(--accent-border);
   color: var(--text-strong);
 }
 
@@ -118,7 +118,7 @@ a {
 
   border-bottom: 1px solid var(--border);
 
-  background: rgba(9, 9, 11, 0.88);
+  background: color-mix(in srgb, var(--surface-0) 88%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -137,7 +137,7 @@ a {
   color: var(--text-strong);
 
   font-size: var(--text-2xl);
-  font-weight: 900;
+  font-weight: var(--weight-black);
   letter-spacing: -0.04em;
 
   text-decoration: none;
@@ -159,13 +159,13 @@ a {
   color: var(--text-muted);
 
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 
   text-decoration: none;
 
   transition:
-    color 0.2s ease,
-    background 0.2s ease;
+    color var(--duration) var(--ease),
+    background var(--duration) var(--ease);
 }
 
 .app-nav a:hover {
@@ -176,7 +176,7 @@ a {
 
 .app-nav a.active {
   color: var(--text-strong);
-  background: rgba(124, 58, 237, 0.14);
+  background: color-mix(in srgb, var(--accent-hover) 14%, transparent);
 }
 
 .app-content {
@@ -324,12 +324,12 @@ p {
   color: var(--text-faint);
 
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .event-page__meta strong {
   color: var(--text);
-  font-weight: 800;
+  font-weight: var(--weight-black);
 }
 
 .app-user {
@@ -340,7 +340,7 @@ p {
   color: var(--text);
 
   font-size: var(--text-md);
-  font-weight: 800;
+  font-weight: var(--weight-black);
 }
 
 .app-user img {
@@ -353,18 +353,18 @@ p {
 .app-login {
   padding: var(--space-2) var(--space-4);
 
-  border: 1px solid rgba(88, 101, 242, 0.35);
+  border: 1px solid color-mix(in srgb, var(--discord) 35%, transparent);
   border-radius: var(--radius-sm);
 
-  background: rgba(88, 101, 242, 0.1);
-  color: #c7d2fe;
+  background: color-mix(in srgb, var(--discord) 10%, transparent);
+  color: var(--discord-text);
 
   font-size: var(--text-md);
-  font-weight: 800;
+  font-weight: var(--weight-black);
 }
 
 .app-login:hover {
-  background: rgba(88, 101, 242, 0.18);
+  background: color-mix(in srgb, var(--discord) 18%, transparent);
 }
 
 .app-logout {
@@ -377,7 +377,7 @@ p {
   color: var(--text-muted);
 
   font-size: var(--text-sm);
-  font-weight: 800;
+  font-weight: var(--weight-black);
 
   cursor: pointer;
 }
@@ -403,7 +403,7 @@ p {
 .event-phases__header > span {
   color: var(--text-faint);
   font-size: var(--text-sm);
-  font-weight: 800;
+  font-weight: var(--weight-black);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -419,9 +419,9 @@ p {
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4);
-  border: 1px solid rgba(124, 58, 237, 0.25);
+  border: 1px solid color-mix(in srgb, var(--accent-hover) 25%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(124, 58, 237, 0.08);
+  background: color-mix(in srgb, var(--accent-hover) 8%, transparent);
 }
 
 .event-phases__current span {
@@ -446,7 +446,7 @@ p {
 }
 
 .event-phases__item span {
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .matches-page__back {
@@ -455,11 +455,11 @@ p {
   margin-top: 12px;
   color: var(--text-muted);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-decoration: none;
   transition:
-    color 0.2s ease,
-    transform 0.2s ease;
+    color var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
 }
 
 .matches-page__back:hover {
@@ -510,13 +510,13 @@ p {
   border-radius: var(--radius-md);
 
   text-decoration: none;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 
   background: var(--layer);
   transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+    transform var(--duration) var(--ease),
+    border-color var(--duration) var(--ease),
+    background var(--duration) var(--ease);
 }
 
 .event-next-match a:hover {
@@ -571,7 +571,7 @@ p {
 
 .event-close-match__teams span {
   font-size: var(--text-2xl);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .event-close-match__footer {
@@ -610,12 +610,12 @@ p {
   background: var(--layer-subtle);
 
   transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
+    border-color var(--duration) var(--ease),
+    background var(--duration) var(--ease);
 }
 
 .event-upset__card:hover {
-  border-color: rgba(139, 92, 246, 0.35);
+  border-color: var(--accent-border);
   background: var(--layer);
 }
 
@@ -638,16 +638,16 @@ p {
 
 .event-upset__teams span {
   font-size: var(--text-2xl);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .event-upset__teams small {
   margin-top: 3px;
 
   font-size: var(--text-2xs);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 
-  color: #a78bfa;
+  color: var(--accent-bright);
 }
 
 .event-upset__result {
@@ -718,7 +718,7 @@ p {
 .matches-page__progress-top span {
   color: var(--text-muted);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
 }
 
 .matches-page__progress-top strong {
@@ -766,7 +766,7 @@ p {
 
   color: var(--text-faint);
   font-size: var(--text-2xs);
-  font-weight: 800;
+  font-weight: var(--weight-black);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -785,13 +785,13 @@ p {
 
   color: var(--text-muted);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-decoration: none;
 
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    color 0.15s ease;
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
 }
 
 .event-phase-link:hover {
@@ -810,7 +810,7 @@ p {
   border-color: var(--accent);
 }
 
-.event-phase-link__typ {
+.event-phase-link__pick {
   font-style: normal;
   font-size: 0.8em;
   color: var(--ok);
@@ -871,7 +871,7 @@ main > .matches-page__back {
    STRONICOWANIE RANKINGU
    ========================================================= */
 
-.leaderboard-strony {
+.leaderboard-pages {
   align-self: stretch;
 
   display: flex;
@@ -888,7 +888,7 @@ main > .matches-page__back {
   background: var(--layer-subtle);
 }
 
-.leaderboard-strony button {
+.leaderboard-pages button {
   min-height: 40px;
   padding: 0 16px;
 
@@ -898,20 +898,20 @@ main > .matches-page__back {
 
   color: var(--text);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
 }
 
-.leaderboard-strony button:hover:not(:disabled) {
+.leaderboard-pages button:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-4);
 }
 
-.leaderboard-strony button:disabled {
+.leaderboard-pages button:disabled {
   opacity: 0.4;
   cursor: default;
 }
@@ -920,7 +920,7 @@ main > .matches-page__back {
    SZUKANIE W RANKINGU
    ========================================================= */
 
-.leaderboard-szukaj {
+.leaderboard-search {
   align-self: stretch;
 
   display: flex;
@@ -930,7 +930,7 @@ main > .matches-page__back {
   margin-top: 24px;
 }
 
-.leaderboard-szukaj input {
+.leaderboard-search input {
   flex: 1 1 220px;
   min-height: 44px;
   padding: 0 14px;
@@ -943,16 +943,16 @@ main > .matches-page__back {
   font-size: var(--text-md);
 }
 
-.leaderboard-szukaj input::placeholder {
+.leaderboard-search input::placeholder {
   color: var(--text-faint);
 }
 
-.leaderboard-szukaj input:focus {
+.leaderboard-search input:focus {
   outline: none;
   border-color: var(--accent-border);
 }
 
-.leaderboard-szukaj button {
+.leaderboard-search button {
   flex: none;
   min-height: 44px;
   padding: 0 18px;
@@ -963,81 +963,29 @@ main > .matches-page__back {
 
   color: var(--accent-bright);
   font-size: var(--text-md);
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   cursor: pointer;
 
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
 }
 
-.leaderboard-szukaj button:hover {
+.leaderboard-search button:hover {
   border-color: var(--accent);
-  background: rgba(124, 58, 237, 0.22);
+  background: color-mix(in srgb, var(--accent-hover) 22%, transparent);
 }
 
 /* =========================================================
-   STAN LADOWANIA
+   WSKAZNIK ŁADOWANIA W POWŁOCE
+   Sam komponent mieszka w components.css; tutaj zostaje tylko to, co
+   zalezy od ukladu strony, czyli od .app-content.
    ========================================================= */
 
-.ladowanie {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-
-  margin: 0 auto;
-  padding: var(--space-16) var(--space-6);
-
-  color: var(--text-muted);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  text-align: center;
-}
-
-/* Pierscien z jednym jasnym wycinkiem - obraca sie, wiec od razu widac,
-   ze cos trwa, a nie ze strona zawisla. */
-.ladowanie__kolko {
-  flex: none;
-  width: 26px;
-  height: 26px;
-
-  border: 3px solid var(--border-strong);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-
-  animation: ladowanie-obrot 0.8s linear infinite;
-}
-
-.ladowanie__tekst {
-  animation: ladowanie-puls 1.6s ease-in-out infinite;
-}
-
-@keyframes ladowanie-obrot {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes ladowanie-puls {
-  50% {
-    opacity: 0.55;
-  }
-}
-
-/* Ruch potrafi przeszkadzac - przy wylaczonych animacjach zostaje sam
-   pierscien, statyczny, ale nadal czytelny jako wskaznik. */
-@media (prefers-reduced-motion: reduce) {
-  .ladowanie__kolko,
-  .ladowanie__tekst {
-    animation: none;
-  }
-}
-
-/* Gdy ladowanie zastepuje cala strone, a nie fragment sekcji, dostaje
-   wysokosc - inaczej wskaznik wisi przy gornej krawedzi nad pustka.
-   Strony zwracaja go wprost do .app-content, sekcje maja go glebiej. */
-.app-content > .ladowanie {
+/* Gdy ładowanie zastępuje całą stronę, a nie fragment sekcji, dostaje
+   wysokość - inaczej wskaźnik wisi przy górnej krawędzi nad pustką.
+   Strony zwracają go wprost do .app-content, sekcje mają go głębiej. */
+.app-content > .ui-loader {
   min-height: 45vh;
   flex-direction: column;
   gap: var(--space-5);
@@ -1045,18 +993,14 @@ main > .matches-page__back {
   font-size: var(--text-2xl);
 }
 
-.app-content > .ladowanie .ladowanie__kolko {
+.app-content > .ui-loader .ui-loader__spinner {
   width: 40px;
   height: 40px;
   border-width: 4px;
 }
 
 @media (max-width: 640px) {
-  .ladowanie {
-    padding: var(--space-10) var(--space-4);
-  }
-
-  .app-content > .ladowanie {
+  .app-content > .ui-loader {
     min-height: 38vh;
     font-size: var(--text-xl);
   }

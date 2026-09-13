@@ -132,16 +132,13 @@ function MvpAdminPanel({ slug }) {
         )}
 
         {!ladowanie && kandydaci.length > 0 && (
-          <div className="ui-row ui-row--wrap">
+          <div className="ui-choice ui-choice--grid">
             {kandydaci.map((kandydat) => (
               <button
                 key={kandydat.id}
                 type="button"
-                className={
-                  Number(wynik) === Number(kandydat.id)
-                    ? "ui-stack__candidate ui-stack__candidate--winner"
-                    : "ui-stack__candidate"
-                }
+                className="ui-choice__option ui-choice__option--stacked"
+                aria-pressed={Number(wynik) === Number(kandydat.id)}
                 onClick={() => ustawWynik(kandydat.id)}
                 title="Kliknij, aby ustawić jako zwycięzcę MVP"
               >

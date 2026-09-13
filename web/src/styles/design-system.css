@@ -83,6 +83,13 @@
   --live-bg: rgba(34, 211, 238, 0.12);
   --live-border: rgba(34, 211, 238, 0.3);
 
+  /* Marka Discorda. Nie należy do palety produktu i nie wolno jej użyć
+     do niczego poza przyciskiem logowania - kolor ma tam znaczyć "to jest
+     Discord", a nie "to jest ważne". Stał wcześniej w index.css jako
+     #5865f2 rozpisany na cztery magiczne rgba() w trzech regułach. */
+  --discord: #5865f2;
+  --discord-text: #c7d2fe;
+
   /* ---------------------------------------------------------------------
      STANY
      --------------------------------------------------------------------- */
@@ -228,12 +235,6 @@ h4 {
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
   font-weight: var(--weight-bold);
-}
-
-/* Liczby w tabelach i statystykach - stała szerokość cyfry, żeby kolumny
-   nie drgały przy zmianie wartości. */
-.tabular {
-  font-variant-numeric: tabular-nums;
 }
 
 /* Widoczny fokus na wszystkim, co interaktywne. :focus-visible, więc nie
