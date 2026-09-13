@@ -1286,8 +1286,10 @@ textarea.ui-input {
 
 /* -------------------------------------------------------------------------
    WYNIK
-   Dwie nazwy i liczba pomiędzy nimi. Zwycięska strona ma jaśniejszy tekst -
-   wynik czyta się wtedy jednym spojrzeniem, bez porównywania cyfr.
+   Dwie nazwy i liczba pomiędzy nimi. Dwa sygnały, każdy o czym innym:
+   jasność mówi, kto wygrał, a barwa - czyja to liczba. Dzięki temu wynik
+   czyta się jednym spojrzeniem, bez porównywania cyfr i bez szukania,
+   która liczba należy do której nazwy.
    ------------------------------------------------------------------------- */
 
 .ui-scoreline {
@@ -1326,6 +1328,33 @@ textarea.ui-input {
   color: var(--text-strong);
 }
 
+/* Liczba zwycięzcy w barwie swojej strony, przegrana przygaszona. Te same
+   dwa kolory stoją za nazwami drużyn na karcie meczu i w pasku podziału
+   głosów, więc wynik nie wprowadza własnego języka, tylko mówi tym, który
+   na tej stronie już coś znaczy.
+
+   Barwa dostaje TYLKO zwycięzca. Pokolorowanie obu liczb wyglądało dobrze,
+   ale kazało czytać wynik dwa razy: raz, żeby zobaczyć kolory, drugi, żeby
+   sprawdzić, która liczba jest większa. Jeden akcent na wynik załatwia
+   jedno i drugie. Przy remisie nie ma zwycięzcy i nie ma barwy. */
+.ui-scoreline--a .ui-scoreline__value:first-child {
+  color: var(--side-a);
+}
+
+.ui-scoreline--b .ui-scoreline__value:last-child {
+  color: var(--side-b);
+}
+
+.ui-scoreline--a .ui-scoreline__value:last-child,
+.ui-scoreline--b .ui-scoreline__value:first-child {
+  color: var(--text-muted);
+}
+
+/* Dwukropek nie jest liczbą - ma rozdzielać, a nie ważyć tyle co cyfry. */
+.ui-scoreline__sep {
+  color: var(--text-faint);
+}
+
 /* Wariant do list map, gdzie wynik jest szczegółem, a nie nagłówkiem. */
 .ui-scoreline--compact {
   gap: var(--space-2);
@@ -1338,6 +1367,26 @@ textarea.ui-input {
 .ui-scoreline--compact .ui-scoreline__score {
   font-size: var(--text-md);
   font-weight: var(--weight-bold);
+}
+
+/* W wierszu mapy barwa nie wchodzi, i to jest decyzja o kontraście, nie
+   o guście. Liczba ma tam 14 px, czyli zwykły tekst, a dla zwykłego tekstu
+   próg AA to 4.5:1. Zmierzone na tle wiersza mapy: fiolet #8b5cf6 daje
+   4.45, czerwień #f43f5e - 5.13. Czerwień by przeszła, fiolet nie.
+
+   Kolorowanie tylko tej strony, która akurat mieści się w progu, dałoby
+   listę map raz kolorową, raz szarą - zależnie od tego, kto wygrał. Więc
+   albo obie, albo żadna; skoro jedna nie może, nie ma żadna.
+
+   W wyniku głównym problemu nie ma: 28 px w wadze 800 to tekst duży,
+   a tam próg wynosi 3:1 i fiolet ma 4.22.
+
+   Specyficzność tych selektorów musi dorównać regułom barwy wyżej - bez
+   :first-child/:last-child przegrywają i barwa zostaje mimo wszystko. */
+.ui-scoreline--compact .ui-scoreline__value:first-child,
+.ui-scoreline--compact .ui-scoreline__value:last-child,
+.ui-scoreline--compact .ui-scoreline__sep {
+  color: inherit;
 }
 
 /* Podpisy nad paskiem podziału: nazwa drużyny i jej procent w kolorze
