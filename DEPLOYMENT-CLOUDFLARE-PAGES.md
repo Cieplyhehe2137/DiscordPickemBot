@@ -1,8 +1,10 @@
 # Wdrożenie frontendu na Cloudflare Pages
 
-Ten dokument opisuje wariant, w którym **sam frontend** (`web/`) stoi na Cloudflare Pages, a API i bot zostają tam, gdzie są.
+Ten dokument opisuje układ, w którym **sam frontend** (`web/`) stoi na Cloudflare Pages, a API i bot zostają tam, gdzie są.
 
-To alternatywa dla [DEPLOYMENT.md](DEPLOYMENT.md), który opisuje układ jednoprocesowy — jedna domena, jeden origin, bez CORS i bez ciasteczek cross-origin. **Jeśli nie masz konkretnego powodu, żeby rozdzielać hosty, tamten wariant jest prostszy i mniej ruchomych części.** Poniżej jest napisane wprost, co się komplikuje.
+**To jest układ, który dziś działa na produkcji**: front stoi na Cloudflare Pages pod `pickembot.pl`, API na Plesku pod `api.pickembot.pl`. Dokument powstał jako opis wariantu do rozważenia i przez jakiś czas nim był — teraz opisuje stan faktyczny.
+
+[DEPLOYMENT.md](DEPLOYMENT.md) opisuje układ jednoprocesowy: jedna domena, jeden origin, bez CORS i bez ciasteczek cross-origin. Jest prostszy i ma mniej ruchomych części, ale nie jest tym, co tu stoi. Pętlę wdrożeniową obu połówek — co aktualizuje się samo, a co wymaga `git pull` na hoście — opisuje sekcja „Deploying" w [README.md](README.md).
 
 ---
 
@@ -26,7 +28,7 @@ API i bot muszą działać tam, gdzie dziś — Pages ich nie zastąpi. Ten wari
 
 Front na `*.pages.dev` wysyła ciasteczko sesji jako `SameSite=None`, a przeglądarka odrzuca takie ciasteczko bez flagi `Secure`. `Secure` po HTTP nie działa. Czyli: bez HTTPS na API logowanie nie zadziała w ogóle, a objaw będzie mylący — logowanie przez Discorda przejdzie, po czym każde kolejne żądanie zwróci 401.
 
-W chwili pisania `server/.env` wskazuje na `http://localhost:3301` i nie ma ustawionego `WEB_ORIGIN`, więc to konfiguracja lokalna. **Najpierw wystaw API pod publiczną domeną po HTTPS** (patrz DEPLOYMENT.md), dopiero potem wracaj tutaj.
+Ten warunek jest już spełniony: API odpowiada po HTTPS pod `api.pickembot.pl`. Kopia `server/.env` w repozytorium roboczym wskazuje na `http://localhost:3301` i to jest konfiguracja lokalna — plik na hostingu jest osobny i ma własne wartości.
 
 ---
 
