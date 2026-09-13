@@ -1,0 +1,13 @@
+# Cloudflare Pages: nagłówki dla plików serwowanych z katalogu public.
+
+# Service worker musi być sprawdzany przy każdym wejściu. Gdyby przeglądarka
+# trzymała go z pamięci, poprawka w regułach pamięci podręcznej docierałaby
+# do ludzi dopiero po wygaśnięciu nagłówka - czyli wtedy, kiedy już nikt
+# nie pamięta, że coś poprawiał.
+/sw.js
+  Cache-Control: no-cache
+
+# Manifest zmienia się rzadko, ale zmiana ikony albo nazwy ma dojść bez
+# czekania na wygaśnięcie.
+/manifest.webmanifest
+  Cache-Control: no-cache

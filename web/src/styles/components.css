@@ -15,11 +15,14 @@
    UKŁAD
    ------------------------------------------------------------------------- */
 
+/* Dolna wyściółka rośnie o pasek gestu telefonu. Poza zainstalowaną
+   aplikacją env() wynosi zero i zostaje samo --space-16. */
 .ui-page {
   width: 100%;
   max-width: var(--content-width);
   margin-inline: auto;
-  padding: var(--space-8) var(--content-padding) var(--space-16);
+  padding: var(--space-8) var(--content-padding)
+    calc(var(--space-16) + env(safe-area-inset-bottom));
 
   display: flex;
   flex-direction: column;
@@ -2132,7 +2135,10 @@ textarea.ui-input {
 .ui-toasts {
   position: fixed;
   right: var(--space-5);
-  bottom: var(--space-5);
+
+  /* Nad paskiem gestu, nie pod nim - inaczej w zainstalowanej aplikacji
+     krzyżyk zamykania ląduje tam, gdzie system łapie przesunięcie. */
+  bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
   z-index: 60; /* nad nagłówkiem, który stoi na 50 */
 
   display: grid;
@@ -2223,7 +2229,7 @@ textarea.ui-input {
   .ui-toasts {
     left: var(--space-4);
     right: var(--space-4);
-    bottom: var(--space-4);
+    bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
 
     justify-items: stretch;
   }
