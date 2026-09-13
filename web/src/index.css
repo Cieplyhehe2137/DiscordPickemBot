@@ -199,7 +199,7 @@ h1 {
 }
 
 p {
-  margin-top: 12px;
+  margin-top: var(--space-3);
 
   color: var(--text-muted);
   font-size: var(--text-lg);
@@ -221,11 +221,11 @@ p {
 
     flex-wrap: wrap;
     gap: var(--space-2) var(--space-3);
-    padding: 10px 0;
+    padding: var(--space-3) 0;
   }
 
   .app-nav {
-    gap: 2px;
+    gap: var(--space-05);
   }
 
   .app-nav a {
@@ -282,7 +282,7 @@ p {
 }
 
 .event-page__hero h1 {
-  margin: 20px 0 0;
+  margin: var(--space-5) 0 0;
 
   font-size: clamp(3rem, 6vw, 5rem);
   letter-spacing: -0.05em;
@@ -290,7 +290,7 @@ p {
 
 .event-page__hero p {
   max-width: 680px;
-  margin: 18px 0 0;
+  margin: var(--space-5) 0 0;
 
   color: var(--text-muted);
 
@@ -307,7 +307,7 @@ p {
 }
 
 .event-page__meta {
-  margin-top: 24px;
+  margin-top: var(--space-6);
 
   display: flex;
   flex-wrap: wrap;
@@ -389,7 +389,7 @@ p {
 
 .event-phases {
   width: min(1100px, calc(100% - 32px));
-  margin: 36px auto 0;
+  margin: var(--space-10) auto 0;
   padding: var(--space-6);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -397,7 +397,7 @@ p {
 }
 
 .event-phases__header {
-  margin-bottom: 18px;
+  margin-bottom: var(--space-5);
 }
 
 .event-phases__header > span {
@@ -409,7 +409,7 @@ p {
 }
 
 .event-phases__header h2 {
-  margin: 6px 0 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--text-2xl);
 }
 
@@ -435,7 +435,7 @@ p {
 .event-phases__list {
   display: grid;
   gap: var(--space-3);
-  margin-top: 14px;
+  margin-top: var(--space-4);
 }
 
 .event-phases__item {
@@ -449,27 +449,9 @@ p {
   font-weight: var(--weight-bold);
 }
 
-.matches-page__back {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 12px;
-  color: var(--text-muted);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  text-decoration: none;
-  transition:
-    color var(--duration) var(--ease),
-    transform var(--duration) var(--ease);
-}
-
-.matches-page__back:hover {
-  color: var(--accent-bright);
-  transform: translateX(-2px);
-}
-
 .event-next-match {
   width: min(1100px, calc(100% - 32px));
-  margin: 0 auto 36px;
+  margin: 0 auto var(--space-10);
   padding: var(--space-6);
 
   border: 1px solid var(--border);
@@ -478,12 +460,12 @@ p {
 }
 
 .event-next-match__header {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .event-next-match__header span {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 
   font-size: var(--text-sm);
   text-transform: uppercase;
@@ -497,13 +479,13 @@ p {
 }
 
 .event-next-match p {
-  margin: 6px 0;
+  margin: var(--space-2) 0;
   opacity: 0.8;
 }
 
 .event-next-match a {
   display: inline-block;
-  margin-top: 16px;
+  margin-top: var(--space-4);
   padding: var(--space-3) var(--space-4);
 
   border: 1px solid var(--border);
@@ -532,11 +514,11 @@ p {
 
 .event-close-match__header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
 .event-close-match__header h2 {
-  margin: 10px 0 0;
+  margin: var(--space-3) 0 0;
   font-size: var(--text-3xl);
 }
 
@@ -588,12 +570,12 @@ p {
 }
 
 .event-upset__header {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
   text-align: center;
 }
 
 .event-upset__header h2 {
-  margin: 10px 0 0;
+  margin: var(--space-3) 0 0;
   font-size: var(--text-3xl);
 }
 
@@ -642,7 +624,7 @@ p {
 }
 
 .event-upset__teams small {
-  margin-top: 3px;
+  margin-top: var(--space-1);
 
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
@@ -673,7 +655,7 @@ p {
   justify-content: space-between;
   gap: var(--space-4);
 
-  padding-top: 14px;
+  padding-top: var(--space-4);
 
   border-top: 1px solid var(--border-subtle);
 
@@ -712,7 +694,7 @@ p {
   justify-content: space-between;
   gap: var(--space-4);
 
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 
 .matches-page__progress-top span {
@@ -729,7 +711,7 @@ p {
 .matches-page__progress small {
   display: block;
 
-  margin-top: 10px;
+  margin-top: var(--space-3);
 
   color: var(--text-muted);
 }
@@ -755,14 +737,14 @@ p {
   align-items: center;
   gap: var(--space-3);
 
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .event-page__swiss-links::before {
   content: "Fazy typowania drużyn";
 
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-05);
 
   color: var(--text-faint);
   font-size: var(--text-2xs);
@@ -777,7 +759,7 @@ p {
   gap: var(--space-2);
 
   min-height: 36px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -845,21 +827,25 @@ h2 {
 /* Link powrotu siedział przy samej krawędzi okna, podczas gdy cała reszta
    strony ma margines - wyglądał jak wypadnięty poza układ. Wchodzi w tę samą
    kolumnę co treść pod nim. */
-/* margin-inline: auto nie zadziala na inline-flex, wiec link musi byc
-   blokowy. Szerokosc zostaje wlasna, a odsuniecie liczy sie tak samo jak
-   dla kolumny tresci: min(1200px, 100% - 32px) wysrodkowane.
-   Tylko dla linkow lezacych wprost w <main> - te wewnatrz naglowka strony
-   sa juz w kolumnie i dolozenie marginesu odsunieloby je drugi raz. */
-main > .matches-page__back {
-  display: flex;
+/* Link powrotu leżący wprost w <main>, czyli nad treścią strony, a nie
+   w nagłówku sekcji. Wygląd bierze z ui-btn--ghost; tutaj zostaje wyłącznie
+   USTAWIENIE go w kolumnie treści - tej samej, w której stoi reszta strony:
+   min(--content-width, 100% - 32px), wyśrodkowana.
+   Selektor jest dziecka bezpośredniego, bo linki wewnątrz nagłówka sekcji
+   są już w kolumnie i drugi margines odsunąłby je po raz drugi. */
+main > .page-back {
   width: fit-content;
-  margin-inline: max(16px, calc((100% - 1200px) / 2));
-}
+  margin-top: var(--space-6);
 
-@media (max-width: 640px) {
-  main > .matches-page__back {
-    margin-inline: max(12px, calc((100% - 1200px) / 2));
-  }
+  /* Lewa krawędź TREŚCI, nie kolumny. .ui-page centruje się w oknie, a potem
+     dokłada własny padding, więc tekst zaczyna się o --content-padding dalej
+     niż sama kolumna. Link musi liczyć to samo, inaczej stoi równo tylko przy
+     jednej szerokości okna: 16 px przy kolumnie na 20 px na telefonie i o 20
+     px za daleko w lewo na szerokim ekranie. Przy gołym tekście tego nie było
+     widać, przy obramowanym przycisku widać od razu. */
+  margin-inline: calc(
+    max(0px, (100% - var(--content-width)) / 2) + var(--content-padding)
+  );
 }
 
 /* Trzy liczby zajmowały 1386 px wysokości, bo na wąskim ekranie karty
@@ -880,7 +866,7 @@ main > .matches-page__back {
   justify-content: space-between;
   gap: var(--space-3);
 
-  margin-top: 20px;
+  margin-top: var(--space-5);
   padding: var(--space-4) var(--space-4);
 
   border: 1px solid var(--border);
@@ -890,7 +876,7 @@ main > .matches-page__back {
 
 .leaderboard-pages button {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 var(--space-4);
 
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -927,13 +913,13 @@ main > .matches-page__back {
   flex-wrap: wrap;
   gap: var(--space-3);
 
-  margin-top: 24px;
+  margin-top: var(--space-6);
 }
 
 .leaderboard-search input {
   flex: 1 1 220px;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--space-4);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -955,7 +941,7 @@ main > .matches-page__back {
 .leaderboard-search button {
   flex: none;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 var(--space-5);
 
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-sm);

@@ -158,6 +158,12 @@
      Skala co 4px. Wartości spoza niej (9px, 14px, 18px) były wynikiem
      dostrajania pojedynczych ekranów i to one rozjeżdżały rytm strony.
      --------------------------------------------------------------------- */
+  /* Mikroodstęp między napisem a jego podpisem. Nie należy do rytmu układu,
+     tylko do typografii - stąd poza skalą co 4px: zaokrąglenie go do 4px
+     podwaja przerwę i widać to gołym okiem. Używać wyłącznie wewnątrz
+     bloków tekstu, nigdy do rozstawiania elementów. */
+  --space-05: 2px;
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import BackLink from "../components/BackLink.jsx";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventLeaderboard } from "../lib/api.js";
@@ -187,12 +188,7 @@ function LeaderboardPage() {
           )}
         </div>
 
-        <Link
-          className="ui-btn ui-btn--ghost ui-btn--sm"
-          to={`/events/${slug}`}
-        >
-          ← Wróć do eventu
-        </Link>
+        <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
       </div>
 
       {/* Przy 500 graczach na 11 stronach jedyną drogą do własnego miejsca
