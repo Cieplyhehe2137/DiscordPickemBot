@@ -494,6 +494,13 @@ export function deleteMvpCandidate(slug, candidateId) {
   );
 }
 
+export function deleteMvpCandidates(slug, ids) {
+  return apiRequest(
+    `/events/${encodeURIComponent(slug)}/mvp/candidates/delete`,
+    { method: "POST", body: JSON.stringify({ ids }) },
+  );
+}
+
 export function saveMvpResult(slug, candidateId) {
   return apiRequest(`/events/${encodeURIComponent(slug)}/mvp/result`, {
     method: "POST",

@@ -9,6 +9,86 @@
 // ksztalt tablicy tras sie nie zmienil, i zaleznosci argumentem pod nazwami
 // z app.js - przeniesiony kod jest niezmieniony poza wcieciem.
 
+// Czy wolno skasowac kandydata MVP.
+//
+// Jedno miejsce, bo pytaja o to dwie trasy: kasowanie pojedyncze i hurtowe.
+// Dwie kopie tej reguly rozjechalyby sie przy pierwszej zmianie, a rozjazd
+// oznaczalby, ze hurtem da sie usunac cos, czego pojedynczo nie wolno.
+//
+// Odmowa nie jest ostroznoscia na wyrost: mvp_predictions.candidate_id NIE ma
+// klucza obcego do mvp_candidates, wiec baza puscilaby takie kasowanie, a typ
+// gracza zostalby golym numerem (handlers/admin/exportClassification.js pisze
+// wtedy "ID 42").
+//
+// Zwraca { candidate } albo { blad } z gotowym komunikatem.
+async function sprawdzKandydataDoUsuniecia(pool, guildId, eventId, candidateId) {
+  // Kandydat musi nalezec do TEGO turnieju - inaczej wystarczyloby znac id,
+  // zeby skasowac kandydata z cudzego eventu na wlasnym serwerze.
+  const [[candidate]] = await pool.query(
+    `
+    SELECT id, nickname
+    FROM mvp_candidates
+    WHERE id = ?
+      AND guild_id = ?
+      AND event_id = ?
+    LIMIT 1
+    `,
+    [candidateId, guildId, eventId],
+  );
+
+  if (!candidate) {
+    return { blad: "Nie znaleziono kandydata.", kod: 404 };
+  }
+
+  const [[wynik]] = await pool.query(
+    `
+    SELECT COUNT(*) AS ile
+    FROM mvp_results
+    WHERE guild_id = ?
+      AND event_id = ?
+      AND candidate_id = ?
+    `,
+    [guildId, eventId, candidateId],
+  );
+
+  if (Number(wynik.ile) > 0) {
+    return {
+      candidate,
+      kod: 409,
+      blad: `"${candidate.nickname}" jest zapisany jako zwycięzca MVP. Wskaż najpierw innego zwycięzcę.`,
+    };
+  }
+
+  const [[typy]] = await pool.query(
+    `
+    SELECT COUNT(*) AS ile
+    FROM mvp_predictions
+    WHERE guild_id = ?
+      AND event_id = ?
+      AND candidate_id = ?
+    `,
+    [guildId, eventId, candidateId],
+  );
+
+  if (Number(typy.ile) > 0) {
+    return {
+      candidate,
+      kod: 409,
+      blad: `"${candidate.nickname}" został wytypowany przez ${typy.ile} ${
+        Number(typy.ile) === 1 ? "gracza" : "graczy"
+      } - skasowanie zostawiłoby ich typy bez nazwiska. Możesz go odznaczyć, zapisując listę bez niego.`,
+    };
+  }
+
+  return { candidate };
+}
+
+// Ile kandydatow wolno podac w jednym zadaniu hurtowym. Nie ma tu zadnej
+// magii poza tym, ze jeden turniej uzbiera ich najwyzej kilkaset (IEM Cologne:
+// 105), a bez gornej granicy kazdy zalogowany admin mialby darmowa petle
+// zapytan do bazy.
+const LIMIT_HURTOWY = 500;
+
 export function registerEventAdminRoutes(
   app,
   {
@@ -319,58 +399,15 @@ export function registerEventAdminRoutes(
           return res.status(404).json({ error: "Nie znaleziono turnieju." });
         }
 
-        // Kandydat musi nalezec do TEGO turnieju - inaczej wystarczyloby znac
-        // id, zeby skasowac kandydata z cudzego eventu na wlasnym serwerze.
-        const [[candidate]] = await pool.query(
-          `
-          SELECT id, nickname
-          FROM mvp_candidates
-          WHERE id = ?
-            AND guild_id = ?
-            AND event_id = ?
-          LIMIT 1
-          `,
-          [candidateId, guildId, event.id],
+        const ocena = await sprawdzKandydataDoUsuniecia(
+          pool,
+          guildId,
+          event.id,
+          candidateId,
         );
 
-        if (!candidate) {
-          return res.status(404).json({ error: "Nie znaleziono kandydata." });
-        }
-
-        const [[wynik]] = await pool.query(
-          `
-          SELECT COUNT(*) AS ile
-          FROM mvp_results
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND candidate_id = ?
-          `,
-          [guildId, event.id, candidateId],
-        );
-
-        if (Number(wynik.ile) > 0) {
-          return res.status(409).json({
-            error: `"${candidate.nickname}" jest zapisany jako zwycięzca MVP. Wskaż najpierw innego zwycięzcę.`,
-          });
-        }
-
-        const [[typy]] = await pool.query(
-          `
-          SELECT COUNT(*) AS ile
-          FROM mvp_predictions
-          WHERE guild_id = ?
-            AND event_id = ?
-            AND candidate_id = ?
-          `,
-          [guildId, event.id, candidateId],
-        );
-
-        if (Number(typy.ile) > 0) {
-          return res.status(409).json({
-            error: `"${candidate.nickname}" został wytypowany przez ${typy.ile} ${
-              Number(typy.ile) === 1 ? "gracza" : "graczy"
-            } - skasowanie zostawiłoby ich typy bez nazwiska. Możesz go odznaczyć, zapisując listę bez niego.`,
-          });
+        if (ocena.blad) {
+          return res.status(ocena.kod).json({ error: ocena.blad });
         }
 
         await pool.query(
@@ -384,6 +421,114 @@ export function registerEventAdminRoutes(
         );
 
         res.json({ ok: true, deletedId: candidateId });
+      } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+        });
+      }
+    },
+  );
+
+  // Kasowanie hurtowe.
+  //
+  // POST, nie DELETE z cialem: DELETE z ladunkiem jest dopuszczalny, ale
+  // posrednicy potrafia go obciac, a w tym repo operacje zbiorcze i tak stoja
+  // pod czasownikiem w sciezce (patrz .../teams/import, .../teams/reorder).
+  //
+  // Odpowiedz jest ZAWSZE 200, takze gdy czesc wpisow odrzucono. Zadanie na
+  // 92 kandydatow, z ktorych 13 ma powiazania, nie jest bledem - jest
+  // wynikiem mieszanym, a wolajacy musi wiedziec, co dokladnie zostalo.
+  app.post(
+    "/api/events/:slug/mvp/candidates/delete",
+    requireGuildAdmin(guildIdFromEventSlug),
+    async (req, res) => {
+      try {
+        const { slug } = req.params;
+        const { guildId } = req;
+        const { ids } = req.body ?? {};
+
+        if (!Array.isArray(ids) || !ids.length) {
+          return res
+            .status(400)
+            .json({ error: "ids musi być niepustą tablicą identyfikatorów." });
+        }
+
+        if (ids.length > LIMIT_HURTOWY) {
+          return res.status(400).json({
+            error: `Naraz można usunąć najwyżej ${LIMIT_HURTOWY} kandydatów.`,
+          });
+        }
+
+        // Te same id potrafia przyjsc dwa razy przy szybkim klikaniu; bez
+        // odsiania kandydat trafilby raz do usunietych, a raz do odrzuconych.
+        const identyfikatory = [
+          ...new Set(ids.map(Number).filter((n) => Number.isInteger(n) && n > 0)),
+        ];
+
+        if (!identyfikatory.length) {
+          return res
+            .status(400)
+            .json({ error: "Żaden z podanych identyfikatorów nie jest poprawny." });
+        }
+
+        const [[event]] = await pool.query(
+          "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
+          [guildId, slug],
+        );
+
+        if (!event) {
+          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        }
+
+        const doUsuniecia = [];
+        const odrzucone = [];
+
+        for (const candidateId of identyfikatory) {
+          const ocena = await sprawdzKandydataDoUsuniecia(
+            pool,
+            guildId,
+            event.id,
+            candidateId,
+          );
+
+          if (ocena.blad) {
+            odrzucone.push({
+              id: candidateId,
+              nickname: ocena.candidate?.nickname ?? null,
+              reason: ocena.blad,
+            });
+            continue;
+          }
+
+          doUsuniecia.push(ocena.candidate);
+        }
+
+        // Wszystko albo nic w obrebie tego, co przeszlo kontrole: admin
+        // klikajacy "usun 92" ma dostac 92 skasowane albo zadnego, a nie
+        // polowe i blad polaczenia w srodku.
+        if (doUsuniecia.length) {
+          await runInTransaction(pool, async (conn) => {
+            for (const kandydat of doUsuniecia) {
+              await conn.query(
+                `
+                DELETE FROM mvp_candidates
+                WHERE id = ?
+                  AND guild_id = ?
+                  AND event_id = ?
+                `,
+                [kandydat.id, guildId, event.id],
+              );
+            }
+          });
+        }
+
+        res.json({
+          ok: true,
+          deleted: doUsuniecia.map((k) => k.id),
+          refused: odrzucone,
+        });
       } catch (err) {
         console.error(err);
 
