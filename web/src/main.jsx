@@ -5,6 +5,8 @@ import { AuthProvider } from "./auth/AuthContext.jsx";
 import { ToastProvider } from "./components/ui/ToastProvider.jsx";
 import { ConfirmProvider } from "./components/ui/ConfirmProvider.jsx";
 
+import { registerServiceWorker } from "./lib/serviceWorker.js";
+
 import "./index.css";
 import App from "./App.jsx";
 
@@ -25,3 +27,5 @@ createRoot(document.getElementById("root")).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+registerServiceWorker();
