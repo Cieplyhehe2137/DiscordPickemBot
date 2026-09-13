@@ -60,7 +60,7 @@ function PlayerProfilePage() {
     return (
       <main className="ui-page">
         <div
-          className="ui-stats"
+          className="ui-stats ui-stats--4"
           aria-busy="true"
           aria-label="Ładowanie profilu"
         >
@@ -164,7 +164,7 @@ function PlayerProfilePage() {
           </div>
         </div>
 
-        <div className="ui-stats">
+        <div className="ui-stats ui-stats--4">
           <div className="ui-stat ui-stat--featured">
             <span>Punkty</span>
             <strong>{player.total_points}</strong>
@@ -223,7 +223,7 @@ function PlayerProfilePage() {
           </div>
         </div>
 
-        <div className="ui-stats">
+        <div className="ui-stats ui-stats--4">
           <div className="ui-stat">
             <span>🔥 Najlepsza seria trafień</span>
             <strong>{player.best_correct_streak ?? 0}</strong>
@@ -294,7 +294,7 @@ function PlayerProfilePage() {
             </div>
           </div>
 
-          <div className="ui-stats">
+          <div className="ui-stats ui-stats--4">
             {[
               {
                 label: "🏆 Punkty",
