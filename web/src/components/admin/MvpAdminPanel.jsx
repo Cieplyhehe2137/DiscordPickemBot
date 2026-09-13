@@ -7,6 +7,7 @@ import {
   saveMvpResult,
 } from "../../lib/api.js";
 import Ladowanie from "../../components/Ladowanie.jsx";
+import { odmien } from "../../lib/odmiana.js";
 
 // MVP turnieju: lista kandydatów i wskazanie zwycięzcy.
 //
@@ -46,6 +47,13 @@ function MvpAdminPanel({ slug }) {
   // żądanie właśnie leci - żeby zablokować tylko ten jeden przycisk.
   const [potwierdzanyId, setPotwierdzanyId] = useState(null);
   const [usuwanyId, setUsuwanyId] = useState(null);
+
+  // Zapis listy wyłącza starych kandydatów zamiast ich kasować, a turniej
+  // przez kilka zapisów potrafi ich uzbierać kilkadziesiąt (IEM Cologne:
+  // 105 wpisów, z czego 75 poza listą). Domyślnie pokazujemy tych, którzy
+  // są na liście - reszta czeka za przełącznikiem, zamiast robić z panelu
+  // stumetrowy przewijak.
+  const [pokazPozaLista, setPokazPozaLista] = useState(false);
 
   // Wywoływane też ręcznie po zapisaniu kandydatów - stąd useCallback.
   const wczytaj = useCallback(async () => {
@@ -117,6 +125,9 @@ function MvpAdminPanel({ slug }) {
     }
   }
 
+  const aktywni = kandydaci.filter((k) => Number(k.is_active));
+  const pozaLista = kandydaci.filter((k) => !Number(k.is_active));
+
   async function usunKandydata(candidateId) {
     setBlad("");
     setKomunikat("");
@@ -152,6 +163,89 @@ function MvpAdminPanel({ slug }) {
     }
   }
 
+  // Jeden wiersz listy kandydatów. Zwykła funkcja, nie komponent: wołana
+  // jako wierszKandydata(k), więc React wstawia zwrócone elementy w drzewo
+  // rodzica i nic się nie przemontowuje przy każdym renderze. Stoi w jednym
+  // miejscu, bo listy są teraz dwie - na liście i poza nią - a dwie kopie
+  // tego samego wiersza rozjechałyby się przy pierwszej zmianie.
+  function wierszKandydata(kandydat) {
+    const zwyciezca = Number(wynik) === Number(kandydat.id);
+    const nieaktywny = !Number(kandydat.is_active);
+
+    return (
+      <div
+        key={kandydat.id}
+        className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
+      >
+        <div className="ui-row ui-row--between ui-row--wrap">
+          <button
+            type="button"
+            className="ui-choice__option ui-choice__option--stacked"
+            aria-pressed={zwyciezca}
+            onClick={() => ustawWynik(kandydat.id)}
+            title="Kliknij, aby ustawić jako zwycięzcę MVP"
+          >
+            <strong>{kandydat.nickname}</strong>
+
+            {kandydat.team_name && <span>{kandydat.team_name}</span>}
+          </button>
+
+          <div className="ui-row ui-row--wrap">
+            {zwyciezca && <span className="ui-badge ui-badge--warn">MVP</span>}
+
+            {/* Zapis listy nie kasuje starych wpisów, tylko je
+                      wyłącza - bez tej plakietki nie było widać, którzy
+                      kandydaci pochodzą z poprzedniego zapisu. */}
+            {nieaktywny && <span className="ui-badge">poza listą</span>}
+
+            <button
+              type="button"
+              className="ui-btn ui-btn--sm ui-btn--danger"
+              disabled={usuwanyId === kandydat.id}
+              onClick={() => {
+                setBlad("");
+                setKomunikat("");
+                setPotwierdzanyId(
+                  potwierdzanyId === kandydat.id ? null : kandydat.id,
+                );
+              }}
+            >
+              🗑️ Usuń
+            </button>
+          </div>
+        </div>
+
+        {potwierdzanyId === kandydat.id && (
+          <div className="ui-note ui-note--danger ui-stack ui-stack--tight">
+            <span>
+              Usunąć <strong>{kandydat.nickname}</strong> z listy kandydatów?
+            </span>
+
+            <div className="ui-row ui-row--wrap">
+              <button
+                type="button"
+                className="ui-btn ui-btn--sm ui-btn--danger"
+                disabled={usuwanyId === kandydat.id}
+                onClick={() => usunKandydata(kandydat.id)}
+              >
+                {usuwanyId === kandydat.id ? "Usuwanie..." : "🗑️ Tak, usuń"}
+              </button>
+
+              <button
+                type="button"
+                className="ui-btn ui-btn--sm ui-btn--ghost"
+                disabled={usuwanyId === kandydat.id}
+                onClick={() => setPotwierdzanyId(null)}
+              >
+                Anuluj
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="ui-stack">
       <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
@@ -163,97 +257,37 @@ function MvpAdminPanel({ slug }) {
           <p className="ui-hint">Brak kandydatów.</p>
         )}
 
-        {!ladowanie && kandydaci.length > 0 && (
-          // Lista pionowa, nie siatka: każdy kandydat ma teraz własną akcję,
-          // a przycisku kasowania nie da się włożyć do środka przycisku
-          // wyboru - zagnieżdżone elementy interaktywne to nieprawidłowy HTML
-          // i klawiatura nie umie się po nich poruszać.
+        {!ladowanie && kandydaci.length > 0 && aktywni.length === 0 && (
+          <p className="ui-hint">
+            Żaden kandydat nie jest na liście - wszyscy poniżej pochodzą z
+            wcześniejszych zapisów.
+          </p>
+        )}
+
+        {!ladowanie && aktywni.length > 0 && (
           <div className="ui-stack ui-stack--tight">
-            {kandydaci.map((kandydat) => {
-              const zwyciezca = Number(wynik) === Number(kandydat.id);
-              const nieaktywny = !Number(kandydat.is_active);
-
-              return (
-                <div
-                  key={kandydat.id}
-                  className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
-                >
-                  <div className="ui-row ui-row--between ui-row--wrap">
-                    <button
-                      type="button"
-                      className="ui-choice__option ui-choice__option--stacked"
-                      aria-pressed={zwyciezca}
-                      onClick={() => ustawWynik(kandydat.id)}
-                      title="Kliknij, aby ustawić jako zwycięzcę MVP"
-                    >
-                      <strong>{kandydat.nickname}</strong>
-
-                      {kandydat.team_name && <span>{kandydat.team_name}</span>}
-                    </button>
-
-                    <div className="ui-row ui-row--wrap">
-                      {zwyciezca && (
-                        <span className="ui-badge ui-badge--warn">MVP</span>
-                      )}
-
-                      {/* Zapis listy nie kasuje starych wpisów, tylko je
-                          wyłącza - bez tej plakietki nie było widać, którzy
-                          kandydaci pochodzą z poprzedniego zapisu. */}
-                      {nieaktywny && (
-                        <span className="ui-badge">poza listą</span>
-                      )}
-
-                      <button
-                        type="button"
-                        className="ui-btn ui-btn--sm ui-btn--danger"
-                        disabled={usuwanyId === kandydat.id}
-                        onClick={() => {
-                          setBlad("");
-                          setKomunikat("");
-                          setPotwierdzanyId(
-                            potwierdzanyId === kandydat.id ? null : kandydat.id,
-                          );
-                        }}
-                      >
-                        🗑️ Usuń
-                      </button>
-                    </div>
-                  </div>
-
-                  {potwierdzanyId === kandydat.id && (
-                    <div className="ui-note ui-note--danger ui-stack ui-stack--tight">
-                      <span>
-                        Usunąć <strong>{kandydat.nickname}</strong> z listy
-                        kandydatów?
-                      </span>
-
-                      <div className="ui-row ui-row--wrap">
-                        <button
-                          type="button"
-                          className="ui-btn ui-btn--sm ui-btn--danger"
-                          disabled={usuwanyId === kandydat.id}
-                          onClick={() => usunKandydata(kandydat.id)}
-                        >
-                          {usuwanyId === kandydat.id
-                            ? "Usuwanie..."
-                            : "🗑️ Tak, usuń"}
-                        </button>
-
-                        <button
-                          type="button"
-                          className="ui-btn ui-btn--sm ui-btn--ghost"
-                          disabled={usuwanyId === kandydat.id}
-                          onClick={() => setPotwierdzanyId(null)}
-                        >
-                          Anuluj
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {aktywni.map(wierszKandydata)}
           </div>
+        )}
+
+        {!ladowanie && pozaLista.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="ui-btn ui-btn--sm ui-btn--ghost"
+              aria-expanded={pokazPozaLista}
+              onClick={() => setPokazPozaLista((teraz) => !teraz)}
+            >
+              {pokazPozaLista ? "Ukryj" : "Pokaż"} {pozaLista.length}{" "}
+              {odmien(pozaLista.length, "wpis", "wpisy", "wpisów")} poza listą
+            </button>
+
+            {pokazPozaLista && (
+              <div className="ui-stack ui-stack--tight">
+                {pozaLista.map(wierszKandydata)}
+              </div>
+            )}
+          </>
         )}
       </div>
 
