@@ -281,6 +281,119 @@ export function registerEventAdminRoutes(
     },
   );
 
+  // Skasowanie pojedynczego kandydata.
+  //
+  // Zapis listy (POST .../mvp/candidates) nie kasuje niczego - ustawia starym
+  // wpisom is_active = 0 i dopisuje nowe. Historia zostaje, ale lista w panelu
+  // pokazuje wszystkich, wiec z kazdym zapisem rosnie i nie da sie z niej
+  // usunac literowki ani kandydata wpisanego przez pomylke.
+  //
+  // Kasujemy TWARDO, ale tylko wtedy, gdy nikt sie do kandydata nie odwoluje.
+  // Dokladnie ta sama zasada co przy druzynach (DELETE .../teams/:teamId):
+  // 409 i wyjasnienie, co trzyma rekord, zamiast cichego osierocenia wierszy.
+  // Powod jest konkretny: mvp_predictions.candidate_id NIE ma klucza obcego
+  // do mvp_candidates, wiec baza takiego kasowania by nie zatrzymala, a typ
+  // gracza zamienilby sie w goly numer (patrz handlers/admin/
+  // exportClassification.js, ktory dla brakujacego kandydata pisze "ID 42").
+  app.delete(
+    "/api/events/:slug/mvp/candidates/:candidateId",
+    requireGuildAdmin(guildIdFromEventSlug),
+    async (req, res) => {
+      try {
+        const { slug } = req.params;
+        const { guildId } = req;
+        const candidateId = Number(req.params.candidateId);
+
+        if (!Number.isInteger(candidateId) || candidateId <= 0) {
+          return res
+            .status(400)
+            .json({ error: "Wymagany jest identyfikator kandydata." });
+        }
+
+        const [[event]] = await pool.query(
+          "SELECT id FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
+          [guildId, slug],
+        );
+
+        if (!event) {
+          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        }
+
+        // Kandydat musi nalezec do TEGO turnieju - inaczej wystarczyloby znac
+        // id, zeby skasowac kandydata z cudzego eventu na wlasnym serwerze.
+        const [[candidate]] = await pool.query(
+          `
+          SELECT id, nickname
+          FROM mvp_candidates
+          WHERE id = ?
+            AND guild_id = ?
+            AND event_id = ?
+          LIMIT 1
+          `,
+          [candidateId, guildId, event.id],
+        );
+
+        if (!candidate) {
+          return res.status(404).json({ error: "Nie znaleziono kandydata." });
+        }
+
+        const [[wynik]] = await pool.query(
+          `
+          SELECT COUNT(*) AS ile
+          FROM mvp_results
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND candidate_id = ?
+          `,
+          [guildId, event.id, candidateId],
+        );
+
+        if (Number(wynik.ile) > 0) {
+          return res.status(409).json({
+            error: `"${candidate.nickname}" jest zapisany jako zwycięzca MVP. Wskaż najpierw innego zwycięzcę.`,
+          });
+        }
+
+        const [[typy]] = await pool.query(
+          `
+          SELECT COUNT(*) AS ile
+          FROM mvp_predictions
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND candidate_id = ?
+          `,
+          [guildId, event.id, candidateId],
+        );
+
+        if (Number(typy.ile) > 0) {
+          return res.status(409).json({
+            error: `"${candidate.nickname}" został wytypowany przez ${typy.ile} ${
+              Number(typy.ile) === 1 ? "gracza" : "graczy"
+            } - skasowanie zostawiłoby ich typy bez nazwiska. Możesz go odznaczyć, zapisując listę bez niego.`,
+          });
+        }
+
+        await pool.query(
+          `
+          DELETE FROM mvp_candidates
+          WHERE id = ?
+            AND guild_id = ?
+            AND event_id = ?
+          `,
+          [candidateId, guildId, event.id],
+        );
+
+        res.json({ ok: true, deletedId: candidateId });
+      } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+        });
+      }
+    },
+  );
+
   app.post(
     "/api/events/:slug/mvp/result",
     requireGuildAdmin(guildIdFromEventSlug),
