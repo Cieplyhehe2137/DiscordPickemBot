@@ -31,6 +31,25 @@ const RUNNING_TESTS =
 // skasować go wprost.
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
 
+// Rotacja plików. Bez niej bot.log rósł bez końca - od maja do września
+// urósł do 3 MB i przyciąć go dało się tylko ręcznie.
+//
+// `tailable` sprawia, że bieżące wpisy są ZAWSZE w bot.log, a starsze
+// wędrują do bot1.log, bot2.log. Bez tego winston zostawia świeże dane pod
+// zmieniającą się nazwą i `tail -f logs/bot.log` przestaje cokolwiek
+// pokazywać po pierwszej rotacji - czyli dokładnie wtedy, gdy jest ciekawie.
+const ROTATION = {
+  // Plik ogólny: najgrubszy i najmniej cenny wstecz. Przy LOG_LEVEL=debug
+  // rośnie znacznie szybciej i wtedy ten limit dopiero zaczyna pracować.
+  bot: { maxsize: 5 * 1024 * 1024, maxFiles: 3 },
+
+  // Ostrzeżenia i błędy są rzadkie - errors.log uzbierał 54 linie przez
+  // cztery miesiące - więc limit jest mniejszy, a kopii więcej: te pliki
+  // czyta się wstecz, kiedy coś się zepsuło tydzień temu.
+  warnings: { maxsize: 2 * 1024 * 1024, maxFiles: 3 },
+  errors: { maxsize: 2 * 1024 * 1024, maxFiles: 5 },
+};
+
 const logsDir = path.join(process.cwd(), "logs");
 
 // Katalog powstaje tylko wtedy, gdy naprawdę będzie do czego pisać. Samo
@@ -283,18 +302,27 @@ const logger = createLogger({
           // Za LOG_LEVEL, bo to jest plik ogólny. errors.log i warnings.log
           // zostają przy swoich poziomach - są od jednej rzeczy każdy.
           level: LOG_LEVEL,
+
+          ...ROTATION.bot,
+          tailable: true,
         }),
 
         new transports.File({
           filename: path.join(logsDir, "errors.log"),
 
           level: "error",
+
+          ...ROTATION.errors,
+          tailable: true,
         }),
 
         new transports.File({
           filename: path.join(logsDir, "warnings.log"),
 
           level: "warn",
+
+          ...ROTATION.warnings,
+          tailable: true,
         }),
 
         new transports.Console({
@@ -421,6 +449,7 @@ function logCommandError(interaction, error) {
 module.exports = {
   logger,
   RUNNING_TESTS,
+  ROTATION,
 
   logInfo,
   logDebug,
