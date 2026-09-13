@@ -487,6 +487,13 @@ export function saveMvpCandidates(slug, entries) {
   });
 }
 
+export function deleteMvpCandidate(slug, candidateId) {
+  return apiRequest(
+    `/events/${encodeURIComponent(slug)}/mvp/candidates/${candidateId}`,
+    { method: "DELETE" },
+  );
+}
+
 export function saveMvpResult(slug, candidateId) {
   return apiRequest(`/events/${encodeURIComponent(slug)}/mvp/result`, {
     method: "POST",
