@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { getSwissPickem, saveSwissPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
 import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { useToast } from "../components/ui/useToast.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 
 import { useAuth } from "../auth/useAuth.js";
@@ -15,6 +16,7 @@ import { apiUrl } from "../lib/apiUrl.js";
 function SwissPickemPage() {
   const { slug, stage } = useParams();
   const { user, authLoading } = useAuth();
+  const toast = useToast();
   const stageLabel =
     {
       stage1: "Stage 1",
@@ -29,7 +31,9 @@ function SwissPickemPage() {
   const [zeroThree, setZeroThree] = useState([]);
   const [advancing, setAdvancing] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  // Tylko błędy - potwierdzenie zapisu idzie powiadomieniem, żeby dało się
+  // je zobaczyć także wtedy, gdy przycisk stoi na dole długiej listy.
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     async function loadSwissPickem() {
@@ -114,7 +118,7 @@ function SwissPickemPage() {
   // Przełącza nazwę w liście: usuwa, jeśli już jest, dopisuje, jeśli mieści
   // się w limicie. Ten sam ruch dla wszystkich trzech grup.
   const toggle = (setList, limit) => (name) => {
-    setSaveMessage("");
+    setSaveError("");
 
     setList((current) => {
       if (current.includes(name)) {
@@ -224,14 +228,7 @@ function SwissPickemPage() {
         onToggle={toggle(setAdvancing, limitAwans)}
       />
 
-      {saveMessage && (
-        <p
-          className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-            }`}
-        >
-          {saveMessage}
-        </p>
-      )}
+      {saveError && <p className="ui-note ui-note--danger">{saveError}</p>}
 
       <button
         type="button"
@@ -249,7 +246,7 @@ function SwissPickemPage() {
         onClick={async () => {
           try {
             setSaving(true);
-            setSaveMessage("");
+            setSaveError("");
 
             await saveSwissPickem(slug, stage, {
               three_zero: threeZero,
@@ -266,10 +263,10 @@ function SwissPickemPage() {
               },
             }));
 
-            setSaveMessage(SAVED_MESSAGE);
+            toast.success(SAVED_MESSAGE);
           } catch (err) {
             console.error(err);
-            setSaveMessage(err.message || "Nie udało się zapisać typów.");
+            setSaveError(err.message || "Nie udało się zapisać typów.");
           } finally {
             setSaving(false);
           }

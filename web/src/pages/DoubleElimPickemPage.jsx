@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { getDoubleElimPickem, saveDoubleElimPickem } from "../lib/api.js";
 import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { useToast } from "../components/ui/useToast.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
@@ -13,6 +14,7 @@ import { apiUrl } from "../lib/apiUrl.js";
 function DoubleElimPickemPage() {
   const { slug } = useParams();
   const { user, authLoading } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,7 +42,9 @@ function DoubleElimPickemPage() {
     JSON.stringify(upperFinalB) !== JSON.stringify(savedUpperFinalB) ||
     JSON.stringify(lowerFinalB) !== JSON.stringify(savedLowerFinalB);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  // Tylko błędy - potwierdzenie zapisu idzie powiadomieniem, żeby dało się
+  // je zobaczyć także wtedy, gdy przycisk stoi na dole długiej listy.
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     async function loadDoubleElimPickem() {
@@ -79,7 +83,7 @@ function DoubleElimPickemPage() {
   async function handleSave() {
     try {
       setSaving(true);
-      setSaveMessage("");
+      setSaveError("");
 
       const prediction = {
         upper_final_a: upperFinalA,
@@ -95,11 +99,11 @@ function DoubleElimPickemPage() {
         prediction,
       }));
 
-      setSaveMessage(SAVED_MESSAGE);
+      toast.success(SAVED_MESSAGE);
     } catch (err) {
       console.error("DOUBLE ELIM SAVE ERROR:", err);
 
-      setSaveMessage(err.message || "Nie udało się zapisać typów.");
+      setSaveError(err.message || "Nie udało się zapisać typów.");
     } finally {
       setSaving(false);
     }
@@ -137,11 +141,11 @@ function DoubleElimPickemPage() {
 
   const pickingLocked = authLoading || !user || !data?.lock?.allowed;
 
-  // Przełącza nazwę w liście. setSaveMessage stało wcześniej WEWNĄTRZ
+  // Przełącza nazwę w liście. setSaveError stało wcześniej WEWNĄTRZ
   // funkcji aktualizującej stan - React może ją wywołać dwa razy, więc
   // efekt uboczny nie ma tam czego szukać.
   const toggle = (setList) => (name) => {
-    setSaveMessage("");
+    setSaveError("");
 
     setList((current) =>
       current.includes(name)
@@ -241,14 +245,7 @@ function DoubleElimPickemPage() {
         onToggle={toggle(setLowerFinalB)}
       />
 
-      {saveMessage && (
-        <p
-          className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-            }`}
-        >
-          {saveMessage}
-        </p>
-      )}
+      {saveError && <p className="ui-note ui-note--danger">{saveError}</p>}
 
       <button
         type="button"

@@ -5,6 +5,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getPlayinPickem, savePlayinPickem } from "../lib/api.js";
 import { druzyny } from "../lib/odmiana.js";
 import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { useToast } from "../components/ui/useToast.js";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
@@ -14,13 +15,16 @@ import { apiUrl } from "../lib/apiUrl.js";
 function PlayinPickemPage() {
   const { slug } = useParams();
   const { user, authLoading } = useAuth();
+  const toast = useToast();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedTeams, setSelectedTeams] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  // Tylko błędy - potwierdzenie zapisu idzie powiadomieniem, żeby dało się
+  // je zobaczyć także wtedy, gdy przycisk stoi na dole długiej listy.
+  const [saveError, setSaveError] = useState("");
   // Limit z konfiguracji eventu; fallback = domyślna wartość backendu.
   const limitDruzyn = Number(data?.limity?.teams ?? 8);
 
@@ -141,7 +145,7 @@ function PlayinPickemPage() {
                   (!selected && isComplete)
                 }
                 onClick={() => {
-                  setSaveMessage("");
+                  setSaveError("");
 
                   setSelectedTeams((current) => {
                     if (current.includes(team.name)) {
@@ -158,14 +162,7 @@ function PlayinPickemPage() {
           })}
         </div>
 
-        {saveMessage && (
-          <p
-            className={`ui-note ${saveMessage === SAVED_MESSAGE ? "ui-note--ok" : "ui-note--danger"
-              }`}
-          >
-            {saveMessage}
-          </p>
-        )}
+        {saveError && <p className="ui-note ui-note--danger">{saveError}</p>}
 
         <button
           type="button"
@@ -181,7 +178,7 @@ function PlayinPickemPage() {
           onClick={async () => {
             try {
               setSaving(true);
-              setSaveMessage("");
+              setSaveError("");
 
               await savePlayinPickem(slug, selectedTeams);
               setData((current) => ({
@@ -191,10 +188,10 @@ function PlayinPickemPage() {
                 },
               }));
 
-              setSaveMessage(SAVED_MESSAGE);
+              toast.success(SAVED_MESSAGE);
             } catch (err) {
               console.error("PLAY-IN SAVE ERROR:", err);
-              setSaveMessage(err.message || "Nie udało się zapisać typów.");
+              setSaveError(err.message || "Nie udało się zapisać typów.");
             } finally {
               setSaving(false);
             }
