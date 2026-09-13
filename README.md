@@ -23,11 +23,12 @@ They share **only MySQL**. The API has no Discord client and cannot post
 messages; the bot does not serve HTTP. Anything that has to cross between them
 goes through the database.
 
-The website (`web/`) is a separate React + Vite app. In the default deployment
-`pickembot-server` serves its build output from `web/dist` (`express.static`),
-so the browser talks to one origin and the session cookie is same-site. Putting
-the front end on its own host is supported but needs three things at once —
-see **Split hosting** below.
+The website (`web/`) is a separate React + Vite app. `server/app.js` can serve
+its build output from `web/dist` (`express.static`), and that single-origin
+arrangement is the simplest one — but it is **not** how this is deployed. In
+production the front end is hosted separately, on Cloudflare Pages, and reaches
+the API across origins. What that costs is spelled out under **Deploying**;
+read it before assuming a change to `web/` ships with the API.
 
 ### Two module systems
 
@@ -160,71 +161,95 @@ cd web && npm run lint && npm run build
 
 ## Deploying
 
-**Merging a pull request changes nothing on the server.** The host has its own
-checkout; the code gets there by `git pull`, run on the host, in the directory
-the app actually runs from. Nothing else pulls it in - not the build, not a
-restart, not PM2, not Plesk. Both of them will happily restart the old code
-and report success.
+**The front end and the API deploy by different routes, and neither one
+deploys the other.** This is the single thing to get right; everything below
+follows from it.
+
+| Part | Lives on | Deploys when |
+| --- | --- | --- |
+| front end — `pickembot.pl` | Cloudflare Pages | **automatically**, on every push to `main` |
+| API — `api.pickembot.pl` | Plesk, running `web-server.js` | only when someone runs `git pull` on the host and restarts the app |
+
+So a merged pull request ships the front end by itself and does **nothing** to
+the API. And `npm run build` on the host produces a `web/dist` that nothing
+serves — the browser gets its files from Cloudflare. Both halves of that have
+already cost a debugging session.
+
+### Shipping an API change
 
 ```bash
-git pull
+git pull                 # on the host, in the app's directory
 ```
 
-Everything below assumes that ran first. Skipping it is the single cheapest
-way to lose an afternoon: the fix is merged, the build is green, the restart
-says OK, and the site keeps behaving exactly as before.
+Then **Restart App** in Plesk's Node.js panel (or `touch tmp/restart.txt`).
 
-**Then find out which process runs the API before restarting anything.** There
-are two entry points into the same `server/app.js`, and only one of them is
-PM2's:
+`git pull` is the step that is actually forgotten. Merging does not move code
+onto the host; neither does a build, and neither does a restart. The restart
+happily reports success while the old code keeps answering.
+
+There is a second entry point into the same `server/app.js`, and knowing which
+one is running decides which restart does anything:
 
 | Entry point | Started by | Restarted by |
 | --- | --- | --- |
+| `web-server.js` | Plesk's Node.js extension — **this is the live one** | Restart App in Plesk |
 | `server/index.js` | PM2, as `pickembot-server` | `pm2 restart pickembot-server` |
-| `web-server.js` | Plesk's Node.js extension | **Restart App** in Plesk, or `touch tmp/restart.txt` |
 
 `ecosystem.config.js` lists only the PM2 pair, so nothing in it hints that the
-second one exists. Restarting PM2 when the site is served by Plesk succeeds,
-reports success, and changes nothing — the browser keeps getting the old code
-from a process PM2 never touched. This has already cost one debugging session:
-an API fix was merged, built and "restarted", and the site kept serving the
-previous behaviour.
+Plesk entry point exists. Restarting PM2 while Plesk serves the API succeeds,
+reports success, and changes nothing.
 
-A quick way to tell which code is live: pick a field the fix added and request
-the endpoint directly in a browser. A field that is simply absent is proof the
-old code is answering — more reliable than reading values, which can look
-plausible either way. Add a dummy query parameter (`?x=1`) so a cache in front
-of the host cannot answer for it.
+### Shipping a front-end change
 
-When that field is missing, check in this order, in the app's directory:
-`git log --oneline -3` (did the commit arrive at all?), then whether the
-restarted process is the one serving the site. The first question is the one
-that is usually wrong, and it is the cheaper of the two to answer.
+Push to `main` and let Cloudflare Pages build it. Nothing to do on the host.
 
-```bash
-git pull
-cd web && npm ci && npm run build
-pm2 restart pickembot pickembot-server   # only if PM2 serves the API
-```
+**When that build fails, the site silently stays one version behind.** The
+failure appears in the Pages dashboard and nowhere else — no test goes red, no
+endpoint changes, and the site keeps working, just without whatever was
+merged. `Failed: unable to submit build job` means the job was never queued, so
+no commit can be at fault; retry the deployment.
 
-A front-end-only change needs the build but not the restart: the API serves
-`web/dist` from disk. A change to the bot or the API needs the restart — of
-whichever process is actually serving it.
+### Checking what is actually live
 
-`ecosystem.config.js` sets `kill_timeout: 10000` on both processes. PM2's
+Pick something the change added and look for it by name. An absent thing is
+proof; a value that looks plausible is not.
+
+- **API** — request an endpoint that gained a field and look for that field:
+  `https://api.pickembot.pl/api/public/matches/334/result?x=1` returns a
+  `series` key only on code newer than September 2026. The dummy parameter
+  stops a cache from answering for the host.
+- **Front end** — open the site, find the bundle under `/assets/index-*.js`,
+  and search it for a string the change introduced. The file name itself is a
+  content hash, so an unchanged hash means an unchanged build.
+
+If something is missing, ask in this order: did the commit reach the place
+that builds it, and did the right thing rebuild or restart? The first question
+is usually the wrong one and is cheaper to answer.
+
+`ecosystem.config.js` sets `kill_timeout: 10000` on both PM2 processes. PM2's
 default of 1600 ms is not enough to close the MySQL pool and disconnect from
 Discord, so a process would take SIGKILL halfway through shutting down.
 
-### Split hosting
+### The front end and the API are separate origins
 
-Serving the front end from its own host needs all three of these, or the
+They always are here: `pickembot.pl` and `api.pickembot.pl` are different
+origins, so every request is cross-origin and needs all three of these, or the
 browser silently drops the session cookie:
 
 1. `WEB_ORIGIN` on the API listing that origin,
 2. `CROSS_ORIGIN_WEB` set, so the cookie goes out as `SameSite=None; Secure`,
 3. HTTPS on the API.
 
-The front end then needs `VITE_API_URL` at build time.
+The front end needs `VITE_API_URL` at build time — in Pages that is a project
+environment variable, not a file in this repository.
+
+`WEB_ORIGIN` lists exact origins, which is why **the default Pages domain and
+every per-deployment preview URL are broken unless `WEB_ORIGIN_SUFFIX` is
+set**. `discordpickembot.pages.dev` loads, shows its shell, and then every API
+call fails CORS — the page looks stuck on "Ładowanie…" with the reason only in
+the browser console. Setting `WEB_ORIGIN_SUFFIX=.pages.dev` fixes the default
+domain and all preview URLs at once, and preview URLs are the only way to see
+a front-end change before it is merged.
 
 ---
 
