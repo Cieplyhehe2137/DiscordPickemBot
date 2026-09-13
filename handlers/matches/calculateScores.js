@@ -1,5 +1,6 @@
 const {
   logInfo: baseLogInfo,
+  logDebug: baseLogDebug,
   logWarn: baseLogWarn,
   logError: baseLogError,
 } = require("../../utils/logger");
@@ -15,6 +16,18 @@ const SCORING = require("../../rules/scoring");
 
 function logInfo(scope, message, meta = {}) {
   baseLogInfo(message, {
+    ...meta,
+    extra: {
+      ...(meta.extra || {}),
+      scope,
+    },
+  });
+}
+
+// Ta sama otoczka co dla logInfo - scope idzie do `extra`, zeby zapis byl
+// jednakowy w calym pliku.
+function logDebug(scope, message, meta = {}) {
+  baseLogDebug(message, {
     ...meta,
     extra: {
       ...(meta.extra || {}),
@@ -185,7 +198,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logWarn("scores", "No Swiss data, skipping phase", {
+        logDebug("scores", "No Swiss data, skipping phase", {
           guildId,
           eventId,
         });
@@ -288,7 +301,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logWarn("scores", "No Playoffs data, skipping phase", {
+        logDebug("scores", "No Playoffs data, skipping phase", {
           guildId,
           eventId,
         });
@@ -394,7 +407,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logWarn("scores", "No DoubleElim data, skipping phase", {
+        logDebug("scores", "No DoubleElim data, skipping phase", {
           guildId,
           eventId,
         });
@@ -497,7 +510,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!rows.length) {
-        logWarn("scores", "No Play-In data, skipping phase", {
+        logDebug("scores", "No Play-In data, skipping phase", {
           guildId,
           eventId,
         });
@@ -766,7 +779,7 @@ module.exports = async function calculateScores(guildId, eventId) {
       );
 
       if (!resultRows.length) {
-        logWarn("scores", "No MVP result, skipping phase", {
+        logDebug("scores", "No MVP result, skipping phase", {
           guildId,
           eventId,
         });
