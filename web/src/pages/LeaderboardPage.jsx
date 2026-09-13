@@ -291,7 +291,14 @@ function LeaderboardPage() {
                   to={`/events/${slug}/player/${player.user_id}`}
                 >
                   {/* Awatar zawsze zajmuje miejsce - bez tego wiersze graczy
-                      bez awatara były węższe i lista falowała. */}
+                      bez awatara były węższe i lista falowała.
+
+                      Bez awatara idzie inicjał, tak samo jak na stronie
+                      eventu i w profilu gracza. Wcześniej była tu pusta
+                      szara kropka, więc ta sama osoba miała w rankingu
+                      krążek bez znaku, a piętro wyżej literę - a awatara
+                      nie ma dziś 1108 z 1110 graczy, więc to był widok
+                      domyślny, nie wyjątek. */}
                   {player.avatar ? (
                     <img
                       className="ui-avatar"
@@ -300,7 +307,9 @@ function LeaderboardPage() {
                       loading="lazy"
                     />
                   ) : (
-                    <span className="ui-avatar" aria-hidden="true" />
+                    <span className="ui-avatar ui-avatar--initials">
+                      {player.displayname?.[0]?.toUpperCase() ?? "?"}
+                    </span>
                   )}
 
                   <span className="ui-row-item__name">
