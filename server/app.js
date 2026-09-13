@@ -49,7 +49,16 @@ import {
 } from "./lib/validation.js";
 import { createRequire } from "module";
 import dotenv from "dotenv";
-dotenv.config();
+import { loadEnvironment } from "./lib/env.js";
+
+// Sciezki liczone wzgledem TEGO pliku, nie katalogu roboczego - inaczej
+// konfiguracja zalezy od tego, kto uruchomil serwer. Szczegoly w lib/env.js.
+const wczytanePliki = loadEnvironment(
+  path.dirname(fileURLToPath(import.meta.url)),
+  dotenv,
+);
+
+console.log("[ENV] pliki:", wczytanePliki.join(", "));
 console.log("[ENV] DISCORD_CLIENT_ID:", process.env.DISCORD_CLIENT_ID);
 console.log("[ENV] DISCORD_REDIRECT_URI:", process.env.DISCORD_REDIRECT_URI);
 import http from "http";
