@@ -21,6 +21,16 @@ const RUNNING_TESTS =
   process.env.NODE_ENV === "test" ||
   process.execArgv.includes("--test");
 
+// Najniższy poziom, który w ogóle gdziekolwiek trafia. Domyślnie `info`,
+// czyli dokładnie to, co było - `debug` jest wtedy odrzucany i nie kosztuje
+// nic poza wywołaniem funkcji.
+//
+// Istnieje po to, żeby `logDebug` dało się włączyć, kiedy się go potrzebuje.
+// Poziom diagnostyczny, którego nie da się zobaczyć, to nie jest poziom
+// diagnostyczny, tylko skasowanie wpisu okrężną drogą - a wtedy lepiej
+// skasować go wprost.
+const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+
 const logsDir = path.join(process.cwd(), "logs");
 
 // Katalog powstaje tylko wtedy, gdy naprawdę będzie do czego pisać. Samo
@@ -244,7 +254,7 @@ const jsonFormat = format.printf((info) => {
 // ======================================================
 
 const logger = createLogger({
-  level: "info",
+  level: LOG_LEVEL,
 
   format: format.combine(
     format.timestamp({
@@ -270,7 +280,9 @@ const logger = createLogger({
         new transports.File({
           filename: path.join(logsDir, "bot.log"),
 
-          level: "info",
+          // Za LOG_LEVEL, bo to jest plik ogólny. errors.log i warnings.log
+          // zostają przy swoich poziomach - są od jednej rzeczy każdy.
+          level: LOG_LEVEL,
         }),
 
         new transports.File({
@@ -286,7 +298,7 @@ const logger = createLogger({
         }),
 
         new transports.Console({
-          level: process.env.NODE_ENV === "production" ? "warn" : "info",
+          level: process.env.NODE_ENV === "production" ? "warn" : LOG_LEVEL,
 
           format: format.combine(format.colorize(), format.simple()),
         }),
@@ -301,6 +313,25 @@ function logInfo(first, second = {}, third = {}) {
   const { scope, message, meta } = normalizeLogArgs(first, second, third);
 
   logger.info(message, {
+    ...meta,
+    ...(scope ? { scope } : {}),
+  });
+}
+
+// ======================================================
+// DEBUG
+//
+// Dla zdań w rodzaju "ten turniej nie ma fazy Play-In": prawdziwych,
+// powtarzalnych i nieciekawych. Na poziomie `warn` zajmowały 94% pliku
+// ostrzeżeń i topiły w sobie te dwadzieścia kilka, które coś znaczyły.
+//
+// Domyślnie nigdzie nie trafiają. LOG_LEVEL=debug je włącza.
+// ======================================================
+
+function logDebug(first, second = {}, third = {}) {
+  const { scope, message, meta } = normalizeLogArgs(first, second, third);
+
+  logger.debug(message, {
     ...meta,
     ...(scope ? { scope } : {}),
   });
@@ -392,6 +423,7 @@ module.exports = {
   RUNNING_TESTS,
 
   logInfo,
+  logDebug,
   logWarn,
   logError,
 
