@@ -389,7 +389,7 @@ function EventPage() {
                     </Link>
                   </small>
 
-                  <small style={{ display: "block" }}>
+                  <small>
                     {eventStats.best_accuracy_player.correct_winners}/
                     {eventStats.best_accuracy_player.finished_predictions}{" "}
                     trafionych
@@ -399,7 +399,10 @@ function EventPage() {
             </div>
 
             {eventStats?.favorite_team && (
-              <div className="ui-stat">
+              // Wartością jest nazwa drużyny, a nie liczba - stąd wariant
+              // tekstowy. Przy 375 px "GamerLegion" w rozmiarze dla liczb
+              // wychodziło poza kafelek i rozpychało stronę w poziomie.
+              <div className="ui-stat ui-stat--text">
                 <span>💜 Ulubieniec graczy</span>
 
                 <strong>{eventStats.favorite_team.team}</strong>

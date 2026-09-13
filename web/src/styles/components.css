@@ -281,6 +281,13 @@
   flex-direction: column;
   gap: var(--space-1);
 
+  /* Bez tego kafelek nie potrafi zwęzić się do swojej kolumny w siatce.
+     Element siatki ma domyślnie min-width: auto, czyli nie schodzi poniżej
+     szerokości najdłuższego słowa w środku - a przy 375 px kolumna ma 162 px
+     i "GamerLegion" w rozmiarze 28 px potrzebuje 178. Kafelek wychodził poza
+     kartę i rozpychał całą stronę w poziomie. */
+  min-width: 0;
+
   padding: var(--space-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -302,6 +309,30 @@
   letter-spacing: var(--tracking-tight);
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
+
+  /* Druga połowa tej samej poprawki: min-width pozwala kafelkowi się zwęzić,
+     a to pozwala treści faktycznie się w nim zmieścić. Bez tego pojedyncze
+     długie słowo nie ma gdzie się złamać i wystaje poza tło kafelka. */
+  overflow-wrap: anywhere;
+}
+
+/* Kafelek, którego wartością jest SŁOWO, a nie liczba: nazwa drużyny,
+   nick gracza. 28 px jest dla liczb - po to, żeby dało się je porównać
+   wzrokiem z drugiego końca ekranu. Nazwa w tym rozmiarze nie mieści się
+   w kolumnie i łamie się w środku wyrazu ("GamerLegi / on"), co czyta się
+   gorzej niż ta sama nazwa mniejszym pismem.
+   Cyfry tabelaryczne też wyłączone - w słowie robią dziury po cyfrach. */
+.ui-stat--text > strong,
+.ui-stat--text .ui-stat__value {
+  font-size: var(--text-xl);
+  font-variant-numeric: normal;
+
+  /* `break-word`, nie `anywhere`: nazwa dwuczłonowa ma się łamać po spacji
+     ("THUNDER / dOWNUNDER"), a nie w środku pierwszego wyrazu. Łamanie
+     w środku zostaje jako ostatnia deska ratunku, dla nazwy bez spacji -
+     przy 300 px taka nazwa i tak musi się gdzieś złamać, bo inaczej
+     wychodzi poza tło kafelka. */
+  overflow-wrap: break-word;
 }
 
 /* Drobny podpis pod wartoscia. ui-hint to nazwa kanoniczna - dziala wszedzie,
@@ -858,6 +889,11 @@
   align-items: flex-start;
   text-decoration: none;
   color: inherit;
+
+  /* Ta sama ostrożność co przy ui-stat: element siatki nie zejdzie poniżej
+     szerokości najdłuższego słowa w środku, a nazwę turnieju wpisuje admin
+     i może w niej nie być ani jednej spacji. */
+  min-width: 0;
 }
 
 /* Pierwszy goly span w kafelku czytamy jako kicker - pozwala przeniesc
@@ -877,6 +913,7 @@
   line-height: var(--leading-snug);
   letter-spacing: var(--tracking-tight);
   color: var(--text-strong);
+  overflow-wrap: break-word;
 }
 
 .ui-tile__meta {
