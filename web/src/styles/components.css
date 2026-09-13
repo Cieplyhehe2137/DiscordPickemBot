@@ -524,9 +524,6 @@
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   max-width: 100%;
 }
 
@@ -887,6 +884,39 @@
 }
 
 /* -------------------------------------------------------------------------
+   NAZWY DRUŻYN
+   Nazwa drużyny ZAWIJA SIĘ, zamiast być ucinana wielokropkiem.
+
+   Ucinanie miało sens, dopóki nazwy były krótkie. Przy 375 px karta meczu
+   daje każdej stronie 121 px, a "THUNDER dOWNUNDER" potrzebuje 188 - więc
+   na liście meczów, w nagłówku meczu i w karcie wyniku widniało "THUNDER
+   dO...". To samo przy "Gaimin Gladiators" (137 px). Mierzone na produkcji,
+   na IEM Cologne 2026.
+
+   Nazwa drużyny to nie jest opis, który da się skrócić bez straty: dwie
+   drużyny z tym samym początkiem nazwy stają się po ucięciu nierozróżnialne,
+   a to jedyna informacja, po której czyta się kto z kim gra. Dlatego lepiej
+   wziąć drugą linijkę niż zjeść koniec.
+
+   `anywhere`, nie `break-word`: pojedyncze długie słowo bez spacji (a takie
+   nazwy istnieją) musi dać się złamać, inaczej rozpycha kolumnę i wraca
+   poziomy pasek przewijania.
+
+   Nazwy graczy NIE są tu wymienione celowo - w rankingu i w tabeli
+   klasyfikacji ucinanie zostaje, bo tam wiersz ma być jednej wysokości,
+   a sprawdzone na danych produkcyjnych: żaden nick się nie ucina.
+   ------------------------------------------------------------------------- */
+
+.ui-match__name,
+.ui-scoreline__team,
+.ui-split-side strong,
+.ui-disclosure__main strong,
+.ui-field__label {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* -------------------------------------------------------------------------
    WYBÓR
    Grupa przycisków, z których jeden jest zaznaczony: zwycięzca meczu, wynik
    serii, później faza turnieju. Stan trzyma aria-pressed, a nie klasa
@@ -1038,13 +1068,10 @@ textarea.ui-input {
 }
 
 .ui-field__label {
-  overflow: hidden;
   font-size: var(--text-2xs);
   font-weight: var(--weight-semibold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text-muted);
 }
 
@@ -1169,11 +1196,8 @@ textarea.ui-input {
 }
 
 .ui-scoreline__team {
-  overflow: hidden;
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text-muted);
 }
 
@@ -1219,11 +1243,8 @@ textarea.ui-input {
 }
 
 .ui-split-side strong {
-  overflow: hidden;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text);
 }
 
@@ -1394,10 +1415,7 @@ textarea.ui-input {
 }
 
 .ui-disclosure__main strong {
-  overflow: hidden;
   font-size: var(--text-md);
-  text-overflow: ellipsis;
-  white-space: nowrap;
   color: var(--text-strong);
 }
 
