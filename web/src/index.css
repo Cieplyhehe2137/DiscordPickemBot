@@ -312,9 +312,30 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+
+  /* Bez tego flex rozciąga pigułki do najwyższej W DANYM WIERSZU, więc gdy
+     trzecia zawija się do drugiego wiersza, jest niższa od dwóch nad nią.
+     Wysokość ma być cechą pigułki, nie tego, z kim akurat sąsiaduje. */
+  align-items: flex-start;
 }
 
-.event-page__meta span {
+/* Dziecko BEZPOŚREDNIE, nie dowolny <span> w środku. Pigułka "Status" ma
+   w sobie plakietkę ui-badge, a selektor potomka łapał ją razem z pigułką
+   i nadpisywał jej własny wygląd - wychodziła pigułka w pigułce, dwa razy
+   wyższa od sąsiednich ("Faza" i "Uczestnicy" miały 38 px, "Status" 56).
+   Zmierzone na produkcji: plakietka dostawała padding 8/12 i obramowanie
+   z tej reguły zamiast swoich. */
+.event-page__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  /* Jedna wysokość dla wszystkich trzech. Bez tego pigułka z plakietką
+     w środku jest wyższa od pigułki z samym tekstem, a flex wyrównuje je
+     tylko w obrębie jednego wiersza - więc gdy "Uczestnicy" zawijały się
+     do drugiego, robiły się niższe od sąsiadów nad nimi. */
+  min-height: var(--space-12);
+
   padding: var(--space-2) var(--space-3);
 
   border: 1px solid var(--border);
@@ -327,7 +348,7 @@ p {
   font-weight: var(--weight-bold);
 }
 
-.event-page__meta strong {
+.event-page__meta > span > strong {
   color: var(--text);
   font-weight: var(--weight-black);
 }
