@@ -120,25 +120,10 @@ a {
 
   background: color-mix(in srgb, var(--surface-0) 88%, transparent);
   backdrop-filter: blur(14px);
-
-  /* Po instalacji na ekranie głównym strona zaczyna się na samej górze
-     wyświetlacza, pod zegarem i wcięciem na aparat. Wyściółka odsuwa treść
-     nagłówka dokładnie o tyle, ile zasłania sprzęt - a poza zainstalowaną
-     aplikacją env() wynosi zero, więc na zwykłej stronie nic się nie
-     zmienia.
-
-     Tło zostaje bez zmian i przykrywa także ten pas, więc pasek stanu ma
-     pod sobą to samo rozmycie co reszta nagłówka. */
-  padding-top: env(safe-area-inset-top);
 }
 
 .app-header__inner {
-  /* Obrócony telefon ma wcięcie po jednej stronie - bez tego logo albo
-     przycisk logowania chowa się pod krawędzią ekranu. */
-  width: min(
-    1200px,
-    calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right))
-  );
+  width: min(1200px, calc(100% - 32px));
   height: 72px;
   margin: 0 auto;
 

@@ -1,109 +1,51 @@
-// Service worker: tyle, ile trzeba, żeby aplikacja dała się zainstalować
-// i żeby coś pokazała bez sieci. Pisany ręcznie, bez Workboksa - całość mieści
-// się na jednym ekranie i widać dokładnie, co i kiedy trafia do pamięci.
+// NAGROBEK. Ten plik nie jest service workerem aplikacji - jest tym, co go
+// usuwa. Do skasowania, ale nie od razu; warunek wyjścia jest na dole.
 //
-// Zasada nadrzędna: PAMIĘĆ NIGDY NIE DOTYKA API. Wyniki meczów, rankingi
-// i sesja logowania idą prosto do sieci i nic z nich nie jest zapisywane.
-// Nieświeży wynik meczu jest gorszy niż brak wyniku - pokazany z pamięci
-// wyglądałby dokładnie tak samo jak prawdziwy.
+// Dlaczego nie dało się po prostu skasować poprzedniego pliku:
+//
+// Service worker, raz zarejestrowany, zostaje w przeglądarce i pracuje dalej,
+// niezależnie od tego, co jest na serwerze. Przeglądarka sama sprawdza, czy
+// jest nowa wersja skryptu, i wyrejestrowuje workera tylko wtedy, gdy dostanie
+// 404 albo 410.
+//
+// A tu nie dostanie. public/_redirects oddaje index.html dla KAŻDEJ ścieżki,
+// która nie jest plikiem - z kodem 200. Zapytanie o skasowany /sw.js wróciłoby
+// więc jako strona HTML: aktualizacja przewróciłaby się na złym typie MIME,
+// a stary worker zostałby aktywny. U każdego, kto wszedł na stronę w czasie,
+// gdy aplikacja instalowalna była wdrożona. Na zawsze.
+//
+// Stąd ten plik: worker, który przy aktywacji kasuje pamięć poprzednika,
+// wyrejestrowuje sam siebie i schodzi z drogi. Nie ma tu obsługi `fetch`,
+// więc od chwili przejęcia nic już nie stoi między stroną a siecią.
 
-// Nazwa z numerem: podbicie numeru kasuje wszystko, co zostało po poprzedniej
-// wersji. Przy zwykłym wdrożeniu nie trzeba tego ruszać - pliki w /assets/
-// mają skrót treści w nazwie, więc nowe wersje to po prostu nowe adresy.
-const CACHE = "pickem-v1";
-
-// Powłoka aplikacji: dokument, który React wypełnia. Trzymamy go pod stałym
-// adresem, bo każda ścieżka w aplikacji dostaje ten sam index.html
-// (patrz public/_redirects).
-const POWLOKA = "/";
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE);
-
-      // `reload` omija pamięć podręczną przeglądarki - przy instalacji chcemy
-      // dokument z sieci, a nie kopię sprzed wdrożenia.
-      await cache.add(new Request(POWLOKA, { cache: "reload" }));
-
-      // Nowy worker przejmuje od razu, bez czekania, aż użytkownik zamknie
-      // wszystkie karty. Przy sieci-pierwszej dla nawigacji nie grozi to
-      // pokazaniem starej wersji.
-      await self.skipWaiting();
-    })(),
-  );
+self.addEventListener("install", () => {
+  // Bez czekania na zamknięcie kart - im szybciej ten worker przejmie po
+  // poprzedniku, tym szybciej zniknie ich obu.
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       for (const nazwa of await caches.keys()) {
-        if (nazwa !== CACHE) await caches.delete(nazwa);
+        await caches.delete(nazwa);
       }
 
-      await self.clients.claim();
+      await self.registration.unregister();
+
+      // Strony otwarte w tej chwili są nadal kontrolowane przez workera,
+      // który właśnie się wyrejestrował. Przeładowanie zdejmuje je spod jego
+      // kontroli od razu, zamiast czekać, aż ktoś sam odświeży.
+      for (const klient of await self.clients.matchAll({ type: "window" })) {
+        klient.navigate(klient.url).catch(() => {});
+      }
     })(),
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
-
-  // Tylko GET. Zapis typu to POST i nie ma go po co przechwytywać.
-  if (request.method !== "GET") return;
-
-  const url = new URL(request.url);
-
-  // Obce pochodzenie - czyli API na api.pickembot.pl i awatary z Discorda.
-  // Brak respondWith oznacza "przeglądarko, zrób to po swojemu".
-  if (url.origin !== self.location.origin) return;
-
-  // API przez pośrednika na tym samym pochodzeniu (tak działa serwer
-  // deweloperski) - ta sama zasada.
-  if (url.pathname.startsWith("/api/")) return;
-
-  // Nawigacja: sieć pierwsza. Dzięki temu świeże wdrożenie wchodzi od razu,
-  // a pamięć jest wyłącznie zapasem na brak sieci.
-  if (request.mode === "navigate") {
-    event.respondWith(
-      (async () => {
-        try {
-          const odpowiedz = await fetch(request);
-
-          const cache = await caches.open(CACHE);
-          await cache.put(POWLOKA, odpowiedz.clone());
-
-          return odpowiedz;
-        } catch {
-          const zapas = await caches.match(POWLOKA);
-
-          return zapas ?? Response.error();
-        }
-      })(),
-    );
-
-    return;
-  }
-
-  // Pliki z /assets/ mają skrót treści w nazwie, więc ten sam adres zawsze
-  // znaczy tę samą zawartość. Pamięć pierwsza jest tu bezpieczna z definicji
-  // i to ona sprawia, że aplikacja wstaje bez sieci.
-  if (url.pathname.startsWith("/assets/")) {
-    event.respondWith(
-      (async () => {
-        const zPamieci = await caches.match(request);
-
-        if (zPamieci) return zPamieci;
-
-        const odpowiedz = await fetch(request);
-
-        if (odpowiedz.ok) {
-          const cache = await caches.open(CACHE);
-          await cache.put(request, odpowiedz.clone());
-        }
-
-        return odpowiedz;
-      })(),
-    );
-  }
-});
+// KIEDY SKASOWAĆ TEN PLIK
+//
+// Wtedy, gdy można przyjąć, że każdy, kto miał zarejestrowanego workera, wszedł
+// od tego czasu na stronę choć raz - bo dopiero to wejście uruchamia usunięcie.
+// Miesiąc z zapasem wystarcza. Przedtem skasowanie go wraca do punktu wyjścia:
+// zapytanie o /sw.js znowu oddawałoby HTML, a worker znowu zostawałby na stałe.

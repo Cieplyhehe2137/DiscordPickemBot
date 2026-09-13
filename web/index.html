@@ -3,33 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <!-- viewport-fit=cover jest warunkiem, żeby env(safe-area-inset-*) miało
-         inną wartość niż zero. Bez tego po instalacji na iPhonie nagłówek
-         wchodzi pod wcięcie ekranu, a stopa strony pod pasek gestu. -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
-
-    <!-- Kolor paska stanu. Ciemny, nie fioletowy: po instalacji to on sąsiaduje
-         z nagłówkiem aplikacji, a fiolet nad czarną stroną wygląda jak pasek
-         z innego programu. Akcentem zostaje to, co na stronie. -->
-    <meta name="theme-color" content="#09090b" />
-
-    <!-- Instalacja na ekranie głównym. -->
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-
-    <!-- iOS nie czyta manifestu: tryb pełnoekranowy, nazwę pod ikoną i pasek
-         stanu bierze wyłącznie z tych trzech znaczników. -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="PickEmBot" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#8b5cf6" />
 
     <title>Pick'Em — typuj mecze esportowe</title>
     <meta
