@@ -85,6 +85,22 @@ runs against a relative path exactly as it does in production.
 
 Secrets live in `.env` files, none of which are in git.
 
+The API reads **both** of them, in this order of precedence:
+
+1. whatever the environment already set — Plesk's Node.js panel, `env` in
+   `ecosystem.config.js`, a shell variable,
+2. `server/.env` — the API's own configuration,
+3. `.env` in the repository root — the bot's file; the API falls back to it
+   only for what it did not find above, which in practice is the database,
+   since those names are shared.
+
+The paths are resolved relative to `server/lib/env.js`, not to the working
+directory, so both entry points read the same files. They did not always:
+`dotenv.config()` without a path reads `.env` from the working directory, and
+PM2 starts the API from `server/` while Plesk starts it from the repository
+root. A variable added to `server/.env` therefore worked under PM2 and was
+simply `undefined` under Plesk, with nothing to indicate why.
+
 **`.env`** — the bot:
 
 | | |
