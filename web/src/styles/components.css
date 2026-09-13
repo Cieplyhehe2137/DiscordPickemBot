@@ -654,6 +654,38 @@
 }
 
 /* -------------------------------------------------------------------------
+   PASEK AKCJI
+   Przyciski na dole karty, oddzielone od treści kreską i własnym odstępem.
+
+   Bez tego wiersz w panelu admina czytał się jako jedna plama: opis meczu
+   i siedem przycisków leżały jako rodzeństwo w zawijanym wierszu, z jednym
+   wspólnym odstępem, więc nic nie mówiło, gdzie kończy się informacja,
+   a zaczyna działanie.
+
+   Kreska jest --border-subtle, nie --border: ma rozdzielać w obrębie karty,
+   a nie konkurować z jej własnym obramowaniem.
+   ------------------------------------------------------------------------- */
+
+.ui-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+
+  margin-top: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Na telefonie przyciski rozkładają się na pełną szerokość zamiast zostawiać
+   poszarpany ostatni rząd - przy czterech akcjach różnej długości. */
+@media (max-width: 480px) {
+  .ui-actions .ui-btn {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+}
+
+/* -------------------------------------------------------------------------
    STANY: PUSTY, BŁĄD
    Stan pusty ma mówić, co zrobić dalej. "Brak danych" to komunikat dla
    programisty, nie dla gracza.
@@ -1177,6 +1209,17 @@ a.ui-choice__option {
   .ui-scoreline--compact .ui-scoreline__team {
     display: none;
   }
+}
+
+/* Wariant gęsty: opcje szerokości własnej treści zamiast rozciągniętych na
+   cały wiersz. Domyślne flex: 1 1 auto jest dobre tam, gdzie wybór JEST
+   zadaniem ekranu (kto wygra, wynik serii) - w panelu admina, gdzie taki
+   przełącznik to jeden z kilku elementów wiersza meczu, trzy rozciągnięte
+   przyciski przejmowały całą uwagę. */
+.ui-choice--compact .ui-choice__option {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
 }
 
 /* Siatka drużyn do wyboru w fazach turnieju. Kafelki równej szerokości,

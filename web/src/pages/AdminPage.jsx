@@ -887,8 +887,8 @@ export default function AdminPage() {
             <button
               key={server.guild_id}
               type="button"
-              className="ui-choice__option"
-              aria-pressed={`ui-card ui-card--flat ui-card--row ui-card--interactive ${selectedServer?.guild_id === server.guild_id ? "ui-card--selected" : ""}`}
+              className="ui-choice__option ui-choice__option--stacked"
+              aria-pressed={selectedServer?.guild_id === server.guild_id}
               onClick={() => setSelectedServer(server)}
             >
               {" "}
@@ -920,8 +920,8 @@ export default function AdminPage() {
               <button
                 key={event.id}
                 type="button"
-                className="ui-choice__option"
-                aria-pressed={`ui-card ui-card--flat ui-card--row ui-card--interactive ${selectedEvent?.id === event.id ? "ui-card--selected" : ""}`}
+                className="ui-choice__option ui-choice__option--stacked"
+                aria-pressed={selectedEvent?.id === event.id}
                 onClick={() => setSelectedEvent(event)}
               >
                 {" "}
@@ -1210,6 +1210,7 @@ export default function AdminPage() {
             />{" "}
             <button
               type="submit"
+              className="ui-btn ui-btn--primary"
               disabled={
                 creatingMatch || !newMatchTeamA.trim() || !newMatchTeamB.trim()
               }
@@ -1244,86 +1245,144 @@ export default function AdminPage() {
               <p>Brak meczów w tym evencie.</p>
             )}{" "}
             {adminMatches.map((match) => (
+              // Wiersz meczu jest KOLUMNĄ, nie zawijanym wierszem. Wcześniej
+              // karta miała ui-card--row, a w niej jako rodzeństwo leżało
+              // siedem przycisków, trzy formularze i dopiero na końcu nazwa
+              // meczu - wszystko zawijało się w jedną plamę, w której nie
+              // dało się odróżnić opisu od akcji, a nazwa meczu wypadała PO
+              // przyciskach, które jej dotyczą.
+              //
+              // Teraz są trzy piętra: kto gra i w jakim jest stanie, czym ten
+              // stan przestawić, a pod kreską - operacje na meczu.
               <div
                 key={match.id}
-                className="ui-card ui-card--flat ui-card--row ui-card--tight"
+                className="ui-card ui-card--flat ui-card--tight ui-stack"
               >
-                {" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingMatchStartId(match.id);
-                    if (match.start_time_utc) {
-                      const date = new Date(match.start_time_utc);
-                      const localValue = new Date(
-                        date.getTime() - date.getTimezoneOffset() * 60000,
-                      )
-                        .toISOString()
-                        .slice(0, 16);
-                      setEditingMatchStartValue(localValue);
-                    } else {
-                      setEditingMatchStartValue("");
-                    }
-                    setMatchActionMessage(null);
-                  }}
-                >
-                  {" "}
-                  🕒 Ustaw start{" "}
-                </button>{" "}
-                <button
-                  type="button"
-                  className={match.lock_override === 1}
-                  disabled={lockingMatchId === match.id}
-                  onClick={() => handleSetMatchLockMode(match, "lock")}
-                >
-                  🔒 LOCK
-                </button>
-                <button
-                  type="button"
-                  className="ui-choice__option"
-                  aria-pressed={match.lock_override === 0}
-                  disabled={lockingMatchId === match.id}
-                  onClick={() => handleSetMatchLockMode(match, "unlock")}
-                >
-                  🔓 UNLOCK
-                </button>
-                <button
-                  type="button"
-                  className="ui-choice__option"
-                  aria-pressed={match.lock_override === null}
-                  disabled={lockingMatchId === match.id}
-                  onClick={() => handleSetMatchLockMode(match, "auto")}
-                >
-                  ⚙️ AUTO
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingMatchId(match.id);
-                    setEditingMatchTeamA(match.team_a);
-                    setEditingMatchTeamB(match.team_b);
-                    setEditingMatchBestOf(String(match.best_of));
-                    setMatchActionMessage(null);
-                  }}
-                >
-                  ✏️ Edytuj
-                </button>
-                <Link to={`/admin/matches/${match.id}/result`}>
-                  📝 Ustaw wynik
-                </Link>
-                <button
-                  type="button"
-                  className="ui-btn ui-btn--danger"
-                  disabled={loadingMatchDeletePreview}
-                  onClick={() => handleOpenDeleteMatch(match.id)}
-                >
-                  🗑️ Usuń
-                </button>
+                <div className="ui-row ui-row--between ui-row--wrap">
+                  <div className="ui-stack ui-stack--tight">
+                    <strong>
+                      #{match.match_no} {match.team_a} vs {match.team_b}
+                    </strong>
+
+                    <span className="ui-hint">
+                      {match.phase} · BO{match.best_of} · start:{" "}
+                      {match.start_time_utc
+                        ? new Date(match.start_time_utc).toLocaleString()
+                        : "brak"}
+                    </span>
+                  </div>
+
+                  <strong
+                    className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
+                  >
+                    {match.ui_status}
+                  </strong>
+                </div>
+
+                {/* Tryb blokady jako jeden przełącznik trójstanowy, a nie trzy
+                    luźne przyciski. Stan niesie aria-pressed, więc osobna
+                    plakietka "Tryb blokady: LOCK" jest już niepotrzebna -
+                    widać go po wciśniętej opcji.
+
+                    Przycisk LOCK miał wcześniej className={match.lock_override
+                    === 1}, czyli wartość LOGICZNĄ w miejscu nazwy klasy: do
+                    DOM-u trafiało class="true" albo class="false" i jako
+                    jedyny z trójki nie miał żadnego stylu. */}
+                <div className="ui-stack ui-stack--tight">
+                  <span className="ui-hint">Tryb blokady</span>
+
+                  <div className="ui-choice ui-choice--compact">
+                    <button
+                      type="button"
+                      className="ui-choice__option"
+                      aria-pressed={match.lock_override === 1}
+                      disabled={lockingMatchId === match.id}
+                      onClick={() => handleSetMatchLockMode(match, "lock")}
+                    >
+                      🔒 LOCK
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ui-choice__option"
+                      aria-pressed={match.lock_override === 0}
+                      disabled={lockingMatchId === match.id}
+                      onClick={() => handleSetMatchLockMode(match, "unlock")}
+                    >
+                      🔓 UNLOCK
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ui-choice__option"
+                      aria-pressed={match.lock_override === null}
+                      disabled={lockingMatchId === match.id}
+                      onClick={() => handleSetMatchLockMode(match, "auto")}
+                    >
+                      ⚙️ AUTO
+                    </button>
+                  </div>
+                </div>
+
+                <div className="ui-actions">
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn--sm"
+                    onClick={() => {
+                      setEditingMatchStartId(match.id);
+                      if (match.start_time_utc) {
+                        const date = new Date(match.start_time_utc);
+                        const localValue = new Date(
+                          date.getTime() - date.getTimezoneOffset() * 60000,
+                        )
+                          .toISOString()
+                          .slice(0, 16);
+                        setEditingMatchStartValue(localValue);
+                      } else {
+                        setEditingMatchStartValue("");
+                      }
+                      setMatchActionMessage(null);
+                    }}
+                  >
+                    🕒 Ustaw start
+                  </button>
+
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn--sm"
+                    onClick={() => {
+                      setEditingMatchId(match.id);
+                      setEditingMatchTeamA(match.team_a);
+                      setEditingMatchTeamB(match.team_b);
+                      setEditingMatchBestOf(String(match.best_of));
+                      setMatchActionMessage(null);
+                    }}
+                  >
+                    ✏️ Edytuj
+                  </button>
+
+                  <Link
+                    className="ui-btn ui-btn--sm"
+                    to={`/admin/matches/${match.id}/result`}
+                  >
+                    📝 Ustaw wynik
+                  </Link>
+
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn--sm ui-btn--danger"
+                    disabled={loadingMatchDeletePreview}
+                    onClick={() => handleOpenDeleteMatch(match.id)}
+                  >
+                    🗑️ Usuń
+                  </button>
+                </div>
+
                 {deletingMatchId === match.id && matchDeletePreview && (
-                  <div className="ui-card ui-card--flat ui-card--danger ui-card--tight">
+                  <div className="ui-card ui-card--flat ui-card--danger ui-card--tight ui-stack ui-stack--tight">
                     <strong>⚠️ Usunąć ten mecz?</strong>
 
-                    <p>
+                    <p className="ui-hint">
                       Ta operacja usunie również wszystkie dane powiązane z tym
                       meczem.
                     </p>
@@ -1339,7 +1398,7 @@ export default function AdminPage() {
                       {matchDeletePreview.match.bestOf}
                     </p>
 
-                    <p>
+                    <p className="ui-hint">
                       Powiązane dane do usunięcia:
                       <br />
                       Typy: {matchDeletePreview.usunie.typy}
@@ -1352,10 +1411,11 @@ export default function AdminPage() {
                       <br />
                       Punkty: {matchDeletePreview.usunie.punkty}
                     </p>
-                    <div className="ui-row ui-row--wrap">
+
+                    <div className="ui-actions">
                       <button
                         type="button"
-                        className="ui-btn ui-btn--danger"
+                        className="ui-btn ui-btn--sm ui-btn--danger"
                         onClick={() => handleDeleteMatch(match.id)}
                       >
                         🗑️ Tak, usuń mecz
@@ -1363,6 +1423,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm ui-btn--ghost"
                         onClick={() => {
                           setDeletingMatchId(null);
                           setMatchDeletePreview(null);
@@ -1374,10 +1435,14 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+
                 {editingMatchStartId === match.id && (
-                  <div className="ui-card ui-card--flat ui-card--tight">
+                  <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+                    <span className="ui-hint">Start meczu</span>
+
                     <div className="ui-row ui-row--wrap ui-row--full">
                       <input
+                        className="ui-field__input"
                         type="datetime-local"
                         value={editingMatchStartValue}
                         onChange={(event) =>
@@ -1387,6 +1452,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm ui-btn--primary"
                         disabled={savingMatchStart}
                         onClick={() => handleSaveMatchStart(match.id)}
                       >
@@ -1395,6 +1461,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm"
                         disabled={savingMatchStart}
                         onClick={() => handleSaveMatchStart(match.id, "")}
                       >
@@ -1403,6 +1470,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm ui-btn--ghost"
                         disabled={savingMatchStart}
                         onClick={() => {
                           setEditingMatchStartId(null);
@@ -1414,10 +1482,14 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
+
                 {editingMatchId === match.id && (
-                  <div className="ui-card ui-card--flat ui-card--tight">
+                  <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+                    <span className="ui-hint">Drużyny i format</span>
+
                     <div className="ui-row ui-row--wrap ui-row--full">
                       <select
+                        className="ui-field__input"
                         value={editingMatchTeamA}
                         onChange={(event) =>
                           setEditingMatchTeamA(event.target.value)
@@ -1431,6 +1503,7 @@ export default function AdminPage() {
                       </select>
 
                       <select
+                        className="ui-field__input"
                         value={editingMatchTeamB}
                         onChange={(event) =>
                           setEditingMatchTeamB(event.target.value)
@@ -1444,6 +1517,7 @@ export default function AdminPage() {
                       </select>
 
                       <select
+                        className="ui-field__input"
                         value={editingMatchBestOf}
                         onChange={(event) =>
                           setEditingMatchBestOf(event.target.value)
@@ -1453,9 +1527,12 @@ export default function AdminPage() {
                         <option value="3">BO3</option>
                         <option value="5">BO5</option>
                       </select>
+                    </div>
 
+                    <div className="ui-actions">
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm ui-btn--primary"
                         disabled={savingMatchEdit}
                         onClick={() => handleSaveMatchEdit(match.id)}
                       >
@@ -1464,6 +1541,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
+                        className="ui-btn ui-btn--sm ui-btn--ghost"
                         disabled={savingMatchEdit}
                         onClick={() => {
                           setEditingMatchId(null);
@@ -1475,7 +1553,7 @@ export default function AdminPage() {
 
                       <button
                         type="button"
-                        className="ui-btn ui-btn--danger"
+                        className="ui-btn ui-btn--sm ui-btn--danger"
                         disabled={loadingMatchDeletePreview}
                         onClick={() => handleOpenDeleteMatch(match.id)}
                       >
@@ -1487,34 +1565,6 @@ export default function AdminPage() {
                     </div>
                   </div>
                 )}
-                <strong>
-                  #{match.match_no} {match.team_a} vs {match.team_b}
-                </strong>
-                <span className="ui-hint">
-                  {match.phase} · BO{match.best_of}
-                </span>
-                <span>
-                  Status:{" "}
-                  <strong
-                    className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
-                  >
-                    {match.ui_status}
-                  </strong>
-                </span>
-                <div>
-                  Tryb blokady:{" "}
-                  <strong
-                    className={`ui-badge ${TON_BLOKADY[match.lock_override] ?? ""}`}
-                  >
-                    {ETYKIETA_BLOKADY[match.lock_override] ?? "AUTO"}
-                  </strong>
-                </div>
-                <span className="ui-hint">
-                  Start:{" "}
-                  {match.start_time_utc
-                    ? new Date(match.start_time_utc).toLocaleString()
-                    : "brak"}
-                </span>
               </div>
             ))}
           </div>
@@ -1576,12 +1626,17 @@ export default function AdminPage() {
               </p>
             )}
 
-            <button type="submit" disabled={savingDeadline || !deadlineValue}>
+            <button
+              type="submit"
+              className="ui-btn ui-btn--primary"
+              disabled={savingDeadline || !deadlineValue}
+            >
               {savingDeadline ? "Zapisywanie..." : "Zapisz deadline"}
             </button>
 
             <button
               type="button"
+              className="ui-btn ui-btn--ghost"
               onClick={handleClearDeadline}
               disabled={savingDeadline || !deadlineValue}
             >
@@ -1620,61 +1675,66 @@ export default function AdminPage() {
             )}
 
             {adminMatches.map((match) => (
+              // Ten sam układ co w "Zarządzanie meczami": opis po lewej,
+              // stany po prawej, akcja pod kreską. Wcześniej i tu wszystko
+              // leżało w jednym zawijanym wierszu, a link do wpisania wyniku
+              // był gołym <Link> bez klasy - czyli zwykłym tekstem pośród
+              // plakietek.
               <div
                 key={match.id}
-                className="ui-card ui-card--flat ui-card--row ui-card--tight"
+                className="ui-card ui-card--flat ui-card--tight ui-stack"
               >
-                <strong>
-                  #{match.match_no} {match.team_a} vs {match.team_b}
-                </strong>
+                <div className="ui-row ui-row--between ui-row--wrap">
+                  <div className="ui-stack ui-stack--tight">
+                    <strong>
+                      #{match.match_no} {match.team_a} vs {match.team_b}
+                    </strong>
 
-                <span className="ui-hint">
-                  {match.phase} · BO{match.best_of}
-                </span>
+                    <span className="ui-hint">
+                      {match.phase} · BO{match.best_of} · start:{" "}
+                      {match.start_time_utc
+                        ? new Date(match.start_time_utc).toLocaleString()
+                        : "brak"}
+                    </span>
+                  </div>
 
-                <span>
-                  Status:{" "}
-                  <strong
-                    className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
-                  >
-                    {match.ui_status}
-                  </strong>
-                </span>
+                  <div className="ui-row ui-row--wrap">
+                    <strong
+                      className={`ui-badge ${TON_STATUSU[match.ui_status] ?? ""}`}
+                    >
+                      {match.ui_status}
+                    </strong>
 
-                <div>
-                  Tryb blokady:{" "}
-                  <strong
-                    className={`ui-badge ${TON_BLOKADY[match.lock_override] ?? ""}`}
-                  >
-                    {ETYKIETA_BLOKADY[match.lock_override] ?? "AUTO"}
-                  </strong>
+                    {/* Emoji odróżnia tryb blokady od statusu - bez niego
+                        "AUTO" obok "OPEN" nie mówi, czego dotyczy. */}
+                    <strong
+                      className={`ui-badge ${TON_BLOKADY[match.lock_override] ?? ""}`}
+                    >
+                      🔒 {ETYKIETA_BLOKADY[match.lock_override] ?? "AUTO"}
+                    </strong>
+
+                    <strong
+                      className={`ui-badge ${
+                        match.ui_status === "FINAL"
+                          ? "ui-badge--ok"
+                          : "ui-badge--warn"
+                      }`}
+                    >
+                      {match.ui_status === "FINAL" ? "USTAWIONY" : "BRAK WYNIKU"}
+                    </strong>
+                  </div>
                 </div>
 
-                <span className="ui-hint">
-                  Start:{" "}
-                  {match.start_time_utc
-                    ? new Date(match.start_time_utc).toLocaleString()
-                    : "brak"}
-                </span>
-
-                <span>
-                  Wynik:{" "}
-                  <strong
-                    className={`ui-badge ${
-                      match.ui_status === "FINAL"
-                        ? "ui-badge--ok"
-                        : "ui-badge--warn"
-                    }`}
+                <div className="ui-actions">
+                  <Link
+                    className="ui-btn ui-btn--sm"
+                    to={`/admin/matches/${match.id}/result`}
                   >
-                    {match.ui_status === "FINAL" ? "USTAWIONY" : "BRAK WYNIKU"}
-                  </strong>
-                </span>
-
-                <Link to={`/admin/matches/${match.id}/result`}>
-                  {match.ui_status === "FINAL"
-                    ? "✏️ Edytuj wynik"
-                    : "📝 Ustaw wynik"}
-                </Link>
+                    {match.ui_status === "FINAL"
+                      ? "✏️ Edytuj wynik"
+                      : "📝 Ustaw wynik"}
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -1727,6 +1787,7 @@ export default function AdminPage() {
 
             <button
               type="submit"
+              className="ui-btn ui-btn--primary"
               disabled={creatingTeam || !newTeamName.trim()}
             >
               {creatingTeam ? "Dodawanie..." : "Dodaj drużynę"}
@@ -1778,6 +1839,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      className="ui-btn ui-btn--sm ui-btn--primary"
                       onClick={() => handleSaveTeamEdit(team.id)}
                       disabled={savingTeamEdit || !editingTeamName.trim()}
                     >
@@ -1786,6 +1848,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      className="ui-btn ui-btn--sm ui-btn--ghost"
                       onClick={() => {
                         setEditingTeamId(null);
                         setEditingTeamName("");
@@ -1812,6 +1875,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      className="ui-btn ui-btn--sm"
                       onClick={() => {
                         setEditingTeamId(team.id);
                         setEditingTeamName(team.name);
@@ -1823,6 +1887,7 @@ export default function AdminPage() {
 
                     <button
                       type="button"
+                      className="ui-btn ui-btn--sm"
                       onClick={() => handleToggleTeamActive(team)}
                       disabled={togglingTeamId === team.id}
                     >
@@ -1948,6 +2013,7 @@ export default function AdminPage() {
 
           <button
             type="submit"
+            className="ui-btn ui-btn--primary"
             disabled={
               creatingEvent || !newEventName.trim() || !newEventSlug.trim()
             }
