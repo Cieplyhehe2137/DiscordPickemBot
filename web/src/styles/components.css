@@ -266,6 +266,28 @@
   gap: var(--space-3);
 }
 
+/* Ustalona liczba kolumn na szerokim ekranie.
+   `auto-fit` upycha tyle kafelków, ile się zmieści - przy 1440 px wychodzi
+   siedem kolumn, więc dziesięć kafelków układa się 7 + 3, a osiem 7 + 1.
+   Ostatni rząd zostaje wtedy prawie pusty i całość wygląda na uciętą, mimo
+   że nic się nie psuje.
+   Liczba w nazwie jest tutaj znaczeniem, nie skrótem: to jedyna rzecz,
+   którą ten modyfikator ustala.
+   Poniżej progu nie robi nic i wraca `auto-fit` - na telefonie sztywne pięć
+   kolumn dałoby kafelki po 60 px. Progi to szerokość potrzebna, żeby kolumny
+   nie zeszły poniżej tych samych 140 px co w `auto-fit`. */
+@media (min-width: 700px) {
+  .ui-stats--4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 820px) {
+  .ui-stats--5 {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
 /* Na telefonie auto-fit schodzil do JEDNEJ kolumny - w karcie zostawalo
    285px, a dwie kolumny po 140px potrzebowaly o kilka pikseli wiecej.
    Dziesiec kafelkow rozkladalo sie wtedy na ekran wysokosci ekranu i

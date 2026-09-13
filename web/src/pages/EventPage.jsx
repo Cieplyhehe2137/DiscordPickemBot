@@ -299,7 +299,9 @@ function EventPage() {
 
       {!loading && !error && event && (
         <>
-          <section className="ui-stats">
+          {/* Dziesięć kafelków: pięć i pięć. Bez ustalonej liczby kolumn
+              auto-fit daje przy 1440 px siedem, czyli 7 + 3. */}
+          <section className="ui-stats ui-stats--5">
             <div className="ui-stat">
               <span>🎯 Mecze</span>
 
