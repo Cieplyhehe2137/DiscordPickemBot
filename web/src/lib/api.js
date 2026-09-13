@@ -360,44 +360,25 @@ export function getMatchPickStats(slug, matchId) {
   return apiRequest(`/events/${slug}/matches/${matchId}/pick-stats`);
 }
 
-export async function getMyEventPredictions(slug, phase, page = 0) {
-  const response = await fetch(
-    `/api/public/events/${encodeURIComponent(slug)}/my-predictions/${encodeURIComponent(phase)}?page=${page}`,
-    {
-      credentials: "include",
-    },
+// Te dwie szły wcześniej gołym `fetch("/api/...")`, z pominięciem
+// API_BASE_URL. Przy jednym origin to działało; odkąd front stoi na
+// Cloudflare Pages, a API pod osobną domeną, ścieżka rozwiązywała się
+// względem FRONTU - a tam reguła z _redirects oddaje index.html na każdą
+// nieznaną ścieżkę. Odpowiedzią na zapytanie o typy była więc strona HTML,
+// a jedynym objawem "SyntaxError: unexpected character at line 1 column 1",
+// bo `<` z <!doctype html> nie jest JSON-em.
+//
+// Stąd bez własnego fetch: apiRequest dokłada bazowy adres, ciasteczka
+// i kod HTTP w błędzie - a jedna droga do API to jedno miejsce, w którym
+// taka pomyłka jest możliwa.
+export function getMyEventPredictions(slug, phase, page = 0) {
+  return apiRequest(
+    `/public/events/${encodeURIComponent(slug)}/my-predictions/${encodeURIComponent(phase)}?page=${page}`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    const error = new Error(data?.error || "Nie udało się pobrać typów.");
-    error.status = response.status;
-
-    throw error;
-  }
-
-  return data;
 }
 
-export async function getMyStats(slug) {
-  const response = await fetch(
-    `/api/public/events/${encodeURIComponent(slug)}/my-stats`,
-    {
-      credentials: "include",
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    const error = new Error(data?.error || "Nie udało się pobrać statystyk.");
-    error.status = response.status;
-
-    throw error;
-  }
-
-  return data;
+export function getMyStats(slug) {
+  return apiRequest(`/public/events/${encodeURIComponent(slug)}/my-stats`);
 }
 
 export function getMyMatchPoints(matchId) {
