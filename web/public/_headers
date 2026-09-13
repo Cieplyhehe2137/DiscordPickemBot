@@ -1,13 +1,22 @@
 # Cloudflare Pages: nagłówki dla plików serwowanych z katalogu public.
 
-# Service worker musi być sprawdzany przy każdym wejściu. Gdyby przeglądarka
-# trzymała go z pamięci, poprawka w regułach pamięci podręcznej docierałaby
-# do ludzi dopiero po wygaśnięciu nagłówka - czyli wtedy, kiedy już nikt
-# nie pamięta, że coś poprawiał.
-/sw.js
-  Cache-Control: no-cache
-
-# Manifest zmienia się rzadko, ale zmiana ikony albo nazwy ma dojść bez
-# czekania na wygaśnięcie.
+# Manifest ma dochodzić bez czekania - zmiana ikony albo nazwy aplikacji
+# inaczej wisiałaby do wygaśnięcia nagłówka.
 /manifest.webmanifest
   Cache-Control: no-cache
+
+# Service workera NIE MA na tej liście i jest to sprawdzone, a nie przeoczone.
+#
+# Pages oddaje pliki .js z własnym `Cache-Control: max-age=14400` i reguła
+# stąd tego nie zmienia - także wtedy, gdy odpowiedź idzie prosto od źródła
+# (cf-cache-status: MISS), więc nie chodzi o kopię na brzegu. Manifest
+# przechodzi, bo jego typu Pages nie buforuje i leci jako DYNAMIC.
+#
+# Nie ma to żadnego skutku, i to nie jest pocieszanie się po fakcie:
+# przeglądarka, sprawdzając aktualizację workera, pobiera jego GŁÓWNY skrypt
+# z pominięciem pamięci HTTP - tak działa domyślne updateViaCache: "imports",
+# które istnieje dokładnie po to. Do tego Pages czyści brzeg przy każdym
+# wdrożeniu, więc świeży worker jest na miejscu od razu.
+#
+# Innymi słowy: reguła na /sw.js wyglądałaby jak zabezpieczenie, a byłaby
+# tylko napisem. Ten komentarz stoi tu zamiast niej.
