@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 
 import { getAdminServers, getAllEvents, getVisitStats } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
+import {
+  EVENT_STATE_BADGE,
+  EVENT_STATE_LABEL,
+  eventState,
+} from "../lib/eventState.js";
 
 // Strona główna pokazywała wcześniej WYMYŚLONY mecz: "Team Alpha 2 : 1
 // Team Bravo", "PickEmBot Major", mapy 13:8 / 9:13 / 13:11. Wszystko wpisane
@@ -107,7 +112,10 @@ function Statystyki({ events }) {
 }
 
 function KartaTurnieju({ event }) {
-  const live = Boolean(event.is_live);
+  // Ta sama reguła co na liście eventów. Wcześniej stała tu własna kopia,
+  // opierająca się na is_archived zamiast na statusie - turniej zakończony,
+  // ale jeszcze niezarchiwizowany, pokazywał się jako "Zaplanowany".
+  const stan = eventState(event);
 
   return (
     <Link
@@ -115,8 +123,8 @@ function KartaTurnieju({ event }) {
       to={`/events/${event.slug}`}
     >
       <div className="ui-row ui-row--between ui-row--full">
-        <span className={`ui-badge ${live ? "ui-badge--live" : ""}`}>
-          {live ? "Trwa" : event.is_archived ? "Zakończony" : "Zaplanowany"}
+        <span className={EVENT_STATE_BADGE[stan]}>
+          {EVENT_STATE_LABEL[stan]}
         </span>
 
         {event.guild?.name && (
