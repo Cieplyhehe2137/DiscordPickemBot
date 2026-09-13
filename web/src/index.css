@@ -1027,6 +1027,37 @@ main > .page-back {
 
   padding: var(--space-16) var(--space-4) var(--space-12);
   text-align: center;
+
+  /* Warstwa dla poświaty poniżej: bez isolation ujemny z-index chowa ją pod
+     tłem strony, a nie pod tekstem nagłówka. */
+  position: relative;
+  isolation: isolate;
+}
+
+/* Jedno źródło światła nad nagłówkiem. Do tej pory hero był tekstem na
+   płaskiej czerni - poświata daje mu głębię, nie dokładając ani jednego
+   elementu do treści.
+
+   Statyczna, bez animacji: ruch w tle strony, którą otwiera się sprawdzić
+   wynik, bawi za pierwszym razem i przeszkadza przy każdym następnym.
+
+   Rozciąga się na szerokość hero i ani piksela dalej - gradient z
+   przezroczystymi brzegami nadal zajmuje miejsce w układzie, więc szerszy
+   dołożyłby stronie poziomego przewijania na telefonie. */
+.home-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -15% 0 auto;
+  height: 520px;
+
+  background: radial-gradient(
+    ellipse 60% 100% at 50% 30%,
+    var(--accent-glow),
+    transparent 70%
+  );
+
+  pointer-events: none;
 }
 
 .home-hero h1 {

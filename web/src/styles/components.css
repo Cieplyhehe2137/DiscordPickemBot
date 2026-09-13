@@ -171,6 +171,13 @@
    w wierszach rankingu, zeby trzy pierwsze miejsca nie przytlaczaly reszty. */
 .ui-card--gold {
   border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+
+  /* Pierwsze miejsce ma się odróżniać od drugiego i trzeciego czymś więcej
+     niż odcieniem obramowania - ten sam zabieg co przy awatarze lidera
+     w rankingu, gdzie złoto dostaje poświatę, a srebro i brąz sam pierścień. */
+  box-shadow:
+    var(--shadow-sm),
+    0 0 24px color-mix(in srgb, var(--gold) 14%, transparent);
 }
 
 .ui-card--silver {
@@ -552,6 +559,26 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
+
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+
+  /* Barwy stron w przeciwległych rogach. Te same dwa kolory niosą na tej
+     stronie znaczenie "strona A" i "strona B" - stoją w pasku podziału
+     głosów i przy wynikach map, więc karta meczu mówi tu tym samym
+     językiem, a nie własnym.
+
+     Środek zostaje czysty: tam siedzi "VS" i to ono ma oddzielać strony,
+     a nie granica dwóch wypełnień. Dziesięć procent to granica, poniżej
+     której barwa przestaje być widoczna na ciemnym tle karty, a powyżej
+     zaczyna konkurować z nazwami drużyn. */
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--side-a) 10%, transparent) 0%,
+    transparent 42%,
+    transparent 58%,
+    color-mix(in srgb, var(--side-b) 10%, transparent) 100%
+  );
 }
 
 .ui-match__team {
@@ -566,11 +593,32 @@
   text-align: right;
 }
 
+/* Na telefonie znika wyściółka po bokach. Kolumna nazwy ma tu 106 px i tyle
+   dokładnie potrzebuje "GamerLegion" jednym ciągiem - każdy piksel zabrany
+   na odstęp łamie taką nazwę w środku słowa. Przy 16 px z każdej strony
+   robiło się z tego 19 nazw w dwóch liniach zamiast siedmiu, i to łamanych
+   byle gdzie, a nie po spacji.
+
+   Tło zostaje bez zmian - to ono robi tu całą robotę, a odstęp od krawędzi
+   karty nie robi żadnej. */
+@media (max-width: 520px) {
+  .ui-match {
+    padding: var(--space-3) 0;
+  }
+}
+
+/* Litera strony w jej własnej barwie - to ona wiąże nazwę drużyny z połową
+   tła i z paskiem podziału głosów niżej. Kolory surowe, tak samo jak przy
+   liczbach w ui-split-side. */
 .ui-match__side {
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-wide);
-  color: var(--text-faint);
+  color: var(--side-a);
+}
+
+.ui-match__team--b .ui-match__side {
+  color: var(--side-b);
 }
 
 .ui-match__name {
