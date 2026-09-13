@@ -147,11 +147,17 @@ function PickemConfigPanel({ slug }) {
       </p>
 
       {fazy.map((wpis) => (
+        // Faza to KARTA, nie przycisk wyboru: w środku siedzi checkbox,
+        // notka o blokadzie i pola z limitami. Wcześniej stały tu trzy klasy
+        // (ui-stack__phase i dwa modyfikatory), do których nie istniała ani
+        // jedna reguła CSS - kontener nie miał ani tła, ani obramowania, ani
+        // odstępu. Stan "włączona" niesie ui-card--selected; stan "zamrożona"
+        // niosła klasa, która nic nie robiła, a mówi o nim notka w środku
+        // i wyłączony checkbox.
         <div
           className={[
-            "ui-stack__phase",
-            wpis.enabled ? "ui-stack__phase--on" : "",
-            wpis.zamrozona ? "ui-stack__phase--zamrozona" : "",
+            "ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight",
+            wpis.enabled ? "ui-card--selected" : "",
           ]
             .filter(Boolean)
             .join(" ")}

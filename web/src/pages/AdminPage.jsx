@@ -67,6 +67,24 @@ const TON_STATUSU = {
   FINAL: "",
 };
 
+// Tryb blokady meczu. Klucz to lock_override: 1 wymusza zamknięcie, 0 wymusza
+// otwarcie, brak wartości zostawia decyzję zegarowi.
+//
+// Ton szedł wcześniej ze sklejanki `ui-badge--${...}` dającej ui-badge--lock,
+// ui-badge--unlock i ui-badge--auto. Żadna z tych trzech klas nie istnieje
+// w CSS, więc wszystkie trzy tryby wyglądały identycznie - plakietka mówiła
+// LOCK albo UNLOCK tym samym szarym kolorem. Ta sama pułapka co zawsze:
+// nazwa sklejona ze zmiennej nie występuje w źródle dosłownie.
+const TON_BLOKADY = {
+  1: "ui-badge--danger",
+  0: "ui-badge--ok",
+};
+
+const ETYKIETA_BLOKADY = {
+  1: "LOCK",
+  0: "UNLOCK",
+};
+
 export default function AdminPage() {
   const { user, canAccessAdmin, authLoading } = useAuth();
   const [servers, setServers] = useState([]);
@@ -1486,19 +1504,9 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`ui-badge ui-badge--${
-                      match.lock_override === 1
-                        ? "lock"
-                        : match.lock_override === 0
-                          ? "unlock"
-                          : "auto"
-                    }`}
+                    className={`ui-badge ${TON_BLOKADY[match.lock_override] ?? ""}`}
                   >
-                    {match.lock_override === 1
-                      ? "LOCK"
-                      : match.lock_override === 0
-                        ? "UNLOCK"
-                        : "AUTO"}
+                    {ETYKIETA_BLOKADY[match.lock_override] ?? "AUTO"}
                   </strong>
                 </div>
                 <span className="ui-hint">
@@ -1636,19 +1644,9 @@ export default function AdminPage() {
                 <div>
                   Tryb blokady:{" "}
                   <strong
-                    className={`ui-badge ui-badge--${
-                      match.lock_override === 1
-                        ? "lock"
-                        : match.lock_override === 0
-                          ? "unlock"
-                          : "auto"
-                    }`}
+                    className={`ui-badge ${TON_BLOKADY[match.lock_override] ?? ""}`}
                   >
-                    {match.lock_override === 1
-                      ? "LOCK"
-                      : match.lock_override === 0
-                        ? "UNLOCK"
-                        : "AUTO"}
+                    {ETYKIETA_BLOKADY[match.lock_override] ?? "AUTO"}
                   </strong>
                 </div>
 

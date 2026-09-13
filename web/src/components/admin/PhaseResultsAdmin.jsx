@@ -233,11 +233,8 @@ function PhaseResultsAdmin({ slug, teams }) {
           <button
             key={klucz}
             type="button"
-            className={
-              faza === klucz
-                ? "ui-stack__tab ui-stack__tab--active"
-                : "ui-stack__tab"
-            }
+            className="ui-choice__option"
+            aria-pressed={faza === klucz}
             onClick={() => setFaza(klucz)}
           >
             {cfg.etykieta}
@@ -271,11 +268,8 @@ function PhaseResultsAdmin({ slug, teams }) {
                     <button
                       key={team.id ?? team.name}
                       type="button"
-                      className={
-                        zaznaczona
-                          ? "ui-stack__team ui-stack__team--on"
-                          : "ui-stack__team"
-                      }
+                      className="ui-choice__option"
+                      aria-pressed={zaznaczona}
                       onClick={() =>
                         przelacz(grupa.klucz, team.name, grupa.limit)
                       }

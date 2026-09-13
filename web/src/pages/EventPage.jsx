@@ -56,6 +56,17 @@ function EventPage() {
     FINISHED: "Zakończone",
   };
 
+  // Ton plakietki statusu. Tablica, a nie sklejanie nazwy klasy z wartości:
+  // klasa zbudowana przez `--${status}` nie występuje w źródle dosłownie,
+  // więc przegląd martwego CSS-a jej nie widzi i kasuje regułę. Wcześniej
+  // stała tu właśnie taka sklejanka i nie miała ani jednej reguły - status
+  // wyglądał identycznie niezależnie od tego, co mówił.
+  const STATUS_TONES = {
+    OPEN: "ui-badge ui-badge--ok",
+    CLOSED: "ui-badge ui-badge--warn",
+    FINISHED: "ui-badge",
+  };
+
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -262,17 +273,13 @@ function EventPage() {
               </strong>
             </span>
 
-            <span
-              className={`event-page__status event-page__status--${(
-                event.phase_info?.status ?? "unknown"
-              ).toLowerCase()}`}
-            >
+            <span>
               Status:{" "}
-              <strong>
+              <span className={STATUS_TONES[event.phase_info?.status] ?? "ui-badge"}>
                 {statusLabels[event.phase_info?.status] ??
                   event.phase_info?.status ??
                   "brak"}
-              </strong>
+              </span>
             </span>
 
             <span>
@@ -775,7 +782,7 @@ function EventPage() {
                   >
                     {phaseRouteLabel(f.faza)}
 
-                    {f.mamTyp && <em className="event-phase-link__typ">✓</em>}
+                    {f.mamTyp && <em className="event-phase-link__pick">✓</em>}
                   </Link>
                 ))}
               </div>

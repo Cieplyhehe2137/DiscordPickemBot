@@ -9,10 +9,10 @@
 
 function Ladowanie({ children = "Ładowanie..." }) {
   return (
-    <p className="ladowanie" role="status" aria-live="polite">
-      <span className="ladowanie__kolko" aria-hidden="true" />
+    <p className="ui-loader" role="status" aria-live="polite">
+      <span className="ui-loader__spinner" aria-hidden="true" />
 
-      <span className="ladowanie__tekst">{children}</span>
+      <span className="ui-loader__text">{children}</span>
     </p>
   );
 }

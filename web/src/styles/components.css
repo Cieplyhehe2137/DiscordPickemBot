@@ -616,7 +616,7 @@
 .ui-btn--primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .ui-btn--primary:hover {
@@ -723,7 +723,7 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.05),
+    var(--layer),
     transparent
   );
   animation: ui-shimmer 1.4s infinite;
@@ -743,10 +743,6 @@
   border-radius: var(--radius-md);
 }
 
-.ui-skeleton--text {
-  height: 0.85em;
-  border-radius: var(--radius-pill);
-}
 
 /* -------------------------------------------------------------------------
    PASEK PODZIAŁU
@@ -1195,6 +1191,23 @@ a.ui-choice__option {
   gap: var(--space-2);
 }
 
+/* Opcja z drugą linią: nick nad drużyną, do tego plakietka zwycięzcy.
+   Domyślna opcja mieści jeden napis i układa treść w wiersz, więc bez tego
+   nick, drużyna i plakietka lądowały obok siebie w jednej linii. */
+.ui-choice__option--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  text-align: left;
+}
+
+.ui-choice__option--stacked > span {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-normal);
+  color: var(--text-faint);
+}
+
 .ui-choice__option:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -1627,4 +1640,72 @@ a.ui-choice__option {
 
 .ui-datatable__row--3 > *:first-child {
   color: var(--bronze);
+}
+
+/* -------------------------------------------------------------------------
+   WSKAŹNIK ŁADOWANIA
+   Pierścień z jednym jasnym wycinkiem - obraca się, więc od razu widać,
+   że coś trwa, a nie że strona zawisła.
+
+   Stał w index.css pod nazwą .ladowanie. To nie jest element powłoki strony,
+   tylko komponent używany na kilkunastu ekranach, więc mieszka tam, gdzie
+   reszta komponentów - a nazwa jest po angielsku, jak wszystkie inne.
+   ------------------------------------------------------------------------- */
+
+.ui-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+
+  margin: 0 auto;
+  padding: var(--space-16) var(--space-6);
+
+  color: var(--text-muted);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.ui-loader__spinner {
+  flex: none;
+  width: 26px;
+  height: 26px;
+
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+
+  animation: ui-loader-spin 0.8s linear infinite;
+}
+
+.ui-loader__text {
+  animation: ui-loader-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ui-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ui-loader-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Ruch potrafi przeszkadzać - przy wyłączonych animacjach zostaje sam
+   pierścień, statyczny, ale nadal czytelny jako wskaźnik. */
+@media (prefers-reduced-motion: reduce) {
+  .ui-loader__spinner,
+  .ui-loader__text {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-loader {
+    padding: var(--space-10) var(--space-4);
+  }
 }

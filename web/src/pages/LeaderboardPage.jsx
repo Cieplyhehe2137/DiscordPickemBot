@@ -197,7 +197,7 @@ function LeaderboardPage() {
 
       {/* Przy 500 graczach na 11 stronach jedyną drogą do własnego miejsca
           było klikanie "Następna" dziewięć razy. */}
-      <div className="ui-row ui-row--wrap leaderboard-szukaj">
+      <div className="ui-row ui-row--wrap leaderboard-search">
         <input
           type="search"
           value={wpisane}
@@ -336,7 +336,7 @@ function LeaderboardPage() {
       {/* Pasek stron pokazuje się dopiero, gdy jest co przewijać. */}
       {strony && strony.ile > 1 && (
         <nav
-          className="ui-row ui-row--between leaderboard-strony"
+          className="ui-row ui-row--between leaderboard-pages"
           aria-label="Strony rankingu"
         >
           <button
