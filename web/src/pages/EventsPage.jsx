@@ -4,9 +4,14 @@ import { Link } from "react-router-dom";
 import { getAllEvents } from "../lib/api.js";
 import { odmien } from "../lib/odmiana.js";
 import { humanPhase } from "../lib/phaseLabels.js";
+import {
+  EVENT_STATE_BADGE,
+  EVENT_STATE_LABEL,
+  eventState,
+} from "../lib/eventState.js";
 
 function EventCard({ event }) {
-  const live = Boolean(event.is_live);
+  const stan = eventState(event);
 
   return (
     <Link
@@ -14,8 +19,8 @@ function EventCard({ event }) {
       to={`/events/${event.slug}`}
     >
       <div className="ui-row ui-row--between ui-row--full">
-        <span className={`ui-badge ${live ? "ui-badge--live" : ""}`}>
-          {live ? "Trwa" : "Zakończony"}
+        <span className={EVENT_STATE_BADGE[stan]}>
+          {EVENT_STATE_LABEL[stan]}
         </span>
 
         <span className="ui-stat__hint">{humanPhase(event.phase)}</span>
@@ -68,8 +73,12 @@ function EventsPage() {
     loadEvents();
   }, []);
 
-  const aktywne = events.filter((event) => event.is_live);
-  const zakonczone = events.filter((event) => !event.is_live);
+  // Trzy kubełki zamiast dwóch. Wcześniej wszystko, co nie było live,
+  // wpadało do "Zakończonych" - razem z turniejem, który dopiero czeka na
+  // opublikowanie panelu na Discordzie.
+  const aktywne = events.filter((event) => eventState(event) === "live");
+  const wkrotce = events.filter((event) => eventState(event) === "upcoming");
+  const zakonczone = events.filter((event) => eventState(event) === "finished");
 
   return (
     <main className="ui-page">
@@ -87,7 +96,11 @@ function EventsPage() {
       </div>
 
       {loading && (
-        <div className="ui-tiles" aria-busy="true" aria-label="Ładowanie turniejów">
+        <div
+          className="ui-tiles"
+          aria-busy="true"
+          aria-label="Ładowanie turniejów"
+        >
           {Array.from({ length: 3 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
           ))}
@@ -139,6 +152,28 @@ function EventsPage() {
         </section>
       )}
 
+      {!loading && !error && wkrotce.length > 0 && (
+        <section className="ui-stack ui-stack--loose">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">Zapowiedź</span>
+              <h2>Wkrótce</h2>
+
+              <p>
+                Turniej jest już utworzony, ale typowanie jeszcze nie ruszyło -
+                zacznie się, gdy na Discordzie pojawi się panel fazy.
+              </p>
+            </div>
+          </div>
+
+          <div className="ui-tiles">
+            {wkrotce.map((event) => (
+              <EventCard key={event.id} event={event} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {!loading && !error && zakonczone.length > 0 && (
         <section className="ui-stack ui-stack--loose">
           <div className="ui-section-head">
@@ -148,7 +183,7 @@ function EventsPage() {
 
               {/* Informacja zamiast osobnej karty "brak aktywnego turnieju" -
                   pusta karta w siatce wyglądała jak zepsuty kafelek. */}
-              {aktywne.length === 0 && (
+              {aktywne.length === 0 && wkrotce.length === 0 && (
                 <p>
                   Aktualnie nie trwa żaden Pick&apos;Em. Poniżej turnieje, które
                   możesz przeglądać.
