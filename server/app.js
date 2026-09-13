@@ -177,7 +177,7 @@ const ALLOWED_ORIGINS = buildAllowedOrigins(WEB_ORIGIN);
 const { getKnownGuildInfo } = createGuildInfo(guildRegistry);
 
 // Uzywane i w trasach eventu, i w profilu gracza
-const { findNameFromPicks, countParticipants } =
+const { findNameFromPicks, countParticipants, resolveDisplayName } =
   createParticipantQueries(pool);
 
 const { getFrozenPhases } = createFrozenPhases({
@@ -576,6 +576,7 @@ registerPlayerProfileRoutes(app, {
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
 registerEventStatsRoutes(app, {
   assertPredictionsAllowed,
+  resolveDisplayName,
   isMatchDeadlinePassed,
   isMatchLocked,
   matchPanelPhaseFor,

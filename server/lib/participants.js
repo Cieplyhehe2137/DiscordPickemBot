@@ -87,5 +87,32 @@ export function createParticipantQueries(pool) {
     return Number(row?.uczestnicy || 0);
   }
 
-  return { findNameFromPicks, countParticipants };
+  // Nazwa gracza do pokazania, z pelnym lancuchem zapasow.
+  //
+  // Wiersz przychodzi z zapytania, ktore wzielo nazwe z user_profiles - a ta
+  // tabela ma wpis WYLACZNIE dla osob logujacych sie na stronie. Kto typuje
+  // z Discorda, tam go nie ma: na IEM Cologne 2026 dotyczylo to 521 z 523
+  // graczy, wiec kafelki "Najlepszy wynik", "Najwiecej exactow" i "Najlepsza
+  // skutecznosc" pokazywaly surowy identyfikator Discorda.
+  //
+  // Ten sam gracz mial przez to dwie nazwy na JEDNEJ stronie: ranking
+  // pokazywal "pieka" (bo siega do tabel typow), a kafelek obok
+  // "1216263156742094870".
+  //
+  // Kolejnosc: profil ze strony jest najswiezszy, bo aktualizuje sie przy
+  // kazdym logowaniu. Nazwa z typow pochodzi z chwili oddania typu, ale
+  // istnieje dla kazdego, kto cokolwiek wytypowal. Identyfikator zostaje jako
+  // ostatnia deska ratunku i znaczy tyle, ze gracza nie ma juz w zadnych
+  // danych tego turnieju.
+  async function resolveDisplayName(eventId, row) {
+    if (!row) return null;
+
+    if (row.displayname) return row.displayname;
+
+    const zTypow = await findNameFromPicks(eventId, row.user_id);
+
+    return zTypow || String(row.user_id ?? "");
+  }
+
+  return { findNameFromPicks, countParticipants, resolveDisplayName };
 }

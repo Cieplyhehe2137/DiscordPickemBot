@@ -8,6 +8,7 @@ export function registerEventStatsRoutes(
   app,
   {
     assertPredictionsAllowed,
+    resolveDisplayName,
     isMatchDeadlinePassed,
     isMatchLocked,
     matchPanelPhaseFor,
@@ -89,10 +90,11 @@ export function registerEventStatsRoutes(
         SELECT
           mp.user_id,
 
+          -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
+          -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
           COALESCE(
             up.displayname,
-            up.username,
-            mp.user_id
+            up.username
           ) AS displayname,
 
           SUM(mp.points) AS total_points
@@ -148,10 +150,11 @@ export function registerEventStatsRoutes(
         SELECT
           mmp.user_id,
 
+          -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
+          -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
           COALESCE(
             up.displayname,
-            up.username,
-            mmp.user_id
+            up.username
           ) AS displayname,
 
           COUNT(*) AS exact_maps
@@ -190,10 +193,10 @@ export function registerEventStatsRoutes(
     SELECT
       mp.user_id,
 
+      -- Jak wyzej: NULL zamiast identyfikatora, zeby zadzialal zapas.
       COALESCE(
         up.displayname,
-        up.username,
-        mp.user_id
+        up.username
       ) AS displayname,
 
       COUNT(DISTINCT mp.match_id) AS finished_predictions,
@@ -589,7 +592,7 @@ export function registerEventStatsRoutes(
           best_player: bestPlayer
             ? {
               user_id: bestPlayer.user_id,
-              displayname: bestPlayer.displayname,
+              displayname: await resolveDisplayName(event.id, bestPlayer),
               points: Number(bestPlayer.total_points || 0),
             }
             : null,
@@ -597,7 +600,7 @@ export function registerEventStatsRoutes(
           best_exact_player: bestExactPlayer
             ? {
               user_id: bestExactPlayer.user_id,
-              displayname: bestExactPlayer.displayname,
+              displayname: await resolveDisplayName(event.id, bestExactPlayer),
               exact_maps: Number(bestExactPlayer.exact_maps || 0),
             }
             : null,
@@ -605,7 +608,7 @@ export function registerEventStatsRoutes(
           best_accuracy_player: bestAccuracyPlayer
             ? {
               user_id: bestAccuracyPlayer.user_id,
-              displayname: bestAccuracyPlayer.displayname,
+              displayname: await resolveDisplayName(event.id, bestAccuracyPlayer),
               accuracy: Number(bestAccuracyPlayer.accuracy || 0),
               correct_winners: Number(bestAccuracyPlayer.correct_winners || 0),
               finished_predictions: Number(
