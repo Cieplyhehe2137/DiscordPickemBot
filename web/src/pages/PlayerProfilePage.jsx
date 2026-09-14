@@ -331,7 +331,7 @@ function PlayerProfilePage() {
       {/* Typy drużyn stoją PRZED historią meczów: dotyczą całego turnieju,
           a nie pojedynczych spotkań, więc czyta się je jako podsumowanie,
           zanim zejdzie się do listy meczów. */}
-      <TeamPicks phases={profile?.team_picks} />
+      <TeamPicks phases={profile?.team_picks} logos={profile?.team_logos} />
 
       <section className="ui-card ui-stack">
         <div className="ui-section-head">

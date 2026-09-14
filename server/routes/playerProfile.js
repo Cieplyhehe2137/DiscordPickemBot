@@ -1,4 +1,4 @@
-import { loadTeamPicks } from "../lib/teamPicks.js";
+import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
 // z reszta stawki i historia typow.
@@ -698,6 +698,10 @@ export function registerPlayerProfileRoutes(
         userId,
       });
 
+      // Logotypy osobno, bo wiąże je z drużyną sama nazwa - patrz
+      // migrations/0009_add_team_logos.sql.
+      const teamLogos = await loadTeamLogos(pool, teamPicks);
+
       res.json({
         event: {
           id: event.id,
@@ -706,6 +710,7 @@ export function registerPlayerProfileRoutes(
         },
 
         team_picks: teamPicks,
+        team_logos: teamLogos,
 
         profile: {
           best_match_points: Number(bestMatch?.points || 0),

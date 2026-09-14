@@ -1,3 +1,5 @@
+import { normalizeTeamName } from "./teamLogos.js";
+
 // Typy drużyn gracza w fazach turnieju: 3-0, 0-3, awans, playoffy.
 //
 // Do tej pory te dane dało się zobaczyć wyłącznie na stronie fazy i wyłącznie
@@ -220,4 +222,45 @@ export async function loadTeamPicks(pool, { guildId, eventId, userId }) {
   }
 
   return fazy.filter((faza) => faza.groups.length > 0);
+}
+
+/**
+ * Adresy logotypów dla nazw, które faktycznie padły w typach.
+ *
+ * Mapa jest kluczowana DOKŁADNIE tym zapisem nazwy, który widok ma w danych -
+ * normalizacja zostaje po stronie serwera. Inaczej front musiałby powtarzać tę
+ * samą funkcję i miałby własną okazję, żeby zacząć normalizować inaczej.
+ */
+export async function loadTeamLogos(pool, fazy) {
+  const nazwy = new Set();
+
+  for (const faza of fazy) {
+    for (const grupa of faza.groups) {
+      for (const team of grupa.picked) nazwy.add(team);
+    }
+  }
+
+  if (!nazwy.size) return {};
+
+  const klucze = [...nazwy].map((n) => normalizeTeamName(n)).filter(Boolean);
+
+  if (!klucze.length) return {};
+
+  const [wiersze] = await pool.query(
+    `SELECT name_key, logo_url FROM team_logos
+       WHERE name_key IN (?) AND logo_url IS NOT NULL`,
+    [klucze],
+  );
+
+  const poKluczu = new Map(wiersze.map((w) => [w.name_key, w.logo_url]));
+
+  const wynik = {};
+
+  for (const nazwa of nazwy) {
+    const url = poKluczu.get(normalizeTeamName(nazwa));
+
+    if (url) wynik[nazwa] = url;
+  }
+
+  return wynik;
 }
