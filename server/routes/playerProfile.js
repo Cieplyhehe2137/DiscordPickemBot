@@ -1,3 +1,5 @@
+import { loadTeamPicks } from "../lib/teamPicks.js";
+
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
 // z reszta stawki i historia typow.
 //
@@ -687,12 +689,23 @@ export function registerPlayerProfileRoutes(
         }
         : null;
 
+      // Typy druzyn na awans - 3-0, 0-3, awans, playoffy. Do tej pory
+      // widoczne wylacznie na stronie fazy i wylacznie dla siebie, bo tamta
+      // trasa czyta identyfikator z sesji.
+      const teamPicks = await loadTeamPicks(pool, {
+        guildId: event.guild_id,
+        eventId: event.id,
+        userId,
+      });
+
       res.json({
         event: {
           id: event.id,
           name: event.name,
           slug: event.slug,
         },
+
+        team_picks: teamPicks,
 
         profile: {
           best_match_points: Number(bestMatch?.points || 0),

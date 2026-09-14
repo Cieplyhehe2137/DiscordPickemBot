@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { getPhaseResults } from "../lib/api.js";
+import { markHits } from "../lib/teamPickHits.js";
 
 // Po zamknięciu fazy gracz widział wyłącznie swój zapisany typ - nigdzie na
 // WWW nie było oficjalnego wyniku ani informacji, ile punktów faza dała.
@@ -10,13 +11,8 @@ import { getPhaseResults } from "../lib/api.js";
 // Komponent renderuje się dopiero, gdy wynik został opublikowany
 // (published = true), więc na otwartej fazie nie zaśmieca formularza.
 
-function trafione(lista, poprawne) {
-  const zbior = new Set(poprawne || []);
-  return (lista || []).map((team) => ({ team, hit: zbior.has(team) }));
-}
-
 function Lista({ tytul, wybrane, poprawne, punktyZa }) {
-  const pozycje = trafione(wybrane, poprawne);
+  const pozycje = markHits(wybrane, poprawne);
   const liczbaTrafien = pozycje.filter((p) => p.hit).length;
 
   return (
@@ -42,7 +38,7 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
             <span className="ui-stat__hint">—</span>
           ) : (
             poprawne.map((team) => (
-              <span className="ui-badge ui-badge--accent" key={team}>
+              <span className="ui-badge ui-team ui-badge--accent" key={team}>
                 {team}
               </span>
             ))
@@ -57,7 +53,7 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
           <div className="ui-row ui-row--wrap">
             {pozycje.map(({ team, hit }) => (
               <span
-                className={`ui-badge ${hit ? "ui-badge--ok" : "ui-badge--danger"}`}
+                className={`ui-badge ui-team ${hit ? "ui-badge--ok" : "ui-badge--danger"}`}
                 key={team}
               >
                 {hit ? "✓" : "✕"} {team}

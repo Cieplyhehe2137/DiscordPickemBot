@@ -2272,3 +2272,51 @@ textarea.ui-input {
     animation: none;
   }
 }
+
+/* -------------------------------------------------------------------------
+   DRUŻYNA W TYPIE
+   Plakietka z nazwą drużyny i literą zamiast logo.
+
+   Logotypów nie ma skąd wziąć: teams.logo_url jest pusta we wszystkich
+   osiemnastu wierszach, a drużyny występujące w typach nie mają tam nawet
+   swoich wierszy - typy trzymają same nazwy jako tekst. Pusty kwadrat
+   udający logo byłby gorszy niż jego brak, więc jest litera w kółku -
+   dokładnie ten sam zabieg co przy graczu bez awatara na Discordzie.
+   ------------------------------------------------------------------------- */
+
+.ui-team {
+  gap: var(--space-2);
+  padding-left: var(--space-1);
+
+  /* Plakietka pisze wersalikami z rozstrzelonymi literami - i słusznie, bo
+     zwykle niesie etykietę w rodzaju "ZAKOŃCZONY". Nazwa drużyny etykietą
+     nie jest: to nazwa własna z własnym zapisem, więc "GamerLegion" ma
+     zostać GamerLegion, a nie GAMERLEGION - tak samo "paiN", "FaZe Clan"
+     czy "9z". Wersaliki wydłużają przy tym i tak długie nazwy. */
+  text-transform: none;
+  letter-spacing: var(--tracking-normal);
+
+  /* Tu nazwa jest treścią sekcji, a nie podpisem przy czymś innym. */
+  font-size: var(--text-sm);
+}
+
+.ui-team__mark {
+  flex: none;
+
+  display: inline-grid;
+  place-items: center;
+
+  width: var(--space-5);
+  height: var(--space-5);
+
+  border-radius: var(--radius-pill);
+
+  /* Kółko dziedziczy barwę plakietki przez currentColor, więc trafienie ma
+     zielony znak, pudło czerwony, a typ przed ogłoszeniem wyniku - szary.
+     Jedna reguła zamiast trzech wariantów. */
+  background: color-mix(in srgb, currentColor 18%, transparent);
+
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
