@@ -11,6 +11,7 @@ import {
 import BackLink from "../components/BackLink.jsx";
 import { phaseRouteLabel, humanPhase } from "../lib/phaseLabels.js";
 import { odmien, gracze, typy } from "../lib/odmiana.js";
+import { winnerFirstScore, nobodyPickedWinner } from "../lib/upset.js";
 import Ladowanie from "../components/Ladowanie.jsx";
 
 function formatMatchesCount(count) {
@@ -675,18 +676,23 @@ function EventPage() {
                     <strong>{eventStats.biggest_upset.winner}</strong>
 
                     <span>
-                      wygrał {eventStats.biggest_upset.res_a}:
-                      {eventStats.biggest_upset.res_b}
+                      wygrał {winnerFirstScore(eventStats.biggest_upset)}
                     </span>
                   </div>
 
                   <div className="event-upset__footer">
                     <span>
-                      Tylko{" "}
-                      <strong>
-                        {eventStats.biggest_upset.winner_percentage}%
-                      </strong>{" "}
-                      przewidziało zwycięzcę
+                      {nobodyPickedWinner(eventStats.biggest_upset) ? (
+                        <strong>Nikt nie przewidział zwycięzcy</strong>
+                      ) : (
+                        <>
+                          Tylko{" "}
+                          <strong>
+                            {eventStats.biggest_upset.winner_percentage}%
+                          </strong>{" "}
+                          przewidziało zwycięzcę
+                        </>
+                      )}
                     </span>
 
                     <span>{eventStats.biggest_upset.total_picks} {typy(eventStats.biggest_upset.total_picks)}</span>

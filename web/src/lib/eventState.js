@@ -38,3 +38,22 @@ export const EVENT_STATE_BADGE = {
   upcoming: "ui-badge ui-badge--accent",
   finished: "ui-badge",
 };
+
+// Nagłówek sekcji turniejów na stronie głównej.
+//
+// Brzmiał "Gdzie się teraz typuje" zawsze - także wtedy, gdy wszystkie trzy
+// turnieje pod nim miały plakietkę ZAKOŃCZONY. Dla kogoś, kto wchodzi
+// pierwszy raz z podesłanego linku, nagłówek kłócący się z treścią pod nim
+// czyta się jak strona, o której zapomniano.
+//
+// Lista eventów jest posortowana, ale nie ma gwarancji, że pierwszy jest
+// najważniejszy - stąd decyzja po najwyższym stanie, jaki w niej występuje:
+// trwający bije nadchodzący, nadchodzący bije zakończony.
+export function eventsHeading(events = []) {
+  const stany = new Set(events.map((e) => eventState(e)));
+
+  if (stany.has("live")) return "Gdzie się teraz typuje";
+  if (stany.has("upcoming")) return "Najbliższe turnieje";
+
+  return "Ostatnie turnieje";
+}
