@@ -3,6 +3,7 @@ import { useOutletContext, useParams } from "react-router-dom";
 
 import { getEventPlayerProfile } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
+import TeamPicks from "../components/TeamPicks.jsx";
 
 function PlayerProfilePage() {
   const { slug, userId } = useParams();
@@ -326,6 +327,11 @@ function PlayerProfilePage() {
           </div>
         </section>
       )}
+
+      {/* Typy drużyn stoją PRZED historią meczów: dotyczą całego turnieju,
+          a nie pojedynczych spotkań, więc czyta się je jako podsumowanie,
+          zanim zejdzie się do listy meczów. */}
+      <TeamPicks phases={profile?.team_picks} />
 
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
