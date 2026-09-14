@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useOutletContext, useParams } from "react-router-dom";
+import { useOutletContext, useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
 import { useToast } from "../components/ui/useToast.js";
 import { apiUrl } from "../lib/apiUrl.js";
 import {
   getPublicMatch,
-  getMatch,
   getPublicMatchResult,
   getMatchPrediction,
   saveMatchPrediction,
@@ -725,7 +724,6 @@ function MatchPage() {
   const [saving, setSaving] = useState(false);
   const [seriesScore, setSeriesScore] = useState(null);
   const [mapScores, setMapScores] = useState(createEmptyMapScores());
-  const [canAdminMatchStan, setCanAdminMatch] = useState(false);
   const [matchResultStan, setMatchResult] = useState(null);
   const [myPointsStan, setMyPoints] = useState(null);
   const [pickStats, setPickStats] = useState(null);
@@ -735,7 +733,6 @@ function MatchPage() {
   // zerowac stan w ciele efektu - takie setState powoduje dodatkowy przebieg.
   const finalowy = match?.ui_status === "FINAL";
 
-  const canAdminMatch = match && currentUser ? canAdminMatchStan : false;
   const matchResult = finalowy ? matchResultStan : null;
   const myPoints = finalowy && currentUser ? myPointsStan : null;
 
@@ -875,20 +872,6 @@ function MatchPage() {
     loadMatchResult();
   }, [finalowy, match]);
 
-  useEffect(() => {
-    if (!match || !currentUser) return;
-
-    async function checkAdminAccess() {
-      try {
-        await getMatch(match.id);
-        setCanAdminMatch(true);
-      } catch {
-        setCanAdminMatch(false);
-      }
-    }
-
-    checkAdminAccess();
-  }, [match, currentUser]);
 
   useEffect(() => {
     if (!match || !currentUser?.id) {
@@ -1077,14 +1060,6 @@ function MatchPage() {
               </div>
             </div>
 
-            {canAdminMatch && (
-              <Link
-                className="ui-btn ui-btn--ghost ui-btn--sm"
-                to={`/admin/matches/${match.id}/result`}
-              >
-                Ustaw wynik
-              </Link>
-            )}
           </section>
 
           {match.ui_status === "FINAL" && matchResult && (
