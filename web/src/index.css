@@ -306,6 +306,13 @@ p {
   }
 }
 
+/* Akapit opisu ma margines tylko od gory, wiec przycisk pod nim dotykal
+   tekstu - zmierzone zero pikseli odstepu. Dzialanie potrzebuje wlasnego
+   oddechu od zdania, ktore je poprzedza. */
+.event-page__archive {
+  margin-top: var(--space-5);
+}
+
 .event-page__meta {
   margin-top: var(--space-6);
 
