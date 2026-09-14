@@ -100,3 +100,62 @@ test("kazdy stan ma etykiete i ton plakietki", async () => {
     );
   }
 });
+
+// ---------------------------------------------------------------------------
+// NAGLOWEK SEKCJI TURNIEJOW NA STRONIE GLOWNEJ
+//
+// Brzmial "Gdzie sie teraz typuje" zawsze - takze wtedy, gdy wszystkie trzy
+// turnieje pod nim mialy plakietke ZAKONCZONY. Tak wygladala strona glowna
+// 14 wrzesnia 2026: naglowek obiecywal trwajace typowanie, a lista mowila
+// cos odwrotnego. Dla kogos, kto wchodzi pierwszy raz z podeslanego linku,
+// to jest pierwsze zdanie, jakie czyta.
+// ---------------------------------------------------------------------------
+
+test("przy trwajacym turnieju naglowek mowi o teraz", async () => {
+  const { eventsHeading } = await import(STAN);
+
+  const naglowek = eventsHeading([
+    { is_archived: true },
+    { is_live: true },
+    { status: "UPCOMING" },
+  ]);
+
+  assert.equal(naglowek, "Gdzie się teraz typuje");
+});
+
+test("bez trwajacego, ale z nadchodzacym - naglowek patrzy w przod", async () => {
+  const { eventsHeading } = await import(STAN);
+
+  assert.equal(
+    eventsHeading([{ is_archived: true }, { status: "UPCOMING" }]),
+    "Najbliższe turnieje",
+  );
+});
+
+test("same zakonczone - naglowek nie obiecuje typowania", async () => {
+  // To jest ten przypadek z zycia.
+  const { eventsHeading } = await import(STAN);
+
+  assert.equal(
+    eventsHeading([{ is_archived: true }, { is_archived: true }]),
+    "Ostatnie turnieje",
+  );
+});
+
+test("pusta lista nie wywraca naglowka", async () => {
+  const { eventsHeading } = await import(STAN);
+
+  assert.equal(eventsHeading([]), "Ostatnie turnieje");
+  assert.equal(eventsHeading(), "Ostatnie turnieje");
+});
+
+test("kolejnosc na liscie nie decyduje - decyduje najwyzszy stan", async () => {
+  // Lista bywa posortowana roznie i nie ma gwarancji, ze pierwszy element
+  // jest najwazniejszy.
+  const { eventsHeading } = await import(STAN);
+
+  const a = eventsHeading([{ is_live: true }, { is_archived: true }]);
+  const b = eventsHeading([{ is_archived: true }, { is_live: true }]);
+
+  assert.equal(a, b);
+});

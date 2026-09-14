@@ -23,7 +23,29 @@
       property="og:description"
       content="Platforma Pick'Em dla społeczności esportowej — typuj mecze CS2, śledź rankingi i rywalizuj z innymi graczami."
     />
-    <meta name="twitter:card" content="summary" />
+    <!-- Obrazek podglądu linku. To jest pierwsza rzecz, jaką widzi ktoś,
+         komu wkleimy adres na Discordzie - bez niego karta jest wąskim
+         paskiem samego tekstu, z nim zajmuje pół wiadomości.
+
+         Adres MUSI być bezwzględny: podglądy budują boty, które nie mają
+         względem czego rozwinąć "/og.jpg".
+
+         JPEG, nie PNG: ta sama grafika w PNG waży 693 kB, bo poświata to
+         gradient, a gradienty PNG koduje bezlitośnie. 64 kB kontra 693 kB
+         przy różnicy niewidocznej gołym okiem. -->
+    <meta property="og:url" content="https://pickembot.pl/" />
+    <meta property="og:image" content="https://pickembot.pl/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PickEmBot — typuj mecze CS2 i rywalizuj ze swoją społecznością"
+    />
+
+    <!-- summary_large_image daje szeroką kartę zamiast miniatury z boku. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://pickembot.pl/og.jpg" />
   </head>
   <body>
     <div id="root"></div>

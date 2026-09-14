@@ -7,6 +7,7 @@ import {
   EVENT_STATE_BADGE,
   EVENT_STATE_LABEL,
   eventState,
+  eventsHeading,
 } from "../lib/eventState.js";
 
 // Strona główna pokazywała wcześniej WYMYŚLONY mecz: "Team Alpha 2 : 1
@@ -213,7 +214,17 @@ function Serwery() {
       try {
         const dane = await getAdminServers();
 
-        if (!anulowane) setSerwery(dane.servers ?? []);
+        // Serwer bez jednego turnieju nie ma czego pokazać odwiedzającemu,
+        // a na liście wygląda jak zaproszenie donikąd - tak trafiał tam "Test
+        // Server" z zerem turniejów. Filtr jest po danych, nie po nazwie:
+        // następny testowy serwer nazwie się inaczej.
+        if (!anulowane) {
+          const widoczne = (dane.servers ?? []).filter(
+            (s) => Number(s.events_count) > 0,
+          );
+
+          setSerwery(widoczne);
+        }
       } catch (err) {
         console.error("SERVERS ERROR:", err);
 
@@ -324,7 +335,7 @@ function HomePage() {
         <div className="ui-section-head">
           <div>
             <span className="ui-kicker">Turnieje</span>
-            <h2>Gdzie się teraz typuje</h2>
+            <h2>{eventsHeading(events)}</h2>
           </div>
 
           <Link className="ui-btn ui-btn--ghost ui-btn--sm" to="/events">
