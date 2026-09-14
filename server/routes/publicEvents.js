@@ -1,3 +1,5 @@
+import { createArchiveCache } from "../lib/archiveCache.js";
+
 // Publiczna lista eventow i wyniki pojedynczej fazy.
 //
 // Lista NIE filtruje po stanie turnieju: zwraca wszystko, oznaczajac tylko,
@@ -11,11 +13,23 @@ export function registerPublicEventRoutes(
   {
     getKnownGuildInfo,
     calculateScores,
+    exportClassification,
     isGuildMember,
     pool,
     requireGuildAdmin,
   },
 ) {
+  // Gotowe archiwa trzymane w pamięci procesu - patrz lib/archiveCache.js.
+  // Klucz to identyfikator turnieju, bo slug da się zmienić, a plik dotyczy
+  // konkretnego wiersza w events.
+  const archiwa = createArchiveCache({
+    generate: (klucz) => {
+      const [guildId, eventId] = String(klucz).split(":");
+
+      return exportClassification({ guildId, eventId: Number(eventId) });
+    },
+  });
+
   app.get("/api/public/events", async (req, res) => {
     try {
       const [rows] = await pool.query(
@@ -326,6 +340,71 @@ export function registerPublicEventRoutes(
 
       return res.status(500).json({
         error: "Nie udalo sie pobrac wynikow fazy.",
+      });
+    }
+  });
+
+  // ==================================================
+  // ARCHIWUM TURNIEJU (.xlsx)
+  //
+  // Ten sam komplet danych, który dotąd admin pobierał z panelu: 14 arkuszy
+  // z klasyfikacją, typami graczy w każdej fazie, meczami i mapami.
+  //
+  // WYŁĄCZNIE dla turniejów zarchiwizowanych, i to nie jest ostrożność na
+  // wyrost. exportClassification woła na wejściu calculateScores, a to ma
+  // dwanaście zapytań piszących. Dla turnieju zarchiwizowanego liczenie
+  // punktów pomija się i nic nie zapisuje (patrz handlers/matches/
+  // calculateScores.js) - więc archiwizacja jest tutaj granicą między
+  // odczytem a możliwością wywołania przeliczania punktów przez kogokolwiek
+  // z internetu, bez logowania.
+  //
+  // Admin, który chce wyeksportować turniej jeszcze trwający, ma do tego
+  // swoją trasę w eventCleanup.js - tam przeliczenie jest zamierzone.
+  app.get("/api/public/events/:slug/archive.xlsx", async (req, res) => {
+    try {
+      const { slug } = req.params;
+
+      const [[event]] = await pool.query(
+        `
+        SELECT id, guild_id, name, slug, is_archived
+        FROM events
+        WHERE slug = ?
+        LIMIT 1
+        `,
+        [slug],
+      );
+
+      if (!event) {
+        return res.status(404).json({ error: "Nie ma takiego turnieju." });
+      }
+
+      if (Number(event.is_archived) !== 1) {
+        return res.status(409).json({
+          error:
+            "Archiwum powstaje po zakończeniu turnieju. Ten jeszcze trwa.",
+        });
+      }
+
+      const bufor = await archiwa.get(`${event.guild_id}:${event.id}`);
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+
+      // Nazwa pliku ze sluga, nie z nazwy turnieju: nazwa ma spacje,
+      // polskie znaki i dwukropki, a to wszystko psuje nagłówek.
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="pickem-${event.slug}.xlsx"`,
+      );
+
+      return res.send(bufor);
+    } catch (err) {
+      console.error("PUBLIC ARCHIVE ERROR:", err);
+
+      return res.status(500).json({
+        error: "Nie udało się przygotować archiwum.",
       });
     }
   });
