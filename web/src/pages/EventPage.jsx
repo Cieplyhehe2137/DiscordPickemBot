@@ -290,8 +290,23 @@ function EventPage() {
           </div>
         )}
 
+
+        {error ? (
+          <p>{error}</p>
+        ) : (
+          <p>
+            Centrum eventu — mecze, typy, ranking i aktualny postęp turnieju.
+          </p>
+        )}
+
         {/* Archiwum całego turnieju w jednym pliku: klasyfikacja, typy
             wszystkich graczy w każdej fazie, mecze i mapy.
+
+            Stoi POD zdaniem opisu, a nie między pigułkami "Faza" i
+            "Uczestnicy". Tam było czwartym prostokątem z tą samą ramką co
+            trzy etykiety nad nim i czytało się jak kolejna informacja,
+            a nie jak coś do kliknięcia. Kolejność czytania jest teraz
+            naturalna: etykiety, zdanie, działanie.
 
             Pokazywane dopiero po zarchiwizowaniu, bo tylko wtedy serwer je
             wydaje - dla turnieju w toku odpowiada 409. Przycisk, który
@@ -301,19 +316,11 @@ function EventPage() {
             a pierwsze pobranie potrafi trwać kilka sekund. */}
         {!loading && !error && event?.event?.is_archived && (
           <a
-            className="ui-btn ui-btn--ghost"
+            className="ui-btn ui-btn--accent event-page__archive"
             href={eventArchiveUrl(slug)}
           >
             ⬇️ Pobierz archiwum (.xlsx)
           </a>
-        )}
-
-        {error ? (
-          <p>{error}</p>
-        ) : (
-          <p>
-            Centrum eventu — mecze, typy, ranking i aktualny postęp turnieju.
-          </p>
         )}
       </section>
 

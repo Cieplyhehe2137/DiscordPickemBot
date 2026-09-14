@@ -739,6 +739,39 @@
   color: var(--danger);
 }
 
+/* Przycisk, który coś znaczy, ale nie jest głównym działaniem strony.
+
+   System miał `--primary` (pełny akcent, jedno na ekran) i `--danger`
+   (tło, ramka i tekst w barwie ostrzeżenia), ale nic pomiędzy. Skutek był
+   widoczny na stronie eventu: pobieranie archiwum dostało `--ghost`,
+   a ten ma ramkę `--border` - dokładnie tę samą co informacyjne pigułki
+   "Faza", "Status" i "Uczestnicy" obok. Zmierzone: ta sama
+   rgba(255,255,255,0.09), przygaszony tekst, ten sam stos. Przycisk
+   czytał się jak czwarta etykieta.
+
+   Ten wariant jest zbudowany dokładnie jak `--danger`, tylko w akcencie:
+   tło, ramka i tekst z jednej rodziny, więc od razu widać, że to coś
+   do kliknięcia, a nie kolejna informacja. */
+.ui-btn--accent {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent-bright);
+}
+
+/* Tlo MUSI byc tu zadeklarowane, nawet gdyby mialo zostac bez zmian:
+   .ui-btn:hover ustawia szare --surface-4, wiec bez tego akcent znikalby
+   dokladnie w chwili najechania.
+
+   --accent-glow to ten sam fiolet z mocniejszym kryciem (0.25 wobec 0.14),
+   wiec wystarcza za wypelnienie i nie wymaga color-mix - a color-mix
+   narzedzie budujace rozbija na wariant z @supports, ktorego zapas dla
+   starszych przegladarek wychodzi pelnym, nieprzezroczystym fioletem. */
+.ui-btn--accent:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--text-strong);
+}
+
 .ui-btn--sm {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
