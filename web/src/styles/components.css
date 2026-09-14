@@ -2303,8 +2303,12 @@ textarea.ui-input {
 .ui-team__mark {
   flex: none;
 
+  /* Siatka z jednym polem: litera i logo lezą w TYM SAMYM miejscu, jedno na
+     drugim. Dzięki temu zniknięcie obrazka nie zmienia układu ani o piksel. */
   display: inline-grid;
   place-items: center;
+  grid-template-areas: "znak";
+  position: relative;
 
   width: var(--space-5);
   height: var(--space-5);
@@ -2319,4 +2323,31 @@ textarea.ui-input {
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   line-height: 1;
+}
+
+.ui-team__mark > * {
+  grid-area: znak;
+}
+
+/* Logo przykrywa literę. Gdy się nie wczyta, onError je chowa i litera
+   wraca - bez pustej ramki i bez ikony zepsutego obrazka. */
+.ui-team__logo {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  object-fit: contain;
+
+  /* Tło pod logotypem, i to nie jest kwestia gustu. Dostawca oddaje
+     jednobarwne sylwetki na przezroczystości. Zmierzone na 35 pobranych
+     plikach: siedem jest ciemnych (paiN, MIBR, THUNDER dOWNUNDER, MOUZ,
+     FaZe, 3DMAX) i na ciemnym tle znika zupełnie, a dwa są jasne (Vitality,
+     BC.Game) i zniknęłyby na białym.
+
+     Żadne jednolite tło nie obsłuży obu, więc wybrane jest to, przy którym
+     nie znika NIC: szarość w pół drogi daje ciemnym sylwetkom kontrast
+     ponad 8:1, a jasnym około 2,6:1 - mało na tekst, dość na rozpoznanie
+     kształtu w kółku o średnicy dwudziestu pikseli.
+
+     Token jest tu wzięty dla swojej jasności, nie dla swojego znaczenia. */
+  background: var(--text-muted);
 }

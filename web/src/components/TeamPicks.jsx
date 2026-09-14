@@ -14,7 +14,7 @@ import { humanPhase } from "../lib/phaseLabels.js";
 // kwadratu udającego logo jest litera w kółku, czyli ten sam zabieg, który
 // strona stosuje dla graczy bez awatara.
 
-function Druzyna({ team, hit, rozstrzygniete }) {
+function Druzyna({ team, hit, rozstrzygniete, logo }) {
   // Dopóki wynik fazy nie jest opublikowany, nie ma czego oceniać - wszystkie
   // typy są wtedy neutralne, bo "nietrafiony" znaczyłoby nieprawdę.
   const ton = !rozstrzygniete ? "" : hit ? "ui-badge--ok" : "ui-badge--danger";
@@ -22,7 +22,25 @@ function Druzyna({ team, hit, rozstrzygniete }) {
   return (
     <span className={`ui-badge ui-team ${ton}`.trim()}>
       <span className="ui-team__mark" aria-hidden="true">
-        {teamInitial(team)}
+        {/* Litera MUSI mieć własny element. Jako goły tekst nie jest dzieckiem
+            w rozumieniu selektora, więc nie trafia do tej samej komórki siatki
+            co logo i ląduje wierszem niżej - czyli wystaje spod kółka. */}
+        <span className="ui-team__initial">{teamInitial(team)}</span>
+
+        {/* Logo leży NA literze, nie zamiast niej. Adres prowadzi do cudzego
+            CDN-u, więc gdy obrazek nie dojdzie, onError go chowa i spod
+            spodu wraca litera - zamiast ikony zepsutego obrazka. */}
+        {logo && (
+          <img
+            className="ui-team__logo"
+            src={logo}
+            alt=""
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        )}
       </span>
 
       {team}
@@ -30,7 +48,7 @@ function Druzyna({ team, hit, rozstrzygniete }) {
   );
 }
 
-function Grupa({ grupa, rozstrzygniete }) {
+function Grupa({ grupa, rozstrzygniete, logos }) {
   const pozycje = markHits(grupa.picked, grupa.correct);
   const trafione = pozycje.filter((p) => p.hit).length;
 
@@ -53,6 +71,7 @@ function Grupa({ grupa, rozstrzygniete }) {
             team={team}
             hit={hit}
             rozstrzygniete={rozstrzygniete}
+            logo={logos?.[team]}
           />
         ))}
       </div>
@@ -60,7 +79,7 @@ function Grupa({ grupa, rozstrzygniete }) {
   );
 }
 
-function TeamPicks({ phases }) {
+function TeamPicks({ phases, logos }) {
   if (!phases?.length) return null;
 
   return (
@@ -108,6 +127,7 @@ function TeamPicks({ phases }) {
                 key={grupa.key}
                 grupa={grupa}
                 rozstrzygniete={faza.published}
+                logos={logos}
               />
             ))}
           </div>
