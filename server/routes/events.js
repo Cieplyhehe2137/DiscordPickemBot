@@ -109,7 +109,14 @@ export function registerEventRoutes(
           name,
           slug,
           phase,
-          status
+          status,
+
+          -- Widok eventu decyduje po tym, czy pokazać przycisk pobrania
+          -- archiwum. Bez tego pola musiałby zgadywać po statusie, a to nie to
+          -- samo: trasa archiwum wydaje plik wyłącznie dla zarchiwizowanych
+          -- (patrz publicEvents.js), więc turniej FINISHED, ale jeszcze nie
+          -- zarchiwizowany, dostałby przycisk kończący się błędem 409.
+          is_archived
         FROM events
         WHERE slug = ?
         LIMIT 1

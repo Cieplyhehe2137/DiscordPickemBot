@@ -8,6 +8,19 @@
 // CROSS_ORIGIN_WEB w server/index.js.
 const API_BASE_URL = `${String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "")}/api`;
 
+// Adresy plików do pobrania budujemy tym samym prefiksem co zapytania.
+//
+// Wcześniej zwracały gołą ścieżkę `/api/...`, co działa tylko wtedy, gdy
+// front i API stoją na jednym hoście. Na produkcji nie stoją: front jest
+// na pickembot.pl, API na api.pickembot.pl, a reguła przekierowań w
+// public/_redirects oddaje dla nieznanej ścieżki STRONĘ z kodem 200 zamiast
+// czterysta-czterech. Kliknięcie w "Pobierz
+// klasyfikację" pobierało więc plik HTML o nazwie .xlsx - bez błędu,
+// bez ostrzeżenia, po prostu zły plik.
+function plikUrl(path) {
+  return `${API_BASE_URL.replace(/\/api$/, "")}${path}`;
+}
+
 async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
@@ -565,11 +578,23 @@ export function restoreBackup(guildId, fileName) {
 }
 
 export function backupDownloadUrl(guildId, fileName) {
-  return `/api/guilds/${encodeURIComponent(guildId)}/backups/${encodeURIComponent(fileName)}/download`;
+  return plikUrl(
+    `/api/guilds/${encodeURIComponent(guildId)}/backups/${encodeURIComponent(fileName)}/download`,
+  );
 }
 
 export function classificationExportUrl(slug) {
-  return `/api/events/${encodeURIComponent(slug)}/export/classification`;
+  return plikUrl(
+    `/api/events/${encodeURIComponent(slug)}/export/classification`,
+  );
+}
+
+// Archiwum turnieju dla każdego, nie tylko dla admina. Dostępne po
+// zarchiwizowaniu turnieju - serwer odpowiada 409, dopóki trwa.
+export function eventArchiveUrl(slug) {
+  return plikUrl(
+    `/api/public/events/${encodeURIComponent(slug)}/archive.xlsx`,
+  );
 }
 
 // --- Konfiguracja typowania drużyn per event ---

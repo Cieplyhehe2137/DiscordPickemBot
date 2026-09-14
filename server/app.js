@@ -424,6 +424,7 @@ registerEventRoutes(app, {
 registerPublicEventRoutes(app, {
   getKnownGuildInfo,
   calculateScores,
+  exportClassification,
   isGuildMember,
   pool,
   requireGuildAdmin,

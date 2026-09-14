@@ -7,6 +7,7 @@ import {
   getEventStats,
   getEventLeaderboard,
   getEventPlayerProfile,
+  eventArchiveUrl,
 } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import { phaseRouteLabel, humanPhase } from "../lib/phaseLabels.js";
@@ -287,6 +288,24 @@ function EventPage() {
               Uczestnicy: <strong>{event.stats?.participants ?? 0}</strong>
             </span>
           </div>
+        )}
+
+        {/* Archiwum całego turnieju w jednym pliku: klasyfikacja, typy
+            wszystkich graczy w każdej fazie, mecze i mapy.
+
+            Pokazywane dopiero po zarchiwizowaniu, bo tylko wtedy serwer je
+            wydaje - dla turnieju w toku odpowiada 409. Przycisk, który
+            odpowiada błędem, jest gorszy niż brak przycisku.
+
+            Zwykły link, nie fetch: przeglądarka ma sama zapisać plik,
+            a pierwsze pobranie potrafi trwać kilka sekund. */}
+        {!loading && !error && event?.event?.is_archived && (
+          <a
+            className="ui-btn ui-btn--ghost"
+            href={eventArchiveUrl(slug)}
+          >
+            ⬇️ Pobierz archiwum (.xlsx)
+          </a>
         )}
 
         {error ? (
