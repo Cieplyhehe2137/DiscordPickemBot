@@ -90,8 +90,13 @@ export function buildDuel(rows) {
       // "tie" - remis to wynik, a tu wyniku jeszcze nie ma.
       winner: settled ? matchWinner(aPoints, bPoints) : null,
 
-      // Ten sam typ u obu stron. Warto pokazać osobno: mecze, w których
-      // się różnili, są jedynymi, które cokolwiek rozstrzygają.
+      // Ten sam typ SERII u obu stron - i tylko serii.
+      //
+      // To nie znaczy "tyle samo punktów". Punkty za mecz są sumą punktów
+      // za serię i za mapy, a mapy obstawia się osobno, więc dwie osoby
+      // z tym samym wynikiem serii biorą różne punkty, jeśli różnie
+      // wytypowały mapy. Na IEM Kraków 2026 dotyczy to 16 z 26 takich
+      // meczów, czyli większości - nie jest to przypadek brzegowy.
       same_pick: aPredA === bPredA && aPredB === bPredB,
 
       a: {
@@ -128,7 +133,8 @@ export function buildDuel(rows) {
     points_a: rozstrzygniete.reduce((suma, m) => suma + m.a.points, 0),
     points_b: rozstrzygniete.reduce((suma, m) => suma + m.b.points, 0),
 
-    // Mecze, w których obaj postawili identycznie - te nikogo nie dzielą.
+    // Mecze z identycznym typem serii. Patrz uwaga przy `same_pick` wyżej:
+    // identyczny typ serii NIE znaczy tyle samo punktów.
     same_picks: rozstrzygniete.filter((m) => m.same_pick).length,
   };
 

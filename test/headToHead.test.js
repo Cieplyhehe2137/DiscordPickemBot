@@ -129,6 +129,33 @@ test("identyczny typ obu stron jest oznaczony", async () => {
   assert.equal(summary.same_picks, 1);
 });
 
+test("ten sam typ serii NIE znaczy tyle samo punktow", async () => {
+  // Punkty za mecz to suma punktow za serie I za mapy, a mapy obstawia sie
+  // osobno. Dwie osoby z tym samym wynikiem serii biora wiec rozne punkty,
+  // jesli roznie wytypowaly mapy - na IEM Krakow 2026 dotyczy to 16 z 26
+  // takich meczow. Gdyby ktos "naprawil" same_pick tak, zeby wymagal takze
+  // rownych punktow, ten mecz przestalby byc oznaczony jako wspolny typ.
+  const { buildDuel } = await import(H2H);
+
+  const { matches, summary } = buildDuel([
+    wiersz({
+      a_pred_a: 2,
+      a_pred_b: 0,
+      b_pred_a: 2,
+      b_pred_b: 0,
+      res_a: 2,
+      res_b: 0,
+      a_points: 3,
+      b_points: 7,
+    }),
+  ]);
+
+  assert.equal(matches[0].same_pick, true);
+  assert.equal(matches[0].winner, "b");
+  assert.equal(summary.same_picks, 1);
+  assert.equal(summary.wins_b, 1);
+});
+
 test("rozny typ nie jest oznaczony jako identyczny", async () => {
   const { buildDuel } = await import(H2H);
 
