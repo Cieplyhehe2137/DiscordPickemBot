@@ -119,6 +119,14 @@
   --silver: #cbd5e1;
   --bronze: #d97757;
 
+  /* Przygaszone złoto jako TŁO. Gotowe rgba, a nie color-mix() liczone
+     w locie: narzędzie budujące dokłada do color-mix() zapas dla
+     przeglądarek, które go nie znają, a tym zapasem jest pełny, kryjący
+     kolor. Przy ramce to różnica kosmetyczna i dlatego reguły podium
+     zostają jak były - ale pod tłem stoi tu biały napis, więc pełne złoto
+     znaczy napis nie do odczytania. Sprawdzone w zbudowanym CSS. */
+  --gold-bg: rgba(251, 191, 36, 0.07);
+
   /* ---------------------------------------------------------------------
      TYPOGRAFIA
      Skala zamiast listy życzeń. Wcześniej 0.7 / 0.75 / 0.8 / 0.85 / 0.9 rem
