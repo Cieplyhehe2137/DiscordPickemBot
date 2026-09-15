@@ -374,6 +374,17 @@ async function guildIdFromProposalId(req) {
 registerHealthRoutes(app, { pool });
 registerVisitRoutes(app, { pool });
 
+// Druzyny (server/routes/teams.js). MUSI byc zarejestrowane PRZED
+// registerPickemConfigRoutes nizej, bo tamto rejestruje w srodku trase
+// /api/public/:guildSlug - wzorzec z jednym segmentem, ktory lapie takze
+// /api/public/teams. Express bierze pierwsza pasujaca trase, wiec przy
+// odwrotnej kolejnosci lista druzyn oddawala pustą stronę serwera
+// o nazwie "teams" i kod 200 - bez sladu bledu.
+//
+// Trasa szczegolu (/api/public/teams/:name) ma dwa segmenty i nie
+// kolidowala; dlatego dzialala, kiedy lista juz nie.
+registerTeamRoutes(app, { pool });
+
 registerAuthRoutes(app, {
   pool,
   guildRegistry,
@@ -579,9 +590,6 @@ registerPlayerProfileRoutes(app, {
 // bo liczy wylacznie czesc wspolna typow - nazwy, awatary i statystyki obu
 // stron strona porownania bierze z dwoch profili.
 registerHeadToHeadRoutes(app, { pool });
-
-// Druzyny - lista i pojedyncza druzyna (server/routes/teams.js).
-registerTeamRoutes(app, { pool });
 
 // Przeniesione do server/routes/eventStats.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
