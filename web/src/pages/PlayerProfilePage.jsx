@@ -5,6 +5,7 @@ import { getEventPlayerProfile } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import TeamPicks from "../components/TeamPicks.jsx";
 import PointsChart from "../components/PointsChart.jsx";
+import BadgeShelf from "../components/BadgeShelf.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
 
 function PlayerProfilePage() {
@@ -246,6 +247,10 @@ function PlayerProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* Odznaki zaraz za statystykami, bo są ich podsumowaniem -
+          nazwą nadaną liczbom, które stoją wyżej. */}
+      <BadgeShelf profile={player} />
 
       {/* Wykres stoi PRZED seriami, bo mówi to samo, tylko obrazkiem:
           gdzie szło dobrze, a gdzie się posypało. Serie pod spodem
