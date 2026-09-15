@@ -189,39 +189,69 @@ const ZAPYTANIA = {
  *
  * Zwraca tylko te fazy, w których gracz cokolwiek obstawił - lista faz, które
  * turniej mógł mieć, jest stała, a większość turniejów używa dwóch z nich.
+ *
+ * DWIE FALE, NIE PĘTLA. Każde zapytanie to osobna podróż do bazy, a baza stoi
+ * na innej maszynie niż API: zmierzone na produkcji wychodzi około 165 ms na
+ * zapytanie, niezależnie od tego, ile wierszy zwraca. Sześć faz razy trzy
+ * zapytania jedno po drugim to osiemnaście podróży, czyli blisko trzy sekundy
+ * czekania na dane, które nic o sobie nawzajem nie wiedzą.
+ *
+ * Fazy są od siebie niezależne, więc lecą równolegle. Zostaje zależność
+ * prawdziwa i tylko ona wymusza drugą falę: o wynik i punkty pytamy wyłącznie
+ * dla faz, w których gracz cokolwiek obstawił.
  */
 export async function loadTeamPicks(pool, { guildId, eventId, userId }) {
-  const fazy = [];
-
-  for (const [phase, kind] of Object.entries(PHASE_KINDS)) {
-    const q = ZAPYTANIA[kind];
+  const fazy = Object.entries(PHASE_KINDS).map(([phase, kind]) => {
     const swiss = kind === "swiss";
 
-    const argsTypu = swiss
-      ? [guildId, eventId, userId, phase]
-      : [guildId, eventId, userId];
-
-    const [[prediction]] = await pool.query(q.prediction, argsTypu);
-
-    if (!prediction) continue;
-
-    const [[result]] = await pool.query(
-      q.result,
-      swiss ? [guildId, eventId, phase] : [guildId, eventId],
-    );
-
-    const [[score]] = await pool.query(q.points, argsTypu);
-
-    fazy.push({
+    return {
       phase,
       kind,
-      published: Boolean(result),
-      points: score ? Number(score.points || 0) : null,
-      groups: buildGroups(kind, prediction, result),
-    });
-  }
+      swiss,
+      q: ZAPYTANIA[kind],
 
-  return fazy.filter((faza) => faza.groups.length > 0);
+      argsTypu: swiss
+        ? [guildId, eventId, userId, phase]
+        : [guildId, eventId, userId],
+    };
+  });
+
+  // Fala 1: typy wszystkich faz naraz.
+  const typy = await Promise.all(
+    fazy.map((f) => pool.query(f.q.prediction, f.argsTypu)),
+  );
+
+  // Promise.all zachowuje kolejność, więc indeks nadal wskazuje tę samą fazę.
+  const zTypem = fazy
+    .map((f, i) => ({ ...f, prediction: typy[i][0][0] }))
+    .filter((f) => f.prediction);
+
+  // Fala 2: wynik i punkty, tylko dla faz z typem.
+  const reszta = await Promise.all(
+    zTypem.map((f) =>
+      Promise.all([
+        pool.query(
+          f.q.result,
+          f.swiss ? [guildId, eventId, f.phase] : [guildId, eventId],
+        ),
+        pool.query(f.q.points, f.argsTypu),
+      ]),
+    ),
+  );
+
+  return zTypem
+    .map((f, i) => {
+      const [[[result]], [[score]]] = reszta[i];
+
+      return {
+        phase: f.phase,
+        kind: f.kind,
+        published: Boolean(result),
+        points: score ? Number(score.points || 0) : null,
+        groups: buildGroups(f.kind, f.prediction, result),
+      };
+    })
+    .filter((faza) => faza.groups.length > 0);
 }
 
 /**
