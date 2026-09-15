@@ -5,7 +5,12 @@ import BackLink from "../components/BackLink.jsx";
 import PlayerAvatar from "../components/PlayerAvatar.jsx";
 import Ladowanie from "../components/Ladowanie.jsx";
 import { getEventPlayerProfile, getHeadToHead } from "../lib/api.js";
-import { betterSide, splitWidths } from "../lib/headToHeadStats.js";
+import PointsChart from "../components/PointsChart.jsx";
+import {
+  betterSide,
+  duelProgress,
+  splitWidths,
+} from "../lib/headToHeadStats.js";
 import { odmien } from "../lib/odmiana.js";
 
 // Porównanie dwóch graczy w obrębie jednego turnieju.
@@ -191,6 +196,39 @@ function Tablica({ a, b, summary }) {
           <small>obstawione przez obu</small>
         </div>
       </div>
+    </section>
+  );
+}
+
+// Dwie linie na jednej skali: widac nie tylko KTO ma wiecej, ale gdzie
+// sie rozjechali. Suma na koncu tego nie powie - dwie osoby z ta sama
+// przewaga moga ja zbudowac na jednym wieczorze albo po punkcie na mecz.
+function Przebieg({ a, b, matches }) {
+  const { a: ciagA, b: ciagB } = duelProgress(matches);
+
+  if (ciagA.length === 0) return null;
+
+  return (
+    <section className="ui-card ui-stack">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">Przebieg</span>
+
+          <h2>Kto kiedy odskoczył</h2>
+
+          <p>
+            Punkty narastająco, tylko ze wspólnych meczów — od pierwszego
+            do ostatniego.
+          </p>
+        </div>
+      </div>
+
+      <PointsChart
+        series={[
+          { side: "a", name: a.displayname, points: ciagA },
+          { side: "b", name: b.displayname, points: ciagB },
+        ]}
+      />
     </section>
   );
 }
@@ -463,6 +501,8 @@ function HeadToHeadPage() {
       </div>
 
       <Tablica a={a} b={b} summary={summary} />
+
+      <Przebieg a={a} b={b} matches={matches} />
 
       <Statystyki a={a} b={b} />
 

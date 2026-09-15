@@ -1,4 +1,5 @@
 import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
+import { buildProgress } from "../lib/pointsProgress.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
 // z reszta stawki i historia typow.
@@ -362,6 +363,13 @@ export function registerPlayerProfileRoutes(
           [event.id, userId],
         ),
 
+        // Te same wiersze obsługują dwie rzeczy: serie trafień i wykres
+        // punktów narastająco. Punkty i nazwy drużyn doszły dla wykresu -
+        // osobne zapytanie o to samo kosztowałoby kolejną podróż do bazy.
+        //
+        // Punkty idą przez podzapytanie z GROUP BY, bo match_points ma na
+        // jeden mecz kilka wierszy (seria i mapy osobno). Zwykły JOIN
+        // zwielokrotniłby przez to wiersze i zepsuł liczenie serii.
         pool.query(
           `
     SELECT
@@ -370,6 +378,9 @@ export function registerPlayerProfileRoutes(
         mp.pred_b,
         mr.res_a,
         mr.res_b,
+        m.team_a,
+        m.team_b,
+        COALESCE(pts.points, 0) AS points,
         COALESCE(m.match_no, m.id) AS sort_order
 
     FROM match_predictions mp
@@ -382,6 +393,14 @@ export function registerPlayerProfileRoutes(
         ON m.id = mp.match_id
      AND m.event_id = mp.event_id
 
+    LEFT JOIN (
+        SELECT match_id, SUM(points) AS points
+        FROM match_points
+        WHERE event_id = ? AND user_id = ?
+        GROUP BY match_id
+    ) pts
+        ON pts.match_id = mp.match_id
+
     WHERE mp.event_id = ?
         AND mp.user_id = ?
 
@@ -389,7 +408,7 @@ export function registerPlayerProfileRoutes(
         sort_order ASC,
         mp.match_id ASC
     `,
-          [event.id, userId],
+          [event.id, userId, event.id, userId],
         ),
 
         pool.query(
@@ -744,6 +763,10 @@ export function registerPlayerProfileRoutes(
         profile: {
           best_match_points: Number(bestMatch?.points || 0),
           best_correct_streak: bestCorrectStreak,
+
+          // Punkty narastająco, mecz po meczu - z tych samych wierszy, co
+          // serie wyżej. Suma mówi ile, ten ciąg mówi kiedy.
+          points_progress: buildProgress(streakRows),
           current_correct_streak: currentCorrectStreak,
           perfect_matches: perfectMatches,
           best_map_match_points: Number(bestMapMatch?.points || 0),

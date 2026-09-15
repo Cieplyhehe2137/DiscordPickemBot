@@ -41,6 +41,41 @@ export function betterSide(a, b, { lowerIsBetter = false } = {}) {
 }
 
 /**
+ * Punkty obu graczy narastająco, mecz po meczu.
+ *
+ * Bierze wyłącznie mecze rozstrzygnięte - nierozegrany mecz nie dodaje nic
+ * do żadnej sumy, więc na wykresie byłby płaskim odcinkiem udającym, że ktoś
+ * przestał zdobywać punkty.
+ *
+ * Odwraca kolejność, bo trasa oddaje mecze od najnowszego (ORDER BY id DESC),
+ * a wykres czyta się od lewej do prawej, czyli od początku turnieju.
+ */
+export function duelProgress(matches) {
+  const rozstrzygniete = (matches || []).filter((m) => m?.settled).reverse();
+
+  let sumaA = 0;
+  let sumaB = 0;
+
+  const a = [];
+  const b = [];
+
+  rozstrzygniete.forEach((m, i) => {
+    const punktyA = Number(m.a?.points ?? 0);
+    const punktyB = Number(m.b?.points ?? 0);
+
+    sumaA += punktyA;
+    sumaB += punktyB;
+
+    const label = m.team_a && m.team_b ? `${m.team_a} vs ${m.team_b}` : null;
+
+    a.push({ n: i + 1, label, points: punktyA, total: sumaA });
+    b.push({ n: i + 1, label, points: punktyB, total: sumaB });
+  });
+
+  return { a, b };
+}
+
+/**
  * Szerokości trzech części paska pojedynku, w procentach.
  *
  * Bez rozegranych meczów pasek jest pusty, a nie podzielony po równo -

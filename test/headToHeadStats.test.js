@@ -85,3 +85,79 @@ test("same remisy wypelniaja pasek czescia neutralna", async () => {
     tie: 100,
   });
 });
+
+// --- punkty narastajaco -----------------------------------------------------
+
+function mecz(nadpisania = {}) {
+  return {
+    match_id: 1,
+    team_a: "FaZe",
+    team_b: "Vitality",
+    settled: true,
+    a: { points: 0 },
+    b: { points: 0 },
+    ...nadpisania,
+  };
+}
+
+test("punkty narastaja od poczatku turnieju, nie od konca", async () => {
+  // Trasa oddaje mecze od najnowszego (ORDER BY id DESC), a wykres czyta sie
+  // od lewej. Bez odwrocenia linia rosla by wstecz.
+  const { duelProgress } = await import(MODUL);
+
+  const { a } = duelProgress([
+    mecz({ match_id: 3, a: { points: 1 } }),
+    mecz({ match_id: 2, a: { points: 2 } }),
+    mecz({ match_id: 1, a: { points: 5 } }),
+  ]);
+
+  assert.deepEqual(
+    a.map((p) => p.total),
+    [5, 7, 8],
+  );
+});
+
+test("obie strony licza sie niezaleznie", async () => {
+  const { duelProgress } = await import(MODUL);
+
+  const { a, b } = duelProgress([
+    mecz({ match_id: 2, a: { points: 5 }, b: { points: 0 } }),
+    mecz({ match_id: 1, a: { points: 0 }, b: { points: 3 } }),
+  ]);
+
+  assert.deepEqual(a.map((p) => p.total), [0, 5]);
+  assert.deepEqual(b.map((p) => p.total), [3, 3]);
+});
+
+test("mecz bez wyniku nie trafia na wykres", async () => {
+  // Doliczony bylby plaskim odcinkiem udajacym, ze ktos przestal zdobywac
+  // punkty - a on sie po prostu jeszcze nie odbyl.
+  const { duelProgress } = await import(MODUL);
+
+  const { a } = duelProgress([
+    mecz({ match_id: 2, settled: false, a: { points: 0 } }),
+    mecz({ match_id: 1, a: { points: 4 } }),
+  ]);
+
+  assert.equal(a.length, 1);
+  assert.equal(a[0].total, 4);
+});
+
+test("numery meczow ida po kolei od jedynki", async () => {
+  const { duelProgress } = await import(MODUL);
+
+  const { a } = duelProgress([
+    mecz({ match_id: 90, a: { points: 1 } }),
+    mecz({ match_id: 50, a: { points: 1 } }),
+    mecz({ match_id: 10, a: { points: 1 } }),
+  ]);
+
+  assert.deepEqual(a.map((p) => p.n), [1, 2, 3]);
+});
+
+test("brak meczow daje dwie puste serie, a nie wyjatek", async () => {
+  const { duelProgress } = await import(MODUL);
+
+  assert.deepEqual(duelProgress([]), { a: [], b: [] });
+  assert.deepEqual(duelProgress(), { a: [], b: [] });
+});

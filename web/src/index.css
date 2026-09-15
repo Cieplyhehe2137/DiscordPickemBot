@@ -1389,3 +1389,98 @@ main > .page-back {
 .picker-list__item:hover {
   border-color: var(--accent-border);
 }
+
+/* =========================================================
+   WYKRES PUNKTOW
+   ========================================================= */
+
+.points-chart {
+  margin: 0;
+}
+
+/* Wysokosc z viewBox przez proporcje - bez tego SVG dostaje domyslne
+   150px i wykres jest plaski niezaleznie od danych. */
+.points-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.points-chart__grid {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.points-chart__tick {
+  fill: var(--text-faint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.points-chart__area {
+  fill: var(--side-a-bg);
+}
+
+.points-chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.points-chart__line--a {
+  stroke: var(--side-a);
+}
+
+.points-chart__line--b {
+  stroke: var(--side-b);
+}
+
+.points-chart__dot {
+  stroke: var(--surface-2);
+  stroke-width: 1.5;
+}
+
+/* Te same klasy nosza kropka w SVG i kwadracik w legendzie, wiec obie
+   wlasciwosci naraz - fill dla ksztaltu, background dla elementu HTML. */
+.points-chart__dot--a {
+  fill: var(--side-a);
+  background: var(--side-a);
+}
+
+.points-chart__dot--b {
+  fill: var(--side-b);
+  background: var(--side-b);
+}
+
+/* Cel do najechania. Przezroczysty, ale NIE fill: none - element bez
+   wypelnienia nie lapie kursora i dymek nigdy sie nie pokazuje. */
+.points-chart__hit {
+  fill: transparent;
+  cursor: help;
+}
+
+.points-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.points-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.points-chart__swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+}
