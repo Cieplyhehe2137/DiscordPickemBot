@@ -15,6 +15,9 @@ import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import PlayerProfilePage from "./pages/PlayerProfilePage.jsx";
 import HeadToHeadPage from "./pages/HeadToHeadPage.jsx";
 
+import TeamsPage from "./pages/TeamsPage.jsx";
+import TeamPage from "./pages/TeamPage.jsx";
+
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
 import PlayoffsPickemPage from "./pages/PlayoffsPickemPage.jsx";
@@ -32,6 +35,11 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:slug" element={<EventPage />} />
+
+        {/* TEAMS */}
+        <Route path="/teams" element={<TeamsPage />} />
+
+        <Route path="/teams/:name" element={<TeamPage />} />
 
         {/* MATCHES */}
         <Route path="/events/:slug/matches" element={<MatchesPage />} />

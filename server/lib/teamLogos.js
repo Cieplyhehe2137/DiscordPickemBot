@@ -47,6 +47,37 @@ export const TEAM_NAME_ALIASES = {
 };
 
 /**
+ * Zapisy, które są tą samą drużyną, a nie sprowadza ich do siebie samo
+ * usunięcie wielkich liter i znaków.
+ *
+ * Klucz i wartość są już znormalizowane. Sprawdzone na wszystkich meczach
+ * w bazie: 40 różnych zapisów nazw, 40 kluczy po normalizacji - czyli sama
+ * normalizacja nie skleja tu NICZEGO, a mimo to jedna para jest tą samą
+ * organizacją. Duplikaty w rodzaju "PARIVISION" i "Parivision" siedzą
+ * w tabelach faz, gdzie normalizacja radzi sobie sama.
+ *
+ * Lista jest krótka celowo. Zgadywanie po podobieństwie jest tu groźniejsze
+ * niż jej brak: "Ninjas in Pyjamas" i "Ninjas in Pyjamas Impact" mają wspólny
+ * początek i są dwoma różnymi składami, więc automat skleiłby im statystyki.
+ */
+export const TEAM_KEY_MERGES = {
+  fut: "futesports",
+};
+
+/**
+ * Klucz, po którym grupuje się statystyki drużyny.
+ *
+ * Normalizacja plus sklejenia wyżej. To jest funkcja, której używa widok -
+ * `normalizeTeamName` zostaje osobno, bo na niej stoi klucz unikalny
+ * w `team_logos` i zmiana jej znaczenia rozjechałaby tabelę.
+ */
+export function teamKey(name) {
+  const klucz = normalizeTeamName(name);
+
+  return TEAM_KEY_MERGES[klucz] || klucz;
+}
+
+/**
  * Nazwa, pod którą szukamy u dostawcy.
  */
 export function searchNameFor(name) {

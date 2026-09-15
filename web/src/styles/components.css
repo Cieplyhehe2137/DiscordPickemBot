@@ -2303,8 +2303,20 @@ textarea.ui-input {
   text-transform: none;
   letter-spacing: var(--tracking-normal);
 
+  /* Plakietka jest odnośnikiem do strony drużyny, a ani .ui-badge, ani ta
+     reguła nie zdejmują podkreślenia same z siebie - domyślne podkreślenie
+     przecinałoby kółko z logotypem w poprzek. */
+  text-decoration: none;
+  cursor: pointer;
+
   /* Tu nazwa jest treścią sekcji, a nie podpisem przy czymś innym. */
   font-size: var(--text-sm);
+}
+
+/* Widoczne, że to odnośnik - kolor ramki, nie podkreślenie. */
+.ui-team:hover {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
 }
 
 .ui-team__mark {
