@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
-import { useOutletContext, useParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventPlayerProfile } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import TeamPicks from "../components/TeamPicks.jsx";
+import PlayerPicker from "../components/PlayerPicker.jsx";
 
 function PlayerProfilePage() {
   const { slug, userId } = useParams();
   const { realtimeRefresh } = useOutletContext();
+  const navigate = useNavigate();
+
+  // Okno wyboru przeciwnika do porownania.
+  const [wybierakOtwarty, setWybierakOtwarty] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -140,7 +145,33 @@ function PlayerProfilePage() {
 
   return (
     <main className="ui-page">
-      <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+      <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+        <BackLink to={`/events/${slug}/leaderboard`}>
+          Wróć do rankingu
+        </BackLink>
+
+        <button
+          type="button"
+          className="ui-btn ui-btn--accent ui-btn--sm"
+          onClick={() => setWybierakOtwarty(true)}
+        >
+          ⚔️ Porównaj z graczem
+        </button>
+      </div>
+
+      {/* Montowane dopiero przy otwarciu - dzięki temu wpisana fraza
+          i wyniki szukania giną same przy zamknięciu. */}
+      {wybierakOtwarty && (
+        <PlayerPicker
+          slug={slug}
+          excludeUserId={userId}
+          onClose={() => setWybierakOtwarty(false)}
+          onPick={(gracz) => {
+            setWybierakOtwarty(false);
+            navigate(`/events/${slug}/h2h/${userId}/${gracz.user_id}`);
+          }}
+        />
+      )}
 
       <section className="ui-card ui-stack">
         <div className="ui-row ui-row--wrap">

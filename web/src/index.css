@@ -1087,3 +1087,305 @@ main > .page-back {
   line-height: var(--leading-normal);
   color: var(--text-muted);
 }
+
+/* =========================================================
+   POJEDYNEK DWÓCH GRACZY
+   ========================================================= */
+
+/* TABLICA
+   Trzy kolumny: gracz, wynik, gracz. Kolor każdej strony jest ten sam,
+   co jej liczby - side-a i side-b, tak jak w kartach meczów. */
+
+.h2h-board__row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.h2h-board__player {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  /* Nick bywa jednym długim słowem bez spacji - bez tego rozpycha kolumnę
+     zamiast się skrócić. */
+  min-width: 0;
+}
+
+/* Prawa strona lustrzana: awatar od zewnątrz, nazwa do środka. */
+.h2h-board__player--b {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.h2h-board__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-strong);
+}
+
+.h2h-board__score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-black);
+  font-variant-numeric: tabular-nums;
+}
+
+.h2h-board__wins--a {
+  color: var(--side-a);
+}
+
+.h2h-board__wins--b {
+  color: var(--side-b);
+}
+
+.h2h-board__sep {
+  color: var(--text-faint);
+}
+
+.h2h-board__summary {
+  text-align: center;
+}
+
+/* Dwie liczby rozdzielone dwukropkiem czyta sie jako jedna wartosc -
+   zlamane po dwukropku wygladaja jak dwa osobne wyniki jeden pod drugim. */
+.h2h-board__pair {
+  white-space: nowrap;
+}
+
+/* PORÓWNANIE STATYSTYK
+   Wiersz to dwie liczby po bokach i etykieta w środku. */
+
+.h2h-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 12ch) 1fr;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--layer-subtle);
+}
+
+.h2h-row__label {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-snug);
+}
+
+.h2h-value {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.h2h-row .h2h-value:first-child {
+  text-align: left;
+}
+
+.h2h-row .h2h-value:last-child {
+  text-align: right;
+}
+
+/* Lepsza liczba dostaje kolor swojej strony i grubszą wagę. Nie tło:
+   przy dziesięciu wierszach pod rząd tła robią z tabeli szachownicę.
+   Waga jest tu po to, żeby wyróżnienie nie wisiało na samym kolorze. */
+.h2h-value--best-a {
+  color: var(--side-a);
+  font-weight: var(--weight-bold);
+}
+
+.h2h-value--best-b {
+  color: var(--side-b);
+  font-weight: var(--weight-bold);
+}
+
+/* WSPÓLNE MECZE */
+
+.h2h-match {
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--layer-subtle);
+}
+
+.h2h-match__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  margin-bottom: var(--space-3);
+}
+
+.h2h-match__teams {
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.h2h-match__teams:hover {
+  color: var(--text-strong);
+}
+
+.h2h-match__vs {
+  color: var(--text-faint);
+  font-weight: var(--weight-normal);
+}
+
+.h2h-match__picks {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.h2h-match__mid {
+  text-align: center;
+  font-size: var(--text-2xs);
+  color: var(--text-faint);
+}
+
+.h2h-pick {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--layer-sunken);
+}
+
+/* Inicjal gracza przy typie. Przy waskim ekranie oba pudelka stoja
+   jedno pod drugim i pozycja przestaje mowic, ktore jest czyje - kolor
+   i litera sa wtedy jedynym, co je rozroznia. */
+.h2h-pick__who {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+}
+
+.h2h-pick__who--a {
+  background: var(--side-a-bg);
+  color: var(--side-a);
+}
+
+.h2h-pick__who--b {
+  background: var(--side-b-bg);
+  color: var(--side-b);
+}
+
+.h2h-pick__score {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  color: var(--text);
+}
+
+/* Punkty dosuniete do prawej krawedzi, zeby inicjal i wynik trzymaly sie
+   razem po lewej - inaczej trzy elementy rozjezdzaja sie po rowno. */
+.h2h-pick__points {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.h2h-pick--won {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+}
+
+.h2h-pick--won .h2h-pick__score,
+.h2h-pick--won .h2h-pick__points {
+  color: var(--ok);
+}
+
+/* Przegrany typ przygaszony kolorem, a NIE przezroczystością: opacity
+   zbija kontrast całego pudełka razem z ramką i przy dwóch przygaszonych
+   wierszach pod rząd liczby przestają być czytelne. */
+.h2h-pick--lost .h2h-pick__score {
+  color: var(--text-faint);
+}
+
+@media (max-width: 560px) {
+  /* Awatar nad nazwą - w jednej linii przy 375px na nazwę zostaje sześć
+     znaków i każdy nick kończy się wielokropkiem. */
+  .h2h-board__player,
+  .h2h-board__player--b {
+    flex-direction: column;
+    gap: var(--space-2);
+    text-align: center;
+  }
+
+  .h2h-board__name {
+    white-space: normal;
+    font-size: var(--text-sm);
+
+    /* Bez wielokropka nick musi sie zlamac, a nicki bywaja jednym slowem
+       bez spacji - zwykle lamanie nie ma wtedy gdzie zadzialac i nazwa
+       wychodzi poza kolumne. */
+    overflow-wrap: anywhere;
+  }
+
+  .h2h-board__score {
+    font-size: var(--text-2xl);
+  }
+
+  .h2h-row {
+    grid-template-columns: 1fr minmax(0, 9ch) 1fr;
+  }
+
+  .h2h-value {
+    font-size: var(--text-md);
+  }
+
+  /* Typy jeden pod drugim: trzy kolumny przy 375px dają pudełka węższe
+     niż "10:10 · 0 pkt" w środku. */
+  .h2h-match__picks {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   WYBÓR GRACZA DO PORÓWNANIA
+   ========================================================= */
+
+/* Lista ograniczona wysokością, bo okno modalne nie ma jak urosnąć poza
+   ekran - przy ośmiu wierszach przewija się ona, a nie strona pod spodem. */
+.picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* Wiersz listy to przycisk, więc trzeba zdjąć z niego wygląd przycisku -
+   resztę bierze z .ui-row-item, tego samego, co ranking. */
+.picker-list__item {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-list__item:hover {
+  border-color: var(--accent-border);
+}
