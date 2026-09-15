@@ -8,21 +8,44 @@ import {
 
 import BackLink from "../components/BackLink.jsx";
 import { getEventMatches } from "../lib/api.js";
+import { humanPhase } from "../lib/phaseLabels.js";
+import { odmien } from "../lib/odmiana.js";
+import {
+  filterMatches,
+  phasesFromMatches,
+  teamsFromMatches,
+  STATE_LABELS,
+} from "../lib/matchFilters.js";
 
 function MatchesPage() {
   const { slug } = useParams();
-  const [searchParams] = useSearchParams();
-  const selectedPhase = searchParams.get("phase");
+  const [searchParams, setSearchParams] = useSearchParams();
   const { realtimeRefresh } = useOutletContext();
 
-  const phaseLabels = {
-    swiss_stage1: "Swiss Stage 1",
-    swiss_stage2: "Swiss Stage 2",
-    swiss_stage3: "Swiss Stage 3",
-    playin: "Play-In",
-    playoffs: "Playoffs",
-    doubleelim: "Double Elimination",
-    double_elim: "Double Elimination",
+  // Filtry siedzą w adresie, nie w stanie komponentu: dzięki temu da się
+  // je wysłać komuś linkiem i przeżywają odświeżenie strony. Tak samo
+  // działał dotąd filtr po fazie, który przychodzi ze strony eventu.
+  const selectedPhase = searchParams.get("phase");
+  const selectedTeam = searchParams.get("team");
+  const selectedState = searchParams.get("stan");
+
+  // Lokalna mapa etykiet faz poszła na rzecz humanPhase. API oddaje fazy
+  // WIELKIMI literami (PLAYIN, DOUBLEELIM), a tamta mapa miała klucze
+  // małymi - więc nagłówek pokazywał surowe "PLAYIN" zamiast "Play-In".
+  const ustawFiltr = (klucz, wartosc) => {
+    setSearchParams(
+      (poprzednie) => {
+        const nowe = new URLSearchParams(poprzednie);
+
+        // Pusta wartość to "wszystkie" - parametr wtedy znika z adresu,
+        // zamiast zostawać jako pusty ogon.
+        if (wartosc) nowe.set(klucz, wartosc);
+        else nowe.delete(klucz);
+
+        return nowe;
+      },
+      { replace: true },
+    );
   };
 
   const [matches, setMatches] = useState(null);
@@ -74,9 +97,26 @@ function MatchesPage() {
     refreshMatches();
   }, [realtimeRefresh, slug]);
 
-  const filteredMatches = selectedPhase
-    ? (matches?.matches ?? []).filter((match) => match.phase === selectedPhase)
-    : (matches?.matches ?? []);
+  const wszystkieMecze = matches?.matches ?? [];
+
+  const filteredMatches = filterMatches(wszystkieMecze, {
+    phase: selectedPhase,
+    team: selectedTeam,
+    state: selectedState,
+  });
+
+  // Listy do wyboru powstają z pobranych meczów, więc nie da się wybrać
+  // filtru, który niczego nie pokaże.
+  const fazy = phasesFromMatches(wszystkieMecze);
+  const druzyny = teamsFromMatches(wszystkieMecze);
+
+  // Wartość w rozwijanej liście musi być tym samym napisem, co w opcji -
+  // adres może nieść "playin", a mecze "PLAYIN".
+  const fazaWyboru =
+    fazy.find((f) => f.phase.toLowerCase() === String(selectedPhase ?? "").toLowerCase())
+      ?.phase ?? "";
+
+  const filtrAktywny = Boolean(selectedPhase || selectedTeam || selectedState);
 
   const selectedProgress = selectedPhase
     ? matches?.progress?.[selectedPhase]
@@ -119,14 +159,93 @@ function MatchesPage() {
           <span className="ui-kicker">Pick&apos;Em</span>
 
           <h2>
-            {selectedPhase
-              ? `Mecze — ${phaseLabels[selectedPhase] ?? selectedPhase}`
-              : "Mecze"}
+            {selectedPhase ? `Mecze — ${humanPhase(selectedPhase)}` : "Mecze"}
           </h2>
+
+          {!loading && !error && matches && (
+            <p>
+              {filtrAktywny ? (
+                <>
+                  {filteredMatches.length} z {wszystkieMecze.length}{" "}
+                  {odmien(wszystkieMecze.length, "meczu", "meczów", "meczów")}
+                </>
+              ) : (
+                <>
+                  {wszystkieMecze.length}{" "}
+                  {odmien(wszystkieMecze.length, "mecz", "mecze", "meczów")}
+                </>
+              )}
+            </p>
+          )}
         </div>
 
         <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
       </div>
+
+      {!loading && !error && wszystkieMecze.length > 0 && (
+        <div className="matches-filters">
+          <label className="matches-filters__field">
+            <span>Faza</span>
+
+            <select
+              value={fazaWyboru}
+              onChange={(e) => ustawFiltr("phase", e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+
+              {fazy.map((f) => (
+                <option key={f.phase} value={f.phase}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="matches-filters__field">
+            <span>Drużyna</span>
+
+            <select
+              value={selectedTeam ?? ""}
+              onChange={(e) => ustawFiltr("team", e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+
+              {druzyny.map((nazwa) => (
+                <option key={nazwa} value={nazwa}>
+                  {nazwa}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="matches-filters__field">
+            <span>Stan</span>
+
+            <select
+              value={selectedState ?? ""}
+              onChange={(e) => ustawFiltr("stan", e.target.value)}
+            >
+              <option value="">Wszystkie</option>
+
+              {Object.entries(STATE_LABELS).map(([klucz, etykieta]) => (
+                <option key={klucz} value={klucz}>
+                  {etykieta}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {filtrAktywny && (
+            <button
+              type="button"
+              className="ui-btn ui-btn--ghost ui-btn--sm"
+              onClick={() => setSearchParams({}, { replace: true })}
+            >
+              Wyczyść filtry
+            </button>
+          )}
+        </div>
+      )}
 
       {!loading && !error && selectedProgress && (
         <div className="matches-page__progress">
@@ -195,8 +314,20 @@ function MatchesPage() {
               </span>
               <strong className="ui-empty__title">Brak meczów</strong>
               <p className="ui-empty__text">
-                W tej fazie nie ma jeszcze żadnych zaplanowanych meczów.
+                {filtrAktywny
+                  ? "Żaden mecz nie pasuje do wybranych filtrów."
+                  : "W tym turnieju nie ma jeszcze żadnych zaplanowanych meczów."}
               </p>
+
+              {filtrAktywny && (
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--sm"
+                  onClick={() => setSearchParams({}, { replace: true })}
+                >
+                  Wyczyść filtry
+                </button>
+              )}
             </div>
           )}
 
@@ -225,17 +356,31 @@ function MatchesPage() {
                   </div>
                 </div>
 
+                {/* Nazwy drużyn prowadzą na ich strony - to jedyne miejsce
+                    w serwisie, gdzie nazwa drużyny pada przy każdym meczu. */}
                 <div className="ui-match">
                   <div className="ui-match__team">
                     <span className="ui-match__side">A</span>
-                    <strong className="ui-match__name">{match.team_a}</strong>
+
+                    <Link
+                      className="ui-match__name"
+                      to={`/teams/${encodeURIComponent(match.team_a)}`}
+                    >
+                      {match.team_a}
+                    </Link>
                   </div>
 
                   <span className="ui-match__vs">VS</span>
 
                   <div className="ui-match__team ui-match__team--b">
                     <span className="ui-match__side">B</span>
-                    <strong className="ui-match__name">{match.team_b}</strong>
+
+                    <Link
+                      className="ui-match__name"
+                      to={`/teams/${encodeURIComponent(match.team_b)}`}
+                    >
+                      {match.team_b}
+                    </Link>
                   </div>
                 </div>
 
