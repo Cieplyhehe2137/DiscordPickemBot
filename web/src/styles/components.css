@@ -951,6 +951,13 @@
   background: var(--side-b);
 }
 
+/* Część neutralna, między stronami: remisy w pojedynku dwóch graczy.
+   Bez niej pasek dzieliłby na dwoje coś, co ma trzy stany, i dwie osoby
+   remisujące w połowie meczów wyglądałyby na poróżnione mocniej, niż są. */
+.ui-split__tie {
+  background: var(--border-strong);
+}
+
 /* -------------------------------------------------------------------------
    PASEK POSTĘPU
    ------------------------------------------------------------------------- */

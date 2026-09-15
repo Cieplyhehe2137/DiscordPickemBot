@@ -365,6 +365,18 @@ export function getEventPlayerProfile(slug, userId) {
   return apiRequest(`/public/events/${slug}/players/${userId}`);
 }
 
+// Pojedynek dwoch graczy: wylacznie mecze, ktore obaj obstawili.
+//
+// Nazwy, awatary i statystyki obu stron bierze strona porownania z dwoch
+// profili - ta trasa liczy sama czesc wspolna typow.
+export function getHeadToHead(slug, userA, userB) {
+  return apiRequest(
+    `/public/events/${encodeURIComponent(slug)}/head-to-head/${encodeURIComponent(
+      userA,
+    )}/${encodeURIComponent(userB)}`,
+  );
+}
+
 export function getEventStats(slug) {
   return apiRequest(`/events/${slug}/stats`);
 }

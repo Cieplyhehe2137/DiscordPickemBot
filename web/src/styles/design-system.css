@@ -79,6 +79,13 @@
   --side-a: #8b5cf6;
   --side-b: #f43f5e;
 
+  /* Przygaszone tla obu stron. Gotowe rgba, a NIE color-mix() liczone
+     w locie: narzedzie budujace dokłada do color-mix() zapas dla
+     przegladarek, ktore go nie znaja, a tym zapasem jest pelny, kryjacy
+     kolor - czyli fioletowa litera na fioletowym kolku. */
+  --side-a-bg: rgba(139, 92, 246, 0.22);
+  --side-b-bg: rgba(244, 63, 94, 0.22);
+
   --live: #22d3ee;
   --live-bg: rgba(34, 211, 238, 0.12);
   --live-border: rgba(34, 211, 238, 0.3);

@@ -13,6 +13,7 @@ import MyPicksPage from "./pages/MyPicksPage.jsx";
 import MyStatsPage from "./pages/MyStatsPage.jsx";
 import LeaderboardPage from "./pages/LeaderboardPage.jsx";
 import PlayerProfilePage from "./pages/PlayerProfilePage.jsx";
+import HeadToHeadPage from "./pages/HeadToHeadPage.jsx";
 
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
@@ -47,6 +48,11 @@ function App() {
         <Route
           path="/events/:slug/player/:userId"
           element={<PlayerProfilePage />}
+        />
+
+        <Route
+          path="/events/:slug/h2h/:userA/:userB"
+          element={<HeadToHeadPage />}
         />
 
         {/* PICK'EM PHASES */}
