@@ -4,6 +4,7 @@ import { useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { getEventPlayerProfile } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import TeamPicks from "../components/TeamPicks.jsx";
+import PointsChart from "../components/PointsChart.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
 
 function PlayerProfilePage() {
@@ -244,6 +245,30 @@ function PlayerProfilePage() {
             <strong>{player.map_points ?? 0}</strong>
           </div>
         </div>
+      </section>
+
+      {/* Wykres stoi PRZED seriami, bo mówi to samo, tylko obrazkiem:
+          gdzie szło dobrze, a gdzie się posypało. Serie pod spodem
+          podają tę samą rzecz liczbą. */}
+      <section className="ui-card ui-stack">
+        <div className="ui-section-head">
+          <div>
+            <span className="ui-kicker">Przebieg</span>
+
+            <h2>Punkty w czasie</h2>
+          </div>
+        </div>
+
+        <PointsChart
+          series={[
+            {
+              side: "a",
+              name: player.displayname,
+              points: player.points_progress ?? [],
+            },
+          ]}
+          caption="Najedź na punkt, żeby zobaczyć mecz i zdobycz."
+        />
       </section>
 
       <section className="ui-card ui-stack">
