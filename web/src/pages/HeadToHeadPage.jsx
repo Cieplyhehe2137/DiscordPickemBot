@@ -180,9 +180,9 @@ function Tablica({ a, b, summary }) {
         </div>
 
         <div className="ui-stat">
-          <span>Identyczne typy</span>
+          <span>Ten sam typ serii</span>
           <strong>{summary.same_picks}</strong>
-          <small>te mecze nikogo nie dzielą</small>
+          <small>punkty i tak mogą się różnić — decydują mapy</small>
         </div>
 
         <div className="ui-stat">
@@ -323,10 +323,14 @@ function WspolneMecze({ slug, matches, a, b }) {
                   <span className="h2h-pick__points">{mecz.a.points} pkt</span>
                 </div>
 
-                {/* Identyczny typ zaznaczony wprost: bez tego dwa te same
-                    wyniki po obu stronach wyglądają jak pomyłka w danych. */}
+                {/* "Serii", a nie po prostu "ten sam typ". Punkty za mecz to
+                    suma punktów za serię I za mapy, więc dwie osoby z tym
+                    samym wynikiem serii biorą różne punkty, jeśli różnie
+                    obstawiły mapy. Na prawdziwym turnieju dotyczy to 16 z 26
+                    takich meczów - bez słowa "serii" identyczny typ obok
+                    "5 pkt" i "4 pkt" wygląda jak błąd w danych. */}
                 <span className="h2h-match__mid">
-                  {mecz.same_pick ? "ten sam typ" : "—"}
+                  {mecz.same_pick ? "ten sam typ serii" : "—"}
                 </span>
 
                 <div
