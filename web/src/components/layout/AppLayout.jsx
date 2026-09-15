@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
+import ThemeToggle from "../ThemeToggle.jsx";
 import { recordVisit } from "../../lib/api.js";
 
 import { apiUrl } from "../../lib/apiUrl.js";
@@ -85,6 +86,11 @@ function AppLayout() {
           </nav>
 
           <div className="app-user">
+            {/* Przełącznik motywu przed danymi użytkownika - jest
+                dostępny także dla niezalogowanych, więc nie może stać
+                w bloku, który zależy od logowania. */}
+            <ThemeToggle />
+
             {authLoading ? (
               <span>Ładowanie...</span>
             ) : user ? (

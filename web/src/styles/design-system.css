@@ -23,6 +23,16 @@
 @import "@fontsource-variable/inter";
 
 :root {
+  /* Ciemny motyw jest DOMYŚLNY i opisany tutaj, w samym :root. Jasny
+     dopisuje się niżej, pod [data-theme="light"], i nadpisuje wyłącznie
+     kolory - odstępy, rozmiary i kroje są wspólne.
+
+     color-scheme mówi przeglądarce, w którą stronę malować rzeczy, których
+     nie da się ostylować: listy rozwijane w filtrach meczów, paski
+     przewijania, pola formularzy. Bez tego jasna strona dostaje czarne
+     wnętrze listy rozwijanej. */
+  color-scheme: dark;
+
   /* ---------------------------------------------------------------------
      POWIERZCHNIE
      Drabina głębi, nie zbiór przypadkowych szarości. Każdy kolejny stopień
@@ -119,6 +129,16 @@
   --silver: #cbd5e1;
   --bronze: #d97757;
 
+  /* Skrajne stopnie gradientu na cyfrach podium. Były wpisane wprost
+     w regułę i dobrane pod ciemne tło - srebro miało stopień #ffffff,
+     który na białej karcie znika całkowicie. */
+  --medal-gold-shine: #fef3c7;
+  --medal-gold-deep: #d97706;
+  --medal-silver-shine: #ffffff;
+  --medal-silver-deep: #94a3b8;
+  --medal-bronze-shine: #fed7aa;
+  --medal-bronze-deep: #b45309;
+
   /* Przygaszone złoto jako TŁO. Gotowe rgba, a nie color-mix() liczone
      w locie: narzędzie budujące dokłada do color-mix() zapas dla
      przeglądarek, które go nie znają, a tym zapasem jest pełny, kryjący
@@ -126,6 +146,23 @@
      zostają jak były - ale pod tłem stoi tu biały napis, więc pełne złoto
      znaczy napis nie do odczytania. Sprawdzone w zbudowanym CSS. */
   --gold-bg: rgba(251, 191, 36, 0.07);
+
+  /* ---------------------------------------------------------------------
+     KOLORY, KTÓRE NIE ODWRACAJĄ SIĘ Z MOTYWEM
+     --------------------------------------------------------------------- */
+
+  /* Tło pod logotypem drużyny. Dostawca oddaje jednobarwne sylwetki na
+     przezroczystości: ciemne znikają na ciemnym tle, jasne na jasnym.
+     Szarość w pół drogi nie gubi żadnej - i dlatego musi zostać TA SAMA
+     w obu motywach. Wcześniej stał tu --text-muted, który w jasnym motywie
+     robi się ciemny i ciemne sylwetki by zniknęły. */
+  --logo-bg: #a1a1aa;
+
+  /* Cień wewnętrzny toru paska (podział głosów, postęp). */
+  --inset-shadow: rgba(0, 0, 0, 0.4);
+
+  /* Przyciemnienie strony pod oknem modalnym. */
+  --backdrop: rgba(0, 0, 0, 0.6);
 
   /* ---------------------------------------------------------------------
      TYPOGRAFIA
@@ -229,6 +266,136 @@
   /* Pierścień fokusu. Jeden na całą stronę - bez niego nawigacja klawiaturą
      jest niewidoczna, co dyskwalifikuje produkt niezależnie od wyglądu. */
   --focus-ring: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--accent);
+}
+
+
+/* =========================================================================
+   MOTYW JASNY
+   =========================================================================
+   Nadpisuje WYŁĄCZNIE kolory. Odstępy, rozmiary, kroje i cała reszta są
+   wspólne, więc ten blok nie może rosnąć o nic poza paletą.
+
+   Nie jest to odwrócenie ciemnego. Trzy rzeczy trzeba było przemyśleć od
+   nowa, bo proste odwrócenie daje ekran nie do czytania:
+
+    1. WARSTWY. W ciemnym motywie są to białe nakładki (element podnosi się,
+       rozjaśniając się). W jasnym muszą być czarne - rozjaśnianie bieli
+       nie daje nic.
+
+    2. POWIERZCHNIE nie idą monotonicznie. W ciemnym każdy stopień jest
+       jaśniejszy. W jasnym karta jest BIAŁA na lekko szarej stronie,
+       a element w karcie znów lekko szary - inaczej wszystko zlewa się
+       w jedną biel.
+
+    3. KOLORY STANÓW trzeba przyciemnić. Zieleń #4ade80 na bieli daje
+       kontrast 1,7:1, czyli tekst nie do odczytania. Te same role,
+       ciemniejsze odcienie.
+   ========================================================================= */
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Strona najbardziej szara, karta biała - odwrotnie niż w ciemnym, gdzie
+     strona jest najciemniejsza, a karta jaśniejsza od niej. */
+  --surface-0: #f4f4f5; /* tło strony */
+  --surface-1: #fafafa; /* sekcja, panel */
+  --surface-2: #ffffff; /* karta */
+  --surface-3: #f4f4f5; /* element w karcie, hover karty */
+  --surface-4: #ffffff; /* popover - odróżnia się cieniem, nie kolorem */
+
+  /* Czarne nakładki zamiast białych. */
+  --layer-subtle: rgba(0, 0, 0, 0.02);
+  --layer: rgba(0, 0, 0, 0.04);
+  --layer-strong: rgba(0, 0, 0, 0.07);
+  --layer-sunken: rgba(0, 0, 0, 0.06);
+
+  --border-subtle: rgba(0, 0, 0, 0.07);
+  --border: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.2);
+
+  /* Ta sama drabina ważności, od najciemniejszego.
+
+     Ciemniejsza, niż wyszłaby z prostego odwrócenia ciemnego motywu.
+     Zmierzone kontrastem WCAG na złożonych warstwach: przy --text-muted
+     równym #52525b plakietka i nazwa drużyny dawały 4,21, czyli poniżej
+     progu AA 4,5 dla drobnego tekstu. Napis wersalikami po jedenaście
+     pikseli potrzebuje tego progu naprawdę. */
+  --text-strong: #09090b;
+  --text: #27272a;
+  --text-muted: #3f3f46;
+  --text-faint: #52525b;
+
+  /* Fiolet ciemnieje, żeby dał się czytać na bieli. --accent-bright jest
+     w ciemnym motywie JAŚNIEJSZY od --accent (bo leży na ciemnym tle),
+     więc w jasnym musi być CIEMNIEJSZY - inaczej znika. */
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-bright: #5b21b6;
+  --accent-bg: rgba(124, 58, 237, 0.1);
+  --accent-border: rgba(124, 58, 237, 0.3);
+  --accent-glow: rgba(124, 58, 237, 0.18);
+
+  --side-a: #7c3aed;
+  --side-b: #e11d48;
+  --side-a-bg: rgba(124, 58, 237, 0.16);
+  --side-b-bg: rgba(225, 29, 72, 0.16);
+
+  --live: #0e7490;
+  --live-bg: rgba(14, 116, 144, 0.1);
+  --live-border: rgba(14, 116, 144, 0.3);
+
+  /* Discord zostaje marką - przycisk ma własne tło w obu motywach. */
+  --discord: #5865f2;
+  --discord-text: #eef2ff;
+
+  /* Kolory stanów o stopień ciemniejsze, niż podpowiadałaby intuicja.
+     Plakietka stanu pisze SWOIM kolorem na tle tego samego koloru z alfą
+     0,1, więc kontrast jest z natury niski. Zmierzone na białej karcie:
+     #15803d dawało 4,39, a #b45309 - 4,38, czyli oba poniżej progu AA 4,5.
+     Czerwień przy #b91c1c dawała 5,46 i dlatego zostaje bez zmiany. */
+  --ok: #166534;
+  --ok-bg: rgba(22, 101, 52, 0.1);
+  --ok-border: rgba(22, 101, 52, 0.28);
+
+  --warn: #92400e;
+  --warn-bg: rgba(146, 64, 14, 0.1);
+  --warn-border: rgba(146, 64, 14, 0.28);
+
+  --danger: #b91c1c;
+  --danger-bg: rgba(185, 28, 28, 0.1);
+  --danger-border: rgba(185, 28, 28, 0.28);
+
+  /* Medale ciemniejsze niż podpowiada nazwa koloru. Żółć na bieli jest
+     z natury trudna: #eab308 daje 1,92, a nawet #ca8a04 tylko 2,9 - przy
+     progu 3,0 dla dużego tekstu. Cała skala zjeżdża więc o dwa stopnie.
+     Odcień przestaje być dosłownie złoty, ale cyfrę na podium da się
+     odczytać, a to jest jej jedyne zadanie. */
+  --gold: #854d0e;
+  --silver: #475569;
+  --bronze: #9a3412;
+  --gold-bg: rgba(133, 77, 14, 0.1);
+
+  /* Gradient medalu idzie od jaśniejszego do ciemniejszego. Na ciemnym tle
+     jaśniejszy stopień jest prawie biały i to właśnie on daje połysk;
+     na białej karcie znika. Tutaj cały gradient przesuwa się w dół skali -
+     nadal jest metaliczny, ale najjaśniejszy jego punkt zostaje ciemniejszy
+     niż karta. */
+  --medal-gold-shine: #a16207;
+  --medal-gold-deep: #713f12;
+  --medal-silver-shine: #64748b;
+  --medal-silver-deep: #334155;
+  --medal-bronze-shine: #c2410c;
+  --medal-bronze-deep: #7c2d12;
+
+  /* Cienie na jasnym tle muszą być dużo delikatniejsze - te z ciemnego
+     motywu wyglądają na bieli jak smugi brudu. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --shadow-accent: 0 4px 20px var(--accent-glow);
+
+  --inset-shadow: rgba(0, 0, 0, 0.1);
+  --backdrop: rgba(0, 0, 0, 0.45);
 }
 
 /* =========================================================================
