@@ -1766,3 +1766,53 @@ main > .page-back {
   font-size: var(--text-xs);
   color: var(--text-faint);
 }
+
+/* =========================================================
+   STARTY W INNYCH TURNIEJACH
+   ========================================================= */
+
+.history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--layer-subtle);
+
+  text-decoration: none;
+  color: inherit;
+
+  transition:
+    background var(--duration) var(--ease),
+    border-color var(--duration) var(--ease);
+}
+
+.history-row:hover {
+  background: var(--layer);
+  border-color: var(--border);
+}
+
+.history-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+
+  /* Nazwy turniejow bywaja dlugie ("StarLadder Budapest Major 2025") -
+     bez tego rozpychaja wiersz zamiast sie zawinac. */
+  min-width: 0;
+}
+
+.history-row__name {
+  font-size: var(--text-md);
+  color: var(--text-strong);
+  line-height: var(--leading-snug);
+}
+
+.history-row__points {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}

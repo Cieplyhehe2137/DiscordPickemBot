@@ -246,3 +246,58 @@ test("awaria bazy konczy sie piecsetka, a nie polowicznym profilem", async () =>
   assert.equal(zapis.kod, 500);
   assert.ok(zapis.tresc.error);
 });
+
+test("starty w innych turniejach wracaja w odpowiedzi", async () => {
+  // Zapytanie o historie idzie w TEJ SAMEJ fali co reszta, wiec nie dodaje
+  // ani jednej podrozy do bazy. Tu sprawdzamy, ze wynik faktycznie trafia
+  // do odpowiedzi i ze biezacy turniej z niego wypada.
+  const pool = fakePool((sql) => {
+    if (sql.includes("FROM events")) return [EVENT];
+
+    if (sql.includes("ROW_NUMBER() OVER (") && sql.includes("PARTITION BY")) {
+      return [
+        // Turniej ogladany wlasnie - ma wypasc.
+        {
+          event_id: 7,
+          name: "IEM",
+          slug: "iem",
+          is_archived: 1,
+          total_points: 100,
+          rank_position: 5,
+          uczestnicy: 200,
+        },
+        {
+          event_id: 4,
+          name: "Budapeszt",
+          slug: "budapeszt",
+          is_archived: 1,
+          total_points: 80,
+          rank_position: 40,
+          uczestnicy: 400,
+        },
+      ];
+    }
+
+    return [];
+  });
+
+  const zapis = await wywolaj({ pool });
+
+  assert.equal(zapis.kod, 200);
+
+  const inne = zapis.tresc.other_events;
+
+  assert.equal(inne.length, 1, "biezacy turniej nie moze byc na liscie");
+  assert.equal(inne[0].slug, "budapeszt");
+  assert.equal(inne[0].rank, 40);
+  assert.equal(inne[0].participants, 400);
+  assert.equal(inne[0].top_percent, 10);
+});
+
+test("gracz z jednego turnieju dostaje pusta liste startow", async () => {
+  const pool = fakePool(odpowiedzDomyslna);
+
+  const zapis = await wywolaj({ pool });
+
+  assert.deepEqual(zapis.tresc.other_events, []);
+});
