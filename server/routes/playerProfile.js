@@ -1,5 +1,6 @@
 import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
 import { buildProgress } from "../lib/pointsProgress.js";
+import { buildPlayerHistory } from "../lib/playerHistory.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
 // z reszta stawki i historia typow.
@@ -72,6 +73,7 @@ export function registerPlayerProfileRoutes(
         [[correctMatchPointsStats]],
         [eventComparisonRows],
         teamPicks,
+        [historyRows],
       ] = await Promise.all([
         pool.query(
           `
@@ -631,6 +633,58 @@ export function registerPlayerProfileRoutes(
           eventId: event.id,
           userId,
         }),
+
+        // Starty tego gracza w POZOSTALYCH turniejach.
+        //
+        // Miejsce liczone tak samo jak w zapytaniu o ranking wyzej -
+        // ROW_NUMBER po punktach malejaco, a przy remisie po user_id.
+        // Inna formula dawalaby tu inne miejsce niz to, ktore gracz
+        // widzi, wchodzac na swoj profil w tamtym turnieju.
+        //
+        // PARTITION BY liczy miejsca osobno w kazdym turnieju, wiec
+        // jedno przejscie po tabeli (dzis okolo 1300 wierszy) daje
+        // komplet. Filtr po graczu jest na zewnatrz, bo w srodku
+        // obcinalby stawke, wzgledem ktorej liczy sie miejsce.
+        pool.query(
+          `
+    SELECT
+        r.event_id,
+        r.total_points,
+        r.rank_position,
+        r.uczestnicy,
+        e.name,
+        e.slug,
+        e.is_archived
+
+    FROM (
+        SELECT
+            event_id,
+            CAST(user_id AS CHAR CHARACTER SET utf8mb4)
+              COLLATE utf8mb4_unicode_ci AS user_id,
+
+            COALESCE(total_points, 0) AS total_points,
+
+            ROW_NUMBER() OVER (
+                PARTITION BY event_id
+                ORDER BY
+                    COALESCE(total_points, 0) DESC,
+                    user_id ASC
+            ) AS rank_position,
+
+            COUNT(*) OVER (PARTITION BY event_id) AS uczestnicy
+
+        FROM leaderboard
+    ) r
+
+    INNER JOIN events e
+        ON e.id = r.event_id
+
+    WHERE r.user_id = ?
+
+    ORDER BY r.event_id DESC
+    `,
+          [userId],
+        ),
       ]);
 
       // Dopiero gdy profilu nie ma - nie ma po co odpytywac osmiu tabel faz
@@ -759,6 +813,11 @@ export function registerPlayerProfileRoutes(
 
         team_picks: teamPicks,
         team_logos: teamLogos,
+
+        // Starty w pozostalych turniejach. Pusta lista dla 85% graczy,
+        // ktorzy zagrali w dokladnie jednym - widok jej wtedy nie
+        // pokazuje wcale.
+        other_events: buildPlayerHistory(historyRows, event.id),
 
         profile: {
           best_match_points: Number(bestMatch?.points || 0),

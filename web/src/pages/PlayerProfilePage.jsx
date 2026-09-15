@@ -6,6 +6,7 @@ import BackLink from "../components/BackLink.jsx";
 import TeamPicks from "../components/TeamPicks.jsx";
 import PointsChart from "../components/PointsChart.jsx";
 import BadgeShelf from "../components/BadgeShelf.jsx";
+import PlayerHistory from "../components/PlayerHistory.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
 
 function PlayerProfilePage() {
@@ -247,6 +248,11 @@ function PlayerProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* Starty w innych turniejach zaraz pod nazwiskiem, bo mówią,
+          KTO to jest, a nie jak mu poszło tutaj. Dla 85% graczy sekcja
+          nie pojawia się wcale - tylu zagrało w jednym turnieju. */}
+      <PlayerHistory events={profile?.other_events} userId={userId} />
 
       {/* Odznaki zaraz za statystykami, bo są ich podsumowaniem -
           nazwą nadaną liczbom, które stoją wyżej. */}
