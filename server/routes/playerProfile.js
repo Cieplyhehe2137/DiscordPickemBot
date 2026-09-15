@@ -11,13 +11,7 @@ import { buildPlayerHistory } from "../lib/playerHistory.js";
 
 export function registerPlayerProfileRoutes(
   app,
-  {
-    assertPredictionsAllowed,
-    isMatchDeadlinePassed,
-    matchPanelPhaseFor,
-    findNameFromPicks,
-    pool,
-  },
+  { findNameFromPicks, pool },
 ) {
   app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
     try {
