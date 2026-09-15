@@ -6,6 +6,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#8b5cf6" />
 
+    <!-- Motyw ustawiany PRZED pierwszym malowaniem.
+
+         Musi być wbudowany i musi stać w <head>: plik zewnętrzny albo
+         skrypt w <body> wykonałby się już po narysowaniu strony i ktoś
+         z wybranym jasnym motywem zobaczyłby błysk ciemnego tła.
+
+         Klucz "pickem-theme" i atrybut "data-theme" muszą zgadzać się
+         z web/src/lib/theme.js - pilnuje tego test, bo rozjechanie się
+         tych dwóch miejsc objawia się wyłącznie mrugnięciem przy
+         wejściu i nic go nie zgłasza.
+
+         Ciemny jest domyślny, więc nie dostaje atrybutu - w HTML-u widać
+         tylko odstępstwo od normy. Całość w try/catch, bo localStorage
+         potrafi rzucić w prywatnym oknie i przy zablokowanych danych
+         witryny; wtedy zostaje motyw domyślny. -->
+    <script>
+      try {
+        var motyw = localStorage.getItem("pickem-theme");
+
+        if (motyw === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {
+        /* brak dostępu do zapisu - zostaje motyw domyślny */
+      }
+    </script>
+
     <title>Pick'Em — typuj mecze esportowe</title>
     <meta
       name="description"
