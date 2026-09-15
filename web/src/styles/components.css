@@ -626,6 +626,15 @@
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
   max-width: 100%;
+
+  /* Nazwa drużyny prowadzi na jej stronę. Bez tego domyślne podkreślenie
+     odnośnika przecinałoby nazwy w każdej karcie meczu. */
+  text-decoration: none;
+}
+
+.ui-match__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .ui-match__vs {

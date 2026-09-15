@@ -1843,3 +1843,74 @@ main > .page-back {
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
+
+/* =========================================================
+   FILTRY MECZOW
+   ========================================================= */
+
+.matches-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+
+  margin-top: var(--space-5);
+}
+
+.matches-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  /* Rosna rowno i lamia sie do jednej kolumny na waskim ekranie - bez
+     tego trzy listy obok siebie przy 375px maja po osiemdziesiat pikseli
+     i nie widac w nich nazw druzyn. */
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.matches-filters__field > span {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.matches-filters select {
+  min-height: 40px;
+  width: 100%;
+  padding: 0 var(--space-3);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--layer-sunken);
+
+  color: var(--text);
+  font-size: var(--text-md);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.matches-filters select:focus {
+  outline: none;
+  border-color: var(--accent-border);
+}
+
+/* Lista rozwijana rysuje sie natywnie, wiec jej wnetrze bierze kolory
+   systemu - bez tego opcje bywaja czarnym tekstem na czarnym tle. */
+.matches-filters option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.matches-filters .ui-btn {
+  flex: none;
+  min-height: 40px;
+}
+
+@media (max-width: 560px) {
+  .matches-filters__field {
+    flex-basis: 100%;
+  }
+}
