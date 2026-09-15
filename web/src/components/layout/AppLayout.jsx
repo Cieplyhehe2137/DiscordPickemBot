@@ -60,6 +60,13 @@ function AppLayout() {
               Eventy
             </NavLink>
 
+            <NavLink
+              to="/teams"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              Drużyny
+            </NavLink>
+
             {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
                 nawet dla kont z uprawnieniami. Widoczność to sama wygoda;
                 dostęp i tak pilnuje requireGuildAdmin na serwerze.

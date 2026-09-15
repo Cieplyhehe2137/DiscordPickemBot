@@ -365,6 +365,18 @@ export function getEventPlayerProfile(slug, userId) {
   return apiRequest(`/public/events/${slug}/players/${userId}`);
 }
 
+// Druzyny sa wspolne dla wszystkich turniejow, wiec te trasy nie biora
+// slugu eventu. Nazwa w adresie jest czytelna dla czlowieka - serwer sam
+// sprowadza ja do klucza, wiec /teams/FUT i /teams/FUT%20Esports trafiaja
+// w to samo miejsce.
+export function getTeams() {
+  return apiRequest("/public/teams");
+}
+
+export function getTeam(name) {
+  return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
+}
+
 // Pojedynek dwoch graczy: wylacznie mecze, ktore obaj obstawili.
 //
 // Nazwy, awatary i statystyki obu stron bierze strona porownania z dwoch

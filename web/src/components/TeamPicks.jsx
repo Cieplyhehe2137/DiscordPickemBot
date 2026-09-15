@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { markHits, countHits, teamInitial } from "../lib/teamPickHits.js";
 import { humanPhase } from "../lib/phaseLabels.js";
 
@@ -20,7 +22,13 @@ function Druzyna({ team, hit, rozstrzygniete, logo }) {
   const ton = !rozstrzygniete ? "" : hit ? "ui-badge--ok" : "ui-badge--danger";
 
   return (
-    <span className={`ui-badge ui-team ${ton}`.trim()}>
+    // Plakietka prowadzi na strone druzyny. To jedyne miejsce, w ktorym
+    // nazwy druzyn stoja obok siebie w skupisku, wiec najnaturalniej
+    // stad do nich wejsc.
+    <Link
+      className={`ui-badge ui-team ${ton}`.trim()}
+      to={`/teams/${encodeURIComponent(team)}`}
+    >
       <span className="ui-team__mark" aria-hidden="true">
         {/* Litera MUSI mieć własny element. Jako goły tekst nie jest dzieckiem
             w rozumieniu selektora, więc nie trafia do tej samej komórki siatki
@@ -44,7 +52,7 @@ function Druzyna({ team, hit, rozstrzygniete, logo }) {
       </span>
 
       {team}
-    </span>
+    </Link>
   );
 }
 
