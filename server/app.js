@@ -578,13 +578,7 @@ registerMatchOpsRoutes(app, {
 
 // Przeniesione do server/routes/playerProfile.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerPlayerProfileRoutes(app, {
-  assertPredictionsAllowed,
-  isMatchDeadlinePassed,
-  matchPanelPhaseFor,
-  findNameFromPicks,
-  pool,
-});
+registerPlayerProfileRoutes(app, { findNameFromPicks, pool });
 
 // Pojedynek dwoch graczy (server/routes/headToHead.js). Dostaje sama pule,
 // bo liczy wylacznie czesc wspolna typow - nazwy, awatary i statystyki obu
@@ -619,59 +613,25 @@ if (IS_PRODUCTION) {
   const webDist = path.join(__dirname, "../web/dist");
   const indexHtmlPath = path.join(webDist, "index.html");
 
-  const escapeHtml = (s) =>
-    String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;");
-
   // index: false so "/" also goes through the wildcard below - one code
   // path for every HTML response, static only serves real asset files.
   app.use(express.static(webDist, { index: false }));
 
-  app.get(/^(?!\/api|\/socket\.io).*/, async (req, res) => {
-    // Discord/messengers build link previews from the raw HTML without
-    // running JS, so event pages get their og:title/description injected
-    // server-side; every other route falls back to the default tags.
-    try {
-      const eventMatch = req.path.match(/^\/public\/event\/([^/]+)/);
-
-      if (eventMatch) {
-        const [[event]] = await pool.query(
-          "SELECT name FROM events WHERE slug = ? LIMIT 1",
-          [decodeURIComponent(eventMatch[1])],
-        );
-
-        if (event) {
-          const title = escapeHtml(`${event.name} — Pick'Em`);
-          const description = escapeHtml(
-            `Typuj mecze i śledź ranking eventu ${event.name}.`,
-          );
-
-          const html = fs
-            .readFileSync(indexHtmlPath, "utf8")
-            .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-            .replace(
-              /(<meta property="og:title" content=")[^"]*(")/,
-              `$1${title}$2`,
-            )
-            .replace(
-              /(<meta name="description" content=")[^"]*(")/,
-              `$1${description}$2`,
-            )
-            .replace(
-              /(<meta property="og:description" content=")[^"]*(")/,
-              `$1${description}$2`,
-            );
-
-          return res.send(html);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-
+  // Kazda sciezka spoza /api i /socket.io to trasa Reacta - oddajemy
+  // index.html, a router po stronie klienta robi reszte.
+  //
+  // Stala tu kiedys podmiana tagow og: dla podgladu linku, bo boty nie
+  // wykonuja JavaScriptu. Usunieta, bo byla potrojnie nieaktualna:
+  // dopasowywala /public/event/:slug, czyli sciezke, ktorej front nie ma;
+  // jej regexy byly pisane pod jedna spacje i nie trafialy w wielolinijkowe
+  // znaczniki description ani og:description; a przede wszystkim ten blok
+  // w ogole nie biegnie w dzisiejszym ukladzie, gdzie front stoi na
+  // Cloudflare Pages, a nie na tym hoscie.
+  //
+  // Podglad linku robia teraz funkcje brzegowe w web/functions/. Gdyby
+  // kiedys wrocil uklad jednohostowy, trzeba by go tutaj odtworzyc -
+  // logika podmiany siedzi w web/src/lib/ogMeta.js i jest przetestowana.
+  app.get(/^(?!\/api|\/socket\.io).*/, (req, res) => {
     res.sendFile(indexHtmlPath);
   });
 }

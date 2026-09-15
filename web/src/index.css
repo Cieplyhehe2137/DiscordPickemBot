@@ -1,3 +1,30 @@
+/* Tailwind jest tu dla RESETU, a nie dla klas narzędziowych.
+ *
+ * W całym projekcie nie ma ani jednej klasy Tailwinda w JSX-ie - sprawdzone.
+ * Wygląda więc na zbędny import i nim NIE jest: `@import "tailwindcss"`
+ * wnosi też preflight, czyli reset, na którym stoi cały system stylów.
+ *
+ * Zmierzone przez porównanie wyliczonych stylów tej samej strony przy
+ * zablokowanej szerokości okna, z arkuszem podmienianym w locie:
+ *
+ *   bez Tailwinda   h2 dostaje 21px i margines 17,43px (domyślne
+ *                   przeglądarki), zamiast 14px i zera
+ *   z Tailwindem    nagłówki bez własnej reguły są wyzerowane
+ *
+ * Reszta różnic (13 z 14) to `border-style: none` kontra `solid`, co przy
+ * zerowej grubości jest niewidoczne.
+ *
+ * Bilans, gdyby ktoś chciał to jeszcze raz policzyć:
+ *
+ *   pełny Tailwind          66,6 kB  (11,70 kB po gzipie)
+ *   sam preflight           63,6 kB  (11,35 kB)  -> zysk 0,35 kB
+ *   bez Tailwinda w ogóle   56,7 kB  (10,01 kB)  -> zysk 1,69 kB, ale
+ *                                                   psuje nagłówki
+ *
+ * Czyli albo 0,35 kB za ruszanie fundamentu, albo 1,69 kB za przepisanie
+ * preflightu własnymi rękami i sprawdzenie go na każdej podstronie.
+ * Ani jedno, ani drugie się nie opłaca - stąd zostaje jak jest.
+ */
 @import "tailwindcss";
 @import "./styles/design-system.css";
 @import "./styles/components.css";

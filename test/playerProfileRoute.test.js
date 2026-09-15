@@ -93,9 +93,6 @@ async function wywolaj({ pool, userId = "u1", slug = "iem" }) {
   const app = fakeApp();
 
   registerPlayerProfileRoutes(app, {
-    assertPredictionsAllowed: () => {},
-    isMatchDeadlinePassed: () => false,
-    matchPanelPhaseFor: () => null,
     findNameFromPicks: async () => null,
     pool,
   });
