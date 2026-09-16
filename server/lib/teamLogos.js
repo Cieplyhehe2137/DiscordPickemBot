@@ -34,8 +34,22 @@ export function normalizeTeamName(name) {
  *
  *  - "BetBoom" i "BC.Game": dostawca prowadzi je pod pełniejszą nazwą
  *    ("BetBoom Team", "BC.Game Esports"). To ta sama drużyna, tylko z
- *    dopiskiem - w odróżnieniu od "Ninjas in Pyjamas Impact", które jest
- *    osobnym składem i dlatego aliasu NIE dostaje.
+ *    dopiskiem.
+ *
+ *  - "Ninjas in Pyjamas": alias celuje w SKRÓT, nie w dłuższą nazwę.
+ *    Wyszukanie pełnej nazwy oddaje wyłącznie "Ninjas in Pyjamas Impact",
+ *    czyli skład żeński - i właśnie dlatego ta drużyna długo nie miała tu
+ *    wpisu. Pierwszy skład dostawca prowadzi pod "NIP" (akronim NIP, slug
+ *    "nip"), więc alias prowadzi tam. "Impact" nadal nie ma jak wygrać:
+ *    po aliasie dokładnym trafieniem jest "nip", a nie "ninjasinpyjamas".
+ *
+ *  - "Aurora": dokładne trafienie istnieje ("AURORA", slug "aurora-cs-go"),
+ *    ale u dostawcy nie ma przy nim ŻADNEGO obrazka. Logotyp wisi przy
+ *    "Aurora Gaming" - ta sama organizacja pod dawną nazwą - i alias
+ *    prowadzi do niej.
+ *
+ * Nowe pozycje sprawdzone na żywym API 2026-09-16, każda przez obejrzenie
+ * samego obrazka: shuriken NIP, turkusowa Aurora, żółty herb Legacy.
  */
 export const TEAM_NAME_ALIASES = {
   "team liquid": "Liquid",
@@ -44,6 +58,8 @@ export const TEAM_NAME_ALIASES = {
   navi: "Natus Vincere",
   betboom: "BetBoom Team",
   "bc.game": "BC.Game Esports",
+  "ninjas in pyjamas": "NIP",
+  aurora: "Aurora Gaming",
 };
 
 /**
@@ -99,11 +115,22 @@ export function pickExactTeam(candidates, name) {
 
   if (!cel) return null;
 
-  return (
-    (candidates || []).find((team) =>
-      [team?.name, team?.acronym, team?.slug].some(
-        (klucz) => normalizeTeamName(klucz) === cel,
-      ),
-    ) || null
+  const dokladne = (candidates || []).filter((team) =>
+    [team?.name, team?.acronym, team?.slug].some(
+      (klucz) => normalizeTeamName(klucz) === cel,
+    ),
   );
+
+  // Przy KILKU dokładnych trafieniach wygrywa to, przy którym jest obrazek.
+  //
+  // Dostawca trzyma dwa wiersze o nazwie "Legacy" - jeden bez logotypu,
+  // drugi z logotypem - i oddaje je w kolejności, w której pusty jest
+  // pierwszy. Samo "pierwsze dokładne" dawało więc drużynę rozpoznaną,
+  // ale bez obrazka, i wyglądało to jak brak u dostawcy.
+  //
+  // To NIE jest poluzowanie dopasowania. Obaj kandydaci przeszli już ten
+  // sam warunek dokładności; rozstrzyga się wyłącznie remis między nimi,
+  // i tylko po tym, czy jest co pokazać. Tam, gdzie logotyp już się
+  // znajdował, wynik zostaje ten sam.
+  return dokladne.find((team) => team?.image_url) || dokladne[0] || null;
 }
