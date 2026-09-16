@@ -179,6 +179,19 @@ async function main() {
     const bezLogo = [];
     const nieznane = [];
 
+    // Nieudane zapytanie do dostawcy ma WŁASNY kubełek, osobny od "nieznane".
+    //
+    // Wcześniej lądowało razem z nimi, więc przebieg, któremu wysypało się
+    // trzydzieści zapytań, wypisywał trzydzieści drużyn pod nagłówkiem
+    // "NIEZNANE - do uzupełnienia ręcznie" i kończył komunikatem "Zapisano
+    // 15 wierszy" - czyli wyglądał na udany. Zdarzyło się to 2026-09-16: te
+    // same nazwy poszły bez problemu w kolejnym przebiegu chwilę później,
+    // a w międzyczasie ktoś mógł zacząć dopisywać im wiersze ręcznie.
+    //
+    // Zapis jest idempotentny (ON DUPLICATE KEY UPDATE), więc odpowiedzią na
+    // ten kubełek jest zawsze to samo: uruchomić jeszcze raz.
+    const bledy = [];
+
     for (const nazwa of nazwy) {
       const klucz = normalizeTeamName(nazwa);
 
@@ -190,7 +203,7 @@ async function main() {
         kandydaci = await szukajUDostawcy(nazwa, token);
       } catch (err) {
         console.error(`  BŁĄD dla "${nazwa}": ${err.message}`);
-        nieznane.push(nazwa);
+        bledy.push({ nazwa, powod: err.message });
         await new Promise((r) => setTimeout(r, ODSTEP_MS));
         continue;
       }
@@ -216,6 +229,7 @@ async function main() {
     console.log(`Z logotypem:        ${doZapisu.length}`);
     console.log(`Znane, bez obrazka: ${bezLogo.length}`);
     console.log(`Nieznane dostawcy:  ${nieznane.length}`);
+    console.log(`Błąd zapytania:     ${bledy.length}`);
 
     if (bezLogo.length) {
       console.log("\nZNANE, ALE BEZ OBRAZKA - do uzupełnienia ręcznie:");
@@ -225,6 +239,15 @@ async function main() {
     if (nieznane.length) {
       console.log("\nNIEZNANE - do uzupełnienia ręcznie:");
       for (const n of nieznane) console.log(`  ${n}`);
+    }
+
+    if (bledy.length) {
+      console.log(
+        "\nBŁĄD ZAPYTANIA - to NIE znaczy, że dostawca ich nie zna.\n" +
+          "Przebieg je pominął. Uruchom go jeszcze raz, żeby je dobrać:",
+      );
+
+      for (const b of bledy) console.log(`  ${b.nazwa} - ${b.powod}`);
     }
 
     if (!ZAPISZ) {
@@ -248,6 +271,15 @@ async function main() {
     }
 
     console.log(`\nZapisano ${doZapisu.length} wierszy.`);
+
+    // Ostatnia linia musi mówić prawdę o całości przebiegu. Samo "Zapisano
+    // 15 wierszy" czyta się jak sukces także wtedy, gdy trzydzieści nazw
+    // w ogóle nie doszło do dostawcy.
+    if (bledy.length) {
+      console.log(
+        `PRZEBIEG NIEPEŁNY: ${bledy.length} nazw nie sprawdzono. Uruchom ponownie.`,
+      );
+    }
   } finally {
     await pool.end();
   }
