@@ -1,25 +1,22 @@
 // Trasa rankingu (server/routes/events.js).
 //
-// Jak przy statystykach turnieju: test liczy PODROZE do bazy, a nie
-// milisekundy. Zmierzone na produkcyjnej bazie, po rozgrzewce, kazde
-// zapytanie osobno:
+// Test liczy PODROZE do bazy, a nie milisekundy. Zmierzone na serwerze przez
+// healthcheck: jedna podroz to 177 ms, dziesiec prob, zerowy rozrzut. Kazda
+// fala to jedno takie okrazenie, za ktore placi kazdy wchodzacy.
 //
-//   SELECT id FROM events (trywialne)   172 ms  <- tyle kosztuje sama podroz
-//   glowny ranking, 523 wiersze         260 ms
-//   rozbicie punktow na fazy            200 ms
-//   statystyki map                      220 ms
+// Trasa miala ich TRZY: odczyt turnieju, potem cztery zapytania rankingu,
+// potem liczba uczestnikow. Drugie i trzecie nie potrzebowaly niczyjego
+// wyniku - pierwsze sluzylo wylacznie zamianie sluga na event.id.
 //
-// Trywialne zapytanie kosztuje 172 ms, wiec PRACA trzech ciezkich to 30-90 ms
-// kazde. Reszta to podroz. Nawet zlaczenie osmiu tabel przez UNION - to, ktore
-// w kodzie wyglada najgrozniej - kosztuje ledwie 90 ms ponad podroz.
-//
-// Trzy ciezkie sa kluczowane wylacznie na event.id, wiec nie potrzebuja sie
-// nawzajem i moga isc razem.
+// Teraz wszystko idzie jedna fala: pozostale zapytania biora turniej
+// podzapytaniem po slugu, ktore kosztuje tyle co nic (zmierzone na tych
+// wlasnie zapytaniach: roznice od -16 do +12 ms).
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const MODUL = "../server/routes/events.js";
+const UCZESTNICY = "../server/lib/participants.js";
 
 function fakeApp() {
   const trasy = new Map();
@@ -90,17 +87,32 @@ function fakeRes() {
   return res;
 }
 
+// PUŁAPKA: od czasu przejscia na podzapytanie po slugu KAZDE zapytanie tej
+// trasy zawiera "FROM events" - w srodku "(SELECT id FROM events WHERE slug
+// = ?)". Rozpoznawanie odczytu turnieju po tym napisie dawalo wiersz turnieju
+// w odpowiedzi na kazde zapytanie i test milczaco mierzyl bzdury.
+//
+// Sam odczyt turnieju jest jedynym, ktory ZACZYNA sie od "SELECT id".
+function toOdczytTurnieju(sql) {
+  return /^\s*SELECT\s+id\s*\n/.test(sql);
+}
+
 const nic = () => {};
 const nicAsync = async () => {};
 
-async function wywolaj({ pool }) {
+async function wywolaj({ pool, query = {} }) {
   const { registerEventRoutes } = await import(MODUL);
+  const { createParticipantQueries } = await import(UCZESTNICY);
 
   const app = fakeApp();
 
   registerEventRoutes(app, {
     pool,
-    countParticipants: nicAsync,
+
+    // Przez te sama atrape puli, bo countParticipants robi WLASNE zapytanie -
+    // i dopoki stalo za fala, bylo trzecim okrazeniem.
+    countParticipants: (we) => createParticipantQueries(pool).countParticipants(we),
+
     VALID_PHASES: [],
     assertPredictionsAllowed: async () => ({ allowed: true }),
     emitDashboardRefresh: nic,
@@ -128,44 +140,80 @@ async function wywolaj({ pool }) {
 
   // Handler czyta req.query.naStronie i req.query.szukaj - bez pustego
   // obiektu leci wyjatkiem, a test mierzylby odpowiedz bledu.
-  await handler({ params: { slug: "iem" }, query: {} }, res);
+  await handler({ params: { slug: "iem" }, query }, res);
 
   return res.zapis;
 }
 
-test("nieznany turniej konczy sie po jednym zapytaniu", async () => {
-  const pool = fakePool(() => []);
+const ZNANY = (sql) => (toOdczytTurnieju(sql) ? [{ id: 7 }] : []);
 
-  const zapis = await wywolaj({ pool });
-
-  assert.equal(zapis.kod, 404);
-  assert.equal(pool.wywolania.length, 1, "po 404 nie ma czego dopytywac");
-});
-
-test("ranking idzie jedna fala", async () => {
-  const pool = fakePool((sql) => (sql.includes("FROM events") ? [{ id: 7 }] : []));
+test("ranking idzie JEDNA fala", async () => {
+  const pool = fakePool(ZNANY);
 
   const zapis = await wywolaj({ pool });
 
   assert.equal(zapis.kod, 200);
 
-  const poEvencie = pool.wywolania.filter((w) => w.fala > 1);
+  assert.equal(pool.fal, 1, `oczekiwano jednej fali, bylo ${pool.fal}`);
 
-  assert.equal(
-    poEvencie.length,
-    4,
-    `oczekiwano 4 zapytan o ranking, bylo ${poEvencie.length}`,
+  assert.ok(
+    pool.wywolania.length >= 5,
+    `oczekiwano co najmniej pieciu zapytan, bylo ${pool.wywolania.length}`,
   );
 
-  assert.equal(pool.fal, 2, "turniej, a potem wszystko naraz");
+  assert.ok(
+    pool.wywolania.every((w) => w.fala === 1),
+    "jakies zapytanie wypadlo poza pierwsza fale",
+  );
+});
+
+test("liczba uczestnikow liczy sie razem z reszta, nie po niej", async () => {
+  const pool = fakePool(ZNANY);
+
+  await wywolaj({ pool });
+
+  const uczestnicy = pool.wywolania.find((w) =>
+    w.sql.includes("COUNT(DISTINCT user_id) AS uczestnicy"),
+  );
+
+  assert.ok(uczestnicy, "brak zapytania o uczestnikow");
+  assert.equal(uczestnicy.fala, 1, "zapytanie o uczestnikow to osobne okrazenie");
+});
+
+test("turniej wybiera sie slugiem, a nie osobno odczytanym identyfikatorem", async () => {
+  const pool = fakePool(ZNANY);
+
+  await wywolaj({ pool });
+
+  const poOdczycie = pool.wywolania.filter((w) => !toOdczytTurnieju(w.sql));
+
+  assert.ok(poOdczycie.length > 0, "brak zapytan poza odczytem turnieju");
+
+  for (const w of poOdczycie) {
+    assert.ok(
+      w.sql.includes("(SELECT id FROM events WHERE slug = ? LIMIT 1)"),
+      `zapytanie nie bierze turnieju ze sluga: ${w.sql.slice(0, 70)}`,
+    );
+  }
+});
+
+test("nieznany turniej nadal konczy sie czterystaczwórką", async () => {
+  // Swiadomy koszt jednej fali: przy nieznanym slugu pozostale zapytania i tak
+  // poleca, bo ida rownolegle z odczytem turnieju. Podzapytanie daje wtedy
+  // NULL, wiec nie znajduja nic. Placimy zmarnowana praca w przypadku, ktory
+  // zdarza sie rzadko, zeby nie placic okrazenia w kazdym normalnym.
+  const pool = fakePool(() => []);
+
+  const zapis = await wywolaj({ pool });
+
+  assert.equal(zapis.kod, 404);
+  assert.equal(pool.fal, 1, "nawet niepotrzebna praca ma sie zmiescic w jednej fali");
 });
 
 test("nazwy z faz ida osobnym zapytaniem, nie zlaczeniem", async () => {
   // Wczesniej bylo to zlaczenie tabeli pochodnej, dolaczanej warunkiem
   // z CAST na lb.user_id - a CAST na kolumnie odcina baze od indeksu.
-  // Zmierzone na produkcji kosztowalo to 62-124 ms w glownym zapytaniu,
-  // podczas gdy samo zebranie nazw to 4-9 ms pracy.
-  const pool = fakePool((sql) => (sql.includes("FROM events") ? [{ id: 7 }] : []));
+  const pool = fakePool(ZNANY);
 
   await wywolaj({ pool });
 
@@ -179,12 +227,6 @@ test("nazwy z faz ida osobnym zapytaniem, nie zlaczeniem", async () => {
     "wrocil warunek zlaczenia z CAST na lb.user_id",
   );
 
-  assert.equal(
-    glowne.sql.includes("nazwy.nazwa"),
-    false,
-    "glowne zapytanie nadal siega po nazwe ze zlaczenia",
-  );
-
   assert.ok(
     pool.wywolania.some(
       (w) => w.sql.includes("MAX(nazwa)") && !w.sql.includes("FROM leaderboard lb"),
@@ -194,12 +236,11 @@ test("nazwy z faz ida osobnym zapytaniem, nie zlaczeniem", async () => {
 });
 
 test("nazwa gracza spada po kolei: profil, potem typy, na koncu id", async () => {
-  // To jest zachowanie, ktore wczesniej dawal COALESCE w SQL-u, a teraz
-  // sklejenie w JS. Gracz typujacy WYLACZNIE na Discordzie nie ma wiersza
-  // w user_profiles - jego nazwa lezy w tabelach faz. Bez tego w rankingu
-  // zakonczonego turnieju wychodzilo surowe user_id.
+  // Zachowanie, ktore wczesniej dawal COALESCE w SQL-u, a teraz sklejenie
+  // w JS. Gracz typujacy WYLACZNIE na Discordzie nie ma wiersza
+  // w user_profiles - jego nazwa lezy w tabelach faz.
   const pool = fakePool((sql) => {
-    if (sql.includes("FROM events")) return [{ id: 7 }];
+    if (toOdczytTurnieju(sql)) return [{ id: 7 }];
 
     if (sql.includes("FROM leaderboard lb")) {
       return [
@@ -232,13 +273,12 @@ test("nazwa gracza spada po kolei: profil, potem typy, na koncu id", async () =>
 });
 
 test("odpowiedz ma ksztalt strony rankingu", async () => {
-  // Kontrola, ze fala nie pogubila wynikow po drodze: pusta baza ma dac
-  // pusta liste i sensowne stronicowanie, a nie wyjatek.
-  const pool = fakePool((sql) => (sql.includes("FROM events") ? [{ id: 7 }] : []));
+  const pool = fakePool(ZNANY);
 
   const zapis = await wywolaj({ pool });
 
   assert.ok(zapis.tresc, "brak tresci odpowiedzi");
   assert.ok(Array.isArray(zapis.tresc.leaderboard), "leaderboard ma byc tablica");
   assert.equal(zapis.tresc.leaderboard.length, 0);
+  assert.equal(zapis.tresc.uczestnicy, 0);
 });
