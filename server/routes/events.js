@@ -625,6 +625,7 @@ export function registerEventRoutes(
        */
       const [
         [rows],
+        [nameRows],
         [pointBreakdownRows],
         [mapStatsRows],
       ] = await Promise.all([
@@ -636,7 +637,10 @@ export function registerEventRoutes(
         -- Gracze typujący wyłącznie na Discordzie go nie mają, więc w rankingu
         -- zakończonego turnieju wychodziło im surowe user_id zamiast nicku.
         -- Ich nazwy leżą w tabelach faz, zapisane przy oddawaniu typu.
-        COALESCE(up.displayname, up.username, nazwy.nazwa, lb.user_id) AS displayname,
+        -- Sama nazwa z profilu. Zapas z tabel faz i ostatni zapas
+        -- (identyfikator) doklada się w JS, bo nazwy przychodzą teraz
+        -- osobnym zapytaniem.
+        COALESCE(up.displayname, up.username) AS profile_name,
         up.avatar,
 
         COALESCE(lb.total_points, 0) AS total_points,
@@ -660,49 +664,6 @@ export function registerEventRoutes(
         ON up.user_id COLLATE utf8mb4_unicode_ci
          = lb.user_id COLLATE utf8mb4_unicode_ci
 
-      -- Nazwa zapamiętana przy typowaniu, z dowolnej fazy tego eventu.
-      -- CAST + COLLATE musi objąć OBIE kolumny w KAŻDEJ gałęzi UNION - user_id
-      -- i nazwę - bo kolacje różnią się między tabelami i inaczej leci
-      -- ER_CANT_AGGREGATE_NCOLLATIONS.
-      LEFT JOIN (
-        SELECT user_id, MAX(nazwa) AS nazwa
-        FROM (
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS nazwa
-            FROM swiss_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM swiss_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM playoffs_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM playoffs_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM playin_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM playin_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM doubleelim_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-          UNION ALL
-          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-            FROM doubleelim_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        ) zrodla
-        GROUP BY user_id
-      ) nazwy
-        ON nazwy.user_id
-         = CAST(lb.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
 
       LEFT JOIN (
         SELECT
@@ -771,15 +732,83 @@ export function registerEventRoutes(
         lb.user_id ASC
       `,
           [
-            // nazwy z faz (8 tabel) - to zlaczenie stoi w SQL jako pierwsze
-            event.id, event.id, event.id, event.id,
-            event.id, event.id, event.id, event.id,
             // rozbicie punktow na fazy (6 tabel)
             event.id, event.id, event.id, event.id, event.id, event.id,
             // statystyki meczowe
             event.id,
             // WHERE lb.event_id
             event.id,
+          ],
+        ),
+
+        /*
+         * Nazwy zapamiętane przy typowaniu - OSOBNYM zapytaniem, nie
+         * złączeniem.
+         *
+         * Stało to w głównym zapytaniu jako LEFT JOIN na tabeli pochodnej,
+         * dołączanej warunkiem
+         *
+         *   nazwy.user_id = CAST(lb.user_id AS CHAR ...) COLLATE ...
+         *
+         * CAST na lb.user_id odcina bazę od indeksu na tej kolumnie i to
+         * właśnie kosztowało. Zmierzone na produkcji, przy podróży 175 ms:
+         *
+         *                        całość   bez nazw   same nazwy   złączenie
+         *   StarLadder (509)     314 ms    193 ms      184 ms      120 ms
+         *   Cologne    (523)     383 ms    259 ms      181 ms      124 ms
+         *   Kraków     (262)     309 ms    247 ms      179 ms       62 ms
+         *
+         * Samo zebranie nazw to 4-9 ms PRACY. Reszta była kosztem sklejenia
+         * ich z tabelą leaderboard.
+         *
+         * CAST wewnątrz UNION zostaje i musi zostać: kolacje kolumn user_id
+         * różnią się między tabelami faz a leaderboard (utf8mb4_unicode_ci
+         * kontra utf8mb4_0900_ai_ci) i bez sprowadzenia ich do wspólnej
+         * postaci leci ER_CANT_AGGREGATE_NCOLLATIONS. Różnica polega na
+         * tym, że teraz CAST nie dotyka już kolumny, po której baza mogłaby
+         * szukać - sklejenie robi JS, po zwykłym łańcuchu znaków.
+         */
+        pool.query(
+          `
+      SELECT user_id, MAX(nazwa) AS nazwa
+      FROM (
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS nazwa
+          FROM swiss_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM swiss_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM playoffs_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM playoffs_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM playin_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM playin_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM doubleelim_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        UNION ALL
+        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+          FROM doubleelim_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+      ) zrodla
+      GROUP BY user_id
+          `,
+          [
+            event.id, event.id, event.id, event.id,
+            event.id, event.id, event.id, event.id,
           ],
         ),
         pool.query(
@@ -902,6 +931,13 @@ export function registerEventRoutes(
         ]),
       );
 
+      // Klucz to zwykły łańcuch znaków, a nie kolacja bazy. Identyfikatory
+      // Discorda są numeryczne, więc porównanie dokładne daje ten sam wynik
+      // co obie kolacje z bazy - i jest od nich ostrzejsze, nie luźniejsze.
+      const nameByUser = new Map(
+        nameRows.map((row) => [String(row.user_id), row.nazwa]),
+      );
+
       const leaderboardData = rows.map((row) => {
         const totalPredictions = Number(row.total_predictions || 0);
         const correctWinners = Number(row.correct_winners || 0);
@@ -918,7 +954,10 @@ export function registerEventRoutes(
 
         return {
           user_id: row.user_id,
-          displayname: row.displayname,
+          // Ta sama kolejność zapasów co wcześniej w COALESCE: profil ze
+          // strony, potem nazwa zapamiętana przy typowaniu, na końcu samo id.
+          displayname:
+            row.profile_name || nameByUser.get(String(row.user_id)) || row.user_id,
           avatar: row.avatar,
 
           total_points: Number(row.total_points || 0),

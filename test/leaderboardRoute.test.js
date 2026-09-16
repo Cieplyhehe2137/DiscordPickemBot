@@ -153,11 +153,82 @@ test("ranking idzie jedna fala", async () => {
 
   assert.equal(
     poEvencie.length,
-    3,
-    `oczekiwano 3 zapytan o ranking, bylo ${poEvencie.length}`,
+    4,
+    `oczekiwano 4 zapytan o ranking, bylo ${poEvencie.length}`,
   );
 
   assert.equal(pool.fal, 2, "turniej, a potem wszystko naraz");
+});
+
+test("nazwy z faz ida osobnym zapytaniem, nie zlaczeniem", async () => {
+  // Wczesniej bylo to zlaczenie tabeli pochodnej, dolaczanej warunkiem
+  // z CAST na lb.user_id - a CAST na kolumnie odcina baze od indeksu.
+  // Zmierzone na produkcji kosztowalo to 62-124 ms w glownym zapytaniu,
+  // podczas gdy samo zebranie nazw to 4-9 ms pracy.
+  const pool = fakePool((sql) => (sql.includes("FROM events") ? [{ id: 7 }] : []));
+
+  await wywolaj({ pool });
+
+  const glowne = pool.wywolania.find((w) => w.sql.includes("FROM leaderboard lb"));
+
+  assert.ok(glowne, "brak glownego zapytania");
+
+  assert.equal(
+    /\n\s+= CAST\(lb\.user_id AS CHAR/.test(glowne.sql),
+    false,
+    "wrocil warunek zlaczenia z CAST na lb.user_id",
+  );
+
+  assert.equal(
+    glowne.sql.includes("nazwy.nazwa"),
+    false,
+    "glowne zapytanie nadal siega po nazwe ze zlaczenia",
+  );
+
+  assert.ok(
+    pool.wywolania.some(
+      (w) => w.sql.includes("MAX(nazwa)") && !w.sql.includes("FROM leaderboard lb"),
+    ),
+    "brak osobnego zapytania o nazwy",
+  );
+});
+
+test("nazwa gracza spada po kolei: profil, potem typy, na koncu id", async () => {
+  // To jest zachowanie, ktore wczesniej dawal COALESCE w SQL-u, a teraz
+  // sklejenie w JS. Gracz typujacy WYLACZNIE na Discordzie nie ma wiersza
+  // w user_profiles - jego nazwa lezy w tabelach faz. Bez tego w rankingu
+  // zakonczonego turnieju wychodzilo surowe user_id.
+  const pool = fakePool((sql) => {
+    if (sql.includes("FROM events")) return [{ id: 7 }];
+
+    if (sql.includes("FROM leaderboard lb")) {
+      return [
+        { user_id: "z-profilem", profile_name: "Nick z profilu", total_points: 10 },
+        { user_id: "z-typow", profile_name: null, total_points: 9 },
+        { user_id: "znikad", profile_name: null, total_points: 8 },
+      ];
+    }
+
+    if (sql.includes("MAX(nazwa)")) {
+      return [
+        { user_id: "z-typow", nazwa: "Nick z typow" },
+        // "z-profilem" tez ma nazwe z typow - profil ma wygrac.
+        { user_id: "z-profilem", nazwa: "NIE TA" },
+      ];
+    }
+
+    return [];
+  });
+
+  const zapis = await wywolaj({ pool });
+
+  const wg = new Map(
+    zapis.tresc.leaderboard.map((w) => [w.user_id, w.displayname]),
+  );
+
+  assert.equal(wg.get("z-profilem"), "Nick z profilu");
+  assert.equal(wg.get("z-typow"), "Nick z typow");
+  assert.equal(wg.get("znikad"), "znikad", "ostatnim zapasem jest identyfikator");
 });
 
 test("odpowiedz ma ksztalt strony rankingu", async () => {
