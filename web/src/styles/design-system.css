@@ -68,7 +68,32 @@
   --text-strong: #ffffff; /* nagłówki, liczby kluczowe */
   --text: #e4e4e7; /* treść */
   --text-muted: #a1a1aa; /* podpisy, etykiety */
-  --text-faint: #71717a; /* metadane, stany puste */
+
+  /* Metadane, stany puste. Było #71717a i NIE PRZECHODZIŁO progu AA.
+     Zmierzone na produkcji, z kompozycją warstw przezroczystych:
+
+       tło karty            kontrast   gdzie
+       39,33,58 (akcent)      3,19     podpis pod liczbą na profilu
+       39,35,28 (złoto)       3,24     opis odznaki
+       23,23,27 (warstwa)     3,70     podpowiedzi, ranking, lista meczów
+       17,17,20 (strona)      3,90     podpowiedzi na tle strony
+
+     Wiążące jest tło NAJJAŚNIEJSZE, czyli przyciemniona kolorem karta -
+     nie tło strony, na którym wychodziło najlepiej. Cały ten tekst ma
+     dwanaście pikseli, więc obowiązuje próg 4,5, a nie 3,0 dla dużego.
+
+     #909099 daje w najgorszym miejscu 4,87. Minimum, które przechodzi, to
+     #8b8b94 z wynikiem 4,57 - odrzucone, bo margines rzędu jednego procenta
+     znika przy pierwszej zmianie odcienia karty.
+
+     Koszt: czwarty stopień drabiny zbliża się do trzeciego. Odstęp muted ->
+     faint spada z 1,89 do 1,23, czyli tyle, ile wynosi istniejący odstęp
+     strong -> text (1,27) - a ten projekt uznaje za czytelny stopień.
+     Próg czytelności jest wymaganiem, czwarty stopień wygodą; przy
+     sprzeczności wygrywa wymaganie.
+
+     Jasny motyw tego nie potrzebował: tam najgorszy wynik to 6,66. */
+  --text-faint: #909099;
 
   /* ---------------------------------------------------------------------
      AKCENT
@@ -106,6 +131,20 @@
      #5865f2 rozpisany na cztery magiczne rgba() w trzech regułach. */
   --discord: #5865f2;
   --discord-text: #c7d2fe;
+
+  /* Tło i obramowanie przycisku JAWNYMI wartościami rgba, a nie przez
+     color-mix(). Narzędzie budujące rozbija color-mix() na blok @supports,
+     którego bezwarunkowym zapasem jest kolor PEŁNY - tutaj nasycony indygo
+     zamiast dziesięcioprocentowego muśnięcia. Tekst dobrany pod muśnięcie
+     staje się wtedy nieczytelny, i odwrotnie. Ten projekt wpadł już na to
+     dwa razy (--side-a-bg, --gold-bg); jawne rgba nie ma jak się rozjechać,
+     bo nie ma drugiej ścieżki.
+
+     Te trzy są takie same w obu motywach: to muśnięcie barwą marki, które
+     kładzie się na powierzchni motywu i razem z nią jaśnieje albo ciemnieje. */
+  --discord-bg: rgba(88, 101, 242, 0.1);
+  --discord-bg-hover: rgba(88, 101, 242, 0.18);
+  --discord-border: rgba(88, 101, 242, 0.35);
 
   /* ---------------------------------------------------------------------
      STANY
@@ -344,9 +383,17 @@
   --live-bg: rgba(14, 116, 144, 0.1);
   --live-border: rgba(14, 116, 144, 0.3);
 
-  /* Discord zostaje marką - przycisk ma własne tło w obu motywach. */
+  /* Discord zostaje marką, ale NAPIS na przycisku już nie.
+     Stało tu #eef2ff, czyli prawie biel - wzięta stąd, że w ciemnym motywie
+     napis jest jasny. Tło przycisku to jednak tylko dziesięcioprocentowe
+     muśnięcie indygo, więc w jasnym motywie wychodzi rgb(228,230,245) i
+     prawie biały napis dawał na nim kontrast 1,11. Napis był praktycznie
+     niewidoczny - widać to na zrzucie, nie tylko w liczbach.
+
+     #3730a3 daje 8,00 w spoczynku i 7,23 pod kursorem. Zostaje indygo, więc
+     przycisk nadal czyta się jako "to jest Discord". */
   --discord: #5865f2;
-  --discord-text: #eef2ff;
+  --discord-text: #3730a3;
 
   /* Kolory stanów o stopień ciemniejsze, niż podpowiadałaby intuicja.
      Plakietka stanu pisze SWOIM kolorem na tle tego samego koloru z alfą
