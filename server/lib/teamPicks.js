@@ -200,19 +200,59 @@ const ZAPYTANIA = {
  * prawdziwa i tylko ona wymusza drugą falę: o wynik i punkty pytamy wyłącznie
  * dla faz, w których gracz cokolwiek obstawił.
  */
-export async function loadTeamPicks(pool, { guildId, eventId, userId }) {
+export async function loadTeamPicks(
+  pool,
+  { guildId, eventId, userId, slug },
+) {
+  /*
+   * Turniej wskazany slugiem ALBO para identyfikatorow.
+   *
+   * Druga postac istnieje po to, zeby wolajacy nie musial najpierw odczytac
+   * wiersza turnieju tylko po to, zeby poznac te dwie liczby - a taki odczyt
+   * to pelna podroz do bazy, zmierzone na serwerze 177 ms.
+   *
+   * Podmiana nie zmienia LICZBY znakow zapytania: jeden warunek z dwoma
+   * podstawieniami zamienia sie na dwa podzapytania, tez z dwoma. Dzieki temu
+   * tablice argumentow zachowuja dlugosc i kolejnosc, a jedyna roznica jest
+   * taka, ze w obu miejscach stoi slug zamiast dwoch identyfikatorow.
+   */
+  const poSlugu = Boolean(slug);
+
+  const naSlug = (sql) =>
+    poSlugu
+      ? sql.replace(
+        /guild_id = \? AND event_id = \?/g,
+        // COLLATE po stronie PODZAPYTANIA, nie kolumny: events.guild_id ma
+        // utf8mb4_0900_ai_ci, a tabele faz utf8mb4_unicode_ci, wiec samo
+        // porownanie leci ER_CANT_AGGREGATE_2COLLATIONS. Rzutowanie strony
+        // z podzapytaniem zostawia indeks na kolumnie nietkniety.
+        "guild_id = CAST((SELECT guild_id FROM events WHERE slug = ? LIMIT 1)" +
+            " AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci" +
+            " AND event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)",
+      )
+      : sql;
+
+  // Para argumentow wstawiana wszedzie tam, gdzie wczesniej szly guildId
+  // i eventId - w tej samej kolejnosci.
+  const para = poSlugu ? [slug, slug] : [guildId, eventId];
+
   const fazy = Object.entries(PHASE_KINDS).map(([phase, kind]) => {
     const swiss = kind === "swiss";
+
+    const zrodlo = ZAPYTANIA[kind];
 
     return {
       phase,
       kind,
       swiss,
-      q: ZAPYTANIA[kind],
 
-      argsTypu: swiss
-        ? [guildId, eventId, userId, phase]
-        : [guildId, eventId, userId],
+      q: {
+        prediction: naSlug(zrodlo.prediction),
+        result: naSlug(zrodlo.result),
+        points: naSlug(zrodlo.points),
+      },
+
+      argsTypu: swiss ? [...para, userId, phase] : [...para, userId],
     };
   });
 
@@ -230,10 +270,7 @@ export async function loadTeamPicks(pool, { guildId, eventId, userId }) {
   const reszta = await Promise.all(
     zTypem.map((f) =>
       Promise.all([
-        pool.query(
-          f.q.result,
-          f.swiss ? [guildId, eventId, f.phase] : [guildId, eventId],
-        ),
+        pool.query(f.q.result, f.swiss ? [...para, f.phase] : [...para]),
         pool.query(f.q.points, f.argsTypu),
       ]),
     ),
