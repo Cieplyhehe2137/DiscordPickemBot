@@ -17,25 +17,6 @@ export function registerPlayerProfileRoutes(
     try {
       const { slug, userId } = req.params;
 
-      const [[event]] = await pool.query(
-        `
-          SELECT
-            id,
-            guild_id,
-            name,
-            slug
-          FROM events
-          WHERE slug = ?
-          LIMIT 1
-          `,
-        [slug],
-      );
-
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-        });
-      }
 
       // WSZYSTKIE zapytania o tego gracza startuja naraz.
       //
@@ -52,7 +33,22 @@ export function registerPlayerProfileRoutes(
       //
       // Promise.all zachowuje kolejnosc, wiec destrukturyzacja po lewej musi
       // isc dokladnie tak, jak wywolania po prawej.
+      /*
+       * ODCZYT TURNIEJU IDZIE RAZEM Z RESZTA.
+       *
+       * Stal wyzej wylacznie po to, zeby zamienic slug na event.id i
+       * event.guild_id, a placil za to pelna podroz do bazy - zmierzone na
+       * serwerze 177 ms, dziesiec prob, zerowy rozrzut.
+       *
+       * Ostatnia rzecza, ktora trzymala go osobno, bylo loadTeamPicks:
+       * potrzebowalo OBU identyfikatorow. Odkad przyjmuje slug, nic juz
+       * nie musi czekac na ten wiersz.
+       *
+       * Sam wiersz jest dalej potrzebny - nazwa i slug ida do odpowiedzi,
+       * a event.id do historii startow - tylko przyjezdza razem z reszta.
+       */
       const [
+        [[event]],
         [[userProfile]],
         [[pointsStats]],
         [[predictionStats]],
@@ -69,6 +65,20 @@ export function registerPlayerProfileRoutes(
         teamPicks,
         [historyRows],
       ] = await Promise.all([
+        pool.query(
+          `
+          SELECT
+            id,
+            guild_id,
+            name,
+            slug
+          FROM events
+          WHERE slug = ?
+          LIMIT 1
+          `,
+          [slug],
+        ),
+
         pool.query(
           `
             SELECT
@@ -116,10 +126,10 @@ export function registerPlayerProfileRoutes(
               ) AS map_points
 
             FROM match_points
-            WHERE event_id = ?
+            WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
               AND user_id = ?
             `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         /*
@@ -167,10 +177,10 @@ export function registerPlayerProfileRoutes(
               ON mr.event_id = mp.event_id
              AND mr.match_id = mp.match_id
 
-            WHERE mp.event_id = ?
+            WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
               AND mp.user_id = ?
             `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         /*
@@ -217,10 +227,10 @@ export function registerPlayerProfileRoutes(
              AND mmr.match_id = mmp.match_id
              AND mmr.map_no = mmp.map_no
 
-            WHERE mmp.event_id = ?
+            WHERE mmp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
               AND mmp.user_id = ?
             `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         /*
@@ -250,14 +260,14 @@ export function registerPlayerProfileRoutes(
           ) AS rank_position
 
         FROM leaderboard
-        WHERE event_id = ?
+        WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
     ) ranked
 
     WHERE ranked.user_id = ?
 
     LIMIT 1
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -290,7 +300,7 @@ export function registerPlayerProfileRoutes(
      AND pts.event_id = mp.event_id
      AND pts.user_id = mp.user_id
 
-    WHERE mp.event_id = ?
+    WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND mp.user_id = ?
 
     GROUP BY
@@ -305,7 +315,7 @@ export function registerPlayerProfileRoutes(
     ORDER BY mp.match_id DESC
     LIMIT 10
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -327,14 +337,14 @@ export function registerPlayerProfileRoutes(
      AND mmr.match_id = mmp.match_id
      AND mmr.map_no = mmp.map_no
 
-    WHERE mmp.event_id = ?
+    WHERE mmp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND mmp.user_id = ?
 
     ORDER BY
         mmp.match_id DESC,
         mmp.map_no ASC
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -345,7 +355,7 @@ export function registerPlayerProfileRoutes(
 
     FROM match_points
 
-    WHERE event_id = ?
+    WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND user_id = ?
 
     GROUP BY match_id
@@ -356,7 +366,7 @@ export function registerPlayerProfileRoutes(
 
     LIMIT 1
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         // Te same wiersze obsługują dwie rzeczy: serie trafień i wykres
@@ -392,19 +402,19 @@ export function registerPlayerProfileRoutes(
     LEFT JOIN (
         SELECT match_id, SUM(points) AS points
         FROM match_points
-        WHERE event_id = ? AND user_id = ?
+        WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1) AND user_id = ?
         GROUP BY match_id
     ) pts
         ON pts.match_id = mp.match_id
 
-    WHERE mp.event_id = ?
+    WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND mp.user_id = ?
 
     ORDER BY
         sort_order ASC,
         mp.match_id ASC
     `,
-          [event.id, userId, event.id, userId],
+          [slug, userId, slug, userId],
         ),
 
         pool.query(
@@ -444,7 +454,7 @@ export function registerPlayerProfileRoutes(
      AND mmr.match_id = mmp.match_id
      AND mmr.map_no = mmp.map_no
 
-    WHERE mp.event_id = ?
+    WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND mp.user_id = ?
 
     GROUP BY
@@ -454,7 +464,7 @@ export function registerPlayerProfileRoutes(
         mr.res_a,
         mr.res_b
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -465,7 +475,7 @@ export function registerPlayerProfileRoutes(
 
     FROM match_points
 
-    WHERE event_id = ?
+    WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         AND user_id = ?
         AND source = 'map'
 
@@ -477,7 +487,7 @@ export function registerPlayerProfileRoutes(
 
     LIMIT 1
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -501,7 +511,7 @@ export function registerPlayerProfileRoutes(
          AND mpts.match_id = mp.match_id
          AND mpts.user_id = mp.user_id
 
-        WHERE mp.event_id = ?
+        WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
           AND mp.user_id = ?
 
           AND (
@@ -519,7 +529,7 @@ export function registerPlayerProfileRoutes(
         GROUP BY mp.match_id
     ) correct_matches
     `,
-          [event.id, userId],
+          [slug, userId],
         ),
 
         pool.query(
@@ -538,7 +548,7 @@ export function registerPlayerProfileRoutes(
     FROM (
         SELECT DISTINCT user_id
         FROM match_predictions
-        WHERE event_id = ?
+        WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
     ) users
 
     LEFT JOIN (
@@ -546,7 +556,7 @@ export function registerPlayerProfileRoutes(
           user_id,
           SUM(points) AS total_points
         FROM match_points
-        WHERE event_id = ?
+        WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
         GROUP BY user_id
     ) points
         ON points.user_id = users.user_id
@@ -575,7 +585,7 @@ export function registerPlayerProfileRoutes(
           ON mr.event_id = mp.event_id
          AND mr.match_id = mp.match_id
 
-        WHERE mp.event_id = ?
+        WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
         GROUP BY mp.user_id
     ) preds
@@ -613,20 +623,18 @@ export function registerPlayerProfileRoutes(
          AND mmr.match_id = mmp.match_id
          AND mmr.map_no = mmp.map_no
 
-        WHERE mmp.event_id = ?
+        WHERE mmp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
         GROUP BY mmp.user_id
     ) maps
         ON maps.user_id = users.user_id
     `,
-          [event.id, event.id, event.id, event.id],
+          [slug, slug, slug, slug],
         ),
 
-        loadTeamPicks(pool, {
-          guildId: event.guild_id,
-          eventId: event.id,
-          userId,
-        }),
+        // Po slugu, a nie po parze identyfikatorow - dzieki temu nie musi
+        // czekac, az wroci wiersz turnieju, i miesci sie w tej samej fali.
+        loadTeamPicks(pool, { slug, userId }),
 
         // Starty tego gracza w POZOSTALYCH turniejach.
         //
@@ -680,6 +688,12 @@ export function registerPlayerProfileRoutes(
           [userId],
         ),
       ]);
+
+      if (!event) {
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+        });
+      }
 
       // Dopiero gdy profilu nie ma - nie ma po co odpytywac osmiu tabel faz
       // dla kogos, kto logowal sie na stronie i ma tam swoja nazwe.

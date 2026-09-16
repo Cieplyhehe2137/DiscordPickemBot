@@ -77,12 +77,23 @@ function fakeRes() {
   return res;
 }
 
+// PULAPKA: od czasu podzapytania po slugu KAZDE zapytanie tej trasy zawiera
+// "FROM events" - w srodku "(SELECT id FROM events WHERE slug = ?)".
+// Rozpoznawanie odczytu turnieju po tym napisie dawalo wiersz turnieju
+// w odpowiedzi na kazde zapytanie i test milczaco mierzyl bzdury.
+//
+// Sam odczyt turnieju jest jedynym, ktory ZACZYNA sie od "SELECT" i zaraz
+// potem ma "id,".
+function toOdczytTurnieju(sql) {
+  return /^\s*SELECT\s*\n\s*id,/.test(sql);
+}
+
 const EVENT = { id: 7, guild_id: "g1", name: "IEM", slug: "iem" };
 
 // Domyslnie kazde zapytanie oddaje pustke - poza tym o turniej, bo bez niego
 // trasa konczy sie na 404 i reszta nigdy nie startuje.
 function odpowiedzDomyslna(sql) {
-  if (sql.includes("FROM events")) return [EVENT];
+  if (toOdczytTurnieju(sql)) return [EVENT];
 
   return [];
 }
@@ -110,34 +121,61 @@ async function wywolaj({ pool, userId = "u1", slug = "iem" }) {
   return res.zapis;
 }
 
-test("nieznany turniej konczy sie po jednym zapytaniu", async () => {
+test("nieznany turniej nadal konczy sie czterystaczwórką", async () => {
+  // Swiadomy koszt jednej fali: przy nieznanym slugu pozostale zapytania i tak
+  // poleca, bo ida rownolegle z odczytem turnieju. Podzapytanie daje wtedy
+  // NULL, wiec nie znajduja nic. Placimy zmarnowana praca w przypadku rzadkim,
+  // zeby nie placic okrazenia w kazdym normalnym.
   const pool = fakePool(() => []);
 
   const zapis = await wywolaj({ pool });
 
   assert.equal(zapis.kod, 404);
-  assert.equal(pool.wywolania.length, 1, "po 404 nie ma czego dopytywac");
+  assert.equal(pool.fal, 1, "nawet niepotrzebna praca ma sie zmiescic w jednej fali");
 });
 
-test("wszystkie zapytania o gracza ida jedna fala", async () => {
-  // To jest cala poprawka. Wczesniej bylo ich ponad trzydziesci, jedno po
-  // drugim - kazde czekalo, az wroci poprzednie, chociaz zadne nie
-  // potrzebowalo jego wyniku.
+test("wszystkie zapytania o gracza ida JEDNA fala", async () => {
+  // Wczesniej bylo ich ponad trzydziesci, jedno po drugim. Potem wszystkie
+  // naraz, ale wciaz za osobnym odczytem turnieju - ten odczyt kosztowal pelna
+  // podroz (177 ms, zmierzone na serwerze) i sluzyl wylacznie zamianie sluga
+  // na dwa identyfikatory.
+  //
+  // Ostatnia rzecza, ktora go tam trzymala, bylo loadTeamPicks: potrzebowalo
+  // I turnieju, I serwera. Odkad przyjmuje slug, nic juz nie musi czekac.
   const pool = fakePool(odpowiedzDomyslna);
 
   await wywolaj({ pool });
 
-  const poEvencie = pool.wywolania.filter((w) => w.fala > 1);
-
   assert.ok(
-    poEvencie.length >= 13,
-    `oczekiwano co najmniej 13 zapytan o gracza, bylo ${poEvencie.length}`,
+    pool.wywolania.length >= 14,
+    `oczekiwano co najmniej 14 zapytan, bylo ${pool.wywolania.length}`,
   );
 
-  // Turniej (fala 1), potem wszystko o graczu. Typy druzyn dokladaja wlasna
-  // druga fale tylko wtedy, gdy gracz cokolwiek obstawil - tu nie obstawil,
-  // wiec calosc miesci sie w dwoch falach.
-  assert.equal(pool.fal, 2, "turniej, a potem wszystko naraz");
+  // Typy druzyn dokladaja wlasna druga fale tylko wtedy, gdy gracz cokolwiek
+  // obstawil - tu nie obstawil, wiec calosc miesci sie w jednej.
+  assert.equal(pool.fal, 1, `oczekiwano jednej fali, bylo ${pool.fal}`);
+});
+
+test("turniej wybiera sie slugiem, a nie osobno odczytanym identyfikatorem", async () => {
+  const pool = fakePool(odpowiedzDomyslna);
+
+  await wywolaj({ pool });
+
+  // Tylko te, ktore w ogole zawezaja sie do turnieju. Zapytanie o starty
+  // w POZOSTALYCH turniejach celowo nie ma takiego warunku - i nie moze go
+  // dostac, bo przestaloby odpowiadac na swoje pytanie.
+  const zawezone = pool.wywolania.filter(
+    (w) => !toOdczytTurnieju(w.sql) && /\b(event_id|guild_id) = /.test(w.sql),
+  );
+
+  assert.ok(zawezone.length > 0, "brak zapytan zawezonych do turnieju");
+
+  for (const w of zawezone) {
+    assert.ok(
+      /\(SELECT (id|guild_id) FROM events WHERE slug = \? LIMIT 1\)/.test(w.sql),
+      `zapytanie nie bierze turnieju ze sluga: ${w.sql.slice(0, 70)}`,
+    );
+  }
 });
 
 test("liczba fal nie rosnie z liczba zapytan", async () => {
@@ -178,7 +216,7 @@ test("dane trafiaja do wlasnych pol, a nie do sasiednich", async () => {
   // wyladowalyby pod cudzymi nazwami - i nic by sie nie wywrocilo, bo to
   // nadal sa liczby.
   const pool = fakePool((sql) => {
-    if (sql.includes("FROM events")) return [EVENT];
+    if (toOdczytTurnieju(sql)) return [EVENT];
     if (sql.includes("FROM user_profiles"))
       return [{ user_id: "u1", displayname: "Ciepły", avatar: "abc" }];
     if (sql.includes("AS series_points"))
@@ -230,7 +268,7 @@ test("dane trafiaja do wlasnych pol, a nie do sasiednich", async () => {
 test("awaria bazy konczy sie piecsetka, a nie polowicznym profilem", async () => {
   const pool = {
     query(sql) {
-      if (String(sql).includes("FROM events")) {
+      if (toOdczytTurnieju(String(sql))) {
         return Promise.resolve([[EVENT], []]);
       }
 
@@ -249,7 +287,7 @@ test("starty w innych turniejach wracaja w odpowiedzi", async () => {
   // ani jednej podrozy do bazy. Tu sprawdzamy, ze wynik faktycznie trafia
   // do odpowiedzi i ze biezacy turniej z niego wypada.
   const pool = fakePool((sql) => {
-    if (sql.includes("FROM events")) return [EVENT];
+    if (toOdczytTurnieju(sql)) return [EVENT];
 
     if (sql.includes("ROW_NUMBER() OVER (") && sql.includes("PARTITION BY")) {
       return [
