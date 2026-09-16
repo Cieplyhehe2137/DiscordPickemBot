@@ -1,0 +1,20 @@
+# Ten plik jest STATYCZNY i musi leżeć w web/public/, a nie powstawać
+# z funkcji. Pliki z web/public/ wygrywają z regułą "/*  /index.html  200"
+# z _redirects - bez tego /robots.txt oddawałby stronę HTML z kodem 200,
+# czyli dokładnie to, co robił do tej pory.
+
+User-agent: *
+Allow: /
+
+# Strony za logowaniem. Robot zobaczy na nich wyłącznie prośbę o zalogowanie,
+# więc indeksowanie ich zapełnia wyniki wyszukiwania pustymi kartami.
+Disallow: /admin
+Disallow: /events/*/my-picks
+Disallow: /events/*/my-stats
+
+# Pojedynek dwóch graczy. Adres zawiera dwa identyfikatory, więc kombinacji
+# jest kwadrat liczby uczestników - przy 523 osobach z jednego turnieju to
+# ćwierć miliona stron, z których każda mówi o dwóch osobach.
+Disallow: /events/*/h2h/
+
+Sitemap: https://pickembot.pl/sitemap.xml
