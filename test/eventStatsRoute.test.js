@@ -79,15 +79,33 @@ function fakeRes() {
   return res;
 }
 
-const EVENT = { id: 7 };
+const EVENT = { id: 7, guild_id: "g1" };
+
+// PUŁAPKA: od czasu przejscia na podzapytanie po slugu KAZDE zapytanie tej
+// trasy zawiera "FROM events" - w srodku "(SELECT id FROM events WHERE slug
+// = ?)". Rozpoznawanie odczytu turnieju po tym napisie dawalo wiersz turnieju
+// w odpowiedzi na kazde zapytanie i test milczaco mierzyl bzdury.
+//
+// Sam odczyt turnieju jest jedynym, ktory ZACZYNA sie od "SELECT id".
+function toOdczytTurnieju(sql) {
+  return /^\s*SELECT\s+id\b/.test(sql);
+}
 
 function odpowiedzDomyslna(sql) {
-  if (sql.includes("FROM events")) return [EVENT];
+  if (toOdczytTurnieju(sql)) return [EVENT];
 
   return [];
 }
 
-async function wywolaj({ pool, resolveDisplayName = async () => null }) {
+async function wywolaj({
+  pool,
+  resolveDisplayName = async () => null,
+  // Atrapy do nadpisania. Domyslne odpowiadaja turniejowi ZAKONCZONEMU -
+  // wtedy petla po meczach i tak ich nie wola.
+  assertPredictionsAllowed = async () => ({ allowed: true }),
+  isMatchDeadlinePassed = async () => ({ passed: false }),
+  matchPanelPhaseFor = () => null,
+}) {
   const { registerEventStatsRoutes } = await import(MODUL);
 
   const app = fakeApp();
@@ -95,10 +113,10 @@ async function wywolaj({ pool, resolveDisplayName = async () => null }) {
   registerEventStatsRoutes(app, {
     pool,
     resolveDisplayName,
-    assertPredictionsAllowed: () => {},
-    isMatchDeadlinePassed: () => false,
+    assertPredictionsAllowed,
+    isMatchDeadlinePassed,
     isMatchLocked: () => false,
-    matchPanelPhaseFor: () => null,
+    matchPanelPhaseFor,
   });
 
   const handler = app.trasy.get("GET /api/events/:slug/stats");
@@ -112,32 +130,51 @@ async function wywolaj({ pool, resolveDisplayName = async () => null }) {
   return res.zapis;
 }
 
-test("nieznany turniej konczy sie po jednym zapytaniu", async () => {
+test("nieznany turniej nadal konczy sie czterystaczwórką", async () => {
+  // Swiadomy koszt jednej fali: przy nieznanym slugu pozostale zapytania i tak
+  // poleca, bo ida rownolegle z odczytem turnieju. Podzapytanie daje wtedy
+  // NULL, wiec nie znajduja nic. Placimy zmarnowana praca w przypadku rzadkim,
+  // zeby nie placic okrazenia w kazdym normalnym.
   const pool = fakePool(() => []);
 
   const zapis = await wywolaj({ pool });
 
   assert.equal(zapis.kod, 404);
-  assert.equal(pool.wywolania.length, 1, "po 404 nie ma czego dopytywac");
+  assert.equal(pool.fal, 1, "nawet niepotrzebna praca ma sie zmiescic w jednej fali");
 });
 
-test("statystyki turnieju ida jedna fala", async () => {
-  // To jest cala poprawka. Wczesniej bylo tych zapytan jedenascie, jedno po
-  // drugim, chociaz zadne nie potrzebuje wyniku zadnego innego - jedyna
-  // prawdziwa zaleznosc to event.id, odczytany w fali pierwszej.
+test("statystyki turnieju ida JEDNA fala", async () => {
+  // Wczesniej bylo tych zapytan jedenascie, jedno po drugim. Potem wszystkie
+  // naraz, ale wciaz za osobnym odczytem turnieju. Teraz odczyt jedzie razem
+  // z nimi, a turniej wybiera sie slugiem.
   const pool = fakePool(odpowiedzDomyslna);
 
   await wywolaj({ pool });
 
-  const poEvencie = pool.wywolania.filter((w) => w.fala > 1);
-
   assert.equal(
-    poEvencie.length,
-    10,
-    `oczekiwano 10 zapytan o statystyki, bylo ${poEvencie.length}`,
+    pool.wywolania.length,
+    11,
+    `oczekiwano 11 zapytan, bylo ${pool.wywolania.length}`,
   );
 
-  assert.equal(pool.fal, 2, "turniej, a potem wszystko naraz");
+  assert.equal(pool.fal, 1, `oczekiwano jednej fali, bylo ${pool.fal}`);
+});
+
+test("turniej wybiera sie slugiem, a nie osobno odczytanym identyfikatorem", async () => {
+  const pool = fakePool(odpowiedzDomyslna);
+
+  await wywolaj({ pool });
+
+  const poOdczycie = pool.wywolania.filter((w) => !toOdczytTurnieju(w.sql));
+
+  assert.ok(poOdczycie.length > 0, "brak zapytan poza odczytem turnieju");
+
+  for (const w of poOdczycie) {
+    assert.ok(
+      w.sql.includes("(SELECT id FROM events WHERE slug = ? LIMIT 1)"),
+      `zapytanie nie bierze turnieju ze sluga: ${w.sql.slice(0, 70)}`,
+    );
+  }
 });
 
 test("dociaganie nazw graczy nie rozbija sie na osobne podroze", async () => {
@@ -190,4 +227,88 @@ test("dociaganie nazw graczy nie rozbija sie na osobne podroze", async () => {
     pool.fal <= 3,
     `oczekiwano najwyzej trzech fal, bylo ${pool.fal}`,
   );
+});
+
+// --- bramka i terminy w petli ----------------------------------------------
+//
+// Przy turnieju ZAKONCZONYM kazdy mecz jest rozstrzygniety, wiec warunek
+// omija obie funkcje i w pomiarach nie widac niczego. Usterka wychodzi
+// dopiero przy turnieju TRWAJACYM - czyli wtedy, gdy na stronie jest ruch.
+
+function otwarteMecze(ile) {
+  return Array.from({ length: ile }, (_, i) => ({
+    match_id: i + 1,
+    team_a: "A",
+    team_b: "B",
+    phase: i % 2 === 0 ? "SWISS_STAGE1" : "PLAYOFFS",
+    best_of: 3,
+    finished: 0,
+    is_locked: 0,
+    lock_override: null,
+    total_picks: 10,
+    team_a_picks: 5,
+    team_b_picks: 5,
+  }));
+}
+
+test("bramka typowania pytana RAZ, a nie przy kazdym meczu", async () => {
+  const MECZOW = 20;
+
+  const pool = fakePool((sql) => {
+    if (sql.includes("FROM events")) return [EVENT];
+
+    if (sql.includes("total_picks")) return otwarteMecze(MECZOW);
+
+    return [];
+  });
+
+  let bramek = 0;
+
+  await wywolaj({
+    pool,
+    assertPredictionsAllowed: async () => {
+      bramek += 1;
+
+      return { allowed: true };
+    },
+  });
+
+  assert.equal(
+    bramek,
+    1,
+    `bramka pytana ${bramek} razy przy ${MECZOW} otwartych meczach`,
+  );
+});
+
+test("termin liczony raz na FAZE, a nie raz na mecz", async () => {
+  // Termin zalezy od fazy panelu, wiec przy dwudziestu meczach z dwoch faz
+  // maja wyjsc dwa sprawdzenia, nie dwadziescia.
+  const pool = fakePool((sql) => {
+    if (sql.includes("FROM events")) return [EVENT];
+
+    if (sql.includes("total_picks")) return otwarteMecze(20);
+
+    return [];
+  });
+
+  const fazy = [];
+
+  await wywolaj({
+    pool,
+    assertPredictionsAllowed: async () => ({ allowed: true }),
+    matchPanelPhaseFor: (faza) => faza,
+    isMatchDeadlinePassed: async (_pool, _guild, faza) => {
+      fazy.push(faza);
+
+      return { passed: false };
+    },
+  });
+
+  assert.equal(
+    fazy.length,
+    new Set(fazy).size,
+    `ta sama faza sprawdzana wiecej niz raz: ${fazy.join(", ")}`,
+  );
+
+  assert.ok(fazy.length <= 2, `oczekiwano najwyzej dwoch faz, bylo ${fazy.length}`);
 });
