@@ -36,184 +36,176 @@ export function registerEventStatsRoutes(
       }
 
       /*
-       * Uczestnicy + liczba typów meczów
+       * JEDNA FALA ZAMIAST JEDENASTU PODROZY.
+       *
+       * Kazde zapytanie to osobna podroz do bazy stojacej na innej maszynie
+       * niz API - zmierzone na produkcji okolo 165 ms, NIEZALEZNIE od tego,
+       * ile wierszy wraca. Stad ta trasa potrzebowala 2,4 s, a przy turnieju
+       * BEZ ANI JEDNEGO MECZU (StarLadder Budapest) nadal 2,1 s. To jest
+       * podpis kosztu liczonego podrozami, a nie danymi.
+       *
+       * Zadne z tych zapytan nie potrzebuje wyniku zadnego innego - jedyna
+       * prawdziwa zaleznosc to event.id, odczytany wyzej. Dlatego ida razem.
+       *
+       * Kolejnosc w tablicy odpowiada kolejnosci w destrukturyzacji i nic
+       * poza tym jej nie pilnuje - przestawienie jednej strony bez drugiej
+       * podmienia wyniki miejscami, a kazdy z nich to wiarygodnie wygladajaca
+       * liczba. Dopisujac nowe zapytanie, dopisz je na KONCU obu list.
        */
-      const [[predictionStats]] = await pool.query(
-        `
-        SELECT
-          COUNT(DISTINCT user_id) AS participants,
-          COUNT(*) AS total_predictions
-        FROM match_predictions
-        WHERE event_id = ?
-        `,
-        [event.id],
-      );
-
-      /*
-       * Typy map
-       */
-      const [[mapPredictionStats]] = await pool.query(
-        `
-        SELECT
-          COUNT(*) AS total_map_predictions
-        FROM match_map_predictions
-        WHERE event_id = ?
-        `,
-        [event.id],
-      );
-
-      /*
-       * Średnia punktów i najlepszy wynik.
-       */
-      const [[pointsStats]] = await pool.query(
-        `
-        SELECT
-          COALESCE(AVG(player_points), 0) AS average_points,
-          COALESCE(MAX(player_points), 0) AS best_score
-        FROM (
+      const [
+        [[predictionStats]],
+        [[mapPredictionStats]],
+        [[pointsStats]],
+        [[bestPlayer]],
+        [[exactStats]],
+        [[bestExactPlayer]],
+        [[bestAccuracyPlayer]],
+        [[favoriteTeam]],
+        [balancedMatchRows],
+        [upsetRows],
+      ] = await Promise.all([
+        pool.query(
+          `
           SELECT
-            user_id,
-            SUM(points) AS player_points
-          FROM match_points
+            COUNT(DISTINCT user_id) AS participants,
+            COUNT(*) AS total_predictions
+          FROM match_predictions
           WHERE event_id = ?
-          GROUP BY user_id
-        ) scores
-        `,
-        [event.id],
-      );
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+          SELECT
+            COUNT(*) AS total_map_predictions
+          FROM match_map_predictions
+          WHERE event_id = ?
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+          SELECT
+            COALESCE(AVG(player_points), 0) AS average_points,
+            COALESCE(MAX(player_points), 0) AS best_score
+          FROM (
+            SELECT
+              user_id,
+              SUM(points) AS player_points
+            FROM match_points
+            WHERE event_id = ?
+            GROUP BY user_id
+          ) scores
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+          SELECT
+            mp.user_id,
 
-      /*
-       * Najlepszy gracz punktowo.
-       */
-      const [[bestPlayer]] = await pool.query(
-        `
-        SELECT
-          mp.user_id,
+            -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
+            -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
+            COALESCE(
+              up.displayname,
+              up.username
+            ) AS displayname,
 
-          -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
-          -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
-          COALESCE(
+            SUM(mp.points) AS total_points
+
+          FROM match_points mp
+
+          LEFT JOIN user_profiles up
+            ON up.user_id COLLATE utf8mb4_unicode_ci
+             = mp.user_id COLLATE utf8mb4_unicode_ci
+
+          WHERE mp.event_id = ?
+
+          GROUP BY
+            mp.user_id,
             up.displayname,
             up.username
-          ) AS displayname,
 
-          SUM(mp.points) AS total_points
+          ORDER BY
+            total_points DESC,
+            mp.user_id ASC
 
-        FROM match_points mp
+          LIMIT 1
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+          SELECT
+            COUNT(*) AS exact_maps
+          FROM match_map_predictions mmp
 
-        LEFT JOIN user_profiles up
-          ON up.user_id COLLATE utf8mb4_unicode_ci
-           = mp.user_id COLLATE utf8mb4_unicode_ci
+          INNER JOIN match_map_results mmr
+            ON mmr.event_id = mmp.event_id
+           AND mmr.match_id = mmp.match_id
+           AND mmr.map_no = mmp.map_no
 
-        WHERE mp.event_id = ?
+          WHERE mmp.event_id = ?
+            AND mmp.pred_exact_a = mmr.exact_a
+            AND mmp.pred_exact_b = mmr.exact_b
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+          SELECT
+            mmp.user_id,
 
-        GROUP BY
-          mp.user_id,
-          up.displayname,
-          up.username
+            -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
+            -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
+            COALESCE(
+              up.displayname,
+              up.username
+            ) AS displayname,
 
-        ORDER BY
-          total_points DESC,
-          mp.user_id ASC
+            COUNT(*) AS exact_maps
 
-        LIMIT 1
-        `,
-        [event.id],
-      );
+          FROM match_map_predictions mmp
 
-      /*
-       * Łączna liczba exactów map.
-       */
-      const [[exactStats]] = await pool.query(
-        `
-        SELECT
-          COUNT(*) AS exact_maps
-        FROM match_map_predictions mmp
+          INNER JOIN match_map_results mmr
+            ON mmr.event_id = mmp.event_id
+           AND mmr.match_id = mmp.match_id
+           AND mmr.map_no = mmp.map_no
 
-        INNER JOIN match_map_results mmr
-          ON mmr.event_id = mmp.event_id
-         AND mmr.match_id = mmp.match_id
-         AND mmr.map_no = mmp.map_no
+          LEFT JOIN user_profiles up
+            ON up.user_id COLLATE utf8mb4_unicode_ci
+             = mmp.user_id COLLATE utf8mb4_unicode_ci
 
-        WHERE mmp.event_id = ?
-          AND mmp.pred_exact_a = mmr.exact_a
-          AND mmp.pred_exact_b = mmr.exact_b
-        `,
-        [event.id],
-      );
+          WHERE mmp.event_id = ?
+            AND mmp.pred_exact_a = mmr.exact_a
+            AND mmp.pred_exact_b = mmr.exact_b
 
-      /*
-       * Gracz z największą liczbą exactów map.
-       */
-      const [[bestExactPlayer]] = await pool.query(
-        `
-        SELECT
-          mmp.user_id,
-
-          -- Bez podstawiania user_id: gdy profilu nie ma, ma wyjsc NULL,
-          -- zeby nazwe dalo sie dobrac z tabel typow (patrz resolveDisplayName).
-          COALESCE(
+          GROUP BY
+            mmp.user_id,
             up.displayname,
             up.username
-          ) AS displayname,
 
-          COUNT(*) AS exact_maps
+          ORDER BY
+            exact_maps DESC,
+            mmp.user_id ASC
 
-        FROM match_map_predictions mmp
+          LIMIT 1
+          `,
+          [event.id],
+        ),
+        pool.query(
+          `
+      SELECT
+        mp.user_id,
 
-        INNER JOIN match_map_results mmr
-          ON mmr.event_id = mmp.event_id
-         AND mmr.match_id = mmp.match_id
-         AND mmr.map_no = mmp.map_no
-
-        LEFT JOIN user_profiles up
-          ON up.user_id COLLATE utf8mb4_unicode_ci
-           = mmp.user_id COLLATE utf8mb4_unicode_ci
-
-        WHERE mmp.event_id = ?
-          AND mmp.pred_exact_a = mmr.exact_a
-          AND mmp.pred_exact_b = mmr.exact_b
-
-        GROUP BY
-          mmp.user_id,
+        -- Jak wyzej: NULL zamiast identyfikatora, zeby zadzialal zapas.
+        COALESCE(
           up.displayname,
           up.username
+        ) AS displayname,
 
-        ORDER BY
-          exact_maps DESC,
-          mmp.user_id ASC
+        COUNT(DISTINCT mp.match_id) AS finished_predictions,
 
-        LIMIT 1
-        `,
-        [event.id],
-      );
-
-      const [[bestAccuracyPlayer]] = await pool.query(
-        `
-    SELECT
-      mp.user_id,
-
-      -- Jak wyzej: NULL zamiast identyfikatora, zeby zadzialal zapas.
-      COALESCE(
-        up.displayname,
-        up.username
-      ) AS displayname,
-
-      COUNT(DISTINCT mp.match_id) AS finished_predictions,
-
-      COUNT(
-        DISTINCT CASE
-          WHEN (
-            (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
-            OR
-            (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
-          )
-          THEN mp.match_id
-          ELSE NULL
-        END
-      ) AS correct_winners,
-
-      ROUND(
         COUNT(
           DISTINCT CASE
             WHEN (
@@ -224,141 +216,229 @@ export function registerEventStatsRoutes(
             THEN mp.match_id
             ELSE NULL
           END
-        )
-        / COUNT(DISTINCT mp.match_id) * 100,
-        1
-      ) AS accuracy
+        ) AS correct_winners,
 
-    FROM match_predictions mp
-
-    INNER JOIN match_results mr
-      ON mr.event_id = mp.event_id
-     AND mr.match_id = mp.match_id
-
-    LEFT JOIN user_profiles up
-      ON up.user_id COLLATE utf8mb4_unicode_ci
-       = mp.user_id COLLATE utf8mb4_unicode_ci
-
-    WHERE mp.event_id = ?
-
-    GROUP BY
-      mp.user_id,
-      up.displayname,
-      up.username
-
-    HAVING finished_predictions >= GREATEST(
-      1,
-      CEIL(
-        (
-          SELECT COUNT(DISTINCT mr2.match_id)
-          FROM match_results mr2
-          WHERE mr2.event_id = ?
-        ) * 0.5
-      )
-    )
-
-    ORDER BY
-      accuracy DESC,
-      correct_winners DESC,
-      finished_predictions DESC,
-      mp.user_id ASC
-
-    LIMIT 1
-    `,
-        [event.id, event.id],
-      );
-
-      const [[favoriteTeam]] = await pool.query(
-        `
-    SELECT
-      picked_team AS team,
-      COUNT(*) AS picks
-    FROM (
-      SELECT
-        CASE
-          WHEN pred_a > pred_b THEN m.team_a
-          WHEN pred_b > pred_a THEN m.team_b
-          ELSE NULL
-        END AS picked_team
+        ROUND(
+          COUNT(
+            DISTINCT CASE
+              WHEN (
+                (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+                OR
+                (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+              )
+              THEN mp.match_id
+              ELSE NULL
+            END
+          )
+          / COUNT(DISTINCT mp.match_id) * 100,
+          1
+        ) AS accuracy
 
       FROM match_predictions mp
 
-      INNER JOIN matches m
-        ON m.id = mp.match_id
-       AND m.event_id = mp.event_id
+      INNER JOIN match_results mr
+        ON mr.event_id = mp.event_id
+       AND mr.match_id = mp.match_id
+
+      LEFT JOIN user_profiles up
+        ON up.user_id COLLATE utf8mb4_unicode_ci
+         = mp.user_id COLLATE utf8mb4_unicode_ci
 
       WHERE mp.event_id = ?
-    ) picks
 
-    WHERE picked_team IS NOT NULL
+      GROUP BY
+        mp.user_id,
+        up.displayname,
+        up.username
 
-    GROUP BY picked_team
+      HAVING finished_predictions >= GREATEST(
+        1,
+        CEIL(
+          (
+            SELECT COUNT(DISTINCT mr2.match_id)
+            FROM match_results mr2
+            WHERE mr2.event_id = ?
+          ) * 0.5
+        )
+      )
 
-    ORDER BY
-      picks DESC,
-      picked_team ASC
+      ORDER BY
+        accuracy DESC,
+        correct_winners DESC,
+        finished_predictions DESC,
+        mp.user_id ASC
 
-    LIMIT 1
-    `,
-        [event.id],
-      );
+      LIMIT 1
+      `,
+          [event.id, event.id],
+        ),
+        pool.query(
+          `
+      SELECT
+        picked_team AS team,
+        COUNT(*) AS picks
+      FROM (
+        SELECT
+          CASE
+            WHEN pred_a > pred_b THEN m.team_a
+            WHEN pred_b > pred_a THEN m.team_b
+            ELSE NULL
+          END AS picked_team
 
-      const [balancedMatchRows] = await pool.query(
-        `
-    SELECT
-      m.id AS match_id,
-      m.team_a,
-      m.team_b,
-      m.phase,
-      m.best_of,
-      m.is_locked,
-      m.lock_override,
+        FROM match_predictions mp
 
-      COUNT(mp.user_id) AS total_picks,
+        INNER JOIN matches m
+          ON m.id = mp.match_id
+         AND m.event_id = mp.event_id
 
-      SUM(
+        WHERE mp.event_id = ?
+      ) picks
+
+      WHERE picked_team IS NOT NULL
+
+      GROUP BY picked_team
+
+      ORDER BY
+        picks DESC,
+        picked_team ASC
+
+      LIMIT 1
+      `,
+          [event.id],
+        ),
+        pool.query(
+          `
+      SELECT
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.phase,
+        m.best_of,
+        m.is_locked,
+        m.lock_override,
+
+        COUNT(mp.user_id) AS total_picks,
+
+        SUM(
+          CASE
+            WHEN mp.pred_a > mp.pred_b THEN 1
+            ELSE 0
+          END
+        ) AS team_a_picks,
+
+        SUM(
+          CASE
+            WHEN mp.pred_b > mp.pred_a THEN 1
+            ELSE 0
+          END
+        ) AS team_b_picks,
+
         CASE
-          WHEN mp.pred_a > mp.pred_b THEN 1
+          WHEN mr.match_id IS NOT NULL THEN 1
           ELSE 0
-        END
-      ) AS team_a_picks,
+        END AS finished
 
-      SUM(
-        CASE
-          WHEN mp.pred_b > mp.pred_a THEN 1
-          ELSE 0
-        END
-      ) AS team_b_picks,
+      FROM matches m
 
-      CASE
-        WHEN mr.match_id IS NOT NULL THEN 1
-        ELSE 0
-      END AS finished
+      INNER JOIN match_predictions mp
+        ON mp.event_id = m.event_id
+       AND mp.match_id = m.id
 
-    FROM matches m
+      LEFT JOIN match_results mr
+        ON mr.event_id = m.event_id
+       AND mr.match_id = m.id
 
-    INNER JOIN match_predictions mp
-      ON mp.event_id = m.event_id
-     AND mp.match_id = m.id
+      WHERE m.event_id = ?
 
-    LEFT JOIN match_results mr
-      ON mr.event_id = m.event_id
-     AND mr.match_id = m.id
+      GROUP BY
+        m.id,
+        m.team_a,
+        m.team_b,
+        m.phase,
+        m.best_of,
+        m.is_locked,
+        m.lock_override,
+        mr.match_id
+      `,
+          [event.id],
+        ),
+        pool.query(
+          `
+      SELECT
+        m.id AS match_id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
 
-    WHERE m.event_id = ?
+        mr.res_a,
+        mr.res_b,
 
-    GROUP BY
-      m.id,
-      m.team_a,
-      m.team_b,
-      m.phase,
-      m.best_of,
-      m.is_locked,
-      m.lock_override,
-      mr.match_id
-    `,
-        [event.id],
-      );
+        COUNT(mp.user_id) AS total_picks,
+
+        SUM(
+          CASE
+            WHEN mp.pred_a > mp.pred_b THEN 1
+            ELSE 0
+          END
+        ) AS team_a_picks,
+
+        SUM(
+          CASE
+            WHEN mp.pred_b > mp.pred_a THEN 1
+            ELSE 0
+          END
+        ) AS team_b_picks
+
+      FROM matches m
+
+      INNER JOIN match_results mr
+        ON mr.event_id = m.event_id
+       AND mr.match_id = m.id
+
+      INNER JOIN match_predictions mp
+        ON mp.event_id = m.event_id
+       AND mp.match_id = m.id
+
+      WHERE m.event_id = ?
+
+      GROUP BY
+        m.id,
+        m.team_a,
+        m.team_b,
+        m.best_of,
+        mr.res_a,
+        mr.res_b
+      `,
+          [event.id],
+        ),
+      ]);
+
+      /*
+       * Uczestnicy + liczba typów meczów
+       */
+
+      /*
+       * Typy map
+       */
+
+      /*
+       * Średnia punktów i najlepszy wynik.
+       */
+
+      /*
+       * Najlepszy gracz punktowo.
+       */
+
+      /*
+       * Łączna liczba exactów map.
+       */
+
+      /*
+       * Gracz z największą liczbą exactów map.
+       */
+
+
+
 
       const balancedCandidates = [];
 
@@ -458,55 +538,6 @@ export function registerEventStatsRoutes(
 
       const closestMatch = balancedCandidates[0] || null;
 
-      const [upsetRows] = await pool.query(
-        `
-    SELECT
-      m.id AS match_id,
-      m.team_a,
-      m.team_b,
-      m.best_of,
-
-      mr.res_a,
-      mr.res_b,
-
-      COUNT(mp.user_id) AS total_picks,
-
-      SUM(
-        CASE
-          WHEN mp.pred_a > mp.pred_b THEN 1
-          ELSE 0
-        END
-      ) AS team_a_picks,
-
-      SUM(
-        CASE
-          WHEN mp.pred_b > mp.pred_a THEN 1
-          ELSE 0
-        END
-      ) AS team_b_picks
-
-    FROM matches m
-
-    INNER JOIN match_results mr
-      ON mr.event_id = m.event_id
-     AND mr.match_id = m.id
-
-    INNER JOIN match_predictions mp
-      ON mp.event_id = m.event_id
-     AND mp.match_id = m.id
-
-    WHERE m.event_id = ?
-
-    GROUP BY
-      m.id,
-      m.team_a,
-      m.team_b,
-      m.best_of,
-      mr.res_a,
-      mr.res_b
-    `,
-        [event.id],
-      );
 
       const upsetCandidates = upsetRows
         .map((row) => {
@@ -562,6 +593,28 @@ export function registerEventStatsRoutes(
 
       const biggestUpset = upsetCandidates[0] || null;
 
+      /*
+       * Nazwy trzech wyroznionych graczy - takze jedna fala.
+       *
+       * Stały w środku res.json({...}) jako trzy osobne `await`, więc szły
+       * jedno po drugim. Zwykle nic nie kosztują, bo resolveDisplayName
+       * zwraca od razu nazwę z profilu dociągniętą JOIN-em wyżej. Sięga do
+       * bazy dopiero wtedy, gdy profilu nie ma - i wtedy, w najgorszym
+       * przypadku, były to trzy kolejne podróże doklejone do odpowiedzi.
+       *
+       * To jest też powód, dla którego te trzy nie mogły wejść do fali
+       * wyżej: potrzebują wierszy, które tamta fala dopiero przynosi.
+       */
+      const [
+        bestPlayerName,
+        bestExactPlayerName,
+        bestAccuracyPlayerName,
+      ] = await Promise.all([
+        resolveDisplayName(event.id, bestPlayer),
+        resolveDisplayName(event.id, bestExactPlayer),
+        resolveDisplayName(event.id, bestAccuracyPlayer),
+      ]);
+
       res.json({
         stats: {
           participants: Number(predictionStats?.participants || 0),
@@ -592,7 +645,7 @@ export function registerEventStatsRoutes(
           best_player: bestPlayer
             ? {
               user_id: bestPlayer.user_id,
-              displayname: await resolveDisplayName(event.id, bestPlayer),
+              displayname: bestPlayerName,
               points: Number(bestPlayer.total_points || 0),
             }
             : null,
@@ -600,7 +653,7 @@ export function registerEventStatsRoutes(
           best_exact_player: bestExactPlayer
             ? {
               user_id: bestExactPlayer.user_id,
-              displayname: await resolveDisplayName(event.id, bestExactPlayer),
+              displayname: bestExactPlayerName,
               exact_maps: Number(bestExactPlayer.exact_maps || 0),
             }
             : null,
@@ -608,7 +661,7 @@ export function registerEventStatsRoutes(
           best_accuracy_player: bestAccuracyPlayer
             ? {
               user_id: bestAccuracyPlayer.user_id,
-              displayname: await resolveDisplayName(event.id, bestAccuracyPlayer),
+              displayname: bestAccuracyPlayerName,
               accuracy: Number(bestAccuracyPlayer.accuracy || 0),
               correct_winners: Number(bestAccuracyPlayer.correct_winners || 0),
               finished_predictions: Number(
