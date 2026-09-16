@@ -61,6 +61,31 @@ test("druzyny sa rejestrowane przed trasa, ktora je przeslania", async () => {
   );
 });
 
+test("punktacja jest rejestrowana przed trasa, ktora ja przeslania", async () => {
+  // Druga trasa w tym projekcie z jednym segmentem po /api/public/. Pierwsza
+  // (lista druzyn) trafila na to juz po wdrozeniu.
+  const tresc = fs.readFileSync(APP, "utf8");
+
+  const punktacja = pozycja(tresc, "registerScoringRoutes(app,");
+
+  const przeslaniajaca = pozycja(tresc, "registerPickemConfigRoutes(app,");
+
+  assert.ok(
+    punktacja < przeslaniajaca,
+    "registerScoringRoutes musi stac PRZED registerPickemConfigRoutes - " +
+      "inaczej /api/public/scoring oddaje pusta strone serwera i kod 200",
+  );
+});
+
+test("punktacja ma dokladnie jeden segment po /api/public/", async () => {
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "scoring.js"),
+    "utf8",
+  );
+
+  assert.ok(tresc.includes('app.get("/api/public/scoring"'));
+});
+
 test("lista druzyn ma dokladnie jeden segment po /api/public/", async () => {
   // To jest powod calego problemu. Trasa szczegolu (/api/public/teams/:name)
   // ma dwa segmenty i nigdy nie kolidowala - dlatego dzialala, kiedy lista

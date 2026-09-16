@@ -373,6 +373,12 @@ export function getTeams() {
   return apiRequest("/public/teams");
 }
 
+// Stawki punktowe. Trasa nie dotyka bazy - oddaje stałe z rules/scoring.js,
+// czyli z tego samego pliku, którym bot liczy ranking.
+export function getScoring() {
+  return apiRequest("/public/scoring");
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }

@@ -68,6 +68,16 @@ function AppLayout() {
               Drużyny
             </NavLink>
 
+            {/* Zasady w nawigacji, a nie w stopce: pytanie "skąd te punkty"
+                pada przy patrzeniu na ranking, czyli u góry ekranu, a nie
+                po przewinięciu strony do samego końca. */}
+            <NavLink
+              to="/scoring"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              Punktacja
+            </NavLink>
+
             {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
                 nawet dla kont z uprawnieniami. Widoczność to sama wygoda;
                 dostęp i tak pilnuje requireGuildAdmin na serwerze.
