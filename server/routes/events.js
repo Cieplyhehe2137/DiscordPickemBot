@@ -600,6 +600,273 @@ export function registerEventRoutes(
         });
       }
 
+      /*
+       * JEDNA FALA ZAMIAST TRZECH PODROZY.
+       *
+       * Zmierzone na produkcyjnej bazie, kazde zapytanie osobno, po
+       * rozgrzewce polaczenia i cache:
+       *
+       *   SELECT id FROM events (trywialne)   172 ms  <- sama podroz
+       *   glowny ranking, 523 wiersze         260 ms
+       *   rozbicie punktow na fazy            200 ms
+       *   statystyki map                      220 ms
+       *   przetwarzanie w JS                    0 ms
+       *
+       * Trywialne zapytanie kosztuje 172 ms, wiec PRACA trzech ciezkich to
+       * 30-90 ms kazde, a cala reszta to podroz. Nawet to duze zlaczenie
+       * osmiu tabel przez UNION kosztuje ledwie 90 ms ponad podroz - wiec
+       * nie ono jest problemem, wbrew temu, na co wyglada.
+       *
+       * Zadne z tych trzech nie potrzebuje wyniku pozostalych: wszystkie sa
+       * kluczowane wylacznie na event.id. Dlatego ida razem.
+       *
+       * Kolejnosc w tablicy odpowiada kolejnosci w destrukturyzacji i nic
+       * poza tym jej nie pilnuje.
+       */
+      const [
+        [rows],
+        [pointBreakdownRows],
+        [mapStatsRows],
+      ] = await Promise.all([
+        pool.query(
+          `
+      SELECT
+        lb.user_id,
+        -- user_profiles ma wiersz tylko dla osób, które logowały się na stronie.
+        -- Gracze typujący wyłącznie na Discordzie go nie mają, więc w rankingu
+        -- zakończonego turnieju wychodziło im surowe user_id zamiast nicku.
+        -- Ich nazwy leżą w tabelach faz, zapisane przy oddawaniu typu.
+        COALESCE(up.displayname, up.username, nazwy.nazwa, lb.user_id) AS displayname,
+        up.avatar,
+
+        COALESCE(lb.total_points, 0) AS total_points,
+
+        COALESCE(stats.total_predictions, 0) AS total_predictions,
+        COALESCE(stats.correct_winners, 0) AS correct_winners,
+
+        -- Rozbicie sumy na fazy. Wcześniej dawał je osobny endpoint
+        -- /api/public/events/:slug/leaderboard, którego front nigdy nie wołał -
+        -- utrzymywaliśmy dwa rankingi, z czego jeden martwy.
+        COALESCE(fazy.swiss_points, 0) AS swiss_points,
+        COALESCE(fazy.playoffs_points, 0) AS playoffs_points,
+        COALESCE(fazy.playin_points, 0) AS playin_points,
+        COALESCE(fazy.doubleelim_points, 0) AS doubleelim_points,
+        COALESCE(fazy.match_points, 0) AS match_points,
+        COALESCE(fazy.mvp_points, 0) AS mvp_points
+
+      FROM leaderboard lb
+
+      LEFT JOIN user_profiles up
+        ON up.user_id COLLATE utf8mb4_unicode_ci
+         = lb.user_id COLLATE utf8mb4_unicode_ci
+
+      -- Nazwa zapamiętana przy typowaniu, z dowolnej fazy tego eventu.
+      -- CAST + COLLATE musi objąć OBIE kolumny w KAŻDEJ gałęzi UNION - user_id
+      -- i nazwę - bo kolacje różnią się między tabelami i inaczej leci
+      -- ER_CANT_AGGREGATE_NCOLLATIONS.
+      LEFT JOIN (
+        SELECT user_id, MAX(nazwa) AS nazwa
+        FROM (
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS nazwa
+            FROM swiss_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM swiss_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM playoffs_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM playoffs_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM playin_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM playin_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM doubleelim_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
+                 CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+            FROM doubleelim_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
+        ) zrodla
+        GROUP BY user_id
+      ) nazwy
+        ON nazwy.user_id
+         = CAST(lb.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+
+      LEFT JOIN (
+        SELECT
+          user_id,
+          SUM(swiss_points) AS swiss_points,
+          SUM(playoffs_points) AS playoffs_points,
+          SUM(playin_points) AS playin_points,
+          SUM(doubleelim_points) AS doubleelim_points,
+          SUM(match_points) AS match_points,
+          SUM(mvp_points) AS mvp_points
+        FROM (
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, COALESCE(points,0) swiss_points, 0 playoffs_points, 0 playin_points, 0 doubleelim_points, 0 match_points, 0 mvp_points
+            FROM swiss_scores WHERE event_id = ?
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, COALESCE(points,0), 0, 0, 0, 0 FROM playoffs_scores WHERE event_id = ?
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, COALESCE(points,0), 0, 0, 0 FROM playin_scores WHERE event_id = ?
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, COALESCE(points,0), 0, 0 FROM doubleelim_scores WHERE event_id = ?
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, COALESCE(points,0), 0 FROM match_points WHERE event_id = ?
+          UNION ALL
+          SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, 0, COALESCE(points,0) FROM mvp_scores WHERE event_id = ?
+        ) skladowe
+        GROUP BY user_id
+      ) fazy
+        ON fazy.user_id = lb.user_id COLLATE utf8mb4_unicode_ci
+
+      LEFT JOIN (
+        SELECT
+          mp.user_id,
+
+          COUNT(DISTINCT mp.match_id) AS total_predictions,
+
+          COUNT(
+            DISTINCT CASE
+              WHEN mr.match_id IS NOT NULL
+               AND (
+                 (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+                 OR
+                 (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+               )
+              THEN mp.match_id
+              ELSE NULL
+            END
+          ) AS correct_winners
+
+        FROM match_predictions mp
+
+        LEFT JOIN match_results mr
+          ON mr.event_id = mp.event_id
+         AND mr.match_id = mp.match_id
+
+        WHERE mp.event_id = ?
+
+        GROUP BY mp.user_id
+      ) stats
+        ON stats.user_id COLLATE utf8mb4_unicode_ci
+         = lb.user_id COLLATE utf8mb4_unicode_ci
+
+      WHERE lb.event_id = ?
+
+      ORDER BY
+        total_points DESC,
+        correct_winners DESC,
+        lb.user_id ASC
+      `,
+          [
+            // nazwy z faz (8 tabel) - to zlaczenie stoi w SQL jako pierwsze
+            event.id, event.id, event.id, event.id,
+            event.id, event.id, event.id, event.id,
+            // rozbicie punktow na fazy (6 tabel)
+            event.id, event.id, event.id, event.id, event.id, event.id,
+            // statystyki meczowe
+            event.id,
+            // WHERE lb.event_id
+            event.id,
+          ],
+        ),
+        pool.query(
+          `
+      SELECT
+        user_id,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'series'
+              THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS series_points,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN source = 'map'
+              THEN points
+              ELSE 0
+            END
+          ),
+          0
+        ) AS map_points
+
+      FROM match_points
+
+      WHERE event_id = ?
+
+      GROUP BY user_id
+      `,
+          [event.id],
+        ),
+        pool.query(
+          `
+      SELECT
+        mmp.user_id,
+
+        COUNT(*) AS predicted_maps,
+
+        SUM(
+          CASE
+            WHEN mmr.match_id IS NOT NULL
+             AND (
+              (
+                mmp.pred_exact_a > mmp.pred_exact_b
+                AND mmr.exact_a > mmr.exact_b
+              )
+              OR
+              (
+                mmp.pred_exact_b > mmp.pred_exact_a
+                AND mmr.exact_b > mmr.exact_a
+              )
+             )
+            THEN 1
+            ELSE 0
+          END
+        ) AS correct_maps,
+
+        SUM(
+          CASE
+            WHEN mmr.match_id IS NOT NULL
+             AND mmp.pred_exact_a = mmr.exact_a
+             AND mmp.pred_exact_b = mmr.exact_b
+            THEN 1
+            ELSE 0
+          END
+        ) AS exact_maps
+
+      FROM match_map_predictions mmp
+
+      LEFT JOIN match_map_results mmr
+        ON mmr.event_id = mmp.event_id
+       AND mmr.match_id = mmp.match_id
+       AND mmr.map_no = mmp.map_no
+
+      WHERE mmp.event_id = ?
+
+      GROUP BY mmp.user_id
+      `,
+          [event.id],
+        ),
+      ]);
+
       // Klasyfikacja idzie z tabeli `leaderboard`, a nie z sumy match_points.
       //
       // Dwa powody. Po pierwsze `total_points` ma być tym samym, co pokazuje bot
@@ -612,194 +879,6 @@ export function registerEventRoutes(
       // Statystyki meczowe (skuteczność, trafieni zwycięzcy) zostają jako
       // uzupełnienie i są teraz doklejane LEFT JOIN-em, więc brak typów
       // meczowych daje zera zamiast wypadnięcia z listy.
-      const [rows] = await pool.query(
-        `
-    SELECT
-      lb.user_id,
-      -- user_profiles ma wiersz tylko dla osób, które logowały się na stronie.
-      -- Gracze typujący wyłącznie na Discordzie go nie mają, więc w rankingu
-      -- zakończonego turnieju wychodziło im surowe user_id zamiast nicku.
-      -- Ich nazwy leżą w tabelach faz, zapisane przy oddawaniu typu.
-      COALESCE(up.displayname, up.username, nazwy.nazwa, lb.user_id) AS displayname,
-      up.avatar,
-
-      COALESCE(lb.total_points, 0) AS total_points,
-
-      COALESCE(stats.total_predictions, 0) AS total_predictions,
-      COALESCE(stats.correct_winners, 0) AS correct_winners,
-
-      -- Rozbicie sumy na fazy. Wcześniej dawał je osobny endpoint
-      -- /api/public/events/:slug/leaderboard, którego front nigdy nie wołał -
-      -- utrzymywaliśmy dwa rankingi, z czego jeden martwy.
-      COALESCE(fazy.swiss_points, 0) AS swiss_points,
-      COALESCE(fazy.playoffs_points, 0) AS playoffs_points,
-      COALESCE(fazy.playin_points, 0) AS playin_points,
-      COALESCE(fazy.doubleelim_points, 0) AS doubleelim_points,
-      COALESCE(fazy.match_points, 0) AS match_points,
-      COALESCE(fazy.mvp_points, 0) AS mvp_points
-
-    FROM leaderboard lb
-
-    LEFT JOIN user_profiles up
-      ON up.user_id COLLATE utf8mb4_unicode_ci
-       = lb.user_id COLLATE utf8mb4_unicode_ci
-
-    -- Nazwa zapamiętana przy typowaniu, z dowolnej fazy tego eventu.
-    -- CAST + COLLATE musi objąć OBIE kolumny w KAŻDEJ gałęzi UNION - user_id
-    -- i nazwę - bo kolacje różnią się między tabelami i inaczej leci
-    -- ER_CANT_AGGREGATE_NCOLLATIONS.
-    LEFT JOIN (
-      SELECT user_id, MAX(nazwa) AS nazwa
-      FROM (
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS nazwa
-          FROM swiss_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM swiss_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM playoffs_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM playoffs_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM playin_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM playin_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM doubleelim_predictions WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci,
-               CAST(COALESCE(displayname, username) AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-          FROM doubleelim_scores WHERE event_id = ? AND COALESCE(displayname, username) IS NOT NULL
-      ) zrodla
-      GROUP BY user_id
-    ) nazwy
-      ON nazwy.user_id
-       = CAST(lb.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
-
-    LEFT JOIN (
-      SELECT
-        user_id,
-        SUM(swiss_points) AS swiss_points,
-        SUM(playoffs_points) AS playoffs_points,
-        SUM(playin_points) AS playin_points,
-        SUM(doubleelim_points) AS doubleelim_points,
-        SUM(match_points) AS match_points,
-        SUM(mvp_points) AS mvp_points
-      FROM (
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id, COALESCE(points,0) swiss_points, 0 playoffs_points, 0 playin_points, 0 doubleelim_points, 0 match_points, 0 mvp_points
-          FROM swiss_scores WHERE event_id = ?
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, COALESCE(points,0), 0, 0, 0, 0 FROM playoffs_scores WHERE event_id = ?
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, COALESCE(points,0), 0, 0, 0 FROM playin_scores WHERE event_id = ?
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, COALESCE(points,0), 0, 0 FROM doubleelim_scores WHERE event_id = ?
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, COALESCE(points,0), 0 FROM match_points WHERE event_id = ?
-        UNION ALL
-        SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci, 0, 0, 0, 0, 0, COALESCE(points,0) FROM mvp_scores WHERE event_id = ?
-      ) skladowe
-      GROUP BY user_id
-    ) fazy
-      ON fazy.user_id = lb.user_id COLLATE utf8mb4_unicode_ci
-
-    LEFT JOIN (
-      SELECT
-        mp.user_id,
-
-        COUNT(DISTINCT mp.match_id) AS total_predictions,
-
-        COUNT(
-          DISTINCT CASE
-            WHEN mr.match_id IS NOT NULL
-             AND (
-               (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
-               OR
-               (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
-             )
-            THEN mp.match_id
-            ELSE NULL
-          END
-        ) AS correct_winners
-
-      FROM match_predictions mp
-
-      LEFT JOIN match_results mr
-        ON mr.event_id = mp.event_id
-       AND mr.match_id = mp.match_id
-
-      WHERE mp.event_id = ?
-
-      GROUP BY mp.user_id
-    ) stats
-      ON stats.user_id COLLATE utf8mb4_unicode_ci
-       = lb.user_id COLLATE utf8mb4_unicode_ci
-
-    WHERE lb.event_id = ?
-
-    ORDER BY
-      total_points DESC,
-      correct_winners DESC,
-      lb.user_id ASC
-    `,
-        [
-          // nazwy z faz (8 tabel) - to zlaczenie stoi w SQL jako pierwsze
-          event.id, event.id, event.id, event.id,
-          event.id, event.id, event.id, event.id,
-          // rozbicie punktow na fazy (6 tabel)
-          event.id, event.id, event.id, event.id, event.id, event.id,
-          // statystyki meczowe
-          event.id,
-          // WHERE lb.event_id
-          event.id,
-        ],
-      );
-      const [pointBreakdownRows] = await pool.query(
-        `
-    SELECT
-      user_id,
-      COALESCE(
-        SUM(
-          CASE
-            WHEN source = 'series'
-            THEN points
-            ELSE 0
-          END
-        ),
-        0
-      ) AS series_points,
-
-      COALESCE(
-        SUM(
-          CASE
-            WHEN source = 'map'
-            THEN points
-            ELSE 0
-          END
-        ),
-        0
-      ) AS map_points
-
-    FROM match_points
-
-    WHERE event_id = ?
-
-    GROUP BY user_id
-    `,
-        [event.id],
-      );
 
       const pointBreakdownByUser = new Map(
         pointBreakdownRows.map((row) => [
@@ -811,55 +890,6 @@ export function registerEventRoutes(
         ]),
       );
 
-      const [mapStatsRows] = await pool.query(
-        `
-    SELECT
-      mmp.user_id,
-
-      COUNT(*) AS predicted_maps,
-
-      SUM(
-        CASE
-          WHEN mmr.match_id IS NOT NULL
-           AND (
-            (
-              mmp.pred_exact_a > mmp.pred_exact_b
-              AND mmr.exact_a > mmr.exact_b
-            )
-            OR
-            (
-              mmp.pred_exact_b > mmp.pred_exact_a
-              AND mmr.exact_b > mmr.exact_a
-            )
-           )
-          THEN 1
-          ELSE 0
-        END
-      ) AS correct_maps,
-
-      SUM(
-        CASE
-          WHEN mmr.match_id IS NOT NULL
-           AND mmp.pred_exact_a = mmr.exact_a
-           AND mmp.pred_exact_b = mmr.exact_b
-          THEN 1
-          ELSE 0
-        END
-      ) AS exact_maps
-
-    FROM match_map_predictions mmp
-
-    LEFT JOIN match_map_results mmr
-      ON mmr.event_id = mmp.event_id
-     AND mmr.match_id = mmp.match_id
-     AND mmr.map_no = mmp.map_no
-
-    WHERE mmp.event_id = ?
-
-    GROUP BY mmp.user_id
-    `,
-        [event.id],
-      );
 
       const mapStatsByUser = new Map(
         mapStatsRows.map((row) => [
