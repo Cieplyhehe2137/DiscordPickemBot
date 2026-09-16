@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { getPhaseResults } from "../lib/api.js";
+import { getPhaseResults, getScoring } from "../lib/api.js";
+import { pointsAt } from "../lib/scoring.js";
 import { markHits } from "../lib/teamPickHits.js";
 
 // Po zamknięciu fazy gracz widział wyłącznie swój zapisany typ - nigdzie na
@@ -66,8 +67,13 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
   );
 }
 
+// Stawki przychodzą z serwera, bo do tej pory stały tutaj wpisane wprost -
+// jedenaście liczb będących drugą kopią rules/scoring.js. Nagłówek tamtego
+// pliku opisuje, czym kończy się taka kopia: regulamin pokazywał 4/4/2 tam,
+// gdzie bot liczył 3/3/1, i nic tego nie zgłaszało.
 function PhaseResults({ slug, phase }) {
   const [dane, setDane] = useState(null);
+  const [stawki, setStawki] = useState(null);
   const [blad, setBlad] = useState("");
 
   useEffect(() => {
@@ -83,12 +89,30 @@ function PhaseResults({ slug, phase }) {
       }
     }
 
+    // Stawki idą osobnym torem i mają WŁASNY catch. Gdyby dzieliły los
+    // wyniku fazy, nieudany strzał po punktację chowałby cały oficjalny
+    // wynik - a wynik da się pokazać bez dopisku o punktach.
+    async function pobierzStawki() {
+      try {
+        const punktacja = await getScoring();
+
+        if (!anulowane) setStawki(punktacja?.scoring ?? null);
+      } catch (err) {
+        console.error("SCORING ERROR:", err);
+      }
+    }
+
     pobierz();
+    pobierzStawki();
 
     return () => {
       anulowane = true;
     };
   }, [slug, phase]);
+
+  // Brak stawki daje undefined, a Lista pomija wtedy dopisek "· X pkt"
+  // i zostawia samo "3/5 trafione". Lepsze niż liczba wzięta z powietrza.
+  const punkty = (sciezka) => pointsAt(stawki, sciezka) ?? undefined;
 
   if (blad || !dane?.published) {
     return null;
@@ -122,19 +146,19 @@ function PhaseResults({ slug, phase }) {
             tytul="Drużyny 3-0"
             wybrane={prediction?.three_zero}
             poprawne={results.three_zero}
-            punktyZa={4}
+            punktyZa={punkty("SWISS.PICK_3_0")}
           />
           <Lista
             tytul="Drużyny 0-3"
             wybrane={prediction?.zero_three}
             poprawne={results.zero_three}
-            punktyZa={4}
+            punktyZa={punkty("SWISS.PICK_0_3")}
           />
           <Lista
             tytul="Awansujące"
             wybrane={prediction?.advancing}
             poprawne={results.advancing}
-            punktyZa={2}
+            punktyZa={punkty("SWISS.ADVANCING")}
           />
         </>
       )}
@@ -145,19 +169,19 @@ function PhaseResults({ slug, phase }) {
             tytul="Półfinaliści"
             wybrane={prediction?.semifinalists}
             poprawne={results.semifinalists}
-            punktyZa={1}
+            punktyZa={punkty("PLAYOFFS.SEMIFINALIST")}
           />
           <Lista
             tytul="Finaliści"
             wybrane={prediction?.finalists}
             poprawne={results.finalists}
-            punktyZa={2}
+            punktyZa={punkty("PLAYOFFS.FINALIST")}
           />
           <Lista
             tytul="Zwycięzca"
             wybrane={prediction?.winner ? [prediction.winner] : []}
             poprawne={results.winner ? [results.winner] : []}
-            punktyZa={3}
+            punktyZa={punkty("PLAYOFFS.WINNER")}
           />
           <Lista
             tytul="3. miejsce"
@@ -169,7 +193,7 @@ function PhaseResults({ slug, phase }) {
             poprawne={
               results.third_place_winner ? [results.third_place_winner] : []
             }
-            punktyZa={2}
+            punktyZa={punkty("PLAYOFFS.THIRD_PLACE")}
           />
         </>
       )}
@@ -179,7 +203,7 @@ function PhaseResults({ slug, phase }) {
           tytul="Drużyny awansujące"
           wybrane={prediction?.teams}
           poprawne={results.teams}
-          punktyZa={1}
+          punktyZa={punkty("PLAY_IN.CORRECT_PICK")}
         />
       )}
 
@@ -189,25 +213,25 @@ function PhaseResults({ slug, phase }) {
             tytul="Upper Final A"
             wybrane={prediction?.upper_final_a}
             poprawne={results.upper_final_a}
-            punktyZa={1}
+            punktyZa={punkty("DOUBLE_ELIM.CORRECT_PICK")}
           />
           <Lista
             tytul="Lower Final A"
             wybrane={prediction?.lower_final_a}
             poprawne={results.lower_final_a}
-            punktyZa={1}
+            punktyZa={punkty("DOUBLE_ELIM.CORRECT_PICK")}
           />
           <Lista
             tytul="Upper Final B"
             wybrane={prediction?.upper_final_b}
             poprawne={results.upper_final_b}
-            punktyZa={1}
+            punktyZa={punkty("DOUBLE_ELIM.CORRECT_PICK")}
           />
           <Lista
             tytul="Lower Final B"
             wybrane={prediction?.lower_final_b}
             poprawne={results.lower_final_b}
-            punktyZa={1}
+            punktyZa={punkty("DOUBLE_ELIM.CORRECT_PICK")}
           />
         </>
       )}

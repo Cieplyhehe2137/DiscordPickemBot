@@ -1949,3 +1949,48 @@ main > .page-back {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* =========================================================
+   ZASADY PUNKTACJI
+   ========================================================= */
+
+.scoring-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Kreska ROZDZIELA wiersze, więc nad pierwszym jej nie ma - inaczej karta
+   dostaje drugą linię tuż pod nagłówkiem sekcji. */
+.scoring-rule:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.scoring-rule:last-child {
+  padding-bottom: 0;
+}
+
+/* Opis zajmuje resztę wiersza, ale poniżej 260 px zawija się pod stawkę
+   zamiast ściskać ją do szerokości jednej cyfry. min-width pozwala dłuższej
+   nazwie w ogóle się złamać - element flexa domyślnie nie schodzi poniżej
+   szerokości swojej treści. */
+.scoring-rule__text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Wyjaśnienie zasady na --text-muted, nie na --text-faint: to jest treść
+   regulaminu, a nie podpis pod liczbą. */
+.scoring-rule__hint {
+  display: block;
+  margin-top: var(--space-1);
+
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

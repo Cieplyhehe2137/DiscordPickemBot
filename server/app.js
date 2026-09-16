@@ -37,6 +37,7 @@ import { registerMatchExactRoutes } from "./routes/matchExact.js";
 import { registerPlayerProfileRoutes } from "./routes/playerProfile.js";
 import { registerHeadToHeadRoutes } from "./routes/headToHead.js";
 import { registerTeamRoutes } from "./routes/teams.js";
+import { registerScoringRoutes } from "./routes/scoring.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
@@ -73,6 +74,11 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const calculateScores = require("../handlers/matches/calculateScores");
+// Stałe punktowe z korzenia repozytorium. Serwer jest modułem ESM, a rules/
+// leży w pakiecie CommonJS - stąd createRequire, tak samo jak przy utils/
+// i handlers/ wyżej. Kopia tych liczb w server/ byłaby drugim źródłem prawdy,
+// czyli tym samym błędem, który ta trasa ma zlikwidować.
+const SCORING = require("../rules/scoring");
 const {
   assertPredictionsAllowed,
   normalizePhase,
@@ -384,6 +390,13 @@ registerVisitRoutes(app, { pool });
 // Trasa szczegolu (/api/public/teams/:name) ma dwa segmenty i nie
 // kolidowala; dlatego dzialala, kiedy lista juz nie.
 registerTeamRoutes(app, { pool });
+
+// Punktacja (server/routes/scoring.js). Ta sama pułapka co przy drużynach:
+// /api/public/scoring ma JEDEN segment po /api/public/, więc łapie ją trasa
+// /api/public/:guildSlug rejestrowana w środku registerPickemConfigRoutes.
+// Przy odwrotnej kolejności strona z zasadami dostałaby pustą stronę serwera
+// o nazwie "scoring" i kod 200 - bez śladu błędu.
+registerScoringRoutes(app, { scoring: SCORING });
 
 registerAuthRoutes(app, {
   pool,

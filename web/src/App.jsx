@@ -18,6 +18,8 @@ import HeadToHeadPage from "./pages/HeadToHeadPage.jsx";
 import TeamsPage from "./pages/TeamsPage.jsx";
 import TeamPage from "./pages/TeamPage.jsx";
 
+import ScoringPage from "./pages/ScoringPage.jsx";
+
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
 import PlayoffsPickemPage from "./pages/PlayoffsPickemPage.jsx";
@@ -40,6 +42,9 @@ function App() {
         <Route path="/teams" element={<TeamsPage />} />
 
         <Route path="/teams/:name" element={<TeamPage />} />
+
+        {/* RULES */}
+        <Route path="/scoring" element={<ScoringPage />} />
 
         {/* MATCHES */}
         <Route path="/events/:slug/matches" element={<MatchesPage />} />
