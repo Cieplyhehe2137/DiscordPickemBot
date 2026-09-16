@@ -19,21 +19,6 @@ export function registerEventStatsRoutes(
     try {
       const { slug } = req.params;
 
-      const [[event]] = await pool.query(
-        `
-        SELECT id
-        FROM events
-        WHERE slug = ?
-        LIMIT 1
-        `,
-        [slug],
-      );
-
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-        });
-      }
 
       /*
        * JEDNA FALA ZAMIAST JEDENASTU PODROZY.
@@ -52,7 +37,20 @@ export function registerEventStatsRoutes(
        * podmienia wyniki miejscami, a kazdy z nich to wiarygodnie wygladajaca
        * liczba. Dopisujac nowe zapytanie, dopisz je na KONCU obu list.
        */
+      /*
+       * ODCZYT TURNIEJU IDZIE RAZEM Z RESZTA.
+       *
+       * Stal wyzej wylacznie po to, zeby zamienic slug na event.id, i placil
+       * za to pelna podroz do bazy - zmierzone na serwerze 177 ms, dziesiec
+       * prob, zerowy rozrzut. Pozostale zapytania biora turniej
+       * podzapytaniem po slugu, ktore kosztuje tyle co nic.
+       *
+       * Wiersz turnieju jest dalej potrzebny (event.guild_id przy bramce
+       * i terminach, nazwy przy dociaganiu graczy) - tylko przyjezdza teraz
+       * razem z reszta, a nie przed nia.
+       */
       const [
+        [[event]],
         [[predictionStats]],
         [[mapPredictionStats]],
         [[pointsStats]],
@@ -66,22 +64,32 @@ export function registerEventStatsRoutes(
       ] = await Promise.all([
         pool.query(
           `
+          SELECT id, guild_id
+          FROM events
+          WHERE slug = ?
+          LIMIT 1
+          `,
+          [slug],
+        ),
+
+        pool.query(
+          `
           SELECT
             COUNT(DISTINCT user_id) AS participants,
             COUNT(*) AS total_predictions
           FROM match_predictions
-          WHERE event_id = ?
+          WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
           SELECT
             COUNT(*) AS total_map_predictions
           FROM match_map_predictions
-          WHERE event_id = ?
+          WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -93,11 +101,11 @@ export function registerEventStatsRoutes(
               user_id,
               SUM(points) AS player_points
             FROM match_points
-            WHERE event_id = ?
+            WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
             GROUP BY user_id
           ) scores
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -119,7 +127,7 @@ export function registerEventStatsRoutes(
             ON up.user_id COLLATE utf8mb4_unicode_ci
              = mp.user_id COLLATE utf8mb4_unicode_ci
 
-          WHERE mp.event_id = ?
+          WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
           GROUP BY
             mp.user_id,
@@ -132,7 +140,7 @@ export function registerEventStatsRoutes(
 
           LIMIT 1
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -145,11 +153,11 @@ export function registerEventStatsRoutes(
            AND mmr.match_id = mmp.match_id
            AND mmr.map_no = mmp.map_no
 
-          WHERE mmp.event_id = ?
+          WHERE mmp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
             AND mmp.pred_exact_a = mmr.exact_a
             AND mmp.pred_exact_b = mmr.exact_b
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -176,7 +184,7 @@ export function registerEventStatsRoutes(
             ON up.user_id COLLATE utf8mb4_unicode_ci
              = mmp.user_id COLLATE utf8mb4_unicode_ci
 
-          WHERE mmp.event_id = ?
+          WHERE mmp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
             AND mmp.pred_exact_a = mmr.exact_a
             AND mmp.pred_exact_b = mmr.exact_b
 
@@ -191,7 +199,7 @@ export function registerEventStatsRoutes(
 
           LIMIT 1
           `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -244,7 +252,7 @@ export function registerEventStatsRoutes(
         ON up.user_id COLLATE utf8mb4_unicode_ci
          = mp.user_id COLLATE utf8mb4_unicode_ci
 
-      WHERE mp.event_id = ?
+      WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
       GROUP BY
         mp.user_id,
@@ -257,7 +265,7 @@ export function registerEventStatsRoutes(
           (
             SELECT COUNT(DISTINCT mr2.match_id)
             FROM match_results mr2
-            WHERE mr2.event_id = ?
+            WHERE mr2.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
           ) * 0.5
         )
       )
@@ -270,7 +278,7 @@ export function registerEventStatsRoutes(
 
       LIMIT 1
       `,
-          [event.id, event.id],
+          [slug, slug],
         ),
         pool.query(
           `
@@ -291,7 +299,7 @@ export function registerEventStatsRoutes(
           ON m.id = mp.match_id
          AND m.event_id = mp.event_id
 
-        WHERE mp.event_id = ?
+        WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
       ) picks
 
       WHERE picked_team IS NOT NULL
@@ -304,7 +312,7 @@ export function registerEventStatsRoutes(
 
       LIMIT 1
       `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -348,7 +356,7 @@ export function registerEventStatsRoutes(
         ON mr.event_id = m.event_id
        AND mr.match_id = m.id
 
-      WHERE m.event_id = ?
+      WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
       GROUP BY
         m.id,
@@ -360,7 +368,7 @@ export function registerEventStatsRoutes(
         m.lock_override,
         mr.match_id
       `,
-          [event.id],
+          [slug],
         ),
         pool.query(
           `
@@ -399,7 +407,7 @@ export function registerEventStatsRoutes(
         ON mp.event_id = m.event_id
        AND mp.match_id = m.id
 
-      WHERE m.event_id = ?
+      WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
 
       GROUP BY
         m.id,
@@ -409,9 +417,15 @@ export function registerEventStatsRoutes(
         mr.res_a,
         mr.res_b
       `,
-          [event.id],
+          [slug],
         ),
       ]);
+
+      if (!event) {
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+        });
+      }
 
       /*
        * Uczestnicy + liczba typów meczów
@@ -440,6 +454,48 @@ export function registerEventStatsRoutes(
 
 
 
+      /*
+       * Bramka i terminy liczone RAZ, a nie w kazdym obrocie petli.
+       *
+       * Obie funkcje pytaja baze. Stoja w petli po wszystkich meczach
+       * turnieju, a zadna z nich nie zalezy od meczu: bramka zalezy od
+       * serwera i jest identyczna za kazdym razem, termin zalezy od fazy.
+       *
+       * Przy turnieju zakonczonym kazdy mecz jest rozstrzygniety, wiec
+       * warunek je omija i nie widac tego w pomiarach. Przy turnieju
+       * TRWAJACYM - czyli wtedy, gdy na stronie jest ruch - kazdy otwarty
+       * mecz kosztowal dwie osobne podroze do bazy po 177 ms. Dwadziescia
+       * otwartych meczow to siedem sekund samego czekania.
+       *
+       * Liczone LENIWIE: turniej bez otwartych meczow nie wykonuje ani
+       * jednego dodatkowego zapytania, czyli zachowuje sie jak dotad.
+       */
+      let bramkaMeczy = null;
+
+      const bramka = async () => {
+        if (!bramkaMeczy) {
+          bramkaMeczy = await assertPredictionsAllowed({
+            guildId: event.guild_id,
+            kind: "MATCHES",
+          });
+        }
+
+        return bramkaMeczy;
+      };
+
+      const terminy = new Map();
+
+      const termin = async (faza) => {
+        if (!terminy.has(faza)) {
+          terminy.set(
+            faza,
+            await isMatchDeadlinePassed(pool, event.guild_id, faza),
+          );
+        }
+
+        return terminy.get(faza);
+      };
+
       const balancedCandidates = [];
 
       for (const row of balancedMatchRows) {
@@ -447,10 +503,7 @@ export function registerEventStatsRoutes(
         let forceOpen = false;
 
         if (!locked) {
-          const gate = await assertPredictionsAllowed({
-            guildId: event.guild_id,
-            kind: "MATCHES",
-          });
+          const gate = await bramka();
 
           if (!gate.allowed) {
             locked = true;
@@ -477,11 +530,7 @@ export function registerEventStatsRoutes(
           const matchPanelPhase = matchPanelPhaseFor(row.phase);
 
           if (matchPanelPhase) {
-            const { passed } = await isMatchDeadlinePassed(
-              pool,
-              event.guild_id,
-              matchPanelPhase,
-            );
+            const { passed } = await termin(matchPanelPhase);
 
             if (passed) {
               locked = true;
