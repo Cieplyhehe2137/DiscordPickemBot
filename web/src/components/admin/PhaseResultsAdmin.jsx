@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Ladowanie from "../../components/Ladowanie.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 
 import {
   getSwissResults,
@@ -28,9 +29,9 @@ const FAZY = {
   stage1: {
     etykieta: "Swiss Stage 1",
     grupy: [
-      { klucz: "x3_0", etykieta: "Drużyny 3-0", limit: 2 },
-      { klucz: "x0_3", etykieta: "Drużyny 0-3", limit: 2 },
-      { klucz: "advancing", etykieta: "Awansujące", limit: 6 },
+      { klucz: "x3_0", kluczNapisu: "phaseResults.teams30", limit: 2 },
+      { klucz: "x0_3", kluczNapisu: "phaseResults.teams03", limit: 2 },
+      { klucz: "advancing", kluczNapisu: "phaseResults.advancing", limit: 6 },
     ],
   },
   stage2: { etykieta: "Swiss Stage 2", grupy: null },
@@ -38,16 +39,22 @@ const FAZY = {
 
   playin: {
     etykieta: "Play-In",
-    grupy: [{ klucz: "teams", etykieta: "Drużyny awansujące", limit: 8 }],
+    grupy: [
+      { klucz: "teams", kluczNapisu: "phaseResults.advancingTeams", limit: 8 },
+    ],
   },
 
   playoffs: {
     etykieta: "Playoffs",
     grupy: [
-      { klucz: "semifinalists", etykieta: "Półfinaliści", limit: 4 },
-      { klucz: "finalists", etykieta: "Finaliści", limit: 2 },
-      { klucz: "winner", etykieta: "Zwycięzca", limit: 1 },
-      { klucz: "third", etykieta: "3. miejsce (opcjonalnie)", limit: 1 },
+      {
+        klucz: "semifinalists",
+        kluczNapisu: "phaseResults.semifinalists",
+        limit: 4,
+      },
+      { klucz: "finalists", kluczNapisu: "phaseResults.finalists", limit: 2 },
+      { klucz: "winner", kluczNapisu: "phaseResults.winner", limit: 1 },
+      { klucz: "third", kluczNapisu: "admin.group.thirdOptional", limit: 1 },
     ],
   },
 
@@ -123,6 +130,8 @@ async function pobierzWyniki(slug, faza) {
 }
 
 function PhaseResultsAdmin({ slug, teams }) {
+  const t = useT();
+
   const [faza, setFaza] = useState("stage1");
   const [wartosci, setWartosci] = useState({});
 
@@ -155,7 +164,7 @@ function PhaseResultsAdmin({ slug, teams }) {
 
         if (anulowane) return;
 
-        setBlad(err.message || "Nie udało się wczytać wyników fazy.");
+        setBlad(err.message || t("admin.results.loadError"));
         setWartosci({});
       } finally {
         if (!anulowane) setZaladowanaFaza(faza);
@@ -165,7 +174,7 @@ function PhaseResultsAdmin({ slug, teams }) {
     return () => {
       anulowane = true;
     };
-  }, [slug, faza]);
+  }, [slug, faza, t]);
 
   function przelacz(klucz, nazwa, limit) {
     setKomunikat("");
@@ -202,10 +211,10 @@ function PhaseResultsAdmin({ slug, teams }) {
       else await saveDoubleElimResults(slug, payload);
 
       setKomunikat(
-        `Zapisano wyniki: ${konfiguracja.etykieta}. Punkty przeliczą się po kliknięciu „Przelicz punkty”.`,
+        t("admin.results.saved", { phase: konfiguracja.etykieta }),
       );
     } catch (err) {
-      setBlad(err.message || "Nie udało się zapisać wyników.");
+      setBlad(err.message || t("admin.results.saveError"));
     } finally {
       setZapisywanie(false);
     }
@@ -218,9 +227,9 @@ function PhaseResultsAdmin({ slug, teams }) {
 
     try {
       await recalculateScores(slug);
-      setKomunikat("Punkty przeliczone, ranking odświeżony.");
+      setKomunikat(t("admin.results.recalcDone"));
     } catch (err) {
-      setBlad(err.message || "Nie udało się przeliczyć punktów.");
+      setBlad(err.message || t("admin.results.recalcError"));
     } finally {
       setPrzeliczanie(false);
     }
@@ -242,7 +251,7 @@ function PhaseResultsAdmin({ slug, teams }) {
         ))}
       </div>
 
-      {ladowanie && <Ladowanie>Wczytywanie wyników...</Ladowanie>}
+      {ladowanie && <Ladowanie>{t("admin.results.loading")}</Ladowanie>}
 
       {!ladowanie &&
         konfiguracja.grupy.map((grupa) => {
@@ -254,7 +263,7 @@ function PhaseResultsAdmin({ slug, teams }) {
               key={grupa.klucz}
             >
               <h4>
-                {grupa.etykieta}
+                {t(grupa.kluczNapisu)}
                 <span className="ui-count">
                   {wybrane.length}/{grupa.limit}
                 </span>
@@ -289,7 +298,7 @@ function PhaseResultsAdmin({ slug, teams }) {
           onClick={zapisz}
           disabled={zapisywanie || ladowanie}
         >
-          {zapisywanie ? "Zapisywanie..." : "Zapisz wyniki fazy"}
+          {zapisywanie ? t("admin.saving") : t("admin.results.save")}
         </button>
 
         <button
@@ -298,7 +307,9 @@ function PhaseResultsAdmin({ slug, teams }) {
           onClick={przelicz}
           disabled={przeliczanie}
         >
-          {przeliczanie ? "Przeliczanie..." : "⭐ Przelicz punkty"}
+          {przeliczanie
+            ? t("admin.recalcing")
+            : `⭐ ${t("admin.recalc")}`}
         </button>
       </div>
 

@@ -692,6 +692,7 @@ export function registerPlayerProfileRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 

@@ -44,27 +44,39 @@ export function requireGuildAdmin(resolveGuildId) {
     const user = req.session?.user;
 
     if (!user) {
-      return res.status(401).json({ error: "Musisz być zalogowany." });
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+        code: "server.mustLogin",
+      });
     }
 
     try {
       const guildId = await resolveGuildId(req);
 
       if (!guildId) {
-        return res.status(404).json({ error: "Nie znaleziono." });
+        return res.status(404).json({
+          error: "Nie znaleziono.",
+          code: "server.notFound",
+        });
       }
 
       if (!hasAdminPermission(user, guildId)) {
         return res
           .status(403)
-          .json({ error: "Wymagane uprawnienia administratora na tym serwerze." });
+          .json({
+            error: "Wymagane uprawnienia administratora na tym serwerze.",
+            code: "server.needAdmin",
+          });
       }
 
       req.guildId = String(guildId);
       next();
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Nie udało się zweryfikować uprawnień." });
+      res.status(500).json({
+        error: "Nie udało się zweryfikować uprawnień.",
+        code: "server.permissionCheckFailed",
+      });
     }
   };
 }

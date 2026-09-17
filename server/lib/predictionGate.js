@@ -13,6 +13,13 @@
 //
 // Zaleznosci argumentem, zeby obie dalo sie sprawdzic bez bazy i bez Discorda.
 
+import { codeForDefault } from "./messageCode.js";
+
+// Zdania zapasowe stoja tu jako stale razem ze swoimi kodami: to samo
+// zdanie idzie do `lock_reason`, a jego kod do `lock_reason_code`, i nie
+// da sie zmienic jednego bez drugiego.
+const ZAMKNIETE_MECZE = "Typowanie meczów jest aktualnie zamknięte.";
+
 export function createPredictionGate({
   pool,
   assertPredictionsAllowed,
@@ -39,17 +46,22 @@ export function createPredictionGate({
         ...base,
         predictions_allowed: false,
         lock_reason: "Mecz został zakończony.",
+        lock_reason_code: "server.lock.matchFinished",
         ui_status: "FINAL",
       };
     }
 
     if (!gate.allowed) {
+      const powodGate = toWebMessage(gate.message, ZAMKNIETE_MECZE);
+
       return {
         ...base,
         predictions_allowed: false,
-        lock_reason: toWebMessage(
-          gate.message,
-          "Typowanie meczów jest aktualnie zamknięte.",
+        lock_reason: powodGate,
+        lock_reason_code: codeForDefault(
+          powodGate,
+          ZAMKNIETE_MECZE,
+          "server.lock.matchesClosed",
         ),
         ui_status: "LOCKED",
       };
@@ -60,6 +72,7 @@ export function createPredictionGate({
         ...base,
         predictions_allowed: false,
         lock_reason: "Mecz jest zablokowany.",
+        lock_reason_code: "server.lock.matchLocked",
         ui_status: "LOCKED",
       };
     }
@@ -81,6 +94,7 @@ export function createPredictionGate({
           ...base,
           predictions_allowed: false,
           lock_reason: "Deadline typowania wyników meczów dla tej fazy minął.",
+          lock_reason_code: "server.matchDeadlinePassed",
           ui_status: "LOCKED",
         };
       }
@@ -90,6 +104,7 @@ export function createPredictionGate({
       ...base,
       predictions_allowed: true,
       lock_reason: null,
+      lock_reason_code: null,
       ui_status: "OPEN",
     };
   }
@@ -113,6 +128,7 @@ export function createPredictionGate({
       return {
         allowed: false,
         message: "Deadline typowania dla tej fazy minął.",
+        code: "server.phaseDeadlinePassed",
       };
     }
 

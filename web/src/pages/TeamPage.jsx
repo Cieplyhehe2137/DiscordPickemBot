@@ -6,7 +6,7 @@ import Ladowanie from "../components/Ladowanie.jsx";
 import TeamCrest from "../components/TeamCrest.jsx";
 import { getTeam } from "../lib/api.js";
 import { humanPhase } from "../lib/phaseLabels.js";
-import { odmien } from "../lib/odmiana.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Pojedyncza drużyna: bilans, zaufanie społeczności i historia meczów.
 //
@@ -24,6 +24,8 @@ const WYNIK_KLASA = {
 };
 
 function Mecz({ mecz }) {
+  const t = useT();
+
   // Stronę meczu podaje serwer. Wyliczanie jej tutaj z porównania nazw
   // byłoby błędne: nazwa wyświetlana bywa innym zapisem niż ten w meczu
   // ("FUT Esports" wobec "FUT"), więc porównanie wypadałoby odwrotnie
@@ -53,7 +55,7 @@ function Mecz({ mecz }) {
         </Link>
 
         <span className="ui-stat__hint">
-          {mecz.event_name} · {humanPhase(mecz.phase)}
+          {mecz.event_name} · {humanPhase(mecz.phase, t)}
         </span>
       </div>
 
@@ -62,17 +64,21 @@ function Mecz({ mecz }) {
           {nasze}:{ich}
         </strong>
       ) : (
-        <span className="ui-badge ui-badge--warn">Bez wyniku</span>
+        <span className="ui-badge ui-badge--warn">{t("team.noScore")}</span>
       )}
 
       <span className="team-match__trust">
-        {procent === null ? "—" : `${procent}% typów`}
+        {procent === null
+          ? "—"
+          : t("common.picksPercent", { percent: procent })}
       </span>
     </div>
   );
 }
 
 function TeamPage() {
+  const t = useT();
+
   const { name } = useParams();
 
   const [dane, setDane] = useState(null);
@@ -92,7 +98,7 @@ function TeamPage() {
         if (!anulowane) setDane(odp);
       } catch (err) {
         if (!anulowane) {
-          setError(err.message || "Nie udało się wczytać drużyny.");
+          setError(err.message || t("team.errorText"));
         }
       } finally {
         if (!anulowane) setLoading(false);
@@ -104,12 +110,12 @@ function TeamPage() {
     return () => {
       anulowane = true;
     };
-  }, [name]);
+  }, [name, t]);
 
   if (loading) {
     return (
       <main className="ui-page">
-        <Ladowanie>Wczytuję drużynę...</Ladowanie>
+        <Ladowanie>{t("team.loading")}</Ladowanie>
       </main>
     );
   }
@@ -117,16 +123,14 @@ function TeamPage() {
   if (error) {
     return (
       <main className="ui-page">
-        <BackLink to="/teams">Wróć do drużyn</BackLink>
+        <BackLink to="/teams">{t("team.backToTeams")}</BackLink>
 
         <div className="ui-error">
           <span className="ui-error__icon" aria-hidden="true">
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać drużyny
-          </strong>
+          <strong className="ui-error__title">{t("team.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -138,28 +142,29 @@ function TeamPage() {
 
   return (
     <main className="ui-page">
-      <BackLink to="/teams">Wróć do drużyn</BackLink>
+      <BackLink to="/teams">{t("team.backToTeams")}</BackLink>
 
       <section className="ui-card ui-stack">
         <div className="ui-row ui-row--wrap">
           <TeamCrest name={team.name} logo={team.logo} size="team-crest--xl" />
 
           <div>
-            <span className="ui-kicker">Drużyna</span>
+            <span className="ui-kicker">{t("team.kicker")}</span>
 
             <h2>{team.name}</h2>
 
             <p className="ui-stat__hint">
-              {team.matches} {odmien(team.matches, "mecz", "mecze", "meczów")}{" "}
-              w {team.events}{" "}
-              {odmien(team.events, "turnieju", "turniejach", "turniejach")}
+              {t("team.played", {
+                count: team.matches,
+                events: t("team.inEvents", { count: team.events }),
+              })}
             </p>
           </div>
         </div>
 
         <div className="ui-stats ui-stats--4">
           <div className="ui-stat ui-stat--featured">
-            <span>Bilans</span>
+            <span>{t("team.record")}</span>
 
             <strong>
               {team.wins}–{team.losses}
@@ -167,33 +172,33 @@ function TeamPage() {
 
             <small>
               {team.win_rate === null
-                ? "brak rozegranych meczów"
-                : `${team.win_rate}% wygranych`}
+                ? t("team.noPlayed")
+                : t("team.winRate", { percent: team.win_rate })}
             </small>
           </div>
 
           <div className="ui-stat">
-            <span>Zaufanie</span>
+            <span>{t("team.trust")}</span>
 
             <strong>{team.trust === null ? "—" : `${team.trust}%`}</strong>
 
-            <small>typów stawiało na nią</small>
+            <small>{t("team.trustHint")}</small>
           </div>
 
           <div className="ui-stat">
-            <span>Skutek zaufania</span>
+            <span>{t("team.trustHit")}</span>
 
             <strong>
               {team.trust_hit === null ? "—" : `${team.trust_hit}%`}
             </strong>
 
-            <small>tych typów się sprawdziło</small>
+            <small>{t("team.trustHitHint")}</small>
           </div>
 
           <div className="ui-stat">
-            <span>Typów łącznie</span>
+            <span>{t("team.picksTotal")}</span>
             <strong>{team.picks_for}</strong>
-            <small>na {team.picks_total} w jej meczach</small>
+            <small>{t("team.picksOf", { total: team.picks_total })}</small>
           </div>
         </div>
       </section>
@@ -201,19 +206,16 @@ function TeamPage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Mecze</span>
+            <span className="ui-kicker">{t("team.matches")}</span>
 
-            <h2>Historia</h2>
+            <h2>{t("team.history")}</h2>
 
-            <p>
-              Procent przy meczu to udział typów, które stawiały na tę
-              drużynę.
-            </p>
+            <p>{t("team.historyHint")}</p>
           </div>
         </div>
 
         {matches.length === 0 ? (
-          <p className="ui-hint">Ta drużyna nie ma jeszcze rozpisanych meczów.</p>
+          <p className="ui-hint">{t("team.noMatches")}</p>
         ) : (
           <div className="ui-stack ui-stack--tight">
             {matches.map((mecz) => (

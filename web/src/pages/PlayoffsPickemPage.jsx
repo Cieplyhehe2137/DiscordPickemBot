@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
 
 import { getPlayoffsPickem, savePlayoffsPickem } from "../lib/api.js";
-import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 import { useToast } from "../components/ui/useToast.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
@@ -12,6 +13,8 @@ import PickCounter from "../components/PickCounter.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function PlayoffsPickemPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const { user, authLoading } = useAuth();
   const toast = useToast();
@@ -66,14 +69,14 @@ function PlayoffsPickemPage() {
         }
       } catch (err) {
         console.error("PLAYOFFS PICKEM ERROR:", err);
-        setError(err.message || "Nie udało się pobrać Playoffs Pick'Em.");
+        setError(err.message || t("pickem.playoffs.loadError"));
       } finally {
         setLoading(false);
       }
     }
 
     loadPlayoffsPickem();
-  }, [slug]);
+  }, [slug, t]);
 
   async function handleSave() {
     try {
@@ -94,11 +97,11 @@ function PlayoffsPickemPage() {
         prediction,
       }));
 
-      toast.success(SAVED_MESSAGE);
+      toast.success(t("pickem.saved"));
     } catch (err) {
       console.error("PLAYOFFS SAVE ERROR:", err);
 
-      setSaveError(err.message || "Nie udało się zapisać typów.");
+      setSaveError(err.message || t("pickem.saveError"));
     } finally {
       setSaving(false);
     }
@@ -107,7 +110,11 @@ function PlayoffsPickemPage() {
   if (loading) {
     return (
       <main className="ui-page">
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("pickem.loading")}
+        >
           <div className="ui-skeleton ui-skeleton--row" />
 
           <div className="ui-skeleton ui-skeleton--row" />
@@ -124,9 +131,7 @@ function PlayoffsPickemPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać fazy
-          </strong>
+          <strong className="ui-error__title">{t("pickem.loadError")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -142,29 +147,32 @@ function PlayoffsPickemPage() {
 
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Faza pucharowa</span>
+          <span className="ui-kicker">{t("pickem.playoffs.kicker")}</span>
 
           <h2>Playoffs Pick&apos;Em</h2>
 
-          <p>
-            Typuj drabinkę po kolei: półfinalistów, finalistów, mistrza i
-            trzecie miejsce. Każdy krok zawęża wybór w następnym.
-          </p>
+          <p>{t("pickem.playoffs.intro")}</p>
         </div>
 
         {!user ? (
-          <span className="ui-badge ui-badge--warn">Wymaga logowania</span>
+          <span className="ui-badge ui-badge--warn">
+            {t("pickem.loginRequired")}
+          </span>
         ) : data?.lock?.allowed ? (
-          <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+          <span className="ui-badge ui-badge--ok">{t("matchState.open")}</span>
         ) : (
-          <span className="ui-badge ui-badge--warn">Typowanie zamknięte</span>
+          <span className="ui-badge ui-badge--warn">
+            {t("matchState.locked")}
+          </span>
         )}
       </div>
 
       <PhaseFormat faza="playoffs" limity={data?.limity} />
 
       {!data?.lock?.allowed && data?.lock?.message && (
-        <p className="ui-note ui-note--warn">🔒 {data.lock.message}</p>
+        <p className="ui-note ui-note--warn">
+          🔒 {translateApiMessage(data.lock.code, data.lock.message)}
+        </p>
       )}
 
       {!authLoading && !user && (
@@ -183,9 +191,9 @@ function PlayoffsPickemPage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Krok 1</span>
+            <span className="ui-kicker">{t("pickem.step", { no: 1 })}</span>
 
-            <h3>Półfinaliści</h3>
+            <h3>{t("phaseResults.semifinalists")}</h3>
           </div>
         </div>
 
@@ -240,14 +248,14 @@ function PlayoffsPickemPage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Krok 2</span>
+            <span className="ui-kicker">{t("pickem.step", { no: 2 })}</span>
 
-            <h3>Finaliści</h3>
+            <h3>{t("phaseResults.finalists")}</h3>
           </div>
         </div>
 
         {semifinalists.length === 0 ? (
-          <p className="ui-note">Najpierw wybierz półfinalistów.</p>
+          <p className="ui-note">{t("pickem.playoffs.needSemis")}</p>
         ) : (
           <>
             <PickCounter selected={finalists.length} limit={limitFinal} />
@@ -299,9 +307,9 @@ function PlayoffsPickemPage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Krok 3</span>
+            <span className="ui-kicker">{t("pickem.step", { no: 3 })}</span>
 
-            <h3>Zwycięzca</h3>
+            <h3>{t("phaseResults.winner")}</h3>
           </div>
 
           {winner && (
@@ -310,7 +318,7 @@ function PlayoffsPickemPage() {
         </div>
 
         {finalists.length === 0 ? (
-          <p className="ui-note">Najpierw wybierz finalistów.</p>
+          <p className="ui-note">{t("pickem.playoffs.needFinalists")}</p>
         ) : (
           <div className="ui-choice ui-choice--grid">
             {finalists.map((teamName) => {
@@ -339,9 +347,9 @@ function PlayoffsPickemPage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Krok 4</span>
+            <span className="ui-kicker">{t("pickem.step", { no: 4 })}</span>
 
-            <h3>3. miejsce</h3>
+            <h3>{t("phaseResults.thirdPlace")}</h3>
           </div>
 
           {thirdPlaceWinner && (
@@ -350,7 +358,7 @@ function PlayoffsPickemPage() {
         </div>
 
         {semifinalists.length === 0 ? (
-          <p className="ui-note">Najpierw wybierz półfinalistów.</p>
+          <p className="ui-note">{t("pickem.playoffs.needSemis")}</p>
         ) : (
           <div className="ui-choice ui-choice--grid">
             {semifinalists.map((teamName) => {

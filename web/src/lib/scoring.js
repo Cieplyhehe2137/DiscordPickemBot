@@ -2,8 +2,9 @@
 //
 // Liczb NIE MA w tym pliku. Wszystkie przychodzą z /api/public/scoring, czyli
 // z rules/scoring.js - tego samego modułu, którym bot liczy ranking. Tutaj
-// zostaje wyłącznie to, czego serwer nie wie: jak te stawki nazwać po polsku
-// i w jakiej kolejności je pokazać.
+// zostaje wyłącznie to, czego serwer nie wie: jak te stawki nazwać i w jakiej
+// kolejności je pokazać. Nazwy to KLUCZE słownika, nie gotowe zdania - strona
+// istnieje w pięciu językach, a stawki są w każdym te same.
 //
 // Powód takiego podziału stoi w nagłówku rules/scoring.js. Ten sam komplet
 // stawek stał już kiedyś w dwóch miejscach naraz i rozjechał się cicho -
@@ -46,117 +47,143 @@ export function pointsAt(scoring, path) {
 export const SECTIONS = [
   {
     key: "match",
-    title: "Mecze",
-    lead:
-      "Każdy mecz w turnieju. Punkty za serię i punkty za mapy sumują się - " +
-      "to są dwie osobne rzeczy, nie alternatywa.",
+    titleKey: "scoring.match.title",
+    leadKey: "scoring.match.lead",
 
     rows: [
       {
         path: "MATCH.WINNER",
-        label: "Trafiony zwycięzca serii",
-        hint:
-          "Dokładny wynik serii nie daje nic ponad to. Typ 2:0 i typ 2:1 " +
-          "są warte tyle samo, o ile wskazują tę samą drużynę.",
+        labelKey: "scoring.matchWinner.label",
+        hintKey: "scoring.matchWinner.hint",
       },
     ],
   },
 
   {
     key: "maps",
-    title: "Mapy",
-    lead:
-      "Liczone osobno dla KAŻDEJ mapy w serii. Warunek wstępny: trzeba " +
-      "trafić zwycięzcę mapy - bez tego bliski wynik nie daje nic. " +
-      "Potem liczy się łączne odchylenie od wyniku, czyli różnica rund po " +
-      "jednej stronie plus różnica po drugiej.",
+    titleKey: "scoring.maps.title",
+    leadKey: "scoring.maps.lead",
 
     rows: [
       {
         path: "MAP.EXACT",
-        label: "Dokładny wynik mapy",
-        hint: "Odchylenie 0 rund.",
+        labelKey: "scoring.mapExact.label",
+        hintKey: "scoring.mapExact.hint",
       },
 
       {
         path: "MAP.DIFF_1",
-        label: "Odchylenie o 1 rundę",
-        hint: "Na przykład typ 13:10 przy wyniku 13:11.",
+        labelKey: "scoring.mapDiff1.label",
+        hintKey: "scoring.mapDiff1.hint",
       },
 
       {
         path: "MAP.DIFF_2",
-        label: "Odchylenie o 2 rundy",
-        hint: null,
+        labelKey: "scoring.mapDiff2.label",
+        hintKey: null,
       },
 
       {
         path: "MAP.MISS",
-        label: "Większe odchylenie albo zły zwycięzca mapy",
-        hint: null,
+        labelKey: "scoring.mapMiss.label",
+        hintKey: null,
       },
     ],
   },
 
   {
     key: "swiss",
-    title: "Swiss",
-    lead: "Punkty naliczają się za każdą trafioną drużynę osobno.",
+    titleKey: "phase.swiss",
+    leadKey: "scoring.perTeam.lead",
 
     rows: [
-      { path: "SWISS.PICK_3_0", label: "Drużyna z bilansem 3-0", hint: null },
-      { path: "SWISS.PICK_0_3", label: "Drużyna z bilansem 0-3", hint: null },
-      { path: "SWISS.ADVANCING", label: "Drużyna, która awansuje", hint: null },
+      {
+        path: "SWISS.PICK_3_0",
+        labelKey: "scoring.swiss30.label",
+        hintKey: null,
+      },
+      {
+        path: "SWISS.PICK_0_3",
+        labelKey: "scoring.swiss03.label",
+        hintKey: null,
+      },
+      {
+        path: "SWISS.ADVANCING",
+        labelKey: "scoring.advancing.label",
+        hintKey: null,
+      },
     ],
   },
 
   {
     key: "playoffs",
-    title: "Playoffs",
-    lead: "Punkty naliczają się za każdą trafioną drużynę osobno.",
+    titleKey: "phase.playoffs",
+    leadKey: "scoring.perTeam.lead",
 
     rows: [
-      { path: "PLAYOFFS.SEMIFINALIST", label: "Półfinalista", hint: null },
-      { path: "PLAYOFFS.FINALIST", label: "Finalista", hint: null },
-      { path: "PLAYOFFS.WINNER", label: "Zwycięzca turnieju", hint: null },
+      {
+        path: "PLAYOFFS.SEMIFINALIST",
+        labelKey: "scoring.semifinalist.label",
+        hintKey: null,
+      },
+      {
+        path: "PLAYOFFS.FINALIST",
+        labelKey: "scoring.finalist.label",
+        hintKey: null,
+      },
+      {
+        path: "PLAYOFFS.WINNER",
+        labelKey: "scoring.winner.label",
+        hintKey: null,
+      },
 
       {
         path: "PLAYOFFS.THIRD_PLACE",
-        label: "Zwycięzca meczu o 3. miejsce",
-        hint:
-          "Tylko w turnieju, w którym organizator wpisał oficjalny wynik " +
-          "tego meczu.",
+        labelKey: "scoring.thirdPlace.label",
+        hintKey: "scoring.thirdPlace.hint",
       },
     ],
   },
 
   {
     key: "playin",
-    title: "Play-In",
-    lead: "Punkty naliczają się za każdą trafioną drużynę osobno.",
+    titleKey: "phase.playin",
+    leadKey: "scoring.perTeam.lead",
 
     rows: [
-      { path: "PLAY_IN.CORRECT_PICK", label: "Drużyna, która awansuje", hint: null },
+      {
+        path: "PLAY_IN.CORRECT_PICK",
+        labelKey: "scoring.advancing.label",
+        hintKey: null,
+      },
     ],
   },
 
   {
     key: "doubleelim",
-    title: "Double Elimination",
-    lead:
-      "Cztery typy na fazę: Upper Final A, Lower Final A, Upper Final B " +
-      "i Lower Final B.",
+    titleKey: "phase.doubleElim",
+    leadKey: "scoring.doubleElim.lead",
 
     rows: [
-      { path: "DOUBLE_ELIM.CORRECT_PICK", label: "Każdy trafiony typ", hint: null },
+      {
+        path: "DOUBLE_ELIM.CORRECT_PICK",
+        labelKey: "scoring.anyCorrect.label",
+        hintKey: null,
+      },
     ],
   },
 
   {
     key: "mvp",
-    title: "MVP",
-    lead: "Jeden typ na cały turniej.",
+    titleKey: "scoring.mvp.title",
+    leadKey: "scoring.mvp.lead",
 
-    rows: [{ path: "MVP.CORRECT", label: "Trafiony MVP turnieju", hint: null }],
+    rows: [
+      {
+        path: "MVP.CORRECT",
+        labelKey: "scoring.mvpCorrect.label",
+        hintKey: null,
+      },
+    ],
   },
 ];

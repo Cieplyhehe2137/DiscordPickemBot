@@ -31,7 +31,10 @@ export function registerGuildRoutes(
     const user = req.session?.user;
 
     if (!user) {
-      return res.status(401).json({ error: "Musisz być zalogowany." });
+      return res.status(401).json({
+        error: "Musisz być zalogowany.",
+        code: "server.mustLogin",
+      });
     }
 
     const knownGuildIds = new Set(guildRegistry.getAllGuildIds());
@@ -106,6 +109,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -127,6 +131,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -143,6 +148,7 @@ export function registerGuildRoutes(
         if (!name || !String(name).trim()) {
           return res.status(400).json({
             error: "Nazwa drużyny jest wymagana.",
+            code: "server.teamNameRequired",
           });
         }
 
@@ -160,6 +166,7 @@ export function registerGuildRoutes(
         if (err?.code === "ER_DUP_ENTRY") {
           return res.status(409).json({
             error: "Drużyna o tej nazwie już istnieje na tym serwerze.",
+            code: "server.teamExists",
           });
         }
 
@@ -167,6 +174,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -214,7 +222,10 @@ export function registerGuildRoutes(
         const team = teams.find((t) => String(t.id) === String(teamId));
 
         if (!team) {
-          return res.status(404).json({ error: "Nie znaleziono drużyny." });
+          return res.status(404).json({
+            error: "Nie znaleziono drużyny.",
+            code: "server.teamNotFound",
+          });
         }
 
         res.json({ ok: true, team });
@@ -222,6 +233,7 @@ export function registerGuildRoutes(
         if (err?.code === "ER_DUP_ENTRY") {
           return res.status(409).json({
             error: "Drużyna o tej nazwie już istnieje na tym serwerze.",
+            code: "server.teamExists",
           });
         }
 
@@ -229,6 +241,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -247,7 +260,10 @@ export function registerGuildRoutes(
         const team = teams.find((t) => String(t.id) === String(teamId));
 
         if (!team) {
-          return res.status(404).json({ error: "Nie znaleziono drużyny." });
+          return res.status(404).json({
+            error: "Nie znaleziono drużyny.",
+            code: "server.teamNotFound",
+          });
         }
 
         const [[usage]] = await pool.query(
@@ -274,6 +290,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -312,6 +329,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -359,6 +377,7 @@ export function registerGuildRoutes(
 
         return res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -413,6 +432,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -489,6 +509,7 @@ export function registerGuildRoutes(
 
         return res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -533,6 +554,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -549,6 +571,7 @@ export function registerGuildRoutes(
         if (!Array.isArray(orderedIds) || !orderedIds.length) {
           return res.status(400).json({
             error: "orderedIds musi być niepustą tablicą.",
+            code: "server.orderedIdsArray",
           });
         }
 
@@ -564,6 +587,7 @@ export function registerGuildRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

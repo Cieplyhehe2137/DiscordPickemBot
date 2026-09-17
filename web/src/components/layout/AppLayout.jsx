@@ -3,13 +3,17 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
+import LanguageToggle from "../LanguageToggle.jsx";
 import ThemeToggle from "../ThemeToggle.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 import { recordVisit } from "../../lib/api.js";
 
 import { apiUrl } from "../../lib/apiUrl.js";
 
 function AppLayout() {
   const { user, canAccessAdmin, authLoading, logout } = useAuth();
+
+  const t = useT();
 
   const [realtimeRefresh, setRealtimeRefresh] = useState({
     version: 0,
@@ -43,7 +47,7 @@ function AppLayout() {
       <header className="app-header">
         <div className="app-header__inner">
           <Link className="app-logo" to="/">
-            PickEmBot
+            {t("layout.logo")}
           </Link>
 
           <nav className="app-nav">
@@ -51,21 +55,21 @@ function AppLayout() {
               to="/"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Start
+              {t("layout.nav.home")}
             </NavLink>
 
             <NavLink
               to="/events"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Eventy
+              {t("layout.nav.events")}
             </NavLink>
 
             <NavLink
               to="/teams"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Drużyny
+              {t("layout.nav.teams")}
             </NavLink>
 
             {/* Zasady w nawigacji, a nie w stopce: pytanie "skąd te punkty"
@@ -75,7 +79,7 @@ function AppLayout() {
               to="/scoring"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Punktacja
+              {t("layout.nav.scoring")}
             </NavLink>
 
             {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
@@ -90,19 +94,25 @@ function AppLayout() {
                 to="/admin"
                 className={({ isActive }) => (isActive ? "active" : "")}
               >
-                Panel
+                {t("layout.nav.admin")}
               </NavLink>
             )}
           </nav>
 
           <div className="app-user">
-            {/* Przełącznik motywu przed danymi użytkownika - jest
-                dostępny także dla niezalogowanych, więc nie może stać
-                w bloku, który zależy od logowania. */}
+            {/* Język i motyw przed danymi użytkownika - obie rzeczy są
+                dostępne także dla niezalogowanych, więc nie mogą stać
+                w bloku, który zależy od logowania.
+
+                Język jako pierwszy, bo to on decyduje, w jakim języku jest
+                napisane wszystko pozostałe - łącznie z podpowiedzią przy
+                przełączniku motywu obok. */}
+            <LanguageToggle />
+
             <ThemeToggle />
 
             {authLoading ? (
-              <span>Ładowanie...</span>
+              <span>{t("layout.user.loading")}</span>
             ) : user ? (
               <>
                 {user.avatar && (
@@ -125,7 +135,7 @@ function AppLayout() {
                     }
                   }}
                 >
-                  Wyloguj
+                  {t("layout.user.logout")}
                 </button>
               </>
             ) : (
@@ -137,7 +147,7 @@ function AppLayout() {
                   )}`,
                 )}
               >
-                Zaloguj
+                {t("layout.user.login")}
               </a>
             )}
           </div>

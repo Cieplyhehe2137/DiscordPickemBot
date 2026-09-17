@@ -78,6 +78,7 @@ export function registerTeamRoutes(app, { pool }) {
 
       return res.status(500).json({
         error: "Nie udało się wczytać drużyn.",
+        code: "server.teamsLoadFailed",
       });
     }
   });
@@ -90,7 +91,10 @@ export function registerTeamRoutes(app, { pool }) {
       const klucz = teamKey(req.params.name);
 
       if (!klucz) {
-        return res.status(404).json({ error: "Nie znaleziono drużyny." });
+        return res.status(404).json({
+          error: "Nie znaleziono drużyny.",
+          code: "server.teamNotFound",
+        });
       }
 
       const { teams, history } = await wczytaj(pool);
@@ -98,7 +102,10 @@ export function registerTeamRoutes(app, { pool }) {
       const team = teams.find((t) => t.key === klucz);
 
       if (!team) {
-        return res.status(404).json({ error: "Nie znaleziono drużyny." });
+        return res.status(404).json({
+          error: "Nie znaleziono drużyny.",
+          code: "server.teamNotFound",
+        });
       }
 
       return res.json({
@@ -110,6 +117,7 @@ export function registerTeamRoutes(app, { pool }) {
 
       return res.status(500).json({
         error: "Nie udało się wczytać drużyny.",
+        code: "server.teamLoadFailed",
       });
     }
   });

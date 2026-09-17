@@ -66,7 +66,10 @@ export function registerPublicMatchRoutes(
       const match = wiersze[0];
 
       if (!match) {
-        return res.status(404).json({ error: "Nie znaleziono meczu." });
+        return res.status(404).json({
+          error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
+        });
       }
 
       const [[event]] = await pool.query(
@@ -75,7 +78,10 @@ export function registerPublicMatchRoutes(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
       }
 
       const gate = await assertPredictionsAllowed({
@@ -103,6 +109,7 @@ export function registerPublicMatchRoutes(
 
       return res.status(500).json({
         error: "Nie udało się pobrać meczu.",
+        code: "server.matchLoadFailed",
       });
     }
   });
@@ -128,6 +135,7 @@ export function registerPublicMatchRoutes(
       if (!match) {
         return res.status(404).json({
           error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
         });
       }
 
@@ -220,6 +228,7 @@ export function registerPublicMatchRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });

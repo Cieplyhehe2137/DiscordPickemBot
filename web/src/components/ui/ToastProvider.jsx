@@ -7,6 +7,7 @@ import {
   toastReducer,
 } from "../../lib/toastQueue.js";
 import { ToastContext } from "./toastContext.js";
+import { useT } from "../../i18n/useLanguage.js";
 
 // Powiadomienie w rogu ekranu - potwierdzenie akcji, które widać niezależnie
 // od tego, gdzie strona jest przewinięta.
@@ -16,6 +17,8 @@ import { ToastContext } from "./toastContext.js";
 // jako `ui-note ui-note--danger`, obok formularza, którego dotyczą.
 
 export function ToastProvider({ children }) {
+  const t = useT();
+
   const [toasts, dispatch] = useReducer(toastReducer, []);
 
   // Liczniki czasu trzymane poza stanem: ich zmiana nie ma nic renderować,
@@ -94,7 +97,7 @@ export function ToastProvider({ children }) {
               type="button"
               className="ui-toast__close"
               onClick={() => dismiss(toast.id)}
-              aria-label="Zamknij powiadomienie"
+              aria-label={t("toast.close")}
             >
               ×
             </button>

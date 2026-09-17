@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { apiRequest, getMatch, getMatchExactResult } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import ScoreLine from "../components/ScoreLine.jsx";
+import { useT } from "../i18n/useLanguage.js";
 import { useAuth } from "../auth/useAuth.js";
 import Ladowanie from "../components/Ladowanie.jsx";
 
@@ -36,6 +37,8 @@ function validateCs2Score(a, b) {
 }
 
 function AdminMatchResultPage() {
+  const t = useT();
+
   const { matchId } = useParams();
   const { user, canAccessAdmin, authLoading } = useAuth();
 
@@ -58,6 +61,15 @@ function AdminMatchResultPage() {
   const [scoreB, setScoreB] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Czy ostatni komunikat to sukces. Osobno od jego treści, bo ton
+  // plakietki nie może zależeć od brzmienia zdania - patrz niżej.
+  const [udane, setUdane] = useState(false);
+
+  function pokazBlad(tekst) {
+    setUdane(false);
+    setMessage(tekst);
+  }
   const [match, setMatch] = useState(null);
 
   const [mapScores, setMapScores] = useState([
@@ -152,6 +164,7 @@ function AdminMatchResultPage() {
 
     try {
       setSaving(true);
+      setUdane(false);
       setMessage("");
 
       const bestOf = Number(match.best_of);
@@ -180,7 +193,7 @@ function AdminMatchResultPage() {
               }));
 
       if (!maps.length) {
-        setMessage("Wpisz przynajmniej jeden wynik mapy.");
+        pokazBlad(t("adminResult.needOneMap"));
         return;
       }
 
@@ -193,21 +206,17 @@ function AdminMatchResultPage() {
             map.exactB < 0,
         )
       ) {
-        setMessage(
-          "Wyniki map muszą być poprawnymi liczbami większymi lub równymi 0.",
-        );
+        pokazBlad(t("adminResult.badNumbers"));
         return;
       }
 
       if (maps.some((map) => !validateCs2Score(map.exactA, map.exactB))) {
-        setMessage(
-          "Nieprawidłowy wynik CS2. Dozwolone np. 13:8, 13:11, 16:13, 19:17.",
-        );
+        pokazBlad(t("adminResult.badScore"));
         return;
       }
 
       if (maps.some((map) => map.exactA === map.exactB)) {
-        setMessage("Mapa nie może zakończyć się remisem.");
+        pokazBlad(t("adminResult.noDraw"));
         return;
       }
 
@@ -233,15 +242,16 @@ function AdminMatchResultPage() {
       }
 
       if (seriesEndedAt !== null && maps.length > seriesEndedAt) {
-        setMessage(
-          `Seria zakończyła się po mapie ${seriesEndedAt}. Usuń wyniki kolejnych map.`,
-        );
+        pokazBlad(t("adminResult.seriesOver", { map: seriesEndedAt }));
         return;
       }
 
       if (winsA < requiredWins && winsB < requiredWins) {
-        setMessage(
-          `Seria BO${bestOf} nie jest zakończona. Jedna z drużyn musi wygrać ${requiredWins} map.`,
+        pokazBlad(
+          t("adminResult.seriesUnfinished", {
+            bo: bestOf,
+            wins: requiredWins,
+          }),
         );
         return;
       }
@@ -251,11 +261,12 @@ function AdminMatchResultPage() {
         body: JSON.stringify({ maps }),
       });
 
-      setMessage("Wynik zapisany.");
+      setUdane(true);
+      setMessage(t("adminResult.saved"));
     } catch (err) {
       console.error("RESULT SAVE ERROR:", err);
 
-      setMessage(err.message || "Nie udało się zapisać wyniku.");
+      pokazBlad(err.message || t("adminResult.saveError"));
     } finally {
       setSaving(false);
     }
@@ -317,7 +328,7 @@ function AdminMatchResultPage() {
   if (authLoading) {
     return (
       <main className="ui-page">
-        <p>Sprawdzanie uprawnień...</p>
+        <p>{t("adminResult.checking")}</p>
       </main>
     );
   }
@@ -325,7 +336,7 @@ function AdminMatchResultPage() {
   if (mozeBycAdmin && dostep === "sprawdzanie") {
     return (
       <main className="ui-page">
-        <Ladowanie>Ładowanie meczu...</Ladowanie>
+        <Ladowanie>{t("adminResult.loading")}</Ladowanie>
       </main>
     );
   }
@@ -333,19 +344,18 @@ function AdminMatchResultPage() {
   if (!mozeBycAdmin || dostep === "brak") {
     return (
       <main className="ui-page">
-        <BackLink to="/">Strona główna</BackLink>
+        <BackLink to="/">{t("notFound.home")}</BackLink>
 
         <div className="ui-empty">
           <span className="ui-empty__icon" aria-hidden="true">
             🚫
           </span>
 
-          <strong className="ui-empty__title">Brak uprawnień</strong>
+          <strong className="ui-empty__title">
+            {t("adminResult.noAccess")}
+          </strong>
 
-          <p className="ui-empty__text">
-            Wpisywanie oficjalnego wyniku wymaga uprawnień administratora na
-            serwerze, do którego należy ten mecz.
-          </p>
+          <p className="ui-empty__text">{t("adminResult.noAccessText")}</p>
         </div>
       </main>
     );
@@ -353,12 +363,14 @@ function AdminMatchResultPage() {
 
   return (
     <main className="ui-page">
-      <BackLink to="/admin">Wróć do panelu</BackLink>
+      <BackLink to="/admin">{t("adminResult.backToPanel")}</BackLink>
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Oficjalny wynik · mecz #{matchId}</span>
+          <span className="ui-kicker">
+            {t("adminResult.kicker", { no: matchId })}
+          </span>
 
-          <h2>Ustaw wynik meczu</h2>
+          <h2>{t("adminResult.title")}</h2>
 
           {match && (
             <p>
@@ -370,7 +382,7 @@ function AdminMatchResultPage() {
 
       {match && (
         <section className="ui-card ui-stack ui-stack--tight">
-          <span className="ui-kicker">Wynik serii</span>
+          <span className="ui-kicker">{t("adminResult.seriesScore")}</span>
 
           <ScoreLine
             teamA={match.team_a}
@@ -382,7 +394,7 @@ function AdminMatchResultPage() {
           {liveWinner ? (
             <span className="ui-badge ui-badge--accent">🏆 {liveWinner}</span>
           ) : (
-            <span className="ui-hint">Seria jeszcze trwa</span>
+            <span className="ui-hint">{t("adminResult.stillRunning")}</span>
           )}
         </section>
       )}
@@ -446,8 +458,8 @@ function AdminMatchResultPage() {
                     key={index}
                   >
                     <span className="ui-kicker">
-                      Mapa {mapNo}
-                      {disabled && " — nie rozegrano"}
+                      {t("common.mapNo", { no: mapNo })}
+                      {disabled && t("adminResult.notPlayed")}
                     </span>
 
                     <div className="ui-score">
@@ -498,15 +510,17 @@ function AdminMatchResultPage() {
           type="submit"
           disabled={saving}
         >
-          {saving ? "Zapisywanie..." : "Zapisz wynik"}
+          {saving ? t("admin.saving") : t("adminResult.save")}
         </button>
       </form>
 
       {message && (
+        // Ton komunikatu bierze się z osobnego stanu, a nie z porównania
+        // treści: po przetłumaczeniu strony to samo zdanie brzmi inaczej
+        // w każdym języku, a porównanie napisu cicho przestałoby trafiać
+        // i sukces malowałby się na czerwono.
         <p
-          className={`ui-note ${
-            message === "Wynik zapisany." ? "ui-note--ok" : "ui-note--danger"
-          }`}
+          className={`ui-note ${udane ? "ui-note--ok" : "ui-note--danger"}`}
         >
           {message}
         </p>

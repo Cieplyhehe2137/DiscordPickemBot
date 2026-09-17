@@ -424,6 +424,7 @@ export function registerEventStatsRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -725,6 +726,7 @@ export function registerEventStatsRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -748,6 +750,7 @@ export function registerEventStatsRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -772,6 +775,7 @@ export function registerEventStatsRoutes(
       if (!match) {
         return res.status(404).json({
           error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
         });
       }
 
@@ -997,6 +1001,7 @@ export function registerEventStatsRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });

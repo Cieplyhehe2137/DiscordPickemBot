@@ -40,13 +40,17 @@ export function registerResultProposalRoutes(
         ) {
           return res.status(400).json({
             error: "Wyniki muszą być nieujemnymi liczbami całkowitymi.",
+            code: "server.scoresNonNegative",
           });
         }
 
         const match = await matchesStore.getMatchById(pool, guildId, matchId);
 
         if (!match) {
-          return res.status(404).json({ error: "Nie znaleziono meczu." });
+          return res.status(404).json({
+            error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
+          });
         }
 
         await applyMatchResult(pool, { guildId, match, resA, resB });
@@ -66,6 +70,7 @@ export function registerResultProposalRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -93,6 +98,7 @@ export function registerResultProposalRoutes(
           return res.status(400).json({
             error:
               "Dostawca wyników nie jest skonfigurowany (RESULT_PROVIDER w server/.env)",
+            code: "server.noProvider",
           });
         }
 
@@ -101,7 +107,10 @@ export function registerResultProposalRoutes(
           [req.params.slug, guildId],
         );
 
-        if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        if (!event) return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
 
         const podsumowanie = await resultProposalsStore.syncProposals(pool, {
           guildId,
@@ -157,7 +166,10 @@ export function registerResultProposalRoutes(
           [req.params.slug, guildId],
         );
 
-        if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        if (!event) return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
 
         res.json({
           proposals: await resultProposalsStore.listProposals(
@@ -170,7 +182,10 @@ export function registerResultProposalRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -188,7 +203,10 @@ export function registerResultProposalRoutes(
         );
 
         if (!proposal)
-          return res.status(404).json({ error: "Propozycja nie istnieje" });
+          return res.status(404).json({
+            error: "Propozycja nie istnieje",
+            code: "server.proposalMissing",
+          });
 
         if (proposal.status !== "PENDING") {
           return res
@@ -201,7 +219,10 @@ export function registerResultProposalRoutes(
           guildId,
           proposal.match_id,
         );
-        if (!match) return res.status(404).json({ error: "Mecz nie istnieje" });
+        if (!match) return res.status(404).json({
+          error: "Mecz nie istnieje",
+          code: "server.matchMissing",
+        });
 
         // Ta sama ścieżka, którą idzie ręczne wpisanie wyniku - jeden zapis,
         // jedno przeliczenie punktów, żeby obie drogi nie mogły się rozjechać.
@@ -244,7 +265,10 @@ export function registerResultProposalRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -262,7 +286,10 @@ export function registerResultProposalRoutes(
         );
 
         if (!proposal)
-          return res.status(404).json({ error: "Propozycja nie istnieje" });
+          return res.status(404).json({
+            error: "Propozycja nie istnieje",
+            code: "server.proposalMissing",
+          });
 
         await resultProposalsStore.markResolved(
           pool,
@@ -281,7 +308,10 @@ export function registerResultProposalRoutes(
         res.json({ ok: true });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -303,12 +333,18 @@ export function registerResultProposalRoutes(
         );
 
         if (!result.affectedRows)
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
 
         res.json({ ok: true, externalTournamentId: wartosc });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );

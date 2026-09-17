@@ -4,7 +4,8 @@ import { Link } from "react-router-dom";
 import Ladowanie from "../components/Ladowanie.jsx";
 import TeamCrest from "../components/TeamCrest.jsx";
 import { getTeams } from "../lib/api.js";
-import { odmien } from "../lib/odmiana.js";
+import { T } from "../i18n/T.jsx";
+import { useT } from "../i18n/useLanguage.js";
 
 // Lista drużyn ze wszystkich turniejów.
 //
@@ -13,6 +14,8 @@ import { odmien } from "../lib/odmiana.js";
 // z jednym meczem w jednym turnieju.
 
 function TeamsPage() {
+  const t = useT();
+
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,7 +34,7 @@ function TeamsPage() {
         if (!anulowane) setTeams(dane.teams ?? []);
       } catch (err) {
         if (!anulowane) {
-          setError(err.message || "Nie udało się wczytać drużyn.");
+          setError(err.message || t("teams.errorText"));
         }
       } finally {
         if (!anulowane) setLoading(false);
@@ -43,7 +46,7 @@ function TeamsPage() {
     return () => {
       anulowane = true;
     };
-  }, []);
+  }, [t]);
 
   // Czterdzieści drużyn przychodzi jednym zapytaniem, więc filtrowanie
   // odbywa się na miejscu - bez odpytywania serwera przy każdej literze.
@@ -56,7 +59,7 @@ function TeamsPage() {
   if (loading) {
     return (
       <main className="ui-page">
-        <Ladowanie>Wczytuję drużyny...</Ladowanie>
+        <Ladowanie>{t("teams.loading")}</Ladowanie>
       </main>
     );
   }
@@ -69,9 +72,7 @@ function TeamsPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać drużyn
-          </strong>
+          <strong className="ui-error__title">{t("teams.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -83,16 +84,11 @@ function TeamsPage() {
     <main className="ui-page">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Drużyny</span>
+          <span className="ui-kicker">{t("teams.kicker")}</span>
 
-          <h2>Kto grał w tych turniejach</h2>
+          <h2>{t("teams.title")}</h2>
 
-          <p>
-            {teams.length}{" "}
-            {odmien(teams.length, "drużyna", "drużyny", "drużyn")} ze wszystkich
-            turniejów — z bilansem i tym, jak chętnie obstawiała je
-            społeczność.
-          </p>
+          <p>{t("teams.intro", { count: teams.length })}</p>
         </div>
       </div>
 
@@ -101,8 +97,8 @@ function TeamsPage() {
           type="search"
           value={szukane}
           onChange={(e) => setSzukane(e.target.value)}
-          placeholder="Szukaj drużyny..."
-          aria-label="Szukaj drużyny"
+          placeholder={t("teams.search")}
+          aria-label={t("teams.searchLabel")}
         />
       </div>
 
@@ -112,10 +108,13 @@ function TeamsPage() {
             🔍
           </span>
 
-          <strong className="ui-empty__title">Nic nie pasuje</strong>
+          <strong className="ui-empty__title">{t("teams.empty.title")}</strong>
 
           <p className="ui-empty__text">
-            Żadna drużyna nie pasuje do <strong>{szukane}</strong>.
+            <T
+              k="teams.empty.text"
+              vars={{ query: <strong>{szukane}</strong> }}
+            />
           </p>
         </div>
       ) : (
@@ -136,24 +135,19 @@ function TeamsPage() {
                 <strong className="team-card__name">{team.name}</strong>
 
                 <span className="ui-stat__hint">
-                  {team.settled > 0 ? (
-                    <>
-                      {team.wins}–{team.losses} w {team.settled}{" "}
-                      {odmien(team.settled, "meczu", "meczach", "meczach")}
-                    </>
-                  ) : (
-                    <>
-                      {team.matches}{" "}
-                      {odmien(team.matches, "mecz", "mecze", "meczów")} bez
-                      wyniku
-                    </>
-                  )}
+                  {team.settled > 0
+                    ? t("teams.record", {
+                        wins: team.wins,
+                        losses: team.losses,
+                        count: team.settled,
+                      })
+                    : t("teams.noResult", { count: team.matches })}
                 </span>
               </div>
 
               {team.trust !== null && (
                 <span className="ui-badge team-card__trust">
-                  {team.trust}% typów
+                  {t("common.picksPercent", { percent: team.trust })}
                 </span>
               )}
             </Link>

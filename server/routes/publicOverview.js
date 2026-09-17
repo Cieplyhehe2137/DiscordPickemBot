@@ -36,6 +36,7 @@ export function registerPublicOverviewRoutes(
 
       res.status(500).json({
         error: "Nie udało się wczytać archiwum.",
+        code: "server.archiveLoadFailed",
       });
     }
   });
@@ -123,6 +124,7 @@ export function registerPublicOverviewRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -201,7 +203,10 @@ export function registerPublicOverviewRoutes(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
+      res.status(500).json({
+        error: "Błąd bazy danych.",
+        code: "server.dbError",
+      });
     }
   });
 
@@ -228,6 +233,7 @@ export function registerPublicOverviewRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -327,6 +333,7 @@ export function registerPublicOverviewRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });

@@ -2,6 +2,7 @@ import { useCallback, useId, useMemo, useRef, useState } from "react";
 
 import { ConfirmContext } from "./confirmContext.js";
 import { Dialog } from "./Dialog.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 
 // Pytanie "na pewno?" zadawane własnym oknem zamiast przez `window.confirm`.
 //
@@ -21,6 +22,8 @@ import { Dialog } from "./Dialog.jsx";
 //     if (!(await confirm({ title: "Usunąć drużynę?" }))) return;
 
 export function ConfirmProvider({ children }) {
+  const t = useT();
+
   // Jedno pytanie naraz - `{ options, resolve }` albo `null`.
   const [request, setRequest] = useState(null);
 
@@ -78,7 +81,7 @@ export function ConfirmProvider({ children }) {
         className={danger ? "ui-dialog--danger" : ""}
       >
         <h2 className="ui-dialog__title" id={titleId}>
-          {options.title ?? "Na pewno?"}
+          {options.title ?? t("dialog.sure")}
         </h2>
 
         {options.description && (
@@ -110,7 +113,7 @@ export function ConfirmProvider({ children }) {
             // odruchowo ma nie kasować danych.
             data-autofocus={danger ? "" : undefined}
           >
-            {options.cancelLabel ?? "Anuluj"}
+            {options.cancelLabel ?? t("common.cancel")}
           </button>
 
           <button
@@ -119,7 +122,7 @@ export function ConfirmProvider({ children }) {
             onClick={() => settle(true)}
             data-autofocus={danger ? undefined : ""}
           >
-            {options.confirmLabel ?? "Potwierdź"}
+            {options.confirmLabel ?? t("dialog.confirm")}
           </button>
         </div>
       </Dialog>

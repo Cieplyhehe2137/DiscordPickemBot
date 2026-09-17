@@ -35,7 +35,10 @@ export function registerEventCleanupRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         guildRegistry.ensureGuildDirs(guildId);
@@ -172,7 +175,10 @@ export function registerEventCleanupRoutes(
           stack: err?.stack,
         });
 
-        res.status(500).json({ error: "End tournament failed" });
+        res.status(500).json({
+          error: "End tournament failed",
+          code: "server.endTournamentFailed",
+        });
       }
     },
   );
@@ -191,7 +197,10 @@ export function registerEventCleanupRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const buffer = await exportClassification({ guildId, eventId: event.id });
@@ -229,7 +238,10 @@ export function registerEventCleanupRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const [[points]] = await pool.query(
@@ -282,6 +294,7 @@ export function registerEventCleanupRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -301,7 +314,10 @@ export function registerEventCleanupRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const { r1, r2, r3, r4 } = await runInTransaction(pool, async (conn) => {
@@ -396,6 +412,7 @@ export function registerEventCleanupRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

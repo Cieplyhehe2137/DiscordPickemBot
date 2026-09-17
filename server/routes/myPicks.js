@@ -17,6 +17,7 @@ export function registerMyPicksRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -43,12 +44,14 @@ export function registerMyPicksRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -291,6 +294,7 @@ export function registerMyPicksRoutes(
 
       res.status(500).json({
         error: "Nie udało się wczytać Twoich typów.",
+        code: "server.myPicksFailed",
       });
     }
   });
@@ -304,6 +308,7 @@ export function registerMyPicksRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -323,12 +328,14 @@ export function registerMyPicksRoutes(
       if (!match) {
         return res.status(404).json({
           error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, match.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -386,6 +393,7 @@ export function registerMyPicksRoutes(
 
       return res.status(500).json({
         error: "Nie udało się wczytać punktów.",
+        code: "server.pointsLoadFailed",
       });
     }
   });

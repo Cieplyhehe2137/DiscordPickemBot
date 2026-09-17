@@ -16,6 +16,32 @@
 // przy zapytaniu. Dlatego po kazdym takim przeniesieniu leci npm run lint z
 // regula no-undef, ktora widzi to statycznie.
 
+import { codeForDefault } from "../lib/messageCode.js";
+
+// Zdania zapasowe blokad razem z kodami. Kod idzie do odpowiedzi obok zdania
+// i prowadzi do tlumaczenia - ale TYLKO wtedy, gdy na ekran idzie nasze
+// zdanie, a nie wlasny powod wpisany przez administratora serwera. Patrz
+// server/lib/messageCode.js.
+const ZAMKNIETE = {
+  phase: ["Typowanie tej fazy jest zamknięte.", "server.lock.phaseClosed"],
+  playin: ["Typowanie Play-In jest zamknięte.", "server.lock.playinClosed"],
+  playoffs: ["Typowanie Playoffs jest zamknięte.", "server.lock.playoffsClosed"],
+  doubleelim: [
+    "Typowanie Double Elimination jest zamknięte.",
+    "server.lock.deClosed",
+  ],
+};
+
+// Zdanie zapasowe blokady i jego kod z jednego miejsca, zeby nie dalo sie
+// zmienic jednego bez drugiego.
+function blokada(gate, toWebMessage, rodzaj) {
+  const [domyslne, kod] = ZAMKNIETE[rodzaj];
+
+  const tresc = toWebMessage(gate.message, domyslne);
+
+  return { tresc, kod: codeForDefault(tresc, domyslne, kod) };
+}
+
 export function registerPublicPickemRoutes(
   app,
   {
@@ -61,6 +87,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -83,12 +110,14 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -686,6 +715,7 @@ export function registerPublicPickemRoutes(
       if (!user_id) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -716,6 +746,7 @@ export function registerPublicPickemRoutes(
       if (!match) {
         return res.status(404).json({
           error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
         });
       }
 
@@ -726,6 +757,7 @@ export function registerPublicPickemRoutes(
       if (!isGuildMember(req.session.user, match.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -748,6 +780,7 @@ export function registerPublicPickemRoutes(
       if (existingResult) {
         return res.status(403).json({
           error: "Mecz został już zakończony.",
+          code: "server.matchAlreadyFinished",
         });
       }
 
@@ -773,6 +806,7 @@ export function registerPublicPickemRoutes(
       if (isMatchLocked(match)) {
         return res.status(403).json({
           error: "Typowanie tego meczu jest już zamknięte.",
+          code: "server.matchPickingClosed",
         });
       }
 
@@ -792,6 +826,7 @@ export function registerPublicPickemRoutes(
         if (passed) {
           return res.status(403).json({
             error: "Deadline typowania wyników meczów dla tej fazy minął.",
+            code: "server.matchDeadlinePassed",
           });
         }
       }
@@ -848,6 +883,7 @@ export function registerPublicPickemRoutes(
         ) {
           return res.status(400).json({
             error: "Nieprawidłowy typ serii.",
+            code: "server.badSeriesPick",
           });
         }
 
@@ -906,6 +942,7 @@ export function registerPublicPickemRoutes(
         if (uniqueMapNumbers.size !== mapNumbers.length) {
           return res.status(400).json({
             error: "Numery map nie mogą się powtarzać.",
+            code: "server.mapNumbersUnique",
           });
         }
 
@@ -931,6 +968,7 @@ export function registerPublicPickemRoutes(
         if (!hasValidMapNumbers) {
           return res.status(400).json({
             error: "Numery map muszą być kolejne: 1, 2, 3...",
+            code: "server.mapNumbersSequential",
           });
         }
 
@@ -972,6 +1010,7 @@ export function registerPublicPickemRoutes(
         if (winsA !== predA || winsB !== predB) {
           return res.status(400).json({
             error: "Wyniki map nie zgadzają się z wynikiem serii.",
+            code: "server.mapsMismatch",
           });
         }
 
@@ -982,6 +1021,7 @@ export function registerPublicPickemRoutes(
         if (!validateSeriesMapOrder(mapPicks, bestOf)) {
           return res.status(400).json({
             error: "Seria kończy się za wcześnie względem podanych map.",
+            code: "server.seriesEndsEarly",
           });
         }
       }
@@ -995,6 +1035,7 @@ export function registerPublicPickemRoutes(
         if (!["team_a", "team_b"].includes(winner)) {
           return res.status(400).json({
             error: "Nieprawidłowy zwycięzca.",
+            code: "server.badWinner",
           });
         }
 
@@ -1004,6 +1045,7 @@ export function registerPublicPickemRoutes(
         if (!validateCs2Score(scoreA, scoreB)) {
           return res.status(400).json({
             error: "Nieprawidłowy wynik CS2.",
+            code: "server.badCs2Score",
           });
         }
 
@@ -1013,6 +1055,7 @@ export function registerPublicPickemRoutes(
         ) {
           return res.status(400).json({
             error: "Wybrany zwycięzca nie zgadza się z wynikiem.",
+            code: "server.winnerMismatch",
           });
         }
 
@@ -1167,6 +1210,7 @@ export function registerPublicPickemRoutes(
 
       return res.status(500).json({
         error: "Nie udało się zapisać typu.",
+        code: "server.pickSaveFailed",
       });
     }
   });
@@ -1183,6 +1227,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -1207,6 +1252,7 @@ export function registerPublicPickemRoutes(
       if (!match) {
         return res.status(404).json({
           error: "Nie znaleziono meczu.",
+          code: "server.matchNotFound",
         });
       }
 
@@ -1217,6 +1263,7 @@ export function registerPublicPickemRoutes(
       if (!isGuildMember(req.session.user, match.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -1320,6 +1367,7 @@ export function registerPublicPickemRoutes(
 
       return res.status(500).json({
         error: "Nie udało się wczytać typu.",
+        code: "server.pickLoadFailed",
       });
     }
   });
@@ -1428,6 +1476,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -1436,6 +1485,7 @@ export function registerPublicPickemRoutes(
       if (!["stage1", "stage2", "stage3"].includes(stage)) {
         return res.status(400).json({
           error: "Nieprawidłowy etap Swiss.",
+          code: "server.badSwissStage",
         });
       }
 
@@ -1460,6 +1510,7 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -1470,6 +1521,7 @@ export function registerPublicPickemRoutes(
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -1479,9 +1531,9 @@ export function registerPublicPickemRoutes(
       const gate = await checkPickemGate(event.guild_id, "SWISS", stage);
 
       if (!gate.allowed) {
-        return res.status(403).json({
-          error: toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
-        });
+        const zamek = blokada(gate, toWebMessage, "phase");
+
+        return res.status(403).json({ error: zamek.tresc, code: zamek.kod });
       }
 
       /*
@@ -1505,6 +1557,7 @@ export function registerPublicPickemRoutes(
         return res.status(409).json({
           error:
             "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Swiss.",
+          code: "server.stale.swiss",
         });
       }
 
@@ -1613,6 +1666,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się zapisać typów Swiss.",
+        code: "server.swissPicksSaveFailed",
       });
     }
   });
@@ -1723,6 +1777,7 @@ export function registerPublicPickemRoutes(
       if (!["stage1", "stage2", "stage3"].includes(stage)) {
         return res.status(400).json({
           error: "Nieprawidłowy etap Swiss.",
+          code: "server.badSwissStage",
         });
       }
 
@@ -1745,6 +1800,7 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -1754,6 +1810,7 @@ export function registerPublicPickemRoutes(
         if (!isGuildMember(req.session.user, event.guild_id)) {
           return res.status(403).json({
             error: "Nie należysz do tego serwera.",
+            code: "server.notMember",
           });
         }
 
@@ -1824,18 +1881,20 @@ export function registerPublicPickemRoutes(
 
         prediction,
 
-        lock: {
-          allowed: Boolean(gate.allowed),
-          message: gate.allowed
-            ? null
-            : toWebMessage(gate.message, "Typowanie tej fazy jest zamknięte."),
-        },
+        lock: gate.allowed
+          ? { allowed: true, message: null, code: null }
+          : {
+              allowed: false,
+              message: blokada(gate, toWebMessage, "phase").tresc,
+              code: blokada(gate, toWebMessage, "phase").kod,
+            },
       });
     } catch (err) {
       console.error("SWISS PICKEM LOAD ERROR:", err);
 
       return res.status(500).json({
         error: "Nie udało się wczytać typów Swiss.",
+        code: "server.swissPicksLoadFailed",
       });
     }
   });
@@ -1848,6 +1907,7 @@ export function registerPublicPickemRoutes(
       if (!["stage1", "stage2", "stage3"].includes(stage)) {
         return res.status(400).json({
           error: "Nieprawidłowy etap Swiss.",
+          code: "server.badSwissStage",
         });
       }
 
@@ -1864,6 +1924,7 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -1918,6 +1979,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się wczytać statystyk Swiss.",
+        code: "server.swissStatsFailed",
       });
     }
   });
@@ -1941,6 +2003,7 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -1961,6 +2024,7 @@ export function registerPublicPickemRoutes(
         if (!isGuildMember(req.session.user, event.guild_id)) {
           return res.status(403).json({
             error: "Nie należysz do tego serwera.",
+            code: "server.notMember",
           });
         }
 
@@ -2000,6 +2064,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się wczytać typów Play-In.",
+        code: "server.playinPicksLoadFailed",
       });
     }
   });
@@ -2011,6 +2076,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -2035,21 +2101,23 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
       const gate = await checkPickemGate(event.guild_id, "PLAYIN");
 
       if (!gate.allowed) {
-        return res.status(403).json({
-          error: toWebMessage(gate.message, "Typowanie Play-In jest zamknięte."),
-        });
+        const zamek = blokada(gate, toWebMessage, "playin");
+
+        return res.status(403).json({ error: zamek.tresc, code: zamek.kod });
       }
 
       // ============================================
@@ -2068,6 +2136,7 @@ export function registerPublicPickemRoutes(
         return res.status(409).json({
           error:
             "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Play-In.",
+          code: "server.stale.playin",
         });
       }
 
@@ -2160,6 +2229,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się zapisać typów Play-In.",
+        code: "server.playinPicksSaveFailed",
       });
     }
   });
@@ -2180,7 +2250,10 @@ export function registerPublicPickemRoutes(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
       }
 
       const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
@@ -2200,6 +2273,7 @@ export function registerPublicPickemRoutes(
         if (!isGuildMember(req.session.user, event.guild_id)) {
           return res.status(403).json({
             error: "Nie należysz do tego serwera.",
+            code: "server.notMember",
           });
         }
 
@@ -2244,7 +2318,10 @@ export function registerPublicPickemRoutes(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Nie udało się wczytać typów Playoffs." });
+      res.status(500).json({
+        error: "Nie udało się wczytać typów Playoffs.",
+        code: "server.playoffsPicksLoadFailed",
+      });
     }
   });
 
@@ -2255,6 +2332,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -2280,12 +2358,14 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -2296,9 +2376,9 @@ export function registerPublicPickemRoutes(
       const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
 
       if (!gate.allowed) {
-        return res.status(403).json({
-          error: toWebMessage(gate.message, "Typowanie Playoffs jest zamknięte."),
-        });
+        const zamek = blokada(gate, toWebMessage, "playoffs");
+
+        return res.status(403).json({ error: zamek.tresc, code: zamek.kod });
       }
 
       // ============================================
@@ -2318,6 +2398,7 @@ export function registerPublicPickemRoutes(
         return res.status(409).json({
           error:
             "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Playoffs.",
+          code: "server.stale.playoffs",
         });
       }
 
@@ -2373,6 +2454,7 @@ export function registerPublicPickemRoutes(
       if (!finalistsPick.includes(winnerPick)) {
         return res.status(400).json({
           error: "Zwycięzca musi być jednym z finalistów.",
+          code: "server.winnerFromFinalists",
         });
       }
 
@@ -2380,6 +2462,7 @@ export function registerPublicPickemRoutes(
         if (!semifinalistsPick.includes(finalist)) {
           return res.status(400).json({
             error: "Finaliści muszą pochodzić z półfinalistów.",
+            code: "server.finalistsFromSemis",
           });
         }
       }
@@ -2387,12 +2470,14 @@ export function registerPublicPickemRoutes(
       if (thirdPick && [winnerPick, ...finalistsPick].includes(thirdPick)) {
         return res.status(400).json({
           error: "3. miejsce nie może być finalistą ani zwycięzcą.",
+          code: "server.thirdNotFinalist",
         });
       }
 
       if (thirdPick && !semifinalistsPick.includes(thirdPick)) {
         return res.status(400).json({
           error: "3. miejsce musi być jednym z półfinalistów.",
+          code: "server.thirdFromSemis",
         });
       }
 
@@ -2481,6 +2566,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się zapisać typów Playoffs.",
+        code: "server.playoffsPicksSaveFailed",
       });
     }
   });
@@ -2503,6 +2589,7 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -2523,6 +2610,7 @@ export function registerPublicPickemRoutes(
         if (!isGuildMember(req.session.user, event.guild_id)) {
           return res.status(403).json({
             error: "Nie należysz do tego serwera.",
+            code: "server.notMember",
           });
         }
 
@@ -2575,6 +2663,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się wczytać typów Double Elimination.",
+        code: "server.dePicksLoadFailed",
       });
     }
   });
@@ -2586,6 +2675,7 @@ export function registerPublicPickemRoutes(
       if (!userId) {
         return res.status(401).json({
           error: "Musisz być zalogowany.",
+          code: "server.mustLogin",
         });
       }
 
@@ -2609,12 +2699,14 @@ export function registerPublicPickemRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
       if (!isGuildMember(req.session.user, event.guild_id)) {
         return res.status(403).json({
           error: "Nie należysz do tego serwera.",
+          code: "server.notMember",
         });
       }
 
@@ -2625,9 +2717,9 @@ export function registerPublicPickemRoutes(
       const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
 
       if (!gate.allowed) {
-        return res.status(403).json({
-          error: toWebMessage(gate.message, "Typowanie Double Elimination jest zamknięte."),
-        });
+        const zamek = blokada(gate, toWebMessage, "doubleelim");
+
+        return res.status(403).json({ error: zamek.tresc, code: zamek.kod });
       }
 
       // ============================================
@@ -2647,6 +2739,7 @@ export function registerPublicPickemRoutes(
           error:
             "Ten formularz dotyczy poprzedniego eventu. " +
             "Otwórz aktualny panel Double Elimination.",
+          code: "server.stale.de",
         });
       }
 
@@ -2768,6 +2861,7 @@ export function registerPublicPickemRoutes(
 
       res.status(500).json({
         error: "Nie udało się zapisać typów Double Elimination.",
+        code: "server.dePicksSaveFailed",
       });
     }
   });

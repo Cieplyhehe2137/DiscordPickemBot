@@ -1,5 +1,5 @@
 import { awardBadges, POZIOM_KLASA } from "../lib/badges.js";
-import { odmien } from "../lib/odmiana.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Odznaki gracza: zdobyte i te w zasięgu.
 //
@@ -62,26 +62,20 @@ function Blisko({ odznaka }) {
 }
 
 function BadgeShelf({ profile }) {
-  const { earned, next } = awardBadges(profile);
+  const t = useT();
+
+  const { earned, next } = awardBadges(profile, { t });
 
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Odznaki</span>
+          <span className="ui-kicker">{t("badges.kicker")}</span>
 
-          <h2>Osiągnięcia w tym turnieju</h2>
+          <h2>{t("badges.title")}</h2>
 
           {earned.length > 0 && (
-            <p>
-              {earned.length}{" "}
-              {odmien(
-                earned.length,
-                "odznaka zdobyta",
-                "odznaki zdobyte",
-                "odznak zdobytych",
-              )}
-            </p>
+            <p>{t("badges.earned", { count: earned.length })}</p>
           )}
         </div>
       </div>
@@ -92,12 +86,11 @@ function BadgeShelf({ profile }) {
             🎖️
           </span>
 
-          <strong className="ui-empty__title">Jeszcze żadnej odznaki</strong>
+          <strong className="ui-empty__title">
+            {t("badges.emptyTitle")}
+          </strong>
 
-          <p className="ui-empty__text">
-            Pojawią się po pierwszych rozliczonych meczach — niżej widać, co
-            jest najbliżej.
-          </p>
+          <p className="ui-empty__text">{t("badges.emptyText")}</p>
         </div>
       ) : (
         <div className="badge-grid">
@@ -109,7 +102,7 @@ function BadgeShelf({ profile }) {
 
       {next.length > 0 && (
         <div className="ui-stack ui-stack--tight">
-          <span className="ui-stat__hint">W zasięgu</span>
+          <span className="ui-stat__hint">{t("badges.near")}</span>
 
           {next.map((odznaka) => (
             <Blisko key={odznaka.key} odznaka={odznaka} />

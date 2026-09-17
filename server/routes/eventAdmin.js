@@ -122,7 +122,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const [base] = await pool.query(
@@ -245,7 +248,10 @@ export function registerEventAdminRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -264,7 +270,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const [candidates] = await pool.query(
@@ -293,6 +302,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -310,6 +320,7 @@ export function registerEventAdminRoutes(
         if (!Array.isArray(entries) || !entries.length) {
           return res.status(400).json({
             error: "entries musi być niepustą tablicą { nickname, teamName }.",
+            code: "server.entriesArray",
           });
         }
 
@@ -321,7 +332,10 @@ export function registerEventAdminRoutes(
           .filter((e) => e.nickname);
 
         if (!clean.length) {
-          return res.status(400).json({ error: "No valid candidates provided" });
+          return res.status(400).json({
+            error: "No valid candidates provided",
+            code: "server.noValidCandidates",
+          });
         }
 
         const [[event]] = await pool.query(
@@ -330,7 +344,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         await runInTransaction(pool, async (conn) => {
@@ -356,6 +373,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -387,7 +405,10 @@ export function registerEventAdminRoutes(
         if (!Number.isInteger(candidateId) || candidateId <= 0) {
           return res
             .status(400)
-            .json({ error: "Wymagany jest identyfikator kandydata." });
+            .json({
+              error: "Wymagany jest identyfikator kandydata.",
+              code: "server.candidateIdRequired",
+            });
         }
 
         const [[event]] = await pool.query(
@@ -396,7 +417,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const ocena = await sprawdzKandydataDoUsuniecia(
@@ -426,6 +450,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -452,7 +477,10 @@ export function registerEventAdminRoutes(
         if (!Array.isArray(ids) || !ids.length) {
           return res
             .status(400)
-            .json({ error: "ids musi być niepustą tablicą identyfikatorów." });
+            .json({
+              error: "ids musi być niepustą tablicą identyfikatorów.",
+              code: "server.idsArray",
+            });
         }
 
         if (ids.length > LIMIT_HURTOWY) {
@@ -470,7 +498,10 @@ export function registerEventAdminRoutes(
         if (!identyfikatory.length) {
           return res
             .status(400)
-            .json({ error: "Żaden z podanych identyfikatorów nie jest poprawny." });
+            .json({
+              error: "Żaden z podanych identyfikatorów nie jest poprawny.",
+              code: "server.noValidIds",
+            });
         }
 
         const [[event]] = await pool.query(
@@ -479,7 +510,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const doUsuniecia = [];
@@ -534,6 +568,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -549,7 +584,10 @@ export function registerEventAdminRoutes(
         const candidateId = Number(req.body.candidateId);
 
         if (!Number.isInteger(candidateId) || candidateId <= 0) {
-          return res.status(400).json({ error: "Wymagany jest identyfikator kandydata." });
+          return res.status(400).json({
+            error: "Wymagany jest identyfikator kandydata.",
+            code: "server.candidateIdRequired",
+          });
         }
 
         const [[event]] = await pool.query(
@@ -558,7 +596,10 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         await pool.query(
@@ -579,6 +620,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -628,12 +670,16 @@ export function registerEventAdminRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         if (Number(event.is_archived) === 1 || event.status === "FINISHED") {
           return res.status(409).json({
             error: "Ten turniej jest już zakończony.",
+            code: "server.eventAlreadyFinished",
           });
         }
 
@@ -650,6 +696,10 @@ export function registerEventAdminRoutes(
             error:
               "Nie wiadomo, na którym kanale opublikować panel. " +
               "Ustaw PICKEM_CHANNEL_ID w configu serwera albo podaj channelId.",
+            code: "server.noChannel",
+            // Wskazówka techniczna zostaje po polsku: nazwy zmiennych
+            // środowiskowych nie tłumaczy się na żaden język.
+            hint: "Ustaw PICKEM_CHANNEL_ID w configu serwera albo podaj channelId.",
           });
         }
 
@@ -684,6 +734,7 @@ export function registerEventAdminRoutes(
         if (wynik.affectedRows === 0) {
           return res.status(409).json({
             error: "Stan turnieju zmienił się w trakcie. Odśwież i spróbuj ponownie.",
+            code: "server.eventChanged",
           });
         }
 
@@ -707,7 +758,10 @@ export function registerEventAdminRoutes(
         });
       } catch (err) {
         console.error("PICKEM START:", err);
-        return res.status(500).json({ error: "Błąd bazy danych." });
+        return res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -754,6 +808,7 @@ export function registerEventAdminRoutes(
         if (result.affectedRows === 0) {
           return res.status(404).json({
             error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
           });
         }
 
@@ -769,6 +824,7 @@ export function registerEventAdminRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

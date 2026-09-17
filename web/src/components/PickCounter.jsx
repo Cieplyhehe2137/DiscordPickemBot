@@ -1,3 +1,5 @@
+import { useT } from "../i18n/useLanguage.js";
+
 // Ile drużyn z wymaganych jest już wybranych.
 //
 // Sam napis "4/6" nie mówi, jak daleko do końca - trzeba go przeczytać i
@@ -5,7 +7,9 @@
 // obie rzeczy zmieniają kolor na zielony, więc widać, że przycisk zapisu
 // jest już aktywny, bez wodzenia wzrokiem w dół.
 
-function PickCounter({ selected, limit, label = "Wybrano" }) {
+function PickCounter({ selected, limit, label }) {
+  const t = useT();
+
   const isComplete = limit > 0 && selected === limit;
 
   const percentage = limit > 0 ? Math.min(100, (selected / limit) * 100) : 0;
@@ -13,7 +17,7 @@ function PickCounter({ selected, limit, label = "Wybrano" }) {
   return (
     <div className="ui-stack ui-stack--tight">
       <div className="ui-row ui-row--between ui-row--full">
-        <span className="ui-stat__hint">{label}</span>
+        <span className="ui-stat__hint">{label ?? t("common.selected")}</span>
 
         <span className={`ui-count ${isComplete ? "ui-count--done" : ""}`}>
           {selected}/{limit}

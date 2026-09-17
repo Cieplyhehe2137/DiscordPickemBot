@@ -77,6 +77,7 @@ export function registerVisitRoutes(app, { pool, env = process.env } = {}) {
 
       return res.status(503).json({
         error: "Nie udało się pobrać licznika odwiedzin.",
+        code: "server.visitsFailed",
       });
     }
   });

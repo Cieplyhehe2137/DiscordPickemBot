@@ -74,24 +74,29 @@ test("druzyny() zwraca biernik po 'wybierz'", () => {
   assert.equal(bot.druzyny(12), "drużyn");
 });
 
-test("kopia frontowa stosuje dokładnie tę samą regułę", async () => {
-  const front = await import("../web/src/lib/odmiana.js");
+test("front odmienia przez slownik dokladnie tak samo jak bot", async () => {
+  // Front nie ma juz wlasnej kopii odmien(). Odmiana siedzi w slowniku, a
+  // wybor formy robi pluralCategory() - ta sama funkcja dla polskiego,
+  // rosyjskiego i ukrainskiego.
+  //
+  // Ten test pilnuje, ze przy przejsciu na slownik polska regula nie
+  // zmienila sie ani przy jednej liczbie do trzystu. Bot mowi po polsku
+  // i bedzie mowil dalej, wiec rozjazd znaczylby, ze ta sama liczba jest
+  // odmieniona inaczej na Discordzie i na stronie.
+  const { pluralCategory } = await import("../web/src/lib/language.js");
+
+  const FORMA = { one: P, few: M, many: D };
 
   const rozjazdy = [];
 
   for (let n = 0; n <= 300; n += 1) {
     const zBota = bot.odmien(n, P, M, D);
-    const zFrontu = front.odmien(n, P, M, D);
+    const zeSlownika = FORMA[pluralCategory("pl", n)];
 
-    if (zBota !== zFrontu) {
-      rozjazdy.push(`${n}: bot=${zBota} front=${zFrontu}`);
+    if (zBota !== zeSlownika) {
+      rozjazdy.push(`${n}: bot=${zBota} slownik=${zeSlownika}`);
     }
   }
 
-  assert.deepEqual(rozjazdy, [], "reguła rozjechała się między kopiami");
-
-  // druzyny() istnieje po obu stronach i musi dawać to samo słowo.
-  for (const n of [1, 2, 5, 12, 22]) {
-    assert.equal(bot.druzyny(n), front.druzyny(n), `druzyny(${n})`);
-  }
+  assert.deepEqual(rozjazdy, [], "regula rozjechala sie miedzy botem a strona");
 });

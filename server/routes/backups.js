@@ -88,7 +88,10 @@ export function registerBackupRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -127,7 +130,10 @@ export function registerBackupRoutes(
         res.json({ backups: listGuildBackups(req.params.guildId) });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Could not list backups" });
+        res.status(500).json({
+          error: "Could not list backups",
+          code: "server.backupListFailed",
+        });
       }
     },
   );
@@ -146,7 +152,10 @@ export function registerBackupRoutes(
         const filePath = path.join(backupDir, fileName);
 
         if (!fs.existsSync(filePath)) {
-          return res.status(404).json({ error: "Nie znaleziono pliku kopii zapasowej." });
+          return res.status(404).json({
+            error: "Nie znaleziono pliku kopii zapasowej.",
+            code: "server.backupNotFound",
+          });
         }
 
         logInfo("backup", "Guild backup downloaded from web panel", {
@@ -158,7 +167,10 @@ export function registerBackupRoutes(
         res.download(filePath, fileName);
       } catch (err) {
         console.error(err);
-        res.status(400).json({ error: "Invalid backup file name" });
+        res.status(400).json({
+          error: "Invalid backup file name",
+          code: "server.badBackupName",
+        });
       }
     },
   );
@@ -193,7 +205,10 @@ export function registerBackupRoutes(
           stack: err?.stack,
         });
 
-        res.status(500).json({ error: "Backup failed" });
+        res.status(500).json({
+          error: "Backup failed",
+          code: "server.backupFailed",
+        });
       }
     },
   );
@@ -209,7 +224,10 @@ export function registerBackupRoutes(
         const filePath = path.join(backupDir, fileName);
 
         if (!fs.existsSync(filePath)) {
-          return res.status(404).json({ error: "Nie znaleziono pliku kopii zapasowej." });
+          return res.status(404).json({
+            error: "Nie znaleziono pliku kopii zapasowej.",
+            code: "server.backupNotFound",
+          });
         }
 
         const summary = await restoreBackup(filePath, { guildId });
@@ -236,7 +254,10 @@ export function registerBackupRoutes(
           stack: err?.stack,
         });
 
-        res.status(500).json({ error: "Restore failed" });
+        res.status(500).json({
+          error: "Restore failed",
+          code: "server.restoreFailed",
+        });
       }
     },
   );

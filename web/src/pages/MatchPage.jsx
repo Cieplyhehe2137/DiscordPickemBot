@@ -12,6 +12,8 @@ import {
   getMyMatchPoints,
 } from "../lib/api.js";
 import { getMapLabel } from "../lib/mapLabels.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 import BackLink from "../components/BackLink.jsx";
 import ScoreLine from "../components/ScoreLine.jsx";
 
@@ -47,25 +49,10 @@ function validateCs2Score(a, b) {
   return false;
 }
 
-function formatPicksCount(count) {
-  const number = Number(count) || 0;
-
-  if (number === 1) {
-    return `${number} typ`;
-  }
-
-  const lastTwoDigits = number % 100;
-  const lastDigit = number % 10;
-
-  if (
-    lastDigit >= 2 &&
-    lastDigit <= 4 &&
-    !(lastTwoDigits >= 12 && lastTwoDigits <= 14)
-  ) {
-    return `${number} typy`;
-  }
-
-  return `${number} typów`;
+// Odmiana przez liczebnik siedzi dziś w słowniku - ta sama reguła obsługuje
+// polski, rosyjski i ukraiński, a angielski i niemiecki mają własną.
+function formatPicksCount(t, count) {
+  return t("match.picksCount", { count: Number(count) || 0 });
 }
 
 function getMapWinner(scoreA, scoreB) {
@@ -208,6 +195,8 @@ function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
 }
 
 function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
+  const t = useT();
+
   return (
     <div className="ui-stack">
       {mapScores.slice(0, getRequiredMaps(seriesScore)).map((map, index) => (
@@ -216,7 +205,7 @@ function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
           key={index}
         >
           <div className="ui-row ui-row--between">
-            <strong>Mapa {index + 1}</strong>
+            <strong>{t("common.mapNo", { no: index + 1 })}</strong>
 
             <span className="ui-badge">
               {getMapLabel(
@@ -310,17 +299,17 @@ function SeriesPick({
   validationError,
   onSave,
 }) {
+  const t = useT();
+
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Twój typ</span>
+          <span className="ui-kicker">{t("match.yourPick")}</span>
 
-          <h2>Wynik serii BO{match.best_of}</h2>
+          <h2>{t("match.seriesTitle", { bo: match.best_of })}</h2>
 
-          <p>
-            Najpierw wybierz wynik serii, potem uzupełnij wyniki kolejnych map.
-          </p>
+          <p>{t("match.seriesHint")}</p>
         </div>
       </div>
 
@@ -343,13 +332,15 @@ function SeriesPick({
 
       {match.ui_status !== "FINAL" && match.predictions_allowed === false && (
         <p className="ui-note ui-note--warn">
-          🔒 {match.lock_reason ?? "Typowanie tego meczu jest zablokowane."}
+          🔒{" "}
+          {translateApiMessage(match.lock_reason_code, match.lock_reason) ??
+            t("match.locked")}
         </p>
       )}
 
       {!currentUser && (
         <p className="ui-note">
-          Zaloguj się przez Discord, żeby zapisać swój typ.{" "}
+          {t("match.loginToSave")}{" "}
           <a
             href={apiUrl(
               `/api/auth/discord?returnTo=${encodeURIComponent(
@@ -357,7 +348,7 @@ function SeriesPick({
               )}`,
             )}
           >
-            Zaloguj przez Discord
+            {t("login.discord")}
           </a>
         </p>
       )}
@@ -378,7 +369,7 @@ function SeriesPick({
           }
           onClick={onSave}
         >
-          {saving ? "Zapisywanie..." : "Zapisz typ"}
+          {saving ? t("pickem.saving") : t("match.savePick")}
         </button>
       )}
     </section>
@@ -438,15 +429,17 @@ function Bo1Pick({
   validationError,
   onSave,
 }) {
+  const t = useT();
+
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Twój typ</span>
+          <span className="ui-kicker">{t("match.yourPick")}</span>
 
-          <h2>Kto wygra?</h2>
+          <h2>{t("match.bo1Title")}</h2>
 
-          <p>Wskaż zwycięzcę i podaj wynik rund.</p>
+          <p>{t("match.bo1Hint")}</p>
         </div>
       </div>
 
@@ -504,7 +497,9 @@ function Bo1Pick({
 
       {match.ui_status !== "FINAL" && match.predictions_allowed === false && (
         <p className="ui-note ui-note--warn">
-          🔒 {match.lock_reason ?? "Typowanie tego meczu jest zablokowane."}
+          🔒{" "}
+          {translateApiMessage(match.lock_reason_code, match.lock_reason) ??
+            t("match.locked")}
         </p>
       )}
 
@@ -521,7 +516,7 @@ function Bo1Pick({
             )}`,
           )}
         >
-          Zaloguj przez Discord
+          {t("login.discord")}
         </a>
       )}
 
@@ -538,29 +533,31 @@ function Bo1Pick({
           onClick={onSave}
         >
           {authLoading
-            ? "Sprawdzanie logowania..."
+            ? t("match.checkingLogin")
             : saving
-              ? "Zapisywanie..."
-              : "Zapisz typ"}
+              ? t("pickem.saving")
+              : t("match.savePick")}
         </button>
       )}
     </section>
   );
 }
 
+// Komunikaty walidacji wracają jako KLUCZE, nie gotowe zdania: funkcja jest
+// czysta i sprawdzana testem, a tłumacz mieszka w komponencie.
 function validateBo1Prediction(winner, scoreA, scoreB) {
   if (!winner) {
-    return "Wybierz zwycięzcę meczu.";
+    return "match.needWinner";
   }
 
   if (!validateCs2Score(scoreA, scoreB)) {
-    return "Podaj prawidłowy wynik CS2.";
+    return "match.badScore";
   }
 
   const scoreWinner = Number(scoreA) > Number(scoreB) ? "A" : "B";
 
   if (winner !== scoreWinner) {
-    return "Wybrany zwycięzca nie zgadza się z wynikiem.";
+    return "match.winnerMismatch";
   }
 
   return null;
@@ -568,24 +565,24 @@ function validateBo1Prediction(winner, scoreA, scoreB) {
 
 function validateSeriesPrediction(seriesScore, mapScores, bestOf) {
   if (!seriesScore) {
-    return "Wybierz wynik serii.";
+    return "match.needSeries";
   }
 
   const requiredMaps = getRequiredMaps(seriesScore);
   const usedMaps = mapScores.slice(0, requiredMaps);
 
   if (usedMaps.some((map) => !validateCs2Score(map.scoreA, map.scoreB))) {
-    return "Podaj prawidłowy wynik CS2 dla każdej mapy.";
+    return "match.badMapScore";
   }
 
   const winners = usedMaps.map((map) => getMapWinner(map.scoreA, map.scoreB));
 
   if (seriesDecidedTooEarly(winners, Number(bestOf))) {
-    return "Seria kończy się wcześniej, niż wynika z podanych map.";
+    return "match.seriesTooEarly";
   }
 
   if (!validateSeries(seriesScore, mapScores, bestOf)) {
-    return "Wyniki map nie zgadzają się z wybranym wynikiem serii.";
+    return "match.seriesMismatch";
   }
 
   return null;
@@ -641,6 +638,8 @@ function resolveSingleMapScore(result) {
 }
 
 function MapBreakdown({ teamA, teamB, maps }) {
+  const t = useT();
+
   if (maps.length === 0) {
     return null;
   }
@@ -649,7 +648,9 @@ function MapBreakdown({ teamA, teamB, maps }) {
     <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
       {maps.map((map) => (
         <div className="ui-map-row" key={map.no}>
-          <span className="ui-map-row__label">Mapa {map.no}</span>
+          <span className="ui-map-row__label">
+            {t("common.mapNo", { no: map.no })}
+          </span>
 
           <ScoreLine
             compact
@@ -665,6 +666,8 @@ function MapBreakdown({ teamA, teamB, maps }) {
 }
 
 function CommunitySplit({ teamA, teamB, sideA, sideB }) {
+  const t = useT();
+
   const percentageA = sideA?.percentage ?? 0;
   const percentageB = sideB?.percentage ?? 0;
 
@@ -692,11 +695,11 @@ function CommunitySplit({ teamA, teamB, sideA, sideB }) {
 
       <div className="ui-row ui-row--between ui-row--full">
         <span className="ui-stat__hint">
-          {formatPicksCount(sideA?.picks ?? 0)}
+          {formatPicksCount(t, sideA?.picks ?? 0)}
         </span>
 
         <span className="ui-stat__hint">
-          {formatPicksCount(sideB?.picks ?? 0)}
+          {formatPicksCount(t, sideB?.picks ?? 0)}
         </span>
       </div>
     </div>
@@ -704,6 +707,8 @@ function CommunitySplit({ teamA, teamB, sideA, sideB }) {
 }
 
 function MatchPage() {
+  const t = useT();
+
   const { slug, matchId } = useParams();
   const { realtimeRefresh } = useOutletContext();
   const { user: currentUser, authLoading } = useAuth();
@@ -825,7 +830,7 @@ function MatchPage() {
         const foundMatch = data.match;
 
         if (!foundMatch) {
-          throw new Error("Nie znaleziono meczu.");
+          throw new Error(t("match.notFound"));
         }
 
         resetPredictionForm();
@@ -840,7 +845,7 @@ function MatchPage() {
     }
 
     loadMatch();
-  }, [slug, matchId]);
+  }, [slug, matchId, t]);
 
   useEffect(() => {
     async function loadPickStats() {
@@ -937,14 +942,14 @@ function MatchPage() {
     setValidationError(null);
 
     if (!currentUser) {
-      setValidationError("Najpierw zaloguj się przez Discord.");
+      setValidationError(t("match.needLogin"));
       return;
     }
 
     const validationMessage = validateBo1Prediction(winner, scoreA, scoreB);
 
     if (validationMessage) {
-      setValidationError(validationMessage);
+      setValidationError(t(validationMessage));
       return;
     }
 
@@ -956,7 +961,7 @@ function MatchPage() {
         buildBo1Payload(winner, scoreA, scoreB),
       );
 
-      toast.success("Typ zapisany.");
+      toast.success(t("match.saved"));
     } catch (err) {
       setValidationError(err.message);
     } finally {
@@ -968,7 +973,7 @@ function MatchPage() {
     setValidationError(null);
 
     if (!currentUser) {
-      setValidationError("Najpierw zaloguj się przez Discord.");
+      setValidationError(t("match.needLogin"));
       return;
     }
 
@@ -979,7 +984,7 @@ function MatchPage() {
     );
 
     if (validationMessage) {
-      setValidationError(validationMessage);
+      setValidationError(t(validationMessage));
       return;
     }
 
@@ -990,7 +995,7 @@ function MatchPage() {
 
       await saveMatchPrediction(match.id, payload);
 
-      toast.success("Typ zapisany.");
+      toast.success(t("match.saved"));
     } catch (err) {
       console.error(`BO${bestOf} SAVE ERROR:`, err);
       setValidationError(err.message);
@@ -1001,10 +1006,16 @@ function MatchPage() {
 
   return (
     <main className="ui-page">
-      <BackLink to={`/events/${slug}/matches`}>Wróć do listy meczów</BackLink>
+      <BackLink to={`/events/${slug}/matches`}>
+        {t("match.backToList")}
+      </BackLink>
 
       {loading && (
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie meczu">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("match.loading")}
+        >
           <div className="ui-skeleton ui-skeleton--row" />
 
           <div className="ui-skeleton ui-skeleton--row" />
@@ -1017,9 +1028,7 @@ function MatchPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać meczu
-          </strong>
+          <strong className="ui-error__title">{t("match.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -1034,13 +1043,15 @@ function MatchPage() {
               </span>
 
               {match.ui_status === "FINAL" ? (
-                <span className="ui-badge">Mecz zakończony</span>
+                <span className="ui-badge">{t("match.finished")}</span>
               ) : match.predictions_allowed === false ? (
                 <span className="ui-badge ui-badge--warn">
-                  Typowanie zamknięte
+                  {t("matchState.locked")}
                 </span>
               ) : (
-                <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+                <span className="ui-badge ui-badge--ok">
+                  {t("matchState.open")}
+                </span>
               )}
             </div>
 
@@ -1066,9 +1077,9 @@ function MatchPage() {
             <section className="ui-card ui-stack">
               <div className="ui-section-head">
                 <div>
-                  <span className="ui-kicker">Rezultat</span>
+                  <span className="ui-kicker">{t("match.result.kicker")}</span>
 
-                  <h2>Wynik meczu</h2>
+                  <h2>{t("match.result.title")}</h2>
                 </div>
               </div>
 
@@ -1108,15 +1119,13 @@ function MatchPage() {
             <section className="ui-card ui-stack">
               <div className="ui-section-head">
                 <div>
-                  <span className="ui-kicker">Twój typ</span>
+                  <span className="ui-kicker">{t("match.yourPick")}</span>
 
-                  <h2>Zobacz, jak Ci poszło</h2>
+                  <h2>{t("match.howYouDid")}</h2>
                 </div>
               </div>
 
-              <p className="ui-note">
-                Zaloguj się przez Discord, żeby zobaczyć swój zapisany typ.
-              </p>
+              <p className="ui-note">{t("match.loginToSee")}</p>
 
               <a
                 className="ui-btn"
@@ -1126,7 +1135,7 @@ function MatchPage() {
                   )}`,
                 )}
               >
-                Zaloguj przez Discord
+                {t("login.discord")}
               </a>
             </section>
           )}
@@ -1135,35 +1144,35 @@ function MatchPage() {
             <section className="ui-card ui-card--accent ui-stack">
               <div className="ui-section-head">
                 <div>
-                  <span className="ui-kicker">Twój wynik</span>
+                  <span className="ui-kicker">{t("match.yourScore")}</span>
 
-                  <h2>Zdobyte punkty</h2>
+                  <h2>{t("match.pointsEarned")}</h2>
                 </div>
               </div>
 
               <div className="ui-stats">
                 <div className="ui-stat ui-stat--featured">
-                  <span>Łącznie</span>
+                  <span>{t("myPicks.total")}</span>
 
                   <strong>⭐ {myPoints.total}</strong>
 
-                  <small>punktów za ten mecz</small>
+                  <small>{t("match.totalHint")}</small>
                 </div>
 
                 <div className="ui-stat">
-                  <span>Seria</span>
+                  <span>{t("myPicks.series")}</span>
 
                   <strong>{myPoints.series}</strong>
 
-                  <small>za wynik meczu</small>
+                  <small>{t("match.seriesHintPoints")}</small>
                 </div>
 
                 <div className="ui-stat">
-                  <span>Mapy</span>
+                  <span>{t("myPicks.maps")}</span>
 
                   <strong>{myPoints.maps}</strong>
 
-                  <small>za wyniki map</small>
+                  <small>{t("match.mapsHintPoints")}</small>
                 </div>
               </div>
             </section>
@@ -1173,9 +1182,11 @@ function MatchPage() {
             <section className="ui-card ui-stack">
               <div className="ui-section-head">
                 <div>
-                  <span className="ui-kicker">Społeczność</span>
+                  <span className="ui-kicker">
+                    {t("match.community.kicker")}
+                  </span>
 
-                  <h2>Jak typowała społeczność?</h2>
+                  <h2>{t("match.community.title")}</h2>
                 </div>
               </div>
 
@@ -1186,11 +1197,11 @@ function MatchPage() {
                   </span>
 
                   <strong className="ui-empty__title">
-                    Nikt nie typował tego meczu
+                    {t("match.community.emptyTitle")}
                   </strong>
 
                   <p className="ui-empty__text">
-                    Typowanie zamknęło się bez ani jednego zapisanego typu.
+                    {t("match.community.emptyText")}
                   </p>
                 </div>
               ) : (
@@ -1208,18 +1219,18 @@ function MatchPage() {
 
                   <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
                     <span className="ui-stat__hint">
-                      Łącznie typów:{" "}
+                      {t("match.community.total")}{" "}
                       <strong>{pickStats.picks?.total ?? 0}</strong>
                     </span>
 
                     {pickStats.popular_score && (
                       <span className="ui-stat__hint">
-                        Najpopularniejszy wynik:{" "}
+                        {t("match.community.popular")}{" "}
                         <strong>
                           {pickStats.popular_score.score_a}:
                           {pickStats.popular_score.score_b}
                         </strong>{" "}
-                        ({formatPicksCount(pickStats.popular_score.picks)})
+                        ({formatPicksCount(t, pickStats.popular_score.picks)})
                       </span>
                     )}
                   </div>
@@ -1228,9 +1239,9 @@ function MatchPage() {
                     <div className="ui-stack">
                       <div className="ui-section-head">
                         <div>
-                          <span className="ui-kicker">Mapy</span>
+                          <span className="ui-kicker">{t("myPicks.maps")}</span>
 
-                          <h3>Jak typowano mapy?</h3>
+                          <h3>{t("match.community.mapsTitle")}</h3>
                         </div>
                       </div>
 
@@ -1239,7 +1250,9 @@ function MatchPage() {
                           className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight"
                           key={map.map_no}
                         >
-                          <span className="ui-kicker">Mapa {map.map_no}</span>
+                          <span className="ui-kicker">
+                            {t("common.mapNo", { no: map.map_no })}
+                          </span>
 
                           <CommunitySplit
                             teamA={match.team_a}
@@ -1262,9 +1275,9 @@ function MatchPage() {
               <section className="ui-card ui-stack">
                 <div className="ui-section-head">
                   <div>
-                    <span className="ui-kicker">Twój typ</span>
+                    <span className="ui-kicker">{t("match.yourPick")}</span>
 
-                    <h2>Co obstawiłeś</h2>
+                    <h2>{t("match.whatYouPicked")}</h2>
                   </div>
                 </div>
 
@@ -1276,7 +1289,7 @@ function MatchPage() {
                     scoreB={scoreB}
                   />
                 ) : (
-                  <p className="ui-note">Nie typowałeś tego meczu.</p>
+                  <p className="ui-note">{t("match.noPick")}</p>
                 )}
               </section>
             )}
@@ -1304,9 +1317,9 @@ function MatchPage() {
               <section className="ui-card ui-stack">
                 <div className="ui-section-head">
                   <div>
-                    <span className="ui-kicker">Twój typ</span>
+                    <span className="ui-kicker">{t("match.yourPick")}</span>
 
-                    <h2>Co obstawiłeś</h2>
+                    <h2>{t("match.whatYouPicked")}</h2>
                   </div>
                 </div>
 
@@ -1332,7 +1345,7 @@ function MatchPage() {
                     />
                   </>
                 ) : (
-                  <p className="ui-note">Nie typowałeś tego meczu.</p>
+                  <p className="ui-note">{t("match.noPick")}</p>
                 )}
               </section>
             )}

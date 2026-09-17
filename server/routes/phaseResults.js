@@ -48,6 +48,7 @@ export function registerPhaseResultRoutes(
         if (!event) {
           return res.status(404).json({
             error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
           });
         }
 
@@ -62,6 +63,7 @@ export function registerPhaseResultRoutes(
               `Turniej "${wynik.eventName}" jest zarchiwizowany, więc punkty nie zostały przeliczone. ` +
               "Zasady punktacji map zmieniły się po jego zakończeniu - przeliczenie zmieniłoby " +
               "zamknięty ranking. Jeśli naprawdę tego chcesz, najpierw cofnij archiwizację.",
+            code: "server.archivedScoring",
             skipped: true,
             reason: wynik.reason,
           });
@@ -97,7 +99,10 @@ export function registerPhaseResultRoutes(
         const { guildId } = req;
 
         if (!SWISS_STAGES.includes(stage)) {
-          return res.status(400).json({ error: "Nieprawidłowy etap." });
+          return res.status(400).json({
+            error: "Nieprawidłowy etap.",
+            code: "server.badStage",
+          });
         }
 
         const [[event]] = await pool.query(
@@ -106,7 +111,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const current = await getCurrentSwissResults(
@@ -126,6 +134,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -140,7 +149,10 @@ export function registerPhaseResultRoutes(
         const { guildId } = req;
 
         if (!SWISS_STAGES.includes(stage)) {
-          return res.status(400).json({ error: "Nieprawidłowy etap." });
+          return res.status(400).json({
+            error: "Nieprawidłowy etap.",
+            code: "server.badStage",
+          });
         }
 
         const x3_0 = Array.isArray(req.body.x3_0)
@@ -161,7 +173,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         // Limity wyniku biorą się z konfiguracji tego eventu (maksimum,
@@ -212,6 +227,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -231,7 +247,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const current = await getCurrentPlayoffs(pool, guildId, event.id);
@@ -247,6 +266,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -272,15 +292,24 @@ export function registerPhaseResultRoutes(
         if (finalists.some((t) => !semifinalists.includes(t))) {
           return res
             .status(400)
-            .json({ error: "Finalists must be semifinalists" });
+            .json({
+              error: "Finalists must be semifinalists",
+              code: "server.finalistsMustBeSemis",
+            });
         }
 
         if (winner && !finalists.includes(winner)) {
-          return res.status(400).json({ error: "Zwycięzca musi być finalistą." });
+          return res.status(400).json({
+            error: "Zwycięzca musi być finalistą.",
+            code: "server.winnerIsFinalist",
+          });
         }
 
         if (third && (third === winner || !semifinalists.includes(third))) {
-          return res.status(400).json({ error: "Invalid third place" });
+          return res.status(400).json({
+            error: "Invalid third place",
+            code: "server.badThirdPlace",
+          });
         }
 
         const all = [
@@ -296,7 +325,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
@@ -345,6 +377,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -364,7 +397,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const current = await getCurrentDoubleElimResults(
@@ -379,6 +415,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -426,13 +463,19 @@ export function registerPhaseResultRoutes(
         ];
 
         if (!all.length) {
-          return res.status(400).json({ error: "No teams selected" });
+          return res.status(400).json({
+            error: "No teams selected",
+            code: "server.noTeamsSelected",
+          });
         }
 
         if (new Set(all).size !== all.length) {
           return res
             .status(400)
-            .json({ error: "A team cannot appear in more than one slot" });
+            .json({
+              error: "A team cannot appear in more than one slot",
+              code: "server.teamOneSlot",
+            });
         }
 
         const [[event]] = await pool.query(
@@ -441,7 +484,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
@@ -496,6 +542,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -515,7 +562,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const current = await getCurrentPlayinResults(pool, guildId, event.id);
@@ -526,6 +576,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -549,7 +600,10 @@ export function registerPhaseResultRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         // Limity wyniku z konfiguracji tego eventu (maksimum, bo wynik
@@ -590,6 +644,7 @@ export function registerPhaseResultRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

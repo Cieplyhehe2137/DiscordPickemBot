@@ -8,7 +8,8 @@ import {
   saveMvpResult,
 } from "../../lib/api.js";
 import Ladowanie from "../../components/Ladowanie.jsx";
-import { odmien } from "../../lib/odmiana.js";
+import { T } from "../../i18n/T.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 import {
   isGroupSelected,
   toggleGroup,
@@ -37,6 +38,8 @@ function parsujKandydatow(tekst) {
 }
 
 function MvpAdminPanel({ slug }) {
+  const t = useT();
+
   const [kandydaci, setKandydaci] = useState([]);
   const [wynik, setWynik] = useState(null);
   const [tekst, setTekst] = useState("");
@@ -79,11 +82,11 @@ function MvpAdminPanel({ slug }) {
       setBlad("");
     } catch (err) {
       console.error("MVP LOAD:", err);
-      setBlad(err.message || "Nie udało się wczytać danych MVP.");
+      setBlad(err.message || t("admin.mvp.loadError"));
     } finally {
       setZaladowane(true);
     }
-  }, [slug]);
+  }, [slug, t]);
 
   // Efekt trzyma własną kopię pobrania, żeby nie zawierał żadnego
   // synchronicznego setState (react-hooks/set-state-in-effect).
@@ -103,7 +106,7 @@ function MvpAdminPanel({ slug }) {
         console.error("MVP LOAD:", err);
 
         if (!anulowane) {
-          setBlad(err.message || "Nie udało się wczytać danych MVP.");
+          setBlad(err.message || t("admin.mvp.loadError"));
         }
       } finally {
         if (!anulowane) setZaladowane(true);
@@ -113,7 +116,7 @@ function MvpAdminPanel({ slug }) {
     return () => {
       anulowane = true;
     };
-  }, [slug]);
+  }, [slug, t]);
 
   async function zapiszKandydatow() {
     const wpisy = parsujKandydatow(tekst);
@@ -130,10 +133,10 @@ function MvpAdminPanel({ slug }) {
     try {
       await saveMvpCandidates(slug, wpisy);
       setTekst("");
-      setKomunikat(`Zapisano kandydatów: ${wpisy.length}.`);
+      setKomunikat(t("admin.mvp.saved", { count: wpisy.length }));
       await wczytaj();
     } catch (err) {
-      setBlad(err.message || "Nie udało się zapisać kandydatów.");
+      setBlad(err.message || t("admin.mvp.saveError"));
     } finally {
       setZapisywanie(false);
     }
@@ -150,13 +153,13 @@ function MvpAdminPanel({ slug }) {
     try {
       await deleteMvpCandidate(slug, candidateId);
       setPotwierdzanyId(null);
-      setKomunikat("Kandydat usunięty.");
+      setKomunikat(t("admin.mvp.deleted"));
       await wczytaj();
     } catch (err) {
       // Serwer odmawia, gdy ktoś już wytypował tego kandydata albo gdy jest
       // zapisany jako zwycięzca - i mówi wprost, co go trzyma. Pokazujemy tę
       // wiadomość, zamiast zastępować ją własną, ogólną.
-      setBlad(err.message || "Nie udało się usunąć kandydata.");
+      setBlad(err.message || t("admin.mvp.deleteError"));
     } finally {
       setUsuwanyId(null);
     }
@@ -170,10 +173,10 @@ function MvpAdminPanel({ slug }) {
       await saveMvpResult(slug, candidateId);
       setWynik(candidateId);
       setKomunikat(
-        "Zapisano zwycięzcę MVP. Przelicz punkty, żeby go rozliczyć.",
+        t("admin.mvp.winnerSaved"),
       );
     } catch (err) {
-      setBlad(err.message || "Nie udało się zapisać wyniku MVP.");
+      setBlad(err.message || t("admin.mvp.winnerError"));
     }
   }
 
@@ -217,13 +220,16 @@ function MvpAdminPanel({ slug }) {
       // po kliknięciu "usuń 13" musi być widoczne, a nie ciche.
       setKomunikat(
         odmowy.length
-          ? `Usunięto ${usunietych}, pominięto ${odmowy.length} — szczegóły poniżej.`
-          : `Usunięto ${usunietych} ${odmien(usunietych, "kandydata", "kandydatów", "kandydatów")}.`,
+          ? t("admin.mvp.bulkMixed", {
+              deleted: usunietych,
+              skipped: odmowy.length,
+            })
+          : t("admin.mvp.bulkDone", { count: usunietych }),
       );
 
       await wczytaj();
     } catch (err) {
-      setBlad(err.message || "Nie udało się usunąć zaznaczonych.");
+      setBlad(err.message || t("admin.mvp.bulkError"));
     } finally {
       setKasowanieHurtowe(false);
     }
@@ -248,7 +254,7 @@ function MvpAdminPanel({ slug }) {
             type="checkbox"
             checked={zaznaczone.has(kandydat.id)}
             onChange={() => przelaczZaznaczenie(kandydat.id)}
-            aria-label={`Zaznacz ${kandydat.nickname}`}
+            aria-label={t("admin.mvp.select", { name: kandydat.nickname })}
           />
 
           <button
@@ -256,7 +262,7 @@ function MvpAdminPanel({ slug }) {
             className="ui-choice__option ui-choice__option--stacked"
             aria-pressed={zwyciezca}
             onClick={() => ustawWynik(kandydat.id)}
-            title="Kliknij, aby ustawić jako zwycięzcę MVP"
+            title={t("admin.mvp.setWinner")}
           >
             <strong>{kandydat.nickname}</strong>
 
@@ -269,7 +275,9 @@ function MvpAdminPanel({ slug }) {
             {/* Zapis listy nie kasuje starych wpisów, tylko je
                       wyłącza - bez tej plakietki nie było widać, którzy
                       kandydaci pochodzą z poprzedniego zapisu. */}
-            {nieaktywny && <span className="ui-badge">poza listą</span>}
+            {nieaktywny && (
+              <span className="ui-badge">{t("admin.mvp.offList")}</span>
+            )}
 
             <button
               type="button"
@@ -283,7 +291,7 @@ function MvpAdminPanel({ slug }) {
                 );
               }}
             >
-              🗑️ Usuń
+              🗑️ {t("admin.mvp.delete")}
             </button>
           </div>
         </div>
@@ -291,7 +299,10 @@ function MvpAdminPanel({ slug }) {
         {potwierdzanyId === kandydat.id && (
           <div className="ui-note ui-note--danger ui-stack ui-stack--tight">
             <span>
-              Usunąć <strong>{kandydat.nickname}</strong> z listy kandydatów?
+              <T
+                k="admin.mvp.deleteAsk"
+                vars={{ name: <strong>{kandydat.nickname}</strong> }}
+              />
             </span>
 
             <div className="ui-row ui-row--wrap">
@@ -301,7 +312,9 @@ function MvpAdminPanel({ slug }) {
                 disabled={usuwanyId === kandydat.id}
                 onClick={() => usunKandydata(kandydat.id)}
               >
-                {usuwanyId === kandydat.id ? "Usuwanie..." : "🗑️ Tak, usuń"}
+                {usuwanyId === kandydat.id
+                  ? t("admin.mvp.deleting")
+                  : `🗑️ ${t("admin.mvp.deleteYes")}`}
               </button>
 
               <button
@@ -310,7 +323,7 @@ function MvpAdminPanel({ slug }) {
                 disabled={usuwanyId === kandydat.id}
                 onClick={() => setPotwierdzanyId(null)}
               >
-                Anuluj
+                {t("common.cancel")}
               </button>
             </div>
           </div>
@@ -322,19 +335,16 @@ function MvpAdminPanel({ slug }) {
   return (
     <div className="ui-stack">
       <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
-        <h4>Kandydaci</h4>
+        <h4>{t("admin.mvp.candidates")}</h4>
 
-        {ladowanie && <Ladowanie>Wczytywanie...</Ladowanie>}
+        {ladowanie && <Ladowanie>{t("admin.mvp.loading")}</Ladowanie>}
 
         {!ladowanie && kandydaci.length === 0 && (
-          <p className="ui-hint">Brak kandydatów.</p>
+          <p className="ui-hint">{t("admin.mvp.empty")}</p>
         )}
 
         {!ladowanie && kandydaci.length > 0 && aktywni.length === 0 && (
-          <p className="ui-hint">
-            Żaden kandydat nie jest na liście - wszyscy poniżej pochodzą z
-            wcześniejszych zapisów.
-          </p>
+          <p className="ui-hint">{t("admin.mvp.noneOnList")}</p>
         )}
 
         {!ladowanie && aktywni.length > 0 && (
@@ -347,7 +357,7 @@ function MvpAdminPanel({ slug }) {
               />
 
               <span className="ui-hint">
-                Zaznacz wszystkich na liście ({aktywni.length})
+                {t("admin.mvp.selectOnList", { count: aktywni.length })}
               </span>
             </label>
 
@@ -365,8 +375,8 @@ function MvpAdminPanel({ slug }) {
               aria-expanded={pokazPozaLista}
               onClick={() => setPokazPozaLista((teraz) => !teraz)}
             >
-              {pokazPozaLista ? "Ukryj" : "Pokaż"} {pozaLista.length}{" "}
-              {odmien(pozaLista.length, "wpis", "wpisy", "wpisów")} poza listą
+              {pokazPozaLista ? t("admin.mvp.hide") : t("admin.mvp.show")}{" "}
+              {t("admin.mvp.offListCount", { count: pozaLista.length })}
             </button>
 
             {pokazPozaLista && (
@@ -379,7 +389,7 @@ function MvpAdminPanel({ slug }) {
                   />
 
                   <span className="ui-hint">
-                    Zaznacz wszystkich poza listą ({pozaLista.length})
+                    {t("admin.mvp.selectOffList", { count: pozaLista.length })}
                   </span>
                 </label>
 
@@ -396,14 +406,7 @@ function MvpAdminPanel({ slug }) {
             {potwierdzHurt ? (
               <>
                 <span className="ui-note ui-note--danger">
-                  Usunąć {zaznaczone.size}{" "}
-                  {odmien(
-                    zaznaczone.size,
-                    "kandydata",
-                    "kandydatów",
-                    "kandydatów",
-                  )}
-                  ? Ci, których ktoś wytypował, zostaną pominięci.
+                  {t("admin.mvp.bulkAsk", { count: zaznaczone.size })}
                 </span>
 
                 <button
@@ -413,8 +416,8 @@ function MvpAdminPanel({ slug }) {
                   onClick={usunZaznaczone}
                 >
                   {kasowanieHurtowe
-                    ? "Usuwanie..."
-                    : "🗑️ Tak, usuń zaznaczonych"}
+                    ? t("admin.mvp.deleting")
+                    : `🗑️ ${t("admin.mvp.bulkYes")}`}
                 </button>
 
                 <button
@@ -423,7 +426,7 @@ function MvpAdminPanel({ slug }) {
                   disabled={kasowanieHurtowe}
                   onClick={() => setPotwierdzHurt(false)}
                 >
-                  Anuluj
+                  {t("common.cancel")}
                 </button>
               </>
             ) : (
@@ -438,7 +441,8 @@ function MvpAdminPanel({ slug }) {
                     setPotwierdzHurt(true);
                   }}
                 >
-                  🗑️ Usuń zaznaczonych ({zaznaczone.size})
+                  🗑️{" "}
+                  {t("admin.mvp.bulkButton", { count: zaznaczone.size })}
                 </button>
 
                 <button
@@ -446,7 +450,7 @@ function MvpAdminPanel({ slug }) {
                   className="ui-btn ui-btn--sm ui-btn--ghost"
                   onClick={() => setZaznaczone(new Set())}
                 >
-                  Odznacz wszystkich
+                  {t("admin.mvp.deselectAll")}
                 </button>
               </>
             )}
@@ -460,8 +464,7 @@ function MvpAdminPanel({ slug }) {
       {odrzucone.length > 0 && (
         <div className="ui-card ui-card--flat ui-card--danger ui-card--tight ui-stack ui-stack--tight">
           <strong>
-            Pominięto {odrzucone.length}{" "}
-            {odmien(odrzucone.length, "kandydata", "kandydatów", "kandydatów")}
+            {t("admin.mvp.skipped", { count: odrzucone.length })}
           </strong>
 
           {odrzucone.map((wpis) => (
@@ -473,10 +476,16 @@ function MvpAdminPanel({ slug }) {
       )}
 
       <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
-        <h4>Dodaj kandydatów</h4>
+        <h4>{t("admin.mvp.addTitle")}</h4>
 
         <p className="ui-hint">
-          Jeden na linię: <code>nick</code> albo <code>nick, drużyna</code>
+          <T
+            k="admin.mvp.addHint"
+            vars={{
+              nick: <code>nick</code>,
+              nickTeam: <code>{t("admin.mvp.addExample")}</code>,
+            }}
+          />
         </p>
 
         <textarea
@@ -494,7 +503,7 @@ function MvpAdminPanel({ slug }) {
             onClick={zapiszKandydatow}
             disabled={zapisywanie}
           >
-            {zapisywanie ? "Zapisywanie..." : "Zapisz kandydatów"}
+            {zapisywanie ? t("admin.saving") : t("admin.mvp.saveButton")}
           </button>
         </div>
       </div>

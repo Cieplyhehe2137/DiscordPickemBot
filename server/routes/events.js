@@ -86,7 +86,10 @@ export function registerEventRoutes(
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: "Błąd bazy danych." });
+      res.status(500).json({
+        error: "Błąd bazy danych.",
+        code: "server.dbError",
+      });
     }
   });
 
@@ -129,6 +132,7 @@ export function registerEventRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -475,6 +479,7 @@ export function registerEventRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -497,6 +502,7 @@ export function registerEventRoutes(
       if (!event) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -578,6 +584,7 @@ export function registerEventRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -1063,6 +1070,7 @@ export function registerEventRoutes(
       if (!dane) {
         return res.status(404).json({
           error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
         });
       }
 
@@ -1137,6 +1145,7 @@ export function registerEventRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -1171,6 +1180,7 @@ export function registerEventRoutes(
         if (!action) {
           return res.status(400).json({
             error: "Nieprawidłowy status.",
+            code: "server.badStatus",
             allowedStatuses: Object.keys(STATUS_ACTIONS),
           });
         }
@@ -1200,6 +1210,7 @@ export function registerEventRoutes(
         if (result.affectedRows === 0) {
           return res.status(404).json({
             error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
           });
         }
         emitDashboardRefresh({
@@ -1229,6 +1240,7 @@ export function registerEventRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

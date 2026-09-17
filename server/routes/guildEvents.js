@@ -33,6 +33,7 @@ export function registerGuildEventRoutes(
 
       res.status(500).json({
         error: "Błąd bazy danych.",
+        code: "server.dbError",
       });
     }
   });
@@ -100,6 +101,7 @@ export function registerGuildEventRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -123,13 +125,19 @@ export function registerGuildEventRoutes(
         if (!phase || !String(text || "").trim()) {
           return res
             .status(400)
-            .json({ error: "Wymagane: faza i lista meczów." });
+            .json({
+              error: "Wymagane: faza i lista meczów.",
+              code: "server.phaseAndMatchesRequired",
+            });
         }
 
         if (![1, 3, 5].includes(Number(defaultBestOf))) {
           return res
             .status(400)
-            .json({ error: "Domyślne BO musi wynosić 1, 3 albo 5." });
+            .json({
+              error: "Domyślne BO musi wynosić 1, 3 albo 5.",
+              code: "server.badDefaultBo",
+            });
         }
 
         const [[event]] = await pool.query(
@@ -137,7 +145,10 @@ export function registerGuildEventRoutes(
           [guildId, slug],
         );
 
-        if (!event) return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        if (!event) return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
 
         const { mecze, bledy, duplikaty } = parseMatchList(text, {
           domyslneBo: Number(defaultBestOf),
@@ -193,6 +204,7 @@ export function registerGuildEventRoutes(
         if (!doUtworzenia.length) {
           return res.status(400).json({
             error: "Nie ma czego utworzyć — żadna linia nie przeszła walidacji.",
+            code: "server.nothingToCreate",
             ...podsumowanie,
           });
         }
@@ -232,7 +244,10 @@ export function registerGuildEventRoutes(
         res.json({ ok: true, utworzone, ...podsumowanie });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Nie udało się utworzyć meczów." });
+        res.status(500).json({
+          error: "Nie udało się utworzyć meczów.",
+          code: "server.matchesCreateFailed",
+        });
       }
     },
   );
@@ -255,6 +270,7 @@ export function registerGuildEventRoutes(
         if (teamA === teamB) {
           return res.status(400).json({
             error: "Drużyny muszą być różne.",
+            code: "server.teamsMustDiffer",
           });
         }
 
@@ -264,7 +280,10 @@ export function registerGuildEventRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const [activeTeams] = await pool.query(
@@ -323,6 +342,7 @@ export function registerGuildEventRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

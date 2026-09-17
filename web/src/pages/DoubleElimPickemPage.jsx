@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { getDoubleElimPickem, saveDoubleElimPickem } from "../lib/api.js";
-import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 import { useToast } from "../components/ui/useToast.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 import { useAuth } from "../auth/useAuth.js";
@@ -12,6 +13,8 @@ import TeamPickGroup from "../components/TeamPickGroup.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function DoubleElimPickemPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const { user, authLoading } = useAuth();
   const toast = useToast();
@@ -70,7 +73,7 @@ function DoubleElimPickemPage() {
         console.error("DOUBLE ELIM PICKEM ERROR:", err);
 
         setError(
-          err.message || "Nie udało się pobrać Double Elimination Pick'Em.",
+          err.message || t("pickem.doubleElim.loadError"),
         );
       } finally {
         setLoading(false);
@@ -78,7 +81,7 @@ function DoubleElimPickemPage() {
     }
 
     loadDoubleElimPickem();
-  }, [slug]);
+  }, [slug, t]);
 
   async function handleSave() {
     try {
@@ -99,11 +102,11 @@ function DoubleElimPickemPage() {
         prediction,
       }));
 
-      toast.success(SAVED_MESSAGE);
+      toast.success(t("pickem.saved"));
     } catch (err) {
       console.error("DOUBLE ELIM SAVE ERROR:", err);
 
-      setSaveError(err.message || "Nie udało się zapisać typów.");
+      setSaveError(err.message || t("pickem.saveError"));
     } finally {
       setSaving(false);
     }
@@ -112,7 +115,11 @@ function DoubleElimPickemPage() {
   if (loading) {
     return (
       <main className="ui-page">
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("pickem.loading")}
+        >
           <div className="ui-skeleton ui-skeleton--row" />
 
           <div className="ui-skeleton ui-skeleton--row" />
@@ -129,9 +136,7 @@ function DoubleElimPickemPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać fazy
-          </strong>
+          <strong className="ui-error__title">{t("pickem.loadError")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -160,22 +165,23 @@ function DoubleElimPickemPage() {
 
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Drabinka podwójnej eliminacji</span>
+          <span className="ui-kicker">{t("pickem.doubleElim.kicker")}</span>
 
           <h2>Double Elimination Pick&apos;Em</h2>
 
-          <p>
-            Wskaż uczestników czterech finałów. Drużyna użyta wcześniej nie
-            wraca w kolejnych grupach.
-          </p>
+          <p>{t("pickem.doubleElim.intro")}</p>
         </div>
 
         {!user ? (
-          <span className="ui-badge ui-badge--warn">Wymaga logowania</span>
+          <span className="ui-badge ui-badge--warn">
+            {t("pickem.loginRequired")}
+          </span>
         ) : data?.lock?.allowed ? (
-          <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+          <span className="ui-badge ui-badge--ok">{t("matchState.open")}</span>
         ) : (
-          <span className="ui-badge ui-badge--warn">Typowanie zamknięte</span>
+          <span className="ui-badge ui-badge--warn">
+            {t("matchState.locked")}
+          </span>
         )}
       </div>
 
@@ -183,7 +189,8 @@ function DoubleElimPickemPage() {
 
       {data?.lock && !data.lock.allowed && (
         <p className="ui-note ui-note--warn">
-          🔒 {data.lock.message || "Typowanie jest obecnie zablokowane."}
+          🔒 {translateApiMessage(data.lock.code, data.lock.message) ||
+            t("pickem.lockedNow")}
         </p>
       )}
 

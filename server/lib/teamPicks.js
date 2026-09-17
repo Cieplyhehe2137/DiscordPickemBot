@@ -24,15 +24,20 @@ export const PHASE_KINDS = {
 // Etykiety kategorii - te same, których używa komponent PhaseResults na
 // stronach faz. Profil ma mówić o typach tak samo jak miejsce, w którym
 // się je oddaje.
+//
+// To są KLUCZE słownika, nie gotowe zdania: strona istnieje w pięciu
+// językach, a serwer nie wie, który wybrał odwiedzający. Nazwy meczów
+// drabinki double elimination zostają dosłowne - nie tłumaczy ich żaden
+// język, bo tak nazywa je organizator.
 const ETYKIETY = {
-  three_zero: "Drużyny 3-0",
-  zero_three: "Drużyny 0-3",
-  advancing: "Awansujące",
-  playin_teams: "Drużyny awansujące",
-  semifinalists: "Półfinaliści",
-  finalists: "Finaliści",
-  winner: "Zwycięzca",
-  third_place_winner: "3. miejsce",
+  three_zero: "phaseResults.teams30",
+  zero_three: "phaseResults.teams03",
+  advancing: "phaseResults.advancing",
+  playin_teams: "phaseResults.advancingTeams",
+  semifinalists: "phaseResults.semifinalists",
+  finalists: "phaseResults.finalists",
+  winner: "phaseResults.winner",
+  third_place_winner: "phaseResults.thirdPlace",
   upper_final_a: "Upper Final A",
   lower_final_a: "Lower Final A",
   upper_final_b: "Upper Final B",

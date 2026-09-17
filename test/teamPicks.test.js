@@ -77,7 +77,21 @@ test("buduje trzy kategorie Swiss z typem i wynikiem", async () => {
 
   assert.deepEqual(grupy[0].picked, ["B8", "BetBoom"]);
   assert.deepEqual(grupy[0].correct, ["B8", "BetBoom"]);
-  assert.equal(grupy[2].label, "Awansujące", "etykieta jak na stronie fazy");
+  // Etykieta jest KLUCZEM slownika, bo serwer nie wie, w jakim jezyku
+  // oglada strone ten, kto pyta. Sprawdzamy przez prawdziwy tlumacz:
+  // z atrapa test przeszedlby takze wtedy, gdyby klucza nie bylo
+  // w slowniku i na profilu stalo "phaseResults.advancing".
+  const { createTranslator, SLOWNIKI } = await import(
+    "../web/src/i18n/index.js"
+  );
+
+  const t = createTranslator("pl", SLOWNIKI);
+
+  assert.equal(
+    t(grupy[2].label),
+    "Awansujące",
+    "etykieta jak na stronie fazy",
+  );
 });
 
 test("kategoria bez ani jednego typu wypada z listy", async () => {

@@ -17,6 +17,7 @@ export function registerHeadToHeadRoutes(app, { pool }) {
         if (String(userA) === String(userB)) {
           return res.status(400).json({
             error: "Do porównania potrzeba dwóch różnych graczy.",
+            code: "server.needTwoPlayers",
           });
         }
 
@@ -33,6 +34,7 @@ export function registerHeadToHeadRoutes(app, { pool }) {
         if (!event) {
           return res.status(404).json({
             error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
           });
         }
 
@@ -129,6 +131,7 @@ export function registerHeadToHeadRoutes(app, { pool }) {
 
         return res.status(500).json({
           error: "Nie udało się wczytać porównania.",
+          code: "server.h2hFailed",
         });
       }
     },

@@ -5,8 +5,11 @@
 // zalogowany.". Tutaj jest stan pusty z jednym oczywistym przyciskiem.
 
 import { apiUrl } from "../lib/apiUrl.js";
+import { useT } from "../i18n/useLanguage.js";
 
 function LoginRequired({ children }) {
+  const t = useT();
+
   const returnTo = encodeURIComponent(
     window.location.pathname + window.location.search,
   );
@@ -17,7 +20,7 @@ function LoginRequired({ children }) {
         🔐
       </span>
 
-      <strong className="ui-empty__title">Zaloguj się, żeby zobaczyć</strong>
+      <strong className="ui-empty__title">{t("login.title")}</strong>
 
       <p className="ui-empty__text">{children}</p>
 
@@ -25,7 +28,7 @@ function LoginRequired({ children }) {
         className="ui-btn ui-btn--primary"
         href={apiUrl(`/api/auth/discord?returnTo=${returnTo}`)}
       >
-        Zaloguj przez Discord
+        {t("login.discord")}
       </a>
     </div>
   );

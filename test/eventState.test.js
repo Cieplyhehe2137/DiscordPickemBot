@@ -14,6 +14,16 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const STAN = "../web/src/lib/eventState.js";
+const I18N = "../web/src/i18n/index.js";
+
+// Naglowki i etykiety stanu sa dzis KLUCZAMI slownika. Testy sprawdzaja
+// to, co widzi czlowiek, wiec tlumacza budujemy z prawdziwych slownikow -
+// atrapa oddajaca klucz przepuscilaby brak napisu.
+async function polski() {
+  const { createTranslator, SLOWNIKI } = await import(I18N);
+
+  return createTranslator("pl", SLOWNIKI);
+}
 
 test("otwarty turniej to live", async () => {
   const { eventState } = await import(STAN);
@@ -89,10 +99,19 @@ test("status rozpoznawany bez wzgledu na wielkosc liter", async () => {
 });
 
 test("kazdy stan ma etykiete i ton plakietki", async () => {
-  const { EVENT_STATE_LABEL, EVENT_STATE_BADGE } = await import(STAN);
+  // Etykieta jest dzis KLUCZEM slownika, wiec sprawdzamy przez prawdziwy
+  // tlumacz: brakujacy klucz oddaje sam siebie, a wtedy na plakietce
+  // stalby napis "eventState.live" i nic by tego nie zglosilo.
+  const { EVENT_STATE_KEY, EVENT_STATE_BADGE } = await import(STAN);
+  const { createTranslator, SLOWNIKI } = await import(I18N);
+
+  const t = createTranslator("pl", SLOWNIKI);
 
   for (const stan of ["live", "upcoming", "finished"]) {
-    assert.ok(EVENT_STATE_LABEL[stan], `brak etykiety dla ${stan}`);
+    const klucz = EVENT_STATE_KEY[stan];
+
+    assert.ok(klucz, `brak klucza dla ${stan}`);
+    assert.notEqual(t(klucz), klucz, `klucz ${klucz} nie ma napisu`);
     assert.match(
       EVENT_STATE_BADGE[stan],
       /^ui-badge\b/,
@@ -112,50 +131,54 @@ test("kazdy stan ma etykiete i ton plakietki", async () => {
 // ---------------------------------------------------------------------------
 
 test("przy trwajacym turnieju naglowek mowi o teraz", async () => {
-  const { eventsHeading } = await import(STAN);
+  const { eventsHeadingKey } = await import(STAN);
+  const t = await polski();
 
-  const naglowek = eventsHeading([
+  const naglowek = eventsHeadingKey([
     { is_archived: true },
     { is_live: true },
     { status: "UPCOMING" },
   ]);
 
-  assert.equal(naglowek, "Gdzie się teraz typuje");
+  assert.equal(t(naglowek), "Gdzie się teraz typuje");
 });
 
 test("bez trwajacego, ale z nadchodzacym - naglowek patrzy w przod", async () => {
-  const { eventsHeading } = await import(STAN);
+  const { eventsHeadingKey } = await import(STAN);
+  const t = await polski();
 
   assert.equal(
-    eventsHeading([{ is_archived: true }, { status: "UPCOMING" }]),
+    t(eventsHeadingKey([{ is_archived: true }, { status: "UPCOMING" }])),
     "Najbliższe turnieje",
   );
 });
 
 test("same zakonczone - naglowek nie obiecuje typowania", async () => {
   // To jest ten przypadek z zycia.
-  const { eventsHeading } = await import(STAN);
+  const { eventsHeadingKey } = await import(STAN);
+  const t = await polski();
 
   assert.equal(
-    eventsHeading([{ is_archived: true }, { is_archived: true }]),
+    t(eventsHeadingKey([{ is_archived: true }, { is_archived: true }])),
     "Ostatnie turnieje",
   );
 });
 
 test("pusta lista nie wywraca naglowka", async () => {
-  const { eventsHeading } = await import(STAN);
+  const { eventsHeadingKey } = await import(STAN);
+  const t = await polski();
 
-  assert.equal(eventsHeading([]), "Ostatnie turnieje");
-  assert.equal(eventsHeading(), "Ostatnie turnieje");
+  assert.equal(t(eventsHeadingKey([])), "Ostatnie turnieje");
+  assert.equal(t(eventsHeadingKey()), "Ostatnie turnieje");
 });
 
 test("kolejnosc na liscie nie decyduje - decyduje najwyzszy stan", async () => {
   // Lista bywa posortowana roznie i nie ma gwarancji, ze pierwszy element
   // jest najwazniejszy.
-  const { eventsHeading } = await import(STAN);
+  const { eventsHeadingKey } = await import(STAN);
 
-  const a = eventsHeading([{ is_live: true }, { is_archived: true }]);
-  const b = eventsHeading([{ is_archived: true }, { is_live: true }]);
+  const a = eventsHeadingKey([{ is_live: true }, { is_archived: true }]);
+  const b = eventsHeadingKey([{ is_archived: true }, { is_live: true }]);
 
   assert.equal(a, b);
 });

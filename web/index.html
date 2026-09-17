@@ -33,6 +33,31 @@
       }
     </script>
 
+    <!-- Język ustawiany w tym samym miejscu i z tego samego powodu.
+
+         Tu nie chodzi o błysk: chodzi o to, że między wczytaniem HTML-a
+         a uruchomieniem Reacta atrybut mówiłby "pl" komuś, kto wybrał
+         niemiecki. W tym oknie czytnik ekranu zaczyna czytać stronę - i
+         przeczytałby niemieckie słowa polską wymową. Tę samą wartość
+         wpisuje potem applyLanguage, więc oba miejsca mówią to samo.
+
+         Klucz "pickem-lang" i lista języków muszą zgadzać się
+         z web/src/lib/language.js - pilnuje tego test.
+
+         Polski jest domyślny i zostaje wpisany w samym HTML-u, więc gdy
+         nic nie zapisano, nie ma tu nic do roboty. -->
+    <script>
+      try {
+        var jezyk = localStorage.getItem("pickem-lang");
+
+        if (["en", "de", "ru", "uk"].indexOf(jezyk) !== -1) {
+          document.documentElement.setAttribute("lang", jezyk);
+        }
+      } catch (e) {
+        /* brak dostępu do zapisu - zostaje język domyślny */
+      }
+    </script>
+
     <title>Pick'Em — typuj mecze esportowe</title>
     <meta
       name="description"
