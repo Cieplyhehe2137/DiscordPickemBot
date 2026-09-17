@@ -32,7 +32,10 @@ export function registerMatchRoutes(
           req.guildId,
           req.params.matchId,
         );
-        if (!match) return res.status(404).json({ error: "Mecz nie istnieje" });
+        if (!match) return res.status(404).json({
+          error: "Mecz nie istnieje",
+          code: "server.matchMissing",
+        });
 
         res.json({
           match: {
@@ -47,7 +50,10 @@ export function registerMatchRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Błąd bazy danych." });
+        res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -64,7 +70,10 @@ export function registerMatchRoutes(
           req.params.matchId,
         );
 
-        if (!match) return res.status(404).json({ error: "Mecz nie istnieje" });
+        if (!match) return res.status(404).json({
+          error: "Mecz nie istnieje",
+          code: "server.matchMissing",
+        });
 
         const usunie = await policzDaneMeczu(match.id);
 
@@ -109,7 +118,10 @@ export function registerMatchRoutes(
         res.json({ ok: true, usunieto: usunie });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Nie udało się usunąć meczu." });
+        res.status(500).json({
+          error: "Nie udało się usunąć meczu.",
+          code: "server.matchDeleteFailed",
+        });
       }
     },
   );
@@ -127,18 +139,27 @@ export function registerMatchRoutes(
           guildId,
           req.params.matchId,
         );
-        if (!match) return res.status(404).json({ error: "Mecz nie istnieje" });
+        if (!match) return res.status(404).json({
+          error: "Mecz nie istnieje",
+          code: "server.matchMissing",
+        });
 
         const noweA = teamA ?? match.team_a;
         const noweB = teamB ?? match.team_b;
         const noweBo = bestOf === undefined ? match.best_of : Number(bestOf);
 
         if (noweA === noweB) {
-          return res.status(400).json({ error: "Drużyny muszą być różne." });
+          return res.status(400).json({
+            error: "Drużyny muszą być różne.",
+            code: "server.teamsMustDiffer",
+          });
         }
 
         if (![1, 3, 5].includes(Number(noweBo))) {
-          return res.status(400).json({ error: "BO musi wynosić 1, 3 albo 5." });
+          return res.status(400).json({
+            error: "BO musi wynosić 1, 3 albo 5.",
+            code: "server.badBo",
+          });
         }
 
         // Ta sama walidacja co przy tworzeniu - matches.team_a to varchar, więc
@@ -154,6 +175,7 @@ export function registerMatchRoutes(
           if (!znane.has(noweA) || !znane.has(noweB)) {
             return res.status(400).json({
               error: "Obie drużyny muszą istnieć i być aktywne na tym serwerze.",
+              code: "server.bothTeamsActive",
             });
           }
         }
@@ -216,7 +238,10 @@ export function registerMatchRoutes(
         });
       } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Nie udało się zapisać zmian w meczu." });
+        res.status(500).json({
+          error: "Nie udało się zapisać zmian w meczu.",
+          code: "server.matchSaveFailed",
+        });
       }
     },
   );
@@ -232,6 +257,7 @@ export function registerMatchRoutes(
         if (!["auto", "lock", "unlock"].includes(mode)) {
           return res.status(400).json({
             error: "Nieprawidłowy tryb blokady.",
+            code: "server.badLockMode",
           });
         }
 
@@ -251,6 +277,7 @@ export function registerMatchRoutes(
         if (!currentMatch) {
           return res.status(404).json({
             error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
           });
         }
 
@@ -325,6 +352,7 @@ export function registerMatchRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

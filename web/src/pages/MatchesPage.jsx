@@ -9,15 +9,18 @@ import {
 import BackLink from "../components/BackLink.jsx";
 import { getEventMatches } from "../lib/api.js";
 import { humanPhase } from "../lib/phaseLabels.js";
-import { odmien } from "../lib/odmiana.js";
 import {
   filterMatches,
   phasesFromMatches,
   teamsFromMatches,
-  STATE_LABELS,
+  STATE_KEYS,
 } from "../lib/matchFilters.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 
 function MatchesPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { realtimeRefresh } = useOutletContext();
@@ -107,7 +110,7 @@ function MatchesPage() {
 
   // Listy do wyboru powstają z pobranych meczów, więc nie da się wybrać
   // filtru, który niczego nie pokaże.
-  const fazy = phasesFromMatches(wszystkieMecze);
+  const fazy = phasesFromMatches(wszystkieMecze, t);
   const druzyny = teamsFromMatches(wszystkieMecze);
 
   // Wartość w rozwijanej liście musi być tym samym napisem, co w opcji -
@@ -127,14 +130,14 @@ function MatchesPage() {
       case "complete":
         return {
           icon: "✅",
-          label: "Wytypowano",
+          label: t("matches.status.complete"),
           className: "complete",
         };
 
       case "partial":
         return {
           icon: "🟡",
-          label: "Typ niekompletny",
+          label: t("matches.status.partial"),
           className: "partial",
         };
 
@@ -146,8 +149,8 @@ function MatchesPage() {
           match.ui_status === "FINAL" || match.predictions_allowed === false;
 
         return juzPoCzasie
-          ? { icon: "➖", label: "Bez typu", className: "missed" }
-          : { icon: "🎮", label: "Do wytypowania", className: "empty" };
+          ? { icon: "➖", label: t("matches.status.missed"), className: "missed" }
+          : { icon: "🎮", label: t("matches.status.empty"), className: "empty" };
       }
     }
   }
@@ -159,39 +162,40 @@ function MatchesPage() {
           <span className="ui-kicker">Pick&apos;Em</span>
 
           <h2>
-            {selectedPhase ? `Mecze — ${humanPhase(selectedPhase)}` : "Mecze"}
+            {selectedPhase
+              ? t("matches.titlePhase", {
+                  phase: humanPhase(selectedPhase, t),
+                })
+              : t("matches.title")}
           </h2>
 
           {!loading && !error && matches && (
             <p>
-              {filtrAktywny ? (
-                <>
-                  {filteredMatches.length} z {wszystkieMecze.length}{" "}
-                  {odmien(wszystkieMecze.length, "meczu", "meczów", "meczów")}
-                </>
-              ) : (
-                <>
-                  {wszystkieMecze.length}{" "}
-                  {odmien(wszystkieMecze.length, "mecz", "mecze", "meczów")}
-                </>
-              )}
+              {filtrAktywny
+                ? t("matches.countFiltered", {
+                    shown: filteredMatches.length,
+                    count: wszystkieMecze.length,
+                  })
+                : t("common.matchesCount", {
+                    count: wszystkieMecze.length,
+                  })}
             </p>
           )}
         </div>
 
-        <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
+        <BackLink to={`/events/${slug}`} />
       </div>
 
       {!loading && !error && wszystkieMecze.length > 0 && (
         <div className="matches-filters">
           <label className="matches-filters__field">
-            <span>Faza</span>
+            <span>{t("matches.filter.phase")}</span>
 
             <select
               value={fazaWyboru}
               onChange={(e) => ustawFiltr("phase", e.target.value)}
             >
-              <option value="">Wszystkie</option>
+              <option value="">{t("common.all")}</option>
 
               {fazy.map((f) => (
                 <option key={f.phase} value={f.phase}>
@@ -202,13 +206,13 @@ function MatchesPage() {
           </label>
 
           <label className="matches-filters__field">
-            <span>Drużyna</span>
+            <span>{t("matches.filter.team")}</span>
 
             <select
               value={selectedTeam ?? ""}
               onChange={(e) => ustawFiltr("team", e.target.value)}
             >
-              <option value="">Wszystkie</option>
+              <option value="">{t("common.all")}</option>
 
               {druzyny.map((nazwa) => (
                 <option key={nazwa} value={nazwa}>
@@ -219,17 +223,17 @@ function MatchesPage() {
           </label>
 
           <label className="matches-filters__field">
-            <span>Stan</span>
+            <span>{t("matches.filter.state")}</span>
 
             <select
               value={selectedState ?? ""}
               onChange={(e) => ustawFiltr("stan", e.target.value)}
             >
-              <option value="">Wszystkie</option>
+              <option value="">{t("common.all")}</option>
 
-              {Object.entries(STATE_LABELS).map(([klucz, etykieta]) => (
+              {Object.entries(STATE_KEYS).map(([klucz, kluczNapisu]) => (
                 <option key={klucz} value={klucz}>
-                  {etykieta}
+                  {t(kluczNapisu)}
                 </option>
               ))}
             </select>
@@ -241,7 +245,7 @@ function MatchesPage() {
               className="ui-btn ui-btn--ghost ui-btn--sm"
               onClick={() => setSearchParams({}, { replace: true })}
             >
-              Wyczyść filtry
+              {t("matches.filter.clear")}
             </button>
           )}
         </div>
@@ -250,7 +254,7 @@ function MatchesPage() {
       {!loading && !error && selectedProgress && (
         <div className="matches-page__progress">
           <div className="matches-page__progress-top">
-            <span>📊 Postęp typowania</span>
+            <span>📊 {t("matches.progress")}</span>
 
             <strong>
               {selectedProgress.complete}/{selectedProgress.total}
@@ -275,7 +279,8 @@ function MatchesPage() {
 
           {selectedProgress.partial > 0 && (
             <small>
-              🟡 Niekompletne typy: <strong>{selectedProgress.partial}</strong>
+              🟡 {t("matches.partial")}{" "}
+              <strong>{selectedProgress.partial}</strong>
             </small>
           )}
         </div>
@@ -285,7 +290,7 @@ function MatchesPage() {
         <div
           className="ui-stack"
           aria-busy="true"
-          aria-label="Ładowanie meczów"
+          aria-label={t("common.loadingMatches")}
         >
           {Array.from({ length: 4 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
@@ -298,9 +303,7 @@ function MatchesPage() {
           <span className="ui-error__icon" aria-hidden="true">
             ⚠️
           </span>
-          <strong className="ui-error__title">
-            Nie udało się wczytać meczów
-          </strong>
+          <strong className="ui-error__title">{t("matches.error")}</strong>
           <p className="ui-error__text">{error}</p>
         </div>
       )}
@@ -312,11 +315,13 @@ function MatchesPage() {
               <span className="ui-empty__icon" aria-hidden="true">
                 📅
               </span>
-              <strong className="ui-empty__title">Brak meczów</strong>
+              <strong className="ui-empty__title">
+                {t("matches.empty.title")}
+              </strong>
               <p className="ui-empty__text">
                 {filtrAktywny
-                  ? "Żaden mecz nie pasuje do wybranych filtrów."
-                  : "W tym turnieju nie ma jeszcze żadnych zaplanowanych meczów."}
+                  ? t("matches.empty.filtered")
+                  : t("matches.empty.none")}
               </p>
 
               {filtrAktywny && (
@@ -325,7 +330,7 @@ function MatchesPage() {
                   className="ui-btn ui-btn--sm"
                   onClick={() => setSearchParams({}, { replace: true })}
                 >
-                  Wyczyść filtry
+                  {t("matches.filter.clear")}
                 </button>
               )}
             </div>
@@ -337,7 +342,7 @@ function MatchesPage() {
             return (
               <article className="ui-card ui-stack" key={match.id}>
                 <div className="ui-row ui-row--between ui-row--full">
-                  <span>Mecz #{match.match_no}</span>
+                  <span>{t("matches.no", { no: match.match_no })}</span>
 
                   <div className="ui-row">
                     <span
@@ -387,14 +392,17 @@ function MatchesPage() {
                 <div className="ui-row ui-row--between ui-row--full">
                   <span>
                     {match.ui_status === "FINAL"
-                      ? "Mecz zakończony"
+                      ? t("matches.foot.final")
                       : match.predictions_allowed === false
-                        ? (match.lock_reason ?? "Typowanie zablokowane")
+                        ? (translateApiMessage(
+                            match.lock_reason_code,
+                            match.lock_reason,
+                          ) ?? t("matches.foot.locked"))
                         : match.prediction_status === "complete"
-                          ? "Typ zapisany — możesz go edytować"
+                          ? t("matches.foot.saved")
                           : match.prediction_status === "partial"
-                            ? "Dokończ swój typ"
-                            : "Typowanie otwarte"}
+                            ? t("matches.foot.finish")
+                            : t("matches.foot.open")}
                   </span>
 
                   {match.ui_status === "FINAL" ? (
@@ -402,14 +410,14 @@ function MatchesPage() {
                       className="ui-btn ui-btn--primary ui-btn--sm"
                       to={`/events/${slug}/matches/${match.id}`}
                     >
-                      Zobacz wynik
+                      {t("matches.cta.result")}
                     </Link>
                   ) : match.predictions_allowed === false ? (
                     <Link
                       className="ui-btn ui-btn--primary ui-btn--sm"
                       to={`/events/${slug}/matches/${match.id}`}
                     >
-                      Zobacz mecz
+                      {t("matches.cta.match")}
                     </Link>
                   ) : (
                     <Link
@@ -417,10 +425,10 @@ function MatchesPage() {
                       to={`/events/${slug}/matches/${match.id}`}
                     >
                       {match.prediction_status === "complete"
-                        ? "Edytuj typ"
+                        ? t("matches.cta.edit")
                         : match.prediction_status === "partial"
-                          ? "Dokończ typ"
-                          : "Typuj"}
+                          ? t("matches.cta.finish")
+                          : t("matches.cta.predict")}
                     </Link>
                   )}
                 </div>

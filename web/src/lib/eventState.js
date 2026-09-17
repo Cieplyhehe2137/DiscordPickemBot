@@ -24,13 +24,15 @@ export function eventState(event) {
     : "finished";
 }
 
-// Etykiety i tony wypisane dosłownie, a nie sklejane ze stanu: nazwa klasy
-// zbudowana przez `ui-badge--${stan}` nie występuje w źródle jako tekst,
+// Klucze słownika i tony wypisane dosłownie, a nie sklejane ze stanu: nazwa
+// klasy zbudowana przez `ui-badge--${stan}` nie występuje w źródle jako tekst,
 // więc przegląd martwego CSS-a kasuje regułę, a plakietka cicho traci kolor.
-export const EVENT_STATE_LABEL = {
-  live: "Trwa",
-  upcoming: "Wkrótce",
-  finished: "Zakończony",
+// Z kluczem jest tak samo: `eventState.${stan}` byłby niewidoczny dla
+// wyszukiwania i dla testu porównującego zestawy kluczy.
+export const EVENT_STATE_KEY = {
+  live: "eventState.live",
+  upcoming: "eventState.upcoming",
+  finished: "eventState.finished",
 };
 
 export const EVENT_STATE_BADGE = {
@@ -39,7 +41,7 @@ export const EVENT_STATE_BADGE = {
   finished: "ui-badge",
 };
 
-// Nagłówek sekcji turniejów na stronie głównej.
+// Klucz nagłówka sekcji turniejów na stronie głównej.
 //
 // Brzmiał "Gdzie się teraz typuje" zawsze - także wtedy, gdy wszystkie trzy
 // turnieje pod nim miały plakietkę ZAKOŃCZONY. Dla kogoś, kto wchodzi
@@ -49,11 +51,11 @@ export const EVENT_STATE_BADGE = {
 // Lista eventów jest posortowana, ale nie ma gwarancji, że pierwszy jest
 // najważniejszy - stąd decyzja po najwyższym stanie, jaki w niej występuje:
 // trwający bije nadchodzący, nadchodzący bije zakończony.
-export function eventsHeading(events = []) {
+export function eventsHeadingKey(events = []) {
   const stany = new Set(events.map((e) => eventState(e)));
 
-  if (stany.has("live")) return "Gdzie się teraz typuje";
-  if (stany.has("upcoming")) return "Najbliższe turnieje";
+  if (stany.has("live")) return "home.heading.live";
+  if (stany.has("upcoming")) return "home.heading.upcoming";
 
-  return "Ostatnie turnieje";
+  return "home.heading.recent";
 }

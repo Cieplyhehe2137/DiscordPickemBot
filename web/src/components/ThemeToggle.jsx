@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { applyTheme, otherTheme, readTheme, saveTheme } from "../lib/theme.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Przełącznik motywu.
 //
@@ -13,6 +14,8 @@ import { applyTheme, otherTheme, readTheme, saveTheme } from "../lib/theme.js";
 // go do dokumentu jest skutkiem zdarzenia, a nie synchronizacją stanu.
 
 function ThemeToggle() {
+  const t = useT();
+
   const [theme, setTheme] = useState(() =>
     readTheme(typeof window === "undefined" ? null : window.localStorage),
   );
@@ -27,7 +30,12 @@ function ThemeToggle() {
     setTheme(ustawiony);
   };
 
-  const opis = nastepny === "light" ? "jasny" : "ciemny";
+  // Całe zdanie w słowniku, a nie sklejane z "Przełącz na motyw" i nazwy
+  // motywu: po niemiecku wychodzi "Zum hellen Design wechseln" - przymiotnik
+  // stoi w środku, a po rosyjsku zmienia się jego końcówka. Sklejanie
+  // działałoby wyłącznie po polsku.
+  const opis =
+    nastepny === "light" ? t("theme.toggle.light") : t("theme.toggle.dark");
 
   return (
     <button
@@ -36,8 +44,8 @@ function ThemeToggle() {
       onClick={przelacz}
       // Tytuł i etykieta mówią, co się STANIE po kliknięciu, a nie jaki
       // motyw jest teraz - ikona i tak pokazuje stan bieżący.
-      title={`Przełącz na motyw ${opis}`}
-      aria-label={`Przełącz na motyw ${opis}`}
+      title={opis}
+      aria-label={opis}
     >
       <span aria-hidden="true">{theme === "dark" ? "☀️" : "🌙"}</span>
     </button>

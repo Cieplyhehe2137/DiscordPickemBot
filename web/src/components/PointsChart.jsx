@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 
+import { useT } from "../i18n/useLanguage.js";
+
 import {
   UKLAD,
   UKLAD_WASKI,
@@ -65,15 +67,15 @@ function useChartLayout() {
 }
 
 function PointsChart({ series, caption }) {
+  const t = useT();
+
   const uklad = useChartLayout();
 
   const serie = (series || []).filter((s) => s?.points?.length);
 
   if (serie.length === 0) {
     return (
-      <p className="ui-hint">
-        Wykres pojawi się po pierwszym rozliczonym meczu.
-      </p>
+      <p className="ui-hint">{t("chart.empty")}</p>
     );
   }
 
@@ -96,9 +98,12 @@ function PointsChart({ series, caption }) {
   const pojedyncza = policzone.length === 1;
 
   const opis = policzone
-    .map(
-      (s) =>
-        `${s.name}: ${s.points[s.points.length - 1]?.total ?? 0} punktów po ${s.points.length} meczach`,
+    .map((s) =>
+      t("chart.series", {
+        name: s.name,
+        points: s.points[s.points.length - 1]?.total ?? 0,
+        count: s.points.length,
+      }),
     )
     .join(", ");
 
@@ -110,7 +115,7 @@ function PointsChart({ series, caption }) {
         // Bez preserveAspectRatio="none" - rozciąganie w jednej osi robi
         // z kropek elipsy, a z grubości linii dwie różne grubości.
         role="img"
-        aria-label={`Punkty narastająco. ${opis}.`}
+        aria-label={t("chart.title", { series: opis })}
       >
         {/* Podziałka pod danymi, nigdy nad nimi. */}
         {wartosci.map((v) => {

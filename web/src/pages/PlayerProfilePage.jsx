@@ -8,8 +8,11 @@ import PointsChart from "../components/PointsChart.jsx";
 import BadgeShelf from "../components/BadgeShelf.jsx";
 import PlayerHistory from "../components/PlayerHistory.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
+import { useT } from "../i18n/useLanguage.js";
 
 function PlayerProfilePage() {
+  const t = useT();
+
   const { slug, userId } = useParams();
   const { realtimeRefresh } = useOutletContext();
   const navigate = useNavigate();
@@ -31,14 +34,14 @@ function PlayerProfilePage() {
 
         setProfile(data);
       } catch (err) {
-        setError(err.message || "Nie udało się pobrać profilu gracza.");
+        setError(err.message || t("profile.errorText"));
       } finally {
         setLoading(false);
       }
     }
 
     loadProfile();
-  }, [slug, userId]);
+  }, [slug, userId, t]);
 
   useEffect(() => {
     if (!realtimeRefresh?.version) {
@@ -71,7 +74,7 @@ function PlayerProfilePage() {
         <div
           className="ui-stats ui-stats--4"
           aria-busy="true"
-          aria-label="Ładowanie profilu"
+          aria-label={t("profile.loading")}
         >
           {Array.from({ length: 6 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
@@ -84,16 +87,16 @@ function PlayerProfilePage() {
   if (error) {
     return (
       <main className="ui-page">
-        <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+        <BackLink to={`/events/${slug}/leaderboard`}>
+          {t("profile.backToLeaderboard")}
+        </BackLink>
 
         <div className="ui-error" role="alert">
           <span className="ui-error__icon" aria-hidden="true">
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać profilu
-          </strong>
+          <strong className="ui-error__title">{t("profile.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -104,18 +107,20 @@ function PlayerProfilePage() {
   if (!profile?.profile) {
     return (
       <main className="ui-page">
-        <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+        <BackLink to={`/events/${slug}/leaderboard`}>
+          {t("profile.backToLeaderboard")}
+        </BackLink>
 
         <div className="ui-empty">
           <span className="ui-empty__icon" aria-hidden="true">
             🔎
           </span>
 
-          <strong className="ui-empty__title">Nie ma takiego gracza</strong>
+          <strong className="ui-empty__title">
+            {t("profile.missing.title")}
+          </strong>
 
-          <p className="ui-empty__text">
-            W tym evencie nikt o takim identyfikatorze nie typował.
-          </p>
+          <p className="ui-empty__text">{t("profile.missing.text")}</p>
         </div>
       </main>
     );
@@ -150,7 +155,7 @@ function PlayerProfilePage() {
     <main className="ui-page">
       <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
         <BackLink to={`/events/${slug}/leaderboard`}>
-          Wróć do rankingu
+          {t("profile.backToLeaderboard")}
         </BackLink>
 
         <button
@@ -158,7 +163,7 @@ function PlayerProfilePage() {
           className="ui-btn ui-btn--accent ui-btn--sm"
           onClick={() => setWybierakOtwarty(true)}
         >
-          ⚔️ Porównaj z graczem
+          ⚔️ {t("profile.compare")}
         </button>
       </div>
 
@@ -193,7 +198,7 @@ function PlayerProfilePage() {
           )}
 
           <div>
-            <span className="ui-kicker">Profil gracza</span>
+            <span className="ui-kicker">{t("profile.kicker")}</span>
 
             <h2>{player.displayname}</h2>
           </div>
@@ -201,49 +206,54 @@ function PlayerProfilePage() {
 
         <div className="ui-stats ui-stats--4">
           <div className="ui-stat ui-stat--featured">
-            <span>Punkty</span>
+            <span>{t("profile.points")}</span>
             <strong>{player.total_points}</strong>
-            <small>{averagePoints} pkt / mecz</small>
+            <small>{t("profile.pointsPerMatch", { value: averagePoints })}</small>
           </div>
 
           <div className="ui-stat">
-            <span>Ranking</span>
+            <span>{t("profile.rank")}</span>
             <strong>{player.rank > 0 ? `#${player.rank}` : "—"}</strong>
           </div>
 
           <div className="ui-stat">
-            <span>Skuteczność</span>
+            <span>{t("profile.accuracy")}</span>
             <strong>{player.accuracy}%</strong>
             <small>
-              {player.correct_winners} / {player.finished_predictions} meczów
+              {t("profile.accuracyHint", {
+                correct: player.correct_winners,
+                count: player.finished_predictions,
+              })}
             </small>
           </div>
 
           <div className="ui-stat">
-            <span>Exacty map</span>
+            <span>{t("profile.exactMaps")}</span>
             <strong>{player.exact_maps}</strong>
-            <small>{exactMapPercentage}% typowanych map</small>
+            <small>
+              {t("profile.exactMapsHint", { percent: exactMapPercentage })}
+            </small>
           </div>
 
           <div className="ui-stat">
-            <span>Trafione mapy</span>
+            <span>{t("profile.correctMaps")}</span>
             <strong>{player.correct_maps}</strong>
-            <small>{mapAccuracy}% skuteczności</small>
+            <small>{t("profile.correctMapsHint", { percent: mapAccuracy })}</small>
           </div>
 
           <div className="ui-stat">
-            <span>Najlepszy mecz</span>
+            <span>{t("profile.bestMatch")}</span>
             <strong>{player.best_match_points ?? 0}</strong>
-            <small>punktów w jednym meczu</small>
+            <small>{t("profile.bestMatchHint")}</small>
           </div>
 
           <div className="ui-stat">
-            <span>Punkty za serię</span>
+            <span>{t("profile.seriesPoints")}</span>
             <strong>{player.series_points ?? 0}</strong>
           </div>
 
           <div className="ui-stat">
-            <span>Punkty za mapy</span>
+            <span>{t("profile.mapPoints")}</span>
             <strong>{player.map_points ?? 0}</strong>
           </div>
         </div>
@@ -264,9 +274,9 @@ function PlayerProfilePage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Przebieg</span>
+            <span className="ui-kicker">{t("profile.progress.kicker")}</span>
 
-            <h2>Punkty w czasie</h2>
+            <h2>{t("profile.progress.title")}</h2>
           </div>
         </div>
 
@@ -278,36 +288,36 @@ function PlayerProfilePage() {
               points: player.points_progress ?? [],
             },
           ]}
-          caption="Najedź na punkt, żeby zobaczyć mecz i zdobycz."
+          caption={t("profile.progress.caption")}
         />
       </section>
 
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Serie</span>
+            <span className="ui-kicker">{t("profile.form.kicker")}</span>
 
-            <h2>Forma gracza</h2>
+            <h2>{t("profile.form.title")}</h2>
           </div>
         </div>
 
         <div className="ui-stats ui-stats--4">
           <div className="ui-stat">
-            <span>🔥 Najlepsza seria trafień</span>
+            <span>🔥 {t("profile.bestStreak")}</span>
             <strong>{player.best_correct_streak ?? 0}</strong>
-            <small>meczów z rzędu</small>
+            <small>{t("profile.streakHint")}</small>
           </div>
 
           <div className="ui-stat">
-            <span>⚡ Aktualna seria trafień</span>
+            <span>⚡ {t("profile.currentStreak")}</span>
             <strong>{player.current_correct_streak ?? 0}</strong>
-            <small>meczów z rzędu</small>
+            <small>{t("profile.streakHint")}</small>
           </div>
 
           <div className="ui-stat">
-            <span>💎 Perfekcyjne mecze</span>
+            <span>💎 {t("profile.perfect")}</span>
             <strong>{player.perfect_matches ?? 0}</strong>
-            <small>idealnie wytypowanych</small>
+            <small>{t("profile.perfectHint")}</small>
           </div>
         </div>
       </section>
@@ -315,38 +325,40 @@ function PlayerProfilePage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Rekordy</span>
+            <span className="ui-kicker">{t("profile.records.kicker")}</span>
 
-            <h2>Rekordy gracza</h2>
+            <h2>{t("profile.records.title")}</h2>
           </div>
         </div>
 
         <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
           <div className="ui-row ui-row--between ui-row--full">
             <div>
-              <strong>🗺️ Najlepszy wynik mapowy</strong>
+              <strong>🗺️ {t("profile.bestMapScore")}</strong>
 
-              <p className="ui-stat__hint">
-                Najwięcej punktów za mapy w jednym meczu
-              </p>
+              <p className="ui-stat__hint">{t("profile.bestMapScoreHint")}</p>
             </div>
 
             <span className="ui-count">
-              {player.best_map_match_points ?? 0} pkt
+              {t("common.pointsValue", {
+                value: player.best_map_match_points ?? 0,
+              })}
             </span>
           </div>
 
           <div className="ui-row ui-row--between ui-row--full">
             <div>
-              <strong>📈 Średnia za trafiony mecz</strong>
+              <strong>📈 {t("profile.avgCorrect")}</strong>
 
-              <p className="ui-stat__hint">
-                Średnia punktów w meczach z trafionym zwycięzcą
-              </p>
+              <p className="ui-stat__hint">{t("profile.avgCorrectHint")}</p>
             </div>
 
             <span className="ui-count">
-              {Number(player.average_points_correct_match ?? 0).toFixed(1)} pkt
+              {t("common.pointsValue", {
+                value: Number(
+                  player.average_points_correct_match ?? 0,
+                ).toFixed(1),
+              })}
             </span>
           </div>
         </div>
@@ -356,28 +368,30 @@ function PlayerProfilePage() {
         <section className="ui-card ui-stack">
           <div className="ui-section-head">
             <div>
-              <span className="ui-kicker">Porównanie</span>
+              <span className="ui-kicker">
+                {t("profile.comparison.kicker")}
+              </span>
 
-              <h2>Na tle eventu</h2>
+              <h2>{t("profile.comparison.title")}</h2>
             </div>
           </div>
 
           <div className="ui-stats ui-stats--4">
             {[
               {
-                label: "🏆 Punkty",
+                label: `🏆 ${t("profile.points")}`,
                 data: player.event_comparison.points,
               },
               {
-                label: "🎯 Skuteczność",
+                label: `🎯 ${t("profile.accuracy")}`,
                 data: player.event_comparison.accuracy,
               },
               {
-                label: "💎 Exacty map",
+                label: `💎 ${t("profile.exactMaps")}`,
                 data: player.event_comparison.exact_maps,
               },
               {
-                label: "🗺️ Trafione mapy",
+                label: `🗺️ ${t("profile.correctMaps")}`,
                 data: player.event_comparison.correct_maps,
               },
             ].map((item) => (
@@ -387,7 +401,10 @@ function PlayerProfilePage() {
                 <strong>#{item.data?.rank ?? 0}</strong>
 
                 <small>
-                  z {item.data?.total ?? 0} · TOP {item.data?.top_percent ?? 0}%
+                  {t("profile.comparison.hint", {
+                    total: item.data?.total ?? 0,
+                    percent: item.data?.top_percent ?? 0,
+                  })}
                 </small>
               </div>
             ))}
@@ -403,9 +420,9 @@ function PlayerProfilePage() {
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Historia</span>
+            <span className="ui-kicker">{t("profile.history.kicker")}</span>
 
-            <h2>Ostatnie typy</h2>
+            <h2>{t("profile.history.title")}</h2>
           </div>
         </div>
 
@@ -453,9 +470,15 @@ function PlayerProfilePage() {
                       </strong>
 
                       <span>
-                        Typ: {prediction.pred_a}:{prediction.pred_b}
+                        {t("profile.pick", {
+                          a: prediction.pred_a,
+                          b: prediction.pred_b,
+                        })}
                         {finished &&
-                          ` · Wynik: ${prediction.res_a}:${prediction.res_b}`}
+                          t("profile.result", {
+                            a: prediction.res_a,
+                            b: prediction.res_b,
+                          })}
                       </span>
                     </span>
 
@@ -466,10 +489,12 @@ function PlayerProfilePage() {
                           : ""
                       }`}
                     >
-                      {prediction.points > 0
-                        ? `+${prediction.points}`
-                        : prediction.points}{" "}
-                      pkt
+                      {t("common.pointsValue", {
+                        value:
+                          prediction.points > 0
+                            ? `+${prediction.points}`
+                            : prediction.points,
+                      })}
                     </span>
 
                     <span className="ui-disclosure__chevron" aria-hidden="true">
@@ -480,24 +505,32 @@ function PlayerProfilePage() {
                   {expanded && (
                     <div className="ui-stack ui-stack--tight">
                       <p className="ui-stat__hint">
-                        Seria +{player.series_points} · Mapy +
-                        {player.map_points}
+                        {t("profile.split", {
+                          series: player.series_points,
+                          maps: player.map_points,
+                        })}
                       </p>
 
                       {prediction.maps?.length > 0 &&
                         prediction.maps.map((map) => (
                           <div className="ui-map-row" key={map.map_no}>
                             <span className="ui-map-row__label">
-                              Mapa {map.map_no}
+                              {t("common.mapNo", { no: map.map_no })}
                             </span>
 
                             <div className="ui-row ui-row--wrap">
                               <span className="ui-badge">
-                                typ {map.pred_a}:{map.pred_b}
+                                {t("common.mapPick", {
+                                  a: map.pred_a,
+                                  b: map.pred_b,
+                                })}
                               </span>
 
                               <span className="ui-badge">
-                                wynik {map.res_a}:{map.res_b}
+                                {t("common.mapResult", {
+                                  a: map.res_a,
+                                  b: map.res_b,
+                                })}
                               </span>
 
                               <span
@@ -510,10 +543,10 @@ function PlayerProfilePage() {
                                 }`}
                               >
                                 {map.exact
-                                  ? "🎯 Exact"
+                                  ? `🎯 ${t("profile.map.exact")}`
                                   : map.correct_winner
-                                    ? "✅ Zwycięzca"
-                                    : "❌ Pudło"}
+                                    ? `✅ ${t("profile.map.winner")}`
+                                    : `❌ ${t("profile.map.miss")}`}
                               </span>
                             </div>
                           </div>
@@ -530,11 +563,11 @@ function PlayerProfilePage() {
               🗒️
             </span>
 
-            <strong className="ui-empty__title">Brak typów</strong>
+            <strong className="ui-empty__title">
+              {t("profile.empty.title")}
+            </strong>
 
-            <p className="ui-empty__text">
-              Ten gracz nie zapisał jeszcze żadnego typu w tym evencie.
-            </p>
+            <p className="ui-empty__text">{t("profile.empty.text")}</p>
           </div>
         )}
       </section>

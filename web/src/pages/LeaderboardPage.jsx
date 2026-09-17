@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
 import BackLink from "../components/BackLink.jsx";
+import { T } from "../i18n/T.jsx";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventLeaderboard } from "../lib/api.js";
-import { odmien } from "../lib/odmiana.js";
 import { useAuth } from "../auth/useAuth.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Rozbicie punktów na fazy. Wcześniej sklejane w jeden szary ciąg
 // ("Swiss 42 · Playoffs 4"), w którym nie dało się nic wyłowić wzrokiem.
-function rozbicieNaFazy(player) {
+//
+// Nazwy etapów zostają po angielsku we wszystkich językach - tak nazywają
+// je organizatorzy. Tłumaczenia wymaga tylko "Mecze"; "MVP" jest skrótem
+// i też zostaje.
+function rozbicieNaFazy(player, t) {
   return [
     ["Swiss", player.swiss_points],
     ["Play-In", player.playin_points],
     ["Playoffs", player.playoffs_points],
     ["Double Elim", player.doubleelim_points],
-    ["Mecze", player.phase_match_points],
+    [t("leaderboard.split.matches"), player.phase_match_points],
     ["MVP", player.mvp_points],
   ].filter(([, punkty]) => Number(punkty) > 0);
 }
@@ -30,6 +35,8 @@ const PODIUM = {
 };
 
 function LeaderboardPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const { realtimeRefresh } = useOutletContext();
   const { user } = useAuth();
@@ -135,15 +142,15 @@ function LeaderboardPage() {
       <main className="ui-page">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Ranking</span>
-            <h2>Ranking graczy</h2>
+            <span className="ui-kicker">{t("leaderboard.kicker")}</span>
+            <h2>{t("leaderboard.title")}</h2>
           </div>
         </div>
 
         <div
           className="ui-table"
           aria-busy="true"
-          aria-label="Ładowanie rankingu"
+          aria-label={t("leaderboard.loading")}
         >
           {Array.from({ length: 8 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
@@ -161,9 +168,7 @@ function LeaderboardPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać rankingu
-          </strong>
+          <strong className="ui-error__title">{t("leaderboard.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -175,20 +180,16 @@ function LeaderboardPage() {
     <main className="ui-page">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Ranking</span>
+          <span className="ui-kicker">{t("leaderboard.kicker")}</span>
 
-          <h2>Ranking graczy</h2>
+          <h2>{t("leaderboard.title")}</h2>
 
           {strony?.wRankingu > 0 && (
-            <p>
-              {strony.wRankingu}{" "}
-              {odmien(strony.wRankingu, "gracz", "gracze", "graczy")} w
-              klasyfikacji
-            </p>
+            <p>{t("leaderboard.ranked", { count: strony.wRankingu })}</p>
           )}
         </div>
 
-        <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
+        <BackLink to={`/events/${slug}`} />
       </div>
 
       {/* Przy 500 graczach na 11 stronach jedyną drogą do własnego miejsca
@@ -198,8 +199,8 @@ function LeaderboardPage() {
           type="search"
           value={wpisane}
           onChange={(e) => setWpisane(e.target.value)}
-          placeholder="Szukaj gracza po nicku..."
-          aria-label="Szukaj gracza"
+          placeholder={t("common.searchPlayer")}
+          aria-label={t("common.searchPlayerLabel")}
         />
 
         {user?.id && (
@@ -208,7 +209,7 @@ function LeaderboardPage() {
             className="ui-btn ui-btn--sm"
             onClick={() => setZnajdz(user.id)}
           >
-            Znajdź mnie
+            {t("leaderboard.findMe")}
           </button>
         )}
       </div>
@@ -216,15 +217,18 @@ function LeaderboardPage() {
       {szukaj && strony && (
         <p className="ui-stat__hint">
           {strony.wszystkich > 0 ? (
-            <>
-              Znaleziono <strong>{strony.wszystkich}</strong> z{" "}
-              {strony.wRankingu}{" "}
-              {odmien(strony.wRankingu, "gracza", "graczy", "graczy")}
-            </>
+            <T
+              k="leaderboard.foundOf"
+              vars={{
+                found: <strong>{strony.wszystkich}</strong>,
+                count: strony.wRankingu,
+              }}
+            />
           ) : (
-            <>
-              Nikt nie pasuje do <strong>{szukaj}</strong>
-            </>
+            <T
+              k="leaderboard.noMatch"
+              vars={{ query: <strong>{szukaj}</strong> }}
+            />
           )}
         </p>
       )}
@@ -238,25 +242,20 @@ function LeaderboardPage() {
           {uczestnicy > 0 ? (
             <>
               <strong className="ui-empty__title">
-                Ranking jeszcze się nie zaczął
+                {t("leaderboard.notStarted.title")}
               </strong>
 
               <p className="ui-empty__text">
-                Ten event ma już {uczestnicy}{" "}
-                {odmien(uczestnicy, "gracza", "graczy", "graczy")} z oddanymi
-                typami, ale nikt nie ma jeszcze punktów — pojawią się po
-                pierwszych rozliczonych meczach i fazach.
+                {t("leaderboard.notStarted.text", { count: uczestnicy })}
               </p>
             </>
           ) : (
             <>
               <strong className="ui-empty__title">
-                Nikt jeszcze nie typował
+                {t("leaderboard.nobody.title")}
               </strong>
 
-              <p className="ui-empty__text">
-                Ranking pojawi się, gdy pierwsi gracze oddadzą typy.
-              </p>
+              <p className="ui-empty__text">{t("leaderboard.nobody.text")}</p>
             </>
           )}
         </div>
@@ -264,9 +263,9 @@ function LeaderboardPage() {
         <div className="ui-table">
           <div className="ui-table__head" aria-hidden="true">
             <span>#</span>
-            <span>Gracz</span>
-            <span>Rozbicie</span>
-            <span>Punkty</span>
+            <span>{t("leaderboard.head.player")}</span>
+            <span>{t("leaderboard.head.breakdown")}</span>
+            <span>{t("leaderboard.head.points")}</span>
           </div>
 
           {leaderboard.map((player) => {
@@ -280,7 +279,7 @@ function LeaderboardPage() {
                 ? " ui-row-item--me"
                 : "";
 
-            const fazy = rozbicieNaFazy(player);
+            const fazy = rozbicieNaFazy(player, t);
 
             return (
               <div className={`ui-row-item${podium}${ja}`} key={player.user_id}>
@@ -325,7 +324,7 @@ function LeaderboardPage() {
                       </span>
                     ))
                   ) : (
-                    <span>brak punktów</span>
+                    <span>{t("leaderboard.noPoints")}</span>
                   )}
                 </div>
 
@@ -342,7 +341,7 @@ function LeaderboardPage() {
       {strony && strony.ile > 1 && (
         <nav
           className="ui-row ui-row--between leaderboard-pages"
-          aria-label="Strony rankingu"
+          aria-label={t("leaderboard.pages")}
         >
           <button
             type="button"
@@ -350,11 +349,17 @@ function LeaderboardPage() {
             disabled={strona <= 1}
             onClick={() => idzDoStrony(strona - 1)}
           >
-            ← Poprzednia
+            {t("leaderboard.prev")}
           </button>
 
           <span className="ui-stat__hint">
-            Strona <strong>{strony.numer}</strong> z {strony.ile}
+            <T
+              k="leaderboard.pageOf"
+              vars={{
+                page: <strong>{strony.numer}</strong>,
+                total: strony.ile,
+              }}
+            />
           </span>
 
           <button
@@ -363,7 +368,7 @@ function LeaderboardPage() {
             disabled={strona >= strony.ile}
             onClick={() => idzDoStrony(strona + 1)}
           >
-            Następna →
+            {t("leaderboard.next")}
           </button>
         </nav>
       )}

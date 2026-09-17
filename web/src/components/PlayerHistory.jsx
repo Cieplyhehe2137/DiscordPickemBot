@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { odmien } from "../lib/odmiana.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Starty gracza w pozostałych turniejach.
 //
@@ -12,20 +12,21 @@ import { odmien } from "../lib/odmiana.js";
 // normalny: nie ma czego pokazać, więc nie ma sekcji.
 
 function PlayerHistory({ events, userId }) {
+  const t = useT();
+
   if (!events?.length) return null;
 
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Poza tym turniejem</span>
+          <span className="ui-kicker">{t("history.kicker")}</span>
 
-          <h2>Grał też w</h2>
+          <h2>{t("history.title")}</h2>
 
           <p>
-            {events.length}{" "}
-            {odmien(events.length, "inny turniej", "inne turnieje", "innych turniejów")}
-            {" — kliknij, żeby zobaczyć tamten profil."}
+            {t("history.count", { count: events.length })}
+            {t("history.hint")}
           </p>
         </div>
       </div>
@@ -42,17 +43,23 @@ function PlayerHistory({ events, userId }) {
 
               <span className="ui-stat__hint">
                 {e.rank === null ? (
-                  "niesklasyfikowany"
+                  t("history.unranked")
                 ) : (
                   <>
-                    miejsce {e.rank} z {e.participants}
-                    {e.top_percent !== null && ` · TOP ${e.top_percent}%`}
+                    {t("history.place", {
+                      rank: e.rank,
+                      total: e.participants,
+                    })}
+                    {e.top_percent !== null &&
+                      ` · ${t("history.top", { percent: e.top_percent })}`}
                   </>
                 )}
               </span>
             </div>
 
-            <strong className="history-row__points">{e.points} pkt</strong>
+            <strong className="history-row__points">
+              {t("common.points", { count: e.points })}
+            </strong>
           </Link>
         ))}
       </div>

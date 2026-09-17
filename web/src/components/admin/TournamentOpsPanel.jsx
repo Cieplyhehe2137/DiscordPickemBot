@@ -16,6 +16,8 @@ import {
   endTournament,
 } from "../../lib/api.js";
 import { useConfirm } from "../ui/useConfirm.js";
+import { T } from "../../i18n/T.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 
 // Operacje turniejowe, które po przepisaniu frontu zostały wyłącznie
 // na Discordzie: hurtowe tworzenie meczów, czyszczenie fazy, propozycje
@@ -44,6 +46,8 @@ function Komunikaty({ ok, blad }) {
 /* ---------------- Hurtowe tworzenie meczów ---------------- */
 
 function HurtoweMecze({ guildId, slug }) {
+  const t = useT();
+
   const [faza, setFaza] = useState("swiss_stage1");
   const [tekst, setTekst] = useState("");
   const [bo, setBo] = useState(3);
@@ -73,7 +77,7 @@ function HurtoweMecze({ guildId, slug }) {
         setOk(`Utworzono mecze: ${dane.utworzone ?? dane.created ?? "?"}.`);
       }
     } catch (err) {
-      setBlad(err.message || "Nie udało się utworzyć meczów.");
+      setBlad(err.message || t("admin.ops.bulk.error"));
     } finally {
       setPracuje(false);
     }
@@ -81,11 +85,16 @@ function HurtoweMecze({ guildId, slug }) {
 
   return (
     <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
-      <h4>Hurtowe tworzenie meczów</h4>
+      <h4>{t("admin.ops.bulk.title")}</h4>
 
       <p className="ui-hint">
-        Jeden mecz na linię: <code>Team A vs Team B</code>, opcjonalnie z BO na
-        końcu (<code>NAVI vs G2 BO3</code>).
+        <T
+          k="admin.ops.bulk.hint"
+          vars={{
+            format: <code>Team A vs Team B</code>,
+            example: <code>NAVI vs G2 BO3</code>,
+          }}
+        />
       </p>
 
       <div className="ui-row ui-row--wrap">
@@ -98,9 +107,9 @@ function HurtoweMecze({ guildId, slug }) {
         </select>
 
         <select value={bo} onChange={(e) => setBo(e.target.value)}>
-          <option value={1}>Domyślnie BO1</option>
-          <option value={3}>Domyślnie BO3</option>
-          <option value={5}>Domyślnie BO5</option>
+          <option value={1}>{t("admin.ops.bulk.defaultBo", { bo: 1 })}</option>
+          <option value={3}>{t("admin.ops.bulk.defaultBo", { bo: 3 })}</option>
+          <option value={5}>{t("admin.ops.bulk.defaultBo", { bo: 5 })}</option>
         </select>
       </div>
 
@@ -113,22 +122,24 @@ function HurtoweMecze({ guildId, slug }) {
 
       <div className="ui-row ui-row--wrap">
         <button type="button" onClick={() => uruchom(true)} disabled={pracuje}>
-          Podgląd
+          {t("admin.ops.bulk.preview")}
         </button>
 
         <button
           type="button"
           onClick={() => uruchom(false)}
           disabled={pracuje || !podglad}
-          title={!podglad ? "Najpierw zrób podgląd" : ""}
+          title={!podglad ? t("admin.ops.bulk.previewFirst") : ""}
         >
-          {pracuje ? "Pracuję..." : "Utwórz mecze"}
+          {pracuje
+            ? t("admin.ops.working")
+            : t("admin.ops.bulk.create")}
         </button>
       </div>
 
       {podglad && (
         <div className="ui-card ui-card--flat ui-card--tight">
-          <strong>Podgląd</strong>
+          <strong>{t("admin.ops.bulk.preview")}</strong>
 
           <pre>{JSON.stringify(podglad, null, 2).slice(0, 1500)}</pre>
         </div>
@@ -142,6 +153,8 @@ function HurtoweMecze({ guildId, slug }) {
 /* ---------------- Czyszczenie fazy ---------------- */
 
 function CzyszczenieFazy({ slug }) {
+  const t = useT();
+
   const confirm = useConfirm();
 
   const [faza, setFaza] = useState("swiss_stage1");
@@ -158,7 +171,7 @@ function CzyszczenieFazy({ slug }) {
     try {
       setPodglad(await getClearPhasePreview(slug, faza));
     } catch (err) {
-      setBlad(err.message || "Nie udało się pobrać podglądu.");
+      setBlad(err.message || t("admin.ops.clear.previewError"));
     } finally {
       setPracuje(false);
     }
@@ -169,13 +182,16 @@ function CzyszczenieFazy({ slug }) {
     // wymaga zobaczenia liczb, które zniknią. Idą osobną listą, bo przy
     // takim pytaniu to one są treścią, a nie zdanie obok nich.
     const potwierdzone = await confirm({
-      title: `Usunąć wszystkie dane fazy ${faza}?`,
-      description: "Tego nie da się cofnąć.",
+      title: t("admin.ops.clear.confirmTitle", { phase: faza }),
+      description: t("admin.ops.clear.confirmText"),
       details: [
-        { label: "Meczów", value: podglad?.matches ?? "?" },
-        { label: "Typów graczy", value: podglad?.predictions ?? "?" },
+        { label: t("admin.ops.clear.matches"), value: podglad?.matches ?? "?" },
+        {
+          label: t("admin.ops.clear.predictions"),
+          value: podglad?.predictions ?? "?",
+        },
       ],
-      confirmLabel: "Usuń dane fazy",
+      confirmLabel: t("admin.ops.clear.button"),
       tone: "danger",
     });
 
@@ -190,9 +206,9 @@ function CzyszczenieFazy({ slug }) {
     try {
       await clearPhase(slug, faza);
       setPodglad(null);
-      setOk(`Wyczyszczono fazę ${faza}.`);
+      setOk(t("admin.ops.clear.done", { phase: faza }));
     } catch (err) {
-      setBlad(err.message || "Nie udało się wyczyścić fazy.");
+      setBlad(err.message || t("admin.ops.clear.error"));
     } finally {
       setPracuje(false);
     }
@@ -200,11 +216,9 @@ function CzyszczenieFazy({ slug }) {
 
   return (
     <div className="ui-card ui-card--flat ui-stack ui-stack--tight ui-card--danger">
-      <h4>Wyczyść fazę</h4>
+      <h4>{t("admin.ops.clear.title")}</h4>
 
-      <p className="ui-hint">
-        Usuwa mecze, typy, wyniki i punkty wybranej fazy. Nieodwracalne.
-      </p>
+      <p className="ui-hint">{t("admin.ops.clear.hint")}</p>
 
       <div className="ui-row ui-row--wrap">
         <select value={faza} onChange={(e) => setFaza(e.target.value)}>
@@ -216,22 +230,26 @@ function CzyszczenieFazy({ slug }) {
         </select>
 
         <button type="button" onClick={pobierzPodglad} disabled={pracuje}>
-          Sprawdź, co zniknie
+          {t("admin.ops.clear.check")}
         </button>
       </div>
 
       {podglad && (
         <div className="ui-card ui-card--flat ui-card--tight">
-          <strong>Do usunięcia:</strong> mecze {podglad.matches} · typy{" "}
-          {podglad.predictions} · wyniki {podglad.results} · punkty{" "}
-          {podglad.points}
+          <strong>{t("admin.ops.clear.toDelete")}</strong>{" "}
+          {t("admin.ops.clear.counts", {
+            matches: podglad.matches,
+            predictions: podglad.predictions,
+            results: podglad.results,
+            points: podglad.points,
+          })}
           <button
             type="button"
             className="ui-btn ui-btn--danger"
             onClick={wyczysc}
             disabled={pracuje}
           >
-            Usuń dane fazy
+            {t("admin.ops.clear.button")}
           </button>
         </div>
       )}
@@ -244,6 +262,8 @@ function CzyszczenieFazy({ slug }) {
 /* ---------------- Propozycje wyników ---------------- */
 
 function PropozycjeWynikow({ slug }) {
+  const t = useT();
+
   const [dane, setDane] = useState(null);
   const [pracuje, setPracuje] = useState(false);
   const [ok, setOk] = useState("");
@@ -256,7 +276,7 @@ function PropozycjeWynikow({ slug }) {
     try {
       setDane(await getResultProposals(slug));
     } catch (err) {
-      setBlad(err.message || "Nie udało się pobrać propozycji.");
+      setBlad(err.message || t("admin.ops.proposals.listError"));
     } finally {
       setPracuje(false);
     }
@@ -274,7 +294,7 @@ function PropozycjeWynikow({ slug }) {
       );
       await wczytaj();
     } catch (err) {
-      setBlad(err.message || "Nie udało się pobrać wyników od dostawcy.");
+      setBlad(err.message || t("admin.ops.proposals.syncError"));
     } finally {
       setPracuje(false);
     }
@@ -289,11 +309,13 @@ function PropozycjeWynikow({ slug }) {
       else await rejectResultProposal(id);
 
       setOk(
-        akcja === "accept" ? "Wynik zatwierdzony." : "Propozycja odrzucona.",
+        akcja === "accept"
+          ? t("admin.ops.proposals.accepted")
+          : t("admin.ops.proposals.rejected"),
       );
       await wczytaj();
     } catch (err) {
-      setBlad(err.message || "Nie udało się rozstrzygnąć propozycji.");
+      setBlad(err.message || t("admin.ops.proposals.resolveError"));
     }
   }
 
@@ -301,25 +323,29 @@ function PropozycjeWynikow({ slug }) {
 
   return (
     <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
-      <h4>Propozycje wyników</h4>
+      <h4>{t("admin.ops.proposals.title")}</h4>
 
       <p className="ui-hint">
-        Wyniki pobrane automatycznie od dostawcy — zatwierdzasz albo odrzucasz.
-        {dane && !dane.providerConfigured && " (Dostawca nieskonfigurowany.)"}
+        {t("admin.ops.proposals.hint")}
+        {dane &&
+          !dane.providerConfigured &&
+          t("admin.ops.proposals.noProvider")}
       </p>
 
       <div className="ui-row ui-row--wrap">
         <button type="button" onClick={wczytaj} disabled={pracuje}>
-          Pokaż propozycje
+          {t("admin.ops.proposals.show")}
         </button>
 
         <button type="button" onClick={pobierzZDostawcy} disabled={pracuje}>
-          {pracuje ? "Pracuję..." : "Pobierz od dostawcy"}
+          {pracuje
+            ? t("admin.ops.working")
+            : t("admin.ops.proposals.fetch")}
         </button>
       </div>
 
       {dane && propozycje.length === 0 && (
-        <p className="ui-hint">Brak oczekujących propozycji.</p>
+        <p className="ui-hint">{t("admin.ops.proposals.empty")}</p>
       )}
 
       {propozycje.map((p) => (
@@ -330,11 +356,11 @@ function PropozycjeWynikow({ slug }) {
 
           <div className="ui-row ui-row--wrap">
             <button type="button" onClick={() => rozstrzygnij(p.id, "accept")}>
-              Zatwierdź
+              {t("admin.ops.proposals.accept")}
             </button>
 
             <button type="button" onClick={() => rozstrzygnij(p.id, "reject")}>
-              Odrzuć
+              {t("admin.ops.proposals.reject")}
             </button>
           </div>
         </div>
@@ -348,6 +374,8 @@ function PropozycjeWynikow({ slug }) {
 /* ---------------- Kopie zapasowe ---------------- */
 
 function Backupy({ guildId }) {
+  const t = useT();
+
   const confirm = useConfirm();
 
   const [lista, setLista] = useState(null);
@@ -363,7 +391,7 @@ function Backupy({ guildId }) {
       const dane = await listBackups(guildId);
       setLista(dane.backups ?? []);
     } catch (err) {
-      setBlad(err.message || "Nie udało się pobrać listy kopii.");
+      setBlad(err.message || t("admin.ops.backup.listError"));
     } finally {
       setPracuje(false);
     }
@@ -379,7 +407,7 @@ function Backupy({ guildId }) {
       setOk("Kopia zapasowa utworzona.");
       await wczytaj();
     } catch (err) {
-      setBlad(err.message || "Nie udało się utworzyć kopii.");
+      setBlad(err.message || t("admin.ops.backup.createError"));
     } finally {
       setPracuje(false);
     }
@@ -387,11 +415,9 @@ function Backupy({ guildId }) {
 
   async function przywroc(nazwa) {
     const potwierdzone = await confirm({
-      title: `Przywrócić kopię ${nazwa}?`,
-      description:
-        "Bieżące dane tego serwera zostaną zastąpione zawartością kopii. " +
-        "Wszystko, co powstało po jej zrobieniu, przepadnie.",
-      confirmLabel: "Przywróć kopię",
+      title: t("admin.ops.backup.confirmTitle", { name: nazwa }),
+      description: t("admin.ops.backup.confirmText"),
+      confirmLabel: t("admin.ops.backup.confirmButton"),
       tone: "danger",
     });
 
@@ -405,9 +431,9 @@ function Backupy({ guildId }) {
 
     try {
       await restoreBackup(guildId, nazwa);
-      setOk(`Przywrócono kopię ${nazwa}.`);
+      setOk(t("admin.ops.backup.restored", { name: nazwa }));
     } catch (err) {
-      setBlad(err.message || "Nie udało się przywrócić kopii.");
+      setBlad(err.message || t("admin.ops.backup.restoreError"));
     } finally {
       setPracuje(false);
     }
@@ -415,20 +441,22 @@ function Backupy({ guildId }) {
 
   return (
     <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
-      <h4>Kopie zapasowe</h4>
+      <h4>{t("admin.ops.backup.title")}</h4>
 
       <div className="ui-row ui-row--wrap">
         <button type="button" onClick={wczytaj} disabled={pracuje}>
-          Pokaż kopie
+          {t("admin.ops.backup.show")}
         </button>
 
         <button type="button" onClick={utworz} disabled={pracuje}>
-          {pracuje ? "Pracuję..." : "Utwórz kopię"}
+          {pracuje
+            ? t("admin.ops.working")
+            : t("admin.ops.backup.create")}
         </button>
       </div>
 
       {lista && lista.length === 0 && (
-        <p className="ui-hint">Brak kopii zapasowych.</p>
+        <p className="ui-hint">{t("admin.ops.backup.empty")}</p>
       )}
 
       {(lista ?? []).map((kopia) => {
@@ -442,10 +470,12 @@ function Backupy({ guildId }) {
             <span>{nazwa}</span>
 
             <div className="ui-row ui-row--wrap">
-              <a href={backupDownloadUrl(guildId, nazwa)}>Pobierz</a>
+              <a href={backupDownloadUrl(guildId, nazwa)}>
+                {t("admin.ops.backup.download")}
+              </a>
 
               <button type="button" onClick={() => przywroc(nazwa)}>
-                Przywróć
+                {t("admin.ops.backup.restore")}
               </button>
             </div>
           </div>
@@ -460,6 +490,8 @@ function Backupy({ guildId }) {
 /* ---------------- Zamknięcie turnieju ---------------- */
 
 function ZamknijTurniej({ slug }) {
+  const t = useT();
+
   const confirm = useConfirm();
 
   const [nazwa, setNazwa] = useState("");
@@ -470,12 +502,13 @@ function ZamknijTurniej({ slug }) {
 
   async function zakoncz() {
     const potwierdzone = await confirm({
-      title: "Zakończyć turniej?",
+      title: t("admin.ops.end.confirmTitle"),
       description: cleanup
-        ? "Dane robocze zostaną usunięte - zostanie tylko klasyfikacja " +
-          "końcowa i plik archiwum."
-        : "Turniej zostanie zarchiwizowany i zamknięty na typowanie.",
-      confirmLabel: cleanup ? "Zakończ i usuń dane" : "Zakończ turniej",
+        ? t("admin.ops.end.confirmCleanup")
+        : t("admin.ops.end.confirmPlain"),
+      confirmLabel: cleanup
+        ? t("admin.ops.end.confirmCleanupButton")
+        : t("admin.ops.end.title"),
       tone: cleanup ? "danger" : undefined,
     });
 
@@ -489,9 +522,9 @@ function ZamknijTurniej({ slug }) {
 
     try {
       await endTournament(slug, { archiveName: nazwa || null, cleanup });
-      setOk("Turniej zakończony i zarchiwizowany.");
+      setOk(t("admin.ops.end.done"));
     } catch (err) {
-      setBlad(err.message || "Nie udało się zakończyć turnieju.");
+      setBlad(err.message || t("admin.ops.end.error"));
     } finally {
       setPracuje(false);
     }
@@ -499,22 +532,21 @@ function ZamknijTurniej({ slug }) {
 
   return (
     <div className="ui-card ui-card--flat ui-stack ui-stack--tight ui-card--danger">
-      <h4>Zakończ turniej</h4>
+      <h4>{t("admin.ops.end.title")}</h4>
 
-      <p className="ui-hint">
-        Generuje archiwum XLSX i zamyka turniej. Z opcją czyszczenia usuwa dane
-        robocze — klasyfikacja końcowa zostaje.
-      </p>
+      <p className="ui-hint">{t("admin.ops.end.hint")}</p>
 
       <div className="ui-row ui-row--wrap">
         <input
           type="text"
           value={nazwa}
           onChange={(e) => setNazwa(e.target.value)}
-          placeholder="Nazwa archiwum (opcjonalnie)"
+          placeholder={t("admin.ops.end.archiveName")}
         />
 
-        <a href={classificationExportUrl(slug)}>Pobierz klasyfikację</a>
+        <a href={classificationExportUrl(slug)}>
+          {t("admin.ops.end.classification")}
+        </a>
       </div>
 
       <label className="ui-row">
@@ -523,7 +555,7 @@ function ZamknijTurniej({ slug }) {
           checked={cleanup}
           onChange={(e) => setCleanup(e.target.checked)}
         />
-        Usuń dane robocze (typy, mecze, wyniki faz)
+        {t("admin.ops.end.cleanup")}
       </label>
 
       <button
@@ -532,7 +564,9 @@ function ZamknijTurniej({ slug }) {
         onClick={zakoncz}
         disabled={pracuje}
       >
-        {pracuje ? "Kończenie..." : "Zakończ turniej"}
+        {pracuje
+          ? t("admin.ops.end.working")
+          : t("admin.ops.end.title")}
       </button>
 
       <Komunikaty ok={ok} blad={blad} />

@@ -4,6 +4,8 @@
 // Zapis sprawdza sie wobec zamrozonych faz (server/lib/frozenPhases.js) -
 // limitow nie wolno ruszac, gdy ktos juz w tej fazie typowal.
 
+import { FROZEN_CODES } from "../lib/frozenPhases.js";
+
 export function registerPickemConfigRoutes(
   app,
   {
@@ -40,7 +42,10 @@ export function registerPickemConfigRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         const konfiguracja = await getEventPickemConfig(pool, guildId, event.id);
@@ -55,11 +60,15 @@ export function registerPickemConfigRoutes(
             limity: konfiguracja.fazy[faza].limity,
             zamrozona: Boolean(zamrozone[faza]),
             powodZamrozenia: zamrozone[faza] || null,
+            powodZamrozeniaCode: FROZEN_CODES[zamrozone[faza]] || null,
           })),
         });
       } catch (err) {
         console.error("PICKEM CONFIG GET:", err);
-        return res.status(500).json({ error: "Błąd bazy danych." });
+        return res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );
@@ -75,7 +84,10 @@ export function registerPickemConfigRoutes(
         if (!Array.isArray(fazy) || !fazy.length) {
           return res
             .status(400)
-            .json({ error: "fazy musi być niepustą tablicą." });
+            .json({
+              error: "fazy musi być niepustą tablicą.",
+              code: "server.phasesArray",
+            });
         }
 
         const [[event]] = await pool.query(
@@ -84,7 +96,10 @@ export function registerPickemConfigRoutes(
         );
 
         if (!event) {
-          return res.status(404).json({ error: "Nie znaleziono turnieju." });
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
         }
 
         // API i panel mówią o fazie "faza", moduł konfiguracji - "phase".
@@ -131,6 +146,11 @@ export function registerPickemConfigRoutes(
                 .map((w) => `${w.phase} (${zamrozone[w.phase]})`)
                 .join(", ") +
               ".",
+            code: "server.phasesFrozen",
+            // Same nazwy faz z powodami - strona wstawia je w swoje zdanie.
+            phases: naruszenia
+              .map((w) => `${w.phase} (${zamrozone[w.phase]})`)
+              .join(", "),
             zamrozone: naruszenia.map((w) => w.phase),
           });
         }
@@ -164,11 +184,15 @@ export function registerPickemConfigRoutes(
             limity: konfiguracja.fazy[faza].limity,
             zamrozona: Boolean(poZapisie[faza]),
             powodZamrozenia: poZapisie[faza] || null,
+            powodZamrozeniaCode: FROZEN_CODES[poZapisie[faza]] || null,
           })),
         });
       } catch (err) {
         console.error("PICKEM CONFIG PUT:", err);
-        return res.status(500).json({ error: "Błąd bazy danych." });
+        return res.status(500).json({
+          error: "Błąd bazy danych.",
+          code: "server.dbError",
+        });
       }
     },
   );

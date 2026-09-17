@@ -93,6 +93,7 @@ export function registerMatchOpsRoutes(
         if (!match) {
           return res.status(404).json({
             error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
           });
         }
 
@@ -102,6 +103,7 @@ export function registerMatchOpsRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -118,7 +120,10 @@ export function registerMatchOpsRoutes(
         const match = await matchesStore.getMatchById(pool, guildId, matchId);
 
         if (!match) {
-          return res.status(404).json({ error: "Nie znaleziono meczu." });
+          return res.status(404).json({
+            error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
+          });
         }
 
         const maxMaps = maxMapsFromBo(match.best_of);
@@ -159,6 +164,7 @@ export function registerMatchOpsRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },
@@ -396,6 +402,7 @@ export function registerMatchOpsRoutes(
         if (!match) {
           return res.status(404).json({
             error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
           });
         }
 
@@ -436,6 +443,7 @@ export function registerMatchOpsRoutes(
 
         res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

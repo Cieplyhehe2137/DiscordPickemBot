@@ -11,7 +11,8 @@ import {
   duelProgress,
   splitWidths,
 } from "../lib/headToHeadStats.js";
-import { odmien } from "../lib/odmiana.js";
+import { T } from "../i18n/T.jsx";
+import { useT } from "../i18n/useLanguage.js";
 
 // Porównanie dwóch graczy w obrębie jednego turnieju.
 //
@@ -33,23 +34,27 @@ import { odmien } from "../lib/odmiana.js";
 // Wiersze porównania. Kolejność od najważniejszego: punkty i miejsce są tym,
 // o co ludzie pytają najpierw.
 const WIERSZE = [
-  { label: "Punkty w klasyfikacji", pole: "total_points" },
+  { labelKey: "h2h.row.points", pole: "total_points" },
 
   {
-    label: "Miejsce w rankingu",
+    labelKey: "h2h.row.rank",
     pole: "rank",
     lowerIsBetter: true,
     format: (v) => (v > 0 ? `#${v}` : "—"),
   },
 
-  { label: "Skuteczność", pole: "accuracy", format: (v) => `${v ?? 0}%` },
-  { label: "Trafieni zwycięzcy", pole: "correct_winners" },
-  { label: "Dokładne wyniki serii", pole: "exact_series" },
-  { label: "Exacty map", pole: "exact_maps" },
-  { label: "Trafione mapy", pole: "correct_maps" },
-  { label: "Najdłuższa seria", pole: "best_correct_streak" },
-  { label: "Komplety", pole: "perfect_matches" },
-  { label: "Najlepszy mecz", pole: "best_match_points" },
+  {
+    labelKey: "h2h.row.accuracy",
+    pole: "accuracy",
+    format: (v) => `${v ?? 0}%`,
+  },
+  { labelKey: "h2h.row.winners", pole: "correct_winners" },
+  { labelKey: "h2h.row.exactSeries", pole: "exact_series" },
+  { labelKey: "h2h.row.exactMaps", pole: "exact_maps" },
+  { labelKey: "h2h.row.correctMaps", pole: "correct_maps" },
+  { labelKey: "h2h.row.streak", pole: "best_correct_streak" },
+  { labelKey: "h2h.row.perfect", pole: "perfect_matches" },
+  { labelKey: "h2h.row.bestMatch", pole: "best_match_points" },
 ];
 
 // Klasy zwycięskiej strony trzymane w tablicy, a nie sklejane z wyniku.
@@ -80,6 +85,8 @@ function jakWypadl(winner, strona) {
 }
 
 function Tablica({ a, b, summary }) {
+  const t = useT();
+
   const paski = splitWidths(summary);
 
   // Kto prowadzi w pojedynku - do podpisu pod tablicą.
@@ -143,57 +150,49 @@ function Tablica({ a, b, summary }) {
 
       <p className="ui-stat__hint h2h-board__summary">
         {summary.settled === 0 ? (
-          <>Żaden wspólny mecz nie został jeszcze rozstrzygnięty.</>
+          t("h2h.nothingSettled")
         ) : prowadzi ? (
-          <>
-            <strong>{prowadzi.displayname}</strong> prowadzi o {przewaga}{" "}
-            {odmien(przewaga, "mecz", "mecze", "meczów")} przy{" "}
-            {summary.ties} {odmien(summary.ties, "remisie", "remisach", "remisach")}{" "}
-            na {summary.settled}{" "}
-            {odmien(summary.settled, "wspólnym meczu", "wspólnych meczach", "wspólnych meczach")}
-            .
-          </>
+          <T
+            k="h2h.lead"
+            vars={{
+              name: <strong>{prowadzi.displayname}</strong>,
+              count: przewaga,
+              ties: t("h2h.ties", { count: summary.ties }),
+              settled: t("h2h.settled", { count: summary.settled }),
+            }}
+          />
         ) : (
-          <>
-            Remis po {summary.settled}{" "}
-            {odmien(
-              summary.settled,
-              "wspólnym meczu",
-              "wspólnych meczach",
-              "wspólnych meczach",
-            )}
-            .
-          </>
+          t("h2h.draw", { count: summary.settled })
         )}
       </p>
 
       <div className="ui-stats ui-stats--4">
         <div className="ui-stat">
-          <span>Punkty ze wspólnych</span>
+          <span>{t("h2h.sharedPoints")}</span>
 
           <strong className="h2h-board__pair">
             {summary.points_a} : {summary.points_b}
           </strong>
 
-          <small>tylko z rozstrzygniętych meczów</small>
+          <small>{t("h2h.sharedPointsHint")}</small>
         </div>
 
         <div className="ui-stat">
-          <span>Remisy</span>
+          <span>{t("h2h.tiesLabel")}</span>
           <strong>{summary.ties}</strong>
-          <small>tyle samo punktów za mecz</small>
+          <small>{t("h2h.tiesHint")}</small>
         </div>
 
         <div className="ui-stat">
-          <span>Ten sam typ serii</span>
+          <span>{t("h2h.samePick")}</span>
           <strong>{summary.same_picks}</strong>
-          <small>punkty i tak mogą się różnić — decydują mapy</small>
+          <small>{t("h2h.samePickHint")}</small>
         </div>
 
         <div className="ui-stat">
-          <span>Jeszcze nierozegrane</span>
+          <span>{t("h2h.pending")}</span>
           <strong>{summary.pending}</strong>
-          <small>obstawione przez obu</small>
+          <small>{t("h2h.pendingHint")}</small>
         </div>
       </div>
     </section>
@@ -204,6 +203,8 @@ function Tablica({ a, b, summary }) {
 // sie rozjechali. Suma na koncu tego nie powie - dwie osoby z ta sama
 // przewaga moga ja zbudowac na jednym wieczorze albo po punkcie na mecz.
 function Przebieg({ a, b, matches }) {
+  const t = useT();
+
   const { a: ciagA, b: ciagB } = duelProgress(matches);
 
   if (ciagA.length === 0) return null;
@@ -212,14 +213,11 @@ function Przebieg({ a, b, matches }) {
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Przebieg</span>
+          <span className="ui-kicker">{t("h2h.progress.kicker")}</span>
 
-          <h2>Kto kiedy odskoczył</h2>
+          <h2>{t("h2h.progress.title")}</h2>
 
-          <p>
-            Punkty narastająco, tylko ze wspólnych meczów — od pierwszego
-            do ostatniego.
-          </p>
+          <p>{t("h2h.progress.text")}</p>
         </div>
       </div>
 
@@ -234,23 +232,22 @@ function Przebieg({ a, b, matches }) {
 }
 
 function Statystyki({ a, b }) {
+  const t = useT();
+
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Statystyki</span>
+          <span className="ui-kicker">{t("h2h.stats.kicker")}</span>
 
-          <h2>Cały turniej</h2>
+          <h2>{t("h2h.stats.title")}</h2>
 
-          <p>
-            Tu liczy się wszystko, co każdy z nich obstawił — także mecze,
-            których ten drugi nie typował.
-          </p>
+          <p>{t("h2h.stats.text")}</p>
         </div>
       </div>
 
       <div className="ui-stack ui-stack--tight">
-        {WIERSZE.map(({ label, pole, lowerIsBetter, format }) => {
+        {WIERSZE.map(({ labelKey, pole, lowerIsBetter, format }) => {
           const wartoscA = a[pole];
           const wartoscB = b[pole];
 
@@ -266,7 +263,7 @@ function Statystyki({ a, b }) {
                 {pokaz(wartoscA)}
               </strong>
 
-              <span className="h2h-row__label">{label}</span>
+              <span className="h2h-row__label">{t(labelKey)}</span>
 
               <strong
                 className={`h2h-value${lepszy === "b" ? STRONA_KLASA.b : ""}`}
@@ -287,6 +284,8 @@ function inicjal(nazwa) {
 }
 
 function WspolneMecze({ slug, matches, a, b }) {
+  const t = useT();
+
   if (!matches.length) {
     return (
       <section className="ui-card ui-stack">
@@ -295,12 +294,9 @@ function WspolneMecze({ slug, matches, a, b }) {
             🤝
           </span>
 
-          <strong className="ui-empty__title">Brak wspólnych meczów</strong>
+          <strong className="ui-empty__title">{t("h2h.empty.title")}</strong>
 
-          <p className="ui-empty__text">
-            Ci dwaj gracze nie obstawili w tym turnieju ani jednego tego samego
-            meczu, więc nie ma czego porównać.
-          </p>
+          <p className="ui-empty__text">{t("h2h.empty.text")}</p>
         </div>
       </section>
     );
@@ -310,9 +306,9 @@ function WspolneMecze({ slug, matches, a, b }) {
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Mecz po meczu</span>
+          <span className="ui-kicker">{t("h2h.matches.kicker")}</span>
 
-          <h2>Wspólne typy</h2>
+          <h2>{t("h2h.matches.title")}</h2>
         </div>
       </div>
 
@@ -337,7 +333,9 @@ function WspolneMecze({ slug, matches, a, b }) {
                     {mecz.res_a}:{mecz.res_b}
                   </span>
                 ) : (
-                  <span className="ui-badge ui-badge--warn">Bez wyniku</span>
+                  <span className="ui-badge ui-badge--warn">
+                    {t("team.noScore")}
+                  </span>
                 )}
               </div>
 
@@ -358,7 +356,9 @@ function WspolneMecze({ slug, matches, a, b }) {
                     {mecz.a.pred_a}:{mecz.a.pred_b}
                   </span>
 
-                  <span className="h2h-pick__points">{mecz.a.points} pkt</span>
+                  <span className="h2h-pick__points">
+                    {t("common.pointsValue", { value: mecz.a.points })}
+                  </span>
                 </div>
 
                 {/* "Serii", a nie po prostu "ten sam typ". Punkty za mecz to
@@ -368,7 +368,7 @@ function WspolneMecze({ slug, matches, a, b }) {
                     takich meczów - bez słowa "serii" identyczny typ obok
                     "5 pkt" i "4 pkt" wygląda jak błąd w danych. */}
                 <span className="h2h-match__mid">
-                  {mecz.same_pick ? "ten sam typ serii" : "—"}
+                  {mecz.same_pick ? t("h2h.samePickShort") : "—"}
                 </span>
 
                 <div
@@ -384,7 +384,9 @@ function WspolneMecze({ slug, matches, a, b }) {
                     {mecz.b.pred_a}:{mecz.b.pred_b}
                   </span>
 
-                  <span className="h2h-pick__points">{mecz.b.points} pkt</span>
+                  <span className="h2h-pick__points">
+                    {t("common.pointsValue", { value: mecz.b.points })}
+                  </span>
                 </div>
               </div>
             </div>
@@ -396,6 +398,8 @@ function WspolneMecze({ slug, matches, a, b }) {
 }
 
 function HeadToHeadPage() {
+  const t = useT();
+
   const { slug, userA, userB } = useParams();
 
   const [dane, setDane] = useState(null);
@@ -429,7 +433,7 @@ function HeadToHeadPage() {
         }
       } catch (err) {
         if (!anulowane) {
-          setError(err.message || "Nie udało się wczytać porównania.");
+          setError(err.message || t("h2h.errorText"));
         }
       } finally {
         if (!anulowane) setLoading(false);
@@ -441,12 +445,12 @@ function HeadToHeadPage() {
     return () => {
       anulowane = true;
     };
-  }, [slug, userA, userB]);
+  }, [slug, userA, userB, t]);
 
   if (loading) {
     return (
       <main className="ui-page">
-        <Ladowanie>Liczę pojedynek...</Ladowanie>
+        <Ladowanie>{t("h2h.loading")}</Ladowanie>
       </main>
     );
   }
@@ -454,16 +458,16 @@ function HeadToHeadPage() {
   if (error) {
     return (
       <main className="ui-page">
-        <BackLink to={`/events/${slug}/leaderboard`}>Wróć do rankingu</BackLink>
+        <BackLink to={`/events/${slug}/leaderboard`}>
+          {t("profile.backToLeaderboard")}
+        </BackLink>
 
         <div className="ui-error">
           <span className="ui-error__icon" aria-hidden="true">
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać porównania
-          </strong>
+          <strong className="ui-error__title">{t("h2h.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -477,26 +481,17 @@ function HeadToHeadPage() {
     <main className="ui-page">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Pojedynek</span>
+          <span className="ui-kicker">{t("h2h.kicker")}</span>
 
           <h2>
-            {a.displayname} kontra {b.displayname}
+            {t("h2h.title", { a: a.displayname, b: b.displayname })}
           </h2>
 
-          <p>
-            {summary.common}{" "}
-            {odmien(
-              summary.common,
-              "wspólny mecz",
-              "wspólne mecze",
-              "wspólnych meczów",
-            )}{" "}
-            w tym turnieju
-          </p>
+          <p>{t("h2h.common", { count: summary.common })}</p>
         </div>
 
         <BackLink to={`/events/${slug}/player/${a.user_id}`}>
-          Wróć do profilu
+          {t("h2h.backToProfile")}
         </BackLink>
       </div>
 

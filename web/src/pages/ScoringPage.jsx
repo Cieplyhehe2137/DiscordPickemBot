@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Ladowanie from "../components/Ladowanie.jsx";
 import { getScoring } from "../lib/api.js";
 import { SECTIONS, pointsAt } from "../lib/scoring.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Zasady punktacji.
 //
@@ -15,6 +16,8 @@ import { SECTIONS, pointsAt } from "../lib/scoring.js";
 // samego modułu, którym liczony jest ranking - patrz web/src/lib/scoring.js.
 
 function Stawka({ punkty }) {
+  const t = useT();
+
   // Kreska, a nie zero. Brak stawki znaczy, że ścieżka nie trafiła w nic
   // w rules/scoring.js, a zero jest tu prawdziwą wartością regulaminu.
   if (punkty === null) {
@@ -25,12 +28,14 @@ function Stawka({ punkty }) {
   // się jak nagroda.
   return (
     <span className={`ui-badge ${punkty > 0 ? "ui-badge--accent" : ""}`}>
-      {punkty} pkt
+      {t("common.points", { count: punkty })}
     </span>
   );
 }
 
 function ScoringPage() {
+  const t = useT();
+
   const [scoring, setScoring] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -47,7 +52,7 @@ function ScoringPage() {
         if (!anulowane) setScoring(odpowiedz?.scoring ?? null);
       } catch (err) {
         if (!anulowane) {
-          setError(err.message || "Nie udało się wczytać punktacji.");
+          setError(err.message || t("scoring.page.errorText"));
         }
       } finally {
         if (!anulowane) setLoading(false);
@@ -59,12 +64,12 @@ function ScoringPage() {
     return () => {
       anulowane = true;
     };
-  }, []);
+  }, [t]);
 
   if (loading) {
     return (
       <main className="ui-page ui-page--narrow">
-        <Ladowanie>Wczytuję punktację...</Ladowanie>
+        <Ladowanie>{t("scoring.page.loading")}</Ladowanie>
       </main>
     );
   }
@@ -78,12 +83,11 @@ function ScoringPage() {
           </span>
 
           <strong className="ui-error__title">
-            Nie udało się wczytać punktacji
+            {t("scoring.page.error")}
           </strong>
 
           <p className="ui-error__text">
-            {error ||
-              "Serwer nie oddał stawek punktowych. Spróbuj odświeżyć stronę."}
+            {error || t("scoring.page.noRates")}
           </p>
         </div>
       </main>
@@ -94,14 +98,11 @@ function ScoringPage() {
     <main className="ui-page ui-page--narrow">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Regulamin</span>
+          <span className="ui-kicker">{t("scoring.page.kicker")}</span>
 
-          <h1 className="ui-display">Punktacja</h1>
+          <h1 className="ui-display">{t("scoring.page.title")}</h1>
 
-          <p>
-            Wszystkie stawki pochodzą wprost z reguł, którymi liczony jest
-            ranking — to nie jest osobno spisany opis.
-          </p>
+          <p>{t("scoring.page.intro")}</p>
         </div>
       </div>
 
@@ -109,9 +110,9 @@ function ScoringPage() {
         <section className="ui-card ui-stack" key={sekcja.key}>
           <div className="ui-section-head">
             <div>
-              <h2>{sekcja.title}</h2>
+              <h2>{t(sekcja.titleKey)}</h2>
 
-              <p>{sekcja.lead}</p>
+              <p>{t(sekcja.leadKey)}</p>
             </div>
           </div>
 
@@ -119,10 +120,12 @@ function ScoringPage() {
             {sekcja.rows.map((zasada) => (
               <div className="scoring-rule" key={zasada.path}>
                 <div className="scoring-rule__text">
-                  <strong>{zasada.label}</strong>
+                  <strong>{t(zasada.labelKey)}</strong>
 
-                  {zasada.hint && (
-                    <span className="scoring-rule__hint">{zasada.hint}</span>
+                  {zasada.hintKey && (
+                    <span className="scoring-rule__hint">
+                      {t(zasada.hintKey)}
+                    </span>
                   )}
                 </div>
 
@@ -137,13 +140,7 @@ function ScoringPage() {
           zmieniła, a zarchiwizowanych turniejów nie przeliczamy. Bez tego
           ktoś porównałby powyższą tabelę ze swoim wynikiem z Cologne i wyszłoby
           mu, że ranking się nie zgadza. */}
-      <p className="ui-note">
-        Zarchiwizowany turniej zachowuje punkty z chwili rozliczenia. Zasady
-        punktacji map zmieniły się po IEM Cologne Major 2026 — wcześniej mapa
-        dawała punkty wyłącznie za dokładny wynik, dziś liczy się odchylenie.
-        Starych turniejów nie przeliczamy, bo przeliczenie przepisałoby
-        zamknięty ranking.
-      </p>
+      <p className="ui-note">{t("scoring.page.note")}</p>
     </main>
   );
 }

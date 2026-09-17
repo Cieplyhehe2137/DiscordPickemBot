@@ -66,6 +66,7 @@ export function registerMatchExactRoutes(
         if (!match) {
           return res.status(404).json({
             error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
           });
         }
 
@@ -134,6 +135,7 @@ export function registerMatchExactRoutes(
         if (uniqueMapNos.size !== clean.length) {
           return res.status(400).json({
             error: "Numery map nie mogą się powtarzać.",
+            code: "server.mapNumbersUnique",
           });
         }
 
@@ -154,6 +156,7 @@ export function registerMatchExactRoutes(
             return res.status(400).json({
               error:
                 "Numery map muszą być kolejne: 1, 2, 3...",
+              code: "server.mapNumbersSequential",
             });
           }
         }
@@ -169,6 +172,7 @@ export function registerMatchExactRoutes(
           if (sortedMaps.length !== 1) {
             return res.status(400).json({
               error: "BO1 musi zawierać dokładnie jedną mapę.",
+              code: "server.bo1OneMap",
             });
           }
 
@@ -431,6 +435,7 @@ export function registerMatchExactRoutes(
 
         return res.status(500).json({
           error: "Błąd bazy danych.",
+          code: "server.dbError",
         });
       }
     },

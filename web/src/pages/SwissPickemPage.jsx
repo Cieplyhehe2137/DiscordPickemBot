@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { getSwissPickem, saveSwissPickem } from "../lib/api.js";
-import { druzyny } from "../lib/odmiana.js";
-import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 import { useToast } from "../components/ui/useToast.js";
 import PhaseResults from "../components/PhaseResults.jsx";
 
@@ -14,6 +14,8 @@ import TeamPickGroup from "../components/TeamPickGroup.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function SwissPickemPage() {
+  const t = useT();
+
   const { slug, stage } = useParams();
   const { user, authLoading } = useAuth();
   const toast = useToast();
@@ -55,19 +57,23 @@ function SwissPickemPage() {
         }
       } catch (err) {
         console.error(err);
-        setError(err.message || "Nie udało się wczytać Swiss Pick'Em.");
+        setError(err.message || t("pickem.swiss.loadError"));
       } finally {
         setLoading(false);
       }
     }
 
     loadSwissPickem();
-  }, [slug, stage]);
+  }, [slug, stage, t]);
 
   if (loading) {
     return (
       <main className="ui-page">
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("pickem.loading")}
+        >
           <div className="ui-skeleton ui-skeleton--row" />
 
           <div className="ui-skeleton ui-skeleton--row" />
@@ -84,9 +90,7 @@ function SwissPickemPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać fazy
-          </strong>
+          <strong className="ui-error__title">{t("pickem.loadError")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -139,7 +143,9 @@ function SwissPickemPage() {
 
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Faza szwajcarska · {stageLabel}</span>
+          <span className="ui-kicker">
+            {t("pickem.swiss.kicker", { stage: stageLabel })}
+          </span>
 
           <h2>Swiss Pick&apos;Em</h2>
 
@@ -148,20 +154,26 @@ function SwissPickemPage() {
 
         <div className="ui-row ui-row--wrap">
           <span className="ui-badge">
-            {data?.teams?.length ?? 0} {druzyny(data?.teams?.length ?? 0)}
+            {t("pickem.teamsCount", { count: data?.teams?.length ?? 0 })}
           </span>
 
           {!user ? (
-            <span className="ui-badge ui-badge--warn">Wymaga logowania</span>
+            <span className="ui-badge ui-badge--warn">
+              {t("pickem.loginRequired")}
+            </span>
           ) : data?.lock?.allowed ? (
-            <span className="ui-badge ui-badge--ok">Typowanie otwarte</span>
+            <span className="ui-badge ui-badge--ok">
+              {t("matchState.open")}
+            </span>
           ) : (
-            <span className="ui-badge ui-badge--warn">Typowanie zamknięte</span>
+            <span className="ui-badge ui-badge--warn">
+              {t("matchState.locked")}
+            </span>
           )}
         </div>
       </div>
 
-      <nav className="ui-choice" aria-label="Etapy fazy szwajcarskiej">
+      <nav className="ui-choice" aria-label={t("pickem.swiss.stages")}>
         {["stage1", "stage2", "stage3"].map((stageName, index) => (
           <Link
             key={stageName}
@@ -177,7 +189,9 @@ function SwissPickemPage() {
       <PhaseFormat faza={stage} limity={limity} />
 
       {!data?.lock?.allowed && data?.lock?.message && (
-        <p className="ui-note ui-note--warn">🔒 {data.lock.message}</p>
+        <p className="ui-note ui-note--warn">
+          🔒 {translateApiMessage(data.lock.code, data.lock.message)}
+        </p>
       )}
 
       {!authLoading && !user && (
@@ -189,13 +203,13 @@ function SwissPickemPage() {
             )}`,
           )}
         >
-          Zaloguj się przez Discord, aby typować
+          {t("pickem.loginCta")}
         </a>
       )}
 
       <TeamPickGroup
-        title="Bilans 3-0"
-        description={`Wybierz dokładnie ${limit30} ${druzyny(limit30)} z bilansem 3-0.`}
+        title={t("pickem.swiss.group30")}
+        description={t("pickem.swiss.desc30", { count: limit30 })}
         teams={data?.teams}
         selected={threeZero}
         limit={limit30}
@@ -205,8 +219,8 @@ function SwissPickemPage() {
       />
 
       <TeamPickGroup
-        title="Bilans 0-3"
-        description={`Wybierz dokładnie ${limit03} ${druzyny(limit03)} z bilansem 0-3.`}
+        title={t("pickem.swiss.group03")}
+        description={t("pickem.swiss.desc03", { count: limit03 })}
         teams={data?.teams}
         selected={zeroThree}
         limit={limit03}
@@ -216,8 +230,8 @@ function SwissPickemPage() {
       />
 
       <TeamPickGroup
-        title="Awans"
-        description={`Wybierz dokładnie ${limitAwans} ${druzyny(limitAwans)} do awansu.`}
+        title={t("pickem.swiss.groupAdvancing")}
+        description={t("pickem.swiss.descAdvancing", { count: limitAwans })}
         teams={data?.teams}
         selected={advancing}
         limit={limitAwans}
@@ -263,16 +277,16 @@ function SwissPickemPage() {
               },
             }));
 
-            toast.success(SAVED_MESSAGE);
+            toast.success(t("pickem.saved"));
           } catch (err) {
             console.error(err);
-            setSaveError(err.message || "Nie udało się zapisać typów.");
+            setSaveError(err.message || t("pickem.saveError"));
           } finally {
             setSaving(false);
           }
         }}
       >
-        {saving ? "Zapisywanie..." : "Zapisz typy"}
+        {saving ? t("pickem.saving") : t("pickem.save")}
       </button>
 
       {/* Oficjalny wynik fazy + trafienia + punkty.

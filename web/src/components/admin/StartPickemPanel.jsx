@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { startEventPickem } from "../../lib/api.js";
 import { useConfirm } from "../ui/useConfirm.js";
+import { T } from "../../i18n/T.jsx";
+import { useT } from "../../i18n/useLanguage.js";
 
 // Uruchomienie typowania z WWW ma dać dokładnie to samo, co komenda na
 // Discordzie: przestawienie stanu turnieju i panel na kanale. Robi to jedna
@@ -13,6 +15,8 @@ import { useConfirm } from "../ui/useConfirm.js";
 // "Operacje" był w praktyce nie do znalezienia i ludzie klikali "Otwórz
 // event", który zmienia tylko status w bazie.
 
+// Nazwy etapów zostają po angielsku we wszystkich językach - tak nazywa
+// je organizator i tak stoją na drabince.
 const FAZY = [
   { klucz: "swiss_stage1", etykieta: "Swiss Stage 1" },
   { klucz: "swiss_stage2", etykieta: "Swiss Stage 2" },
@@ -23,6 +27,8 @@ const FAZY = [
 ];
 
 function StartPickemPanel({ slug }) {
+  const t = useT();
+
   const confirm = useConfirm();
 
   const [faza, setFaza] = useState("swiss_stage1");
@@ -35,11 +41,9 @@ function StartPickemPanel({ slug }) {
 
   async function uruchom() {
     const potwierdzone = await confirm({
-      title: `Uruchomić typowanie fazy ${etykieta}?`,
-      description:
-        "Bot opublikuje panel na Discordzie i oznaczy ten turniej jako " +
-        "aktywny. Dotychczasowy otwarty turniej zostanie zamknięty.",
-      confirmLabel: "Uruchom typowanie",
+      title: t("admin.start.confirmTitle", { phase: etykieta }),
+      description: t("admin.start.confirmText"),
+      confirmLabel: t("admin.start.confirmButton"),
     });
 
     if (!potwierdzone) {
@@ -58,12 +62,14 @@ function StartPickemPanel({ slug }) {
       );
 
       setOk(
-        `Zlecono start fazy ${etykieta}. Bot opublikuje panel na kanale ` +
-          `${odpowiedz.channelId} w ciągu ~${odpowiedz.opoznienieSekundy} s. ` +
-          "Do tego czasu turniej pokazuje się jako nierozpoczęty.",
+        t("admin.start.done", {
+          phase: etykieta,
+          channel: odpowiedz.channelId,
+          seconds: odpowiedz.opoznienieSekundy,
+        }),
       );
     } catch (err) {
-      setBlad(err.message || "Nie udało się uruchomić typowania.");
+      setBlad(err.message || t("admin.start.error"));
     } finally {
       setPracuje(false);
     }
@@ -71,13 +77,13 @@ function StartPickemPanel({ slug }) {
 
   return (
     <div className="ui-card ui-stack">
-      <h3>Uruchom typowanie</h3>
+      <h3>{t("admin.start.title")}</h3>
 
       <p className="ui-hint">
-        Jedyna akcja, która publikuje panel typowania na Discordzie. Turniej
-        staje się aktywny, a poprzedni otwarty zostaje zamknięty. Kanał domyślny
-        bierze się z <code>PICKEM_CHANNEL_ID</code> w configu serwera — poniżej
-        możesz go nadpisać.
+        <T
+          k="admin.start.hint"
+          vars={{ config: <code>PICKEM_CHANNEL_ID</code> }}
+        />
       </p>
 
       <div className="ui-row ui-row--wrap">
@@ -93,11 +99,13 @@ function StartPickemPanel({ slug }) {
           type="text"
           value={kanal}
           onChange={(e) => setKanal(e.target.value)}
-          placeholder="ID kanału (opcjonalnie)"
+          placeholder={t("admin.start.channel")}
         />
 
         <button type="button" onClick={uruchom} disabled={pracuje}>
-          {pracuje ? "Zlecanie..." : "🚀 Uruchom typowanie"}
+          {pracuje
+            ? t("admin.start.working")
+            : `🚀 ${t("admin.start.title")}`}
         </button>
       </div>
 

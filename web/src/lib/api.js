@@ -6,6 +6,8 @@
 // (Cloudflare Pages). Wtedy backend musi mieć HTTPS, wpuszczać ten origin
 // w CORS i wystawiać ciasteczko jako SameSite=None; Secure - patrz
 // CROSS_ORIGIN_WEB w server/index.js.
+import { translateApiMessage } from "./apiMessages.js";
+
 const API_BASE_URL = `${String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "")}/api`;
 
 // Adresy plików do pobrania budujemy tym samym prefiksem co zapytania.
@@ -34,21 +36,40 @@ async function apiRequest(path, options = {}) {
   });
 
   if (!response.ok) {
-    let message = `Błąd API: ${response.status}`;
+    // Bez treści z serwera zostaje sam kod HTTP. To też jest komunikat dla
+    // człowieka, więc ma swój klucz jak każdy inny.
+    let message = null;
+    let code = null;
+
+    // Cała odpowiedź, bo zdania z klamrą składają się po naszej stronie -
+    // serwer odsyła wtedy treść klamry osobnym polem obok `code`.
+    let zmienne = null;
 
     try {
       const data = await response.json();
 
       if (data?.error) {
         message = data.error;
+        code = data.code ?? null;
+        zmienne = data;
       }
 
       if (data?.message) {
         message = data.message;
+        code = data.code ?? null;
+        zmienne = data;
       }
     } catch {
       // Backend nie zwrócił JSON-a.
     }
+
+    // Kod z serwera prowadzi do zdania w języku strony, a treść z serwera
+    // zostaje zapasem - patrz lib/apiMessages.js.
+    message =
+      message === null
+        ? translateApiMessage("api.httpError", `Błąd API: ${response.status}`)
+            .replace("{status}", response.status)
+        : translateApiMessage(code, message, zmienne);
 
     // Kod HTTP przy błędzie: pozwala odróżnić "zaloguj się" (401) od
     // awarii. Bez niego każdy nieudany strzał wyglądał na ekranie tak samo

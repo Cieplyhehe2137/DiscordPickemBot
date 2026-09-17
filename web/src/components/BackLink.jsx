@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 
+import { useT } from "../i18n/useLanguage.js";
+
 // Osiem podstron nie miało żadnego linku powrotnego - jedynym wyjściem był
 // przycisk "wstecz" w przeglądarce. Komponent Breadcrumbs, który to kiedyś
 // obsługiwał, zniknął przy przepisywaniu frontu.
@@ -9,10 +11,12 @@ import { Link } from "react-router-dom";
 // MatchesPage i LeaderboardPage zdążyły w międzyczasie przejść na ui-btn.
 // Ten sam element w dwóch wersjach na sąsiednich ekranach: raz napis, raz
 // przycisk. Komentarz obiecywał tu jeden wzorzec i przestał być prawdą.
-function BackLink({ to, children = "Wróć do eventu" }) {
+function BackLink({ to, children }) {
+  const t = useT();
+
   return (
     <Link className="ui-btn ui-btn--ghost ui-btn--sm page-back" to={to}>
-      ← {children}
+      ← {children ?? t("common.backToEvent")}
     </Link>
   );
 }

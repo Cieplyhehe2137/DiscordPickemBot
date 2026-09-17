@@ -2,15 +2,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getAllEvents } from "../lib/api.js";
-import { odmien } from "../lib/odmiana.js";
 import { humanPhase } from "../lib/phaseLabels.js";
 import {
   EVENT_STATE_BADGE,
-  EVENT_STATE_LABEL,
+  EVENT_STATE_KEY,
   eventState,
 } from "../lib/eventState.js";
+import { useT } from "../i18n/useLanguage.js";
 
 function EventCard({ event }) {
+  const t = useT();
+
   const stan = eventState(event);
 
   return (
@@ -20,10 +22,10 @@ function EventCard({ event }) {
     >
       <div className="ui-row ui-row--between ui-row--full">
         <span className={EVENT_STATE_BADGE[stan]}>
-          {EVENT_STATE_LABEL[stan]}
+          {t(EVENT_STATE_KEY[stan])}
         </span>
 
-        <span className="ui-stat__hint">{humanPhase(event.phase)}</span>
+        <span className="ui-stat__hint">{humanPhase(event.phase, t)}</span>
       </div>
 
       <strong className="ui-tile__name">{event.name}</strong>
@@ -31,15 +33,13 @@ function EventCard({ event }) {
       <div className="ui-row ui-row--wrap ui-tile__meta">
         {event.participants > 0 && (
           <span className="ui-badge">
-            {event.participants}{" "}
-            {odmien(event.participants, "gracz", "gracze", "graczy")}
+            {t("common.playersCount", { count: event.participants })}
           </span>
         )}
 
         {event.matches_count > 0 && (
           <span className="ui-badge">
-            {event.matches_count}{" "}
-            {odmien(event.matches_count, "mecz", "mecze", "meczów")}
+            {t("common.matchesCount", { count: event.matches_count })}
           </span>
         )}
       </div>
@@ -48,6 +48,8 @@ function EventCard({ event }) {
 }
 
 function EventsPage() {
+  const t = useT();
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,14 +86,11 @@ function EventsPage() {
     <main className="ui-page">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Turnieje</span>
+          <span className="ui-kicker">{t("events.kicker")}</span>
 
-          <h2>Eventy</h2>
+          <h2>{t("events.title")}</h2>
 
-          <p>
-            Wybierz turniej, żeby przejść do typowania meczów, faz turnieju i
-            rankingu. Zakończone Pick&apos;Emy zostają dostępne do przeglądania.
-          </p>
+          <p>{t("events.intro")}</p>
         </div>
       </div>
 
@@ -99,7 +98,7 @@ function EventsPage() {
         <div
           className="ui-tiles"
           aria-busy="true"
-          aria-label="Ładowanie turniejów"
+          aria-label={t("common.loadingEvents")}
         >
           {Array.from({ length: 3 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
@@ -113,9 +112,7 @@ function EventsPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się pobrać turniejów
-          </strong>
+          <strong className="ui-error__title">{t("events.error")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -127,11 +124,11 @@ function EventsPage() {
             🏆
           </span>
 
-          <strong className="ui-empty__title">Nie ma jeszcze turniejów</strong>
+          <strong className="ui-empty__title">
+            {t("events.empty.title")}
+          </strong>
 
-          <p className="ui-empty__text">
-            Gdy pierwszy Pick&apos;Em wystartuje, pojawi się na tej liście.
-          </p>
+          <p className="ui-empty__text">{t("events.empty.text")}</p>
         </div>
       )}
 
@@ -139,8 +136,8 @@ function EventsPage() {
         <section className="ui-stack ui-stack--loose">
           <div className="ui-section-head">
             <div>
-              <span className="ui-kicker">Teraz</span>
-              <h2>Trwające</h2>
+              <span className="ui-kicker">{t("events.live.kicker")}</span>
+              <h2>{t("events.live.title")}</h2>
             </div>
           </div>
 
@@ -156,13 +153,12 @@ function EventsPage() {
         <section className="ui-stack ui-stack--loose">
           <div className="ui-section-head">
             <div>
-              <span className="ui-kicker">Zapowiedź</span>
-              <h2>Wkrótce</h2>
+              <span className="ui-kicker">
+                {t("events.upcoming.kicker")}
+              </span>
+              <h2>{t("events.upcoming.title")}</h2>
 
-              <p>
-                Turniej jest już utworzony, ale typowanie jeszcze nie ruszyło -
-                zacznie się, gdy na Discordzie pojawi się panel fazy.
-              </p>
+              <p>{t("events.upcoming.text")}</p>
             </div>
           </div>
 
@@ -178,16 +174,15 @@ function EventsPage() {
         <section className="ui-stack ui-stack--loose">
           <div className="ui-section-head">
             <div>
-              <span className="ui-kicker">Archiwum</span>
-              <h2>Zakończone</h2>
+              <span className="ui-kicker">
+                {t("events.finished.kicker")}
+              </span>
+              <h2>{t("events.finished.title")}</h2>
 
               {/* Informacja zamiast osobnej karty "brak aktywnego turnieju" -
                   pusta karta w siatce wyglądała jak zepsuty kafelek. */}
               {aktywne.length === 0 && wkrotce.length === 0 && (
-                <p>
-                  Aktualnie nie trwa żaden Pick&apos;Em. Poniżej turnieje, które
-                  możesz przeglądać.
-                </p>
+                <p>{t("events.finished.text")}</p>
               )}
             </div>
           </div>

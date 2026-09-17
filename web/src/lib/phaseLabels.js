@@ -3,23 +3,28 @@
 // events.phase i matches.phase trzymają surowe identyfikatory w kilku
 // wariantach zapisu naraz (SWISS_STAGE_1, swiss_stage1, DOUBLE_ELIM,
 // NOT_STARTED). Bez mapowania trafiały one na ekran w tej postaci.
+//
+// Tablica trzyma KLUCZE słownika, nie gotowe napisy - dlatego obie funkcje
+// biorą `t`. Sam moduł nic nie importuje i nie wie o Reakcie, więc nadal da
+// się go wywołać z testu; to wołający ma tłumacza, bo tylko on wie, w jakim
+// języku jest ta konkretna strona.
 
-const ETYKIETY = {
-  not_started: "Nie rozpoczęty",
-  finished: "Zakończony",
+const KLUCZE = {
+  not_started: "phase.notStarted",
+  finished: "phase.finished",
 
-  swiss: "Swiss",
-  swiss_stage1: "Swiss Stage 1",
-  swiss_stage2: "Swiss Stage 2",
-  swiss_stage3: "Swiss Stage 3",
+  swiss: "phase.swiss",
+  swiss_stage1: "phase.swissStage1",
+  swiss_stage2: "phase.swissStage2",
+  swiss_stage3: "phase.swissStage3",
 
-  stage1: "Swiss Stage 1",
-  stage2: "Swiss Stage 2",
-  stage3: "Swiss Stage 3",
+  stage1: "phase.swissStage1",
+  stage2: "phase.swissStage2",
+  stage3: "phase.swissStage3",
 
-  playoffs: "Playoffs",
-  playin: "Play-In",
-  doubleelim: "Double Elimination",
+  playoffs: "phase.playoffs",
+  playin: "phase.playin",
+  doubleelim: "phase.doubleElim",
 };
 
 // Sprowadza wariant zapisu do jednego klucza: małe litery, spacje i myślniki
@@ -41,15 +46,20 @@ function normalizuj(phase) {
   return value;
 }
 
-export function humanPhase(phase) {
+export function humanPhase(phase, t) {
   if (!phase) return "—";
 
-  const klucz = normalizuj(phase);
+  const klucz = KLUCZE[normalizuj(phase)];
 
-  return ETYKIETY[klucz] || phase;
+  // Nieznana faza wraca w swojej surowej postaci. To jedyny sensowny wynik:
+  // API potrafi dołożyć etap, którego front jeszcze nie zna, a "PLAYIN_2"
+  // na ekranie mówi więcej niż myślnik.
+  return klucz ? t(klucz) : phase;
 }
 
 // Etykieta fazy używana w adresach frontu (stage1, playin, playoffs...).
-export function phaseRouteLabel(routePhase) {
-  return ETYKIETY[String(routePhase || "").toLowerCase()] || routePhase;
+export function phaseRouteLabel(routePhase, t) {
+  const klucz = KLUCZE[String(routePhase || "").toLowerCase()];
+
+  return klucz ? t(klucz) : routePhase;
 }

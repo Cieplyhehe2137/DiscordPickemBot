@@ -6,27 +6,20 @@ import BackLink from "../components/BackLink.jsx";
 import { getMapLabel } from "../lib/mapLabels.js";
 import LoginRequired from "../components/LoginRequired.jsx";
 import ScoreLine from "../components/ScoreLine.jsx";
+import { useT } from "../i18n/useLanguage.js";
 
+// Nazwy faz zostają po angielsku we wszystkich językach - tak nazywają je
+// organizatorzy turniejów i tak stoją na drabince.
 const PHASES = [
-  {
-    key: "SWISS",
-    label: "Swiss",
-  },
-  {
-    key: "PLAY_IN",
-    label: "Play-In",
-  },
-  {
-    key: "DOUBLE_ELIM",
-    label: "Double Elim",
-  },
-  {
-    key: "PLAYOFFS",
-    label: "Playoffs",
-  },
+  { key: "SWISS", label: "Swiss" },
+  { key: "PLAY_IN", label: "Play-In" },
+  { key: "DOUBLE_ELIM", label: "Double Elim" },
+  { key: "PLAYOFFS", label: "Playoffs" },
 ];
 
 function MyPicksPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const { realtimeRefresh } = useOutletContext();
   const [phase, setPhase] = useState("SWISS");
@@ -49,7 +42,7 @@ function MyPicksPage() {
         console.error("MY PICKS LOAD ERROR:", err);
 
         setError({
-          message: err.message || "Nie udało się pobrać typów.",
+          message: err.message || t("myPicks.errorText"),
           status: err.status,
         });
       } finally {
@@ -58,7 +51,7 @@ function MyPicksPage() {
     }
 
     loadPredictions();
-  }, [slug, phase, page]);
+  }, [slug, phase, page, t]);
 
   useEffect(() => {
     if (!realtimeRefresh?.version) {
@@ -96,16 +89,15 @@ function MyPicksPage() {
 
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Twoje dane</span>
+          <span className="ui-kicker">{t("myPicks.kicker")}</span>
 
           <h2>
-            Moje typy
-            {data?.event?.name ? ` — ${data.event.name}` : ""}
+            {data?.event?.name
+              ? t("myPicks.titleEvent", { event: data.event.name })
+              : t("myPicks.title")}
           </h2>
 
-          <p>
-            Sprawdź zapisane typy meczów, dokładne wyniki map i zdobyte punkty.
-          </p>
+          <p>{t("myPicks.intro")}</p>
         </div>
       </div>
 
@@ -124,7 +116,11 @@ function MyPicksPage() {
       </div>
 
       {loading && (
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie typów">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("myPicks.loading")}
+        >
           {Array.from({ length: 3 }, (_, i) => (
             <div className="ui-skeleton ui-skeleton--row" key={i} />
           ))}
@@ -133,18 +129,14 @@ function MyPicksPage() {
 
       {error &&
         (error.status === 401 ? (
-          <LoginRequired>
-            To Twoje zapisane typy, więc najpierw musimy wiedzieć, kto pyta.
-          </LoginRequired>
+          <LoginRequired>{t("myPicks.loginText")}</LoginRequired>
         ) : (
           <div className="ui-error" role="alert">
             <span className="ui-error__icon" aria-hidden="true">
               ⚠️
             </span>
 
-            <strong className="ui-error__title">
-              Nie udało się wczytać typów
-            </strong>
+            <strong className="ui-error__title">{t("myPicks.error")}</strong>
 
             <p className="ui-error__text">{error.message}</p>
           </div>
@@ -156,12 +148,11 @@ function MyPicksPage() {
             🗓️
           </span>
 
-          <strong className="ui-empty__title">Brak meczów w tej fazie</strong>
+          <strong className="ui-empty__title">
+            {t("myPicks.empty.title")}
+          </strong>
 
-          <p className="ui-empty__text">
-            Dla wybranej fazy nie ma jeszcze żadnych spotkań. Zajrzyj do innej
-            fazy albo wróć, gdy terminarz się zapełni.
-          </p>
+          <p className="ui-empty__text">{t("myPicks.empty.text")}</p>
         </div>
       )}
 
@@ -179,9 +170,11 @@ function MyPicksPage() {
                   </span>
 
                   {match.result ? (
-                    <span className="ui-badge">Zakończony</span>
+                    <span className="ui-badge">{t("myPicks.finished")}</span>
                   ) : (
-                    <span className="ui-badge ui-badge--live">Oczekuje</span>
+                    <span className="ui-badge ui-badge--live">
+                      {t("myPicks.pending")}
+                    </span>
                   )}
                 </div>
 
@@ -198,10 +191,10 @@ function MyPicksPage() {
                 </div>
 
                 {!hasPrediction ? (
-                  <p className="ui-note">Brak zapisanego typu.</p>
+                  <p className="ui-note">{t("myPicks.noPick")}</p>
                 ) : (
                   <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
-                    <span className="ui-stat__hint">Twój typ</span>
+                    <span className="ui-stat__hint">{t("myPicks.yourPick")}</span>
 
                     <ScoreLine
                       teamA={match.team_a}
@@ -214,7 +207,9 @@ function MyPicksPage() {
                       match.prediction.pred_exact_a !== null &&
                       match.prediction.pred_exact_b !== null && (
                         <>
-                          <span className="ui-stat__hint">Dokładny wynik</span>
+                          <span className="ui-stat__hint">
+                            {t("myPicks.exactScore")}
+                          </span>
 
                           <ScoreLine
                             teamA={match.team_a}
@@ -227,7 +222,7 @@ function MyPicksPage() {
 
                     {Number(match.best_of) > 1 &&
                       (match.maps.length === 0 ? (
-                        <p className="ui-note">Brak zapisanych typów map.</p>
+                        <p className="ui-note">{t("myPicks.noMapPicks")}</p>
                       ) : (
                         match.maps.map((map) => (
                           <div className="ui-map-row" key={map.map_no}>
@@ -242,16 +237,24 @@ function MyPicksPage() {
 
                             <div className="ui-row ui-row--wrap">
                               <span className="ui-badge">
-                                typ {map.pred_exact_a}:{map.pred_exact_b}
+                                {t("myPicks.mapPick", {
+                                  a: map.pred_exact_a,
+                                  b: map.pred_exact_b,
+                                })}
                               </span>
 
                               {map.res_exact_a !== null &&
                               map.res_exact_b !== null ? (
                                 <span className="ui-badge ui-badge--accent">
-                                  wynik {map.res_exact_a}:{map.res_exact_b}
+                                  {t("myPicks.mapResult", {
+                                    a: map.res_exact_a,
+                                    b: map.res_exact_b,
+                                  })}
                                 </span>
                               ) : (
-                                <span className="ui-badge">wynik: —</span>
+                                <span className="ui-badge">
+                                  {t("myPicks.mapNoResult")}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -263,29 +266,27 @@ function MyPicksPage() {
                 {match.result ? (
                   <div className="ui-stats">
                     <div className="ui-stat ui-stat--featured">
-                      <span>Łącznie</span>
+                      <span>{t("myPicks.total")}</span>
 
                       <strong>⭐ {match.points.total}</strong>
 
-                      <small>punktów za mecz</small>
+                      <small>{t("myPicks.totalHint")}</small>
                     </div>
 
                     <div className="ui-stat">
-                      <span>Seria</span>
+                      <span>{t("myPicks.series")}</span>
 
                       <strong>{match.points.series}</strong>
                     </div>
 
                     <div className="ui-stat">
-                      <span>Mapy</span>
+                      <span>{t("myPicks.maps")}</span>
 
                       <strong>{match.points.maps}</strong>
                     </div>
                   </div>
                 ) : (
-                  <p className="ui-note">
-                    ⏳ Punkty naliczą się po zakończeniu meczu.
-                  </p>
+                  <p className="ui-note">⏳ {t("myPicks.later")}</p>
                 )}
 
                 <Link
@@ -293,10 +294,10 @@ function MyPicksPage() {
                   to={`/events/${slug}/matches/${match.id}`}
                 >
                   {match.result
-                    ? "Zobacz mecz"
+                    ? t("matches.cta.match")
                     : hasPrediction
-                      ? "Edytuj typ"
-                      : "Typuj mecz"}
+                      ? t("matches.cta.edit")
+                      : t("myPicks.cta.predict")}
                 </Link>
               </article>
             );
@@ -309,11 +310,14 @@ function MyPicksPage() {
               disabled={data.pagination.page <= 0}
               onClick={() => setPage((value) => Math.max(0, value - 1))}
             >
-              ← Poprzednia
+              {t("leaderboard.prev")}
             </button>
 
             <span className="ui-stat__hint">
-              Strona {data.pagination.page + 1}/{data.pagination.total_pages}
+              {t("myPicks.pageOf", {
+                page: data.pagination.page + 1,
+                total: data.pagination.total_pages,
+              })}
             </span>
 
             <button
@@ -322,7 +326,7 @@ function MyPicksPage() {
               disabled={data.pagination.page >= data.pagination.total_pages - 1}
               onClick={() => setPage((value) => value + 1)}
             >
-              Następna →
+              {t("leaderboard.next")}
             </button>
           </div>
         </>

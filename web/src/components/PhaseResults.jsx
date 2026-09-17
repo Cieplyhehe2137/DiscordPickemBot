@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getPhaseResults, getScoring } from "../lib/api.js";
 import { pointsAt } from "../lib/scoring.js";
 import { markHits } from "../lib/teamPickHits.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Po zamknięciu fazy gracz widział wyłącznie swój zapisany typ - nigdzie na
 // WWW nie było oficjalnego wyniku ani informacji, ile punktów faza dała.
@@ -13,6 +14,8 @@ import { markHits } from "../lib/teamPickHits.js";
 // (published = true), więc na otwartej fazie nie zaśmieca formularza.
 
 function Lista({ tytul, wybrane, poprawne, punktyZa }) {
+  const t = useT();
+
   const pozycje = markHits(wybrane, poprawne);
   const liczbaTrafien = pozycje.filter((p) => p.hit).length;
 
@@ -25,14 +28,22 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
           <span
             className={`ui-badge ${liczbaTrafien > 0 ? "ui-badge--ok" : ""}`}
           >
-            {liczbaTrafien}/{pozycje.length} trafione
-            {punktyZa ? ` · ${liczbaTrafien * punktyZa} pkt` : ""}
+            {punktyZa
+              ? t("phaseResults.hitsWithPoints", {
+                  hits: liczbaTrafien,
+                  total: pozycje.length,
+                  points: liczbaTrafien * punktyZa,
+                })
+              : t("common.hits", {
+                  hits: liczbaTrafien,
+                  total: pozycje.length,
+                })}
           </span>
         )}
       </div>
 
       <div className="ui-stack ui-stack--tight">
-        <span className="ui-stat__hint">Oficjalnie</span>
+        <span className="ui-stat__hint">{t("phaseResults.official")}</span>
 
         <div className="ui-row ui-row--wrap">
           {(poprawne || []).length === 0 ? (
@@ -49,7 +60,7 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
 
       {pozycje.length > 0 && (
         <div className="ui-stack ui-stack--tight">
-          <span className="ui-stat__hint">Twój typ</span>
+          <span className="ui-stat__hint">{t("myPicks.yourPick")}</span>
 
           <div className="ui-row ui-row--wrap">
             {pozycje.map(({ team, hit }) => (
@@ -72,6 +83,8 @@ function Lista({ tytul, wybrane, poprawne, punktyZa }) {
 // pliku opisuje, czym kończy się taka kopia: regulamin pokazywał 4/4/2 tam,
 // gdzie bot liczył 3/3/1, i nic tego nie zgłaszało.
 function PhaseResults({ slug, phase }) {
+  const t = useT();
+
   const [dane, setDane] = useState(null);
   const [stawki, setStawki] = useState(null);
   const [blad, setBlad] = useState("");
@@ -124,38 +137,38 @@ function PhaseResults({ slug, phase }) {
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Rozstrzygnięcie</span>
+          <span className="ui-kicker">{t("phaseResults.kicker")}</span>
 
-          <h2>Wyniki fazy</h2>
+          <h2>{t("phaseResults.title")}</h2>
         </div>
 
         {points !== null && (
-          <span className="ui-badge ui-badge--accent">{points} pkt</span>
+          <span className="ui-badge ui-badge--accent">
+            {t("common.points", { count: points })}
+          </span>
         )}
       </div>
 
       {!prediction && (
-        <p className="ui-note">
-          Nie masz zapisanego typu dla tej fazy — poniżej sam oficjalny wynik.
-        </p>
+        <p className="ui-note">{t("phaseResults.noPick")}</p>
       )}
 
       {kind === "swiss" && (
         <>
           <Lista
-            tytul="Drużyny 3-0"
+            tytul={t("phaseResults.teams30")}
             wybrane={prediction?.three_zero}
             poprawne={results.three_zero}
             punktyZa={punkty("SWISS.PICK_3_0")}
           />
           <Lista
-            tytul="Drużyny 0-3"
+            tytul={t("phaseResults.teams03")}
             wybrane={prediction?.zero_three}
             poprawne={results.zero_three}
             punktyZa={punkty("SWISS.PICK_0_3")}
           />
           <Lista
-            tytul="Awansujące"
+            tytul={t("phaseResults.advancing")}
             wybrane={prediction?.advancing}
             poprawne={results.advancing}
             punktyZa={punkty("SWISS.ADVANCING")}
@@ -166,25 +179,25 @@ function PhaseResults({ slug, phase }) {
       {kind === "playoffs" && (
         <>
           <Lista
-            tytul="Półfinaliści"
+            tytul={t("phaseResults.semifinalists")}
             wybrane={prediction?.semifinalists}
             poprawne={results.semifinalists}
             punktyZa={punkty("PLAYOFFS.SEMIFINALIST")}
           />
           <Lista
-            tytul="Finaliści"
+            tytul={t("phaseResults.finalists")}
             wybrane={prediction?.finalists}
             poprawne={results.finalists}
             punktyZa={punkty("PLAYOFFS.FINALIST")}
           />
           <Lista
-            tytul="Zwycięzca"
+            tytul={t("phaseResults.winner")}
             wybrane={prediction?.winner ? [prediction.winner] : []}
             poprawne={results.winner ? [results.winner] : []}
             punktyZa={punkty("PLAYOFFS.WINNER")}
           />
           <Lista
-            tytul="3. miejsce"
+            tytul={t("phaseResults.thirdPlace")}
             wybrane={
               prediction?.third_place_winner
                 ? [prediction.third_place_winner]
@@ -200,7 +213,7 @@ function PhaseResults({ slug, phase }) {
 
       {kind === "playin" && (
         <Lista
-          tytul="Drużyny awansujące"
+          tytul={t("phaseResults.advancingTeams")}
           wybrane={prediction?.teams}
           poprawne={results.teams}
           punktyZa={punkty("PLAY_IN.CORRECT_PICK")}

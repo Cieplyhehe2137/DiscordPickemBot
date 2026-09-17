@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { getAdminServers, getAllEvents, getVisitStats } from "../lib/api.js";
-import { odmien } from "../lib/odmiana.js";
 import {
   EVENT_STATE_BADGE,
-  EVENT_STATE_LABEL,
+  EVENT_STATE_KEY,
   eventState,
-  eventsHeading,
+  eventsHeadingKey,
 } from "../lib/eventState.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Strona główna pokazywała wcześniej WYMYŚLONY mecz: "Team Alpha 2 : 1
 // Team Bravo", "PickEmBot Major", mapy 13:8 / 9:13 / 13:11. Wszystko wpisane
@@ -27,26 +27,26 @@ function liczby(events) {
 }
 
 function Hero() {
+  const t = useT();
+
   return (
     <section className="home-hero">
       <span className="ui-kicker">CS2 Pick&apos;Em</span>
 
       <h1 className="ui-display">
-        Typuj. <span>Rywalizuj.</span> <span>Wygrywaj.</span>
+        {t("home.hero.predict")} <span>{t("home.hero.compete")}</span>{" "}
+        <span>{t("home.hero.win")}</span>
       </h1>
 
-      <p>
-        Typuj mecze CS2, przewiduj wyniki map i zdobywaj punkty razem ze
-        społecznością PickEmBot.
-      </p>
+      <p>{t("home.hero.text")}</p>
 
       <div className="ui-row ui-row--wrap">
         <Link className="ui-btn ui-btn--primary" to="/events">
-          Zobacz turnieje
+          {t("home.hero.events")}
         </Link>
 
         <Link className="ui-btn ui-btn--ghost" to="/events">
-          Przeglądaj rankingi
+          {t("home.hero.rankings")}
         </Link>
       </div>
     </section>
@@ -54,6 +54,8 @@ function Hero() {
 }
 
 function Statystyki({ events }) {
+  const t = useT();
+
   const suma = liczby(events);
 
   // Licznik odwiedzin osobno od reszty: te liczby przychodza z /events, a ta
@@ -82,30 +84,30 @@ function Statystyki({ events }) {
   return (
     <div className="ui-stats">
       <div className="ui-stat ui-stat--featured">
-        <span className="ui-stat__label">Typujących</span>
+        <span className="ui-stat__label">{t("home.stats.players")}</span>
         <strong className="ui-stat__value">{suma.gracze}</strong>
-        <span className="ui-stat__hint">
-          suma zgłoszeń we wszystkich turniejach
-        </span>
+        <span className="ui-stat__hint">{t("home.stats.playersHint")}</span>
       </div>
 
       <div className="ui-stat">
-        <span className="ui-stat__label">Turnieje</span>
+        <span className="ui-stat__label">{t("home.stats.events")}</span>
         <strong className="ui-stat__value">{suma.turnieje}</strong>
-        <span className="ui-stat__hint">rozegrane i w toku</span>
+        <span className="ui-stat__hint">{t("home.stats.eventsHint")}</span>
       </div>
 
       <div className="ui-stat">
-        <span className="ui-stat__label">Mecze</span>
+        <span className="ui-stat__label">{t("home.stats.matches")}</span>
         <strong className="ui-stat__value">{suma.mecze}</strong>
-        <span className="ui-stat__hint">do wytypowania</span>
+        <span className="ui-stat__hint">{t("home.stats.matchesHint")}</span>
       </div>
 
       {odwiedziny && (
         <div className="ui-stat">
-          <span className="ui-stat__label">Odwiedzin</span>
+          <span className="ui-stat__label">{t("home.stats.visits")}</span>
           <strong className="ui-stat__value">{odwiedziny.total}</strong>
-          <span className="ui-stat__hint">{odwiedziny.today} dzisiaj</span>
+          <span className="ui-stat__hint">
+            {t("home.stats.visitsToday", { count: odwiedziny.today })}
+          </span>
         </div>
       )}
     </div>
@@ -113,6 +115,8 @@ function Statystyki({ events }) {
 }
 
 function KartaTurnieju({ event }) {
+  const t = useT();
+
   // Ta sama reguła co na liście eventów. Wcześniej stała tu własna kopia,
   // opierająca się na is_archived zamiast na statusie - turniej zakończony,
   // ale jeszcze niezarchiwizowany, pokazywał się jako "Zaplanowany".
@@ -125,7 +129,7 @@ function KartaTurnieju({ event }) {
     >
       <div className="ui-row ui-row--between ui-row--full">
         <span className={EVENT_STATE_BADGE[stan]}>
-          {EVENT_STATE_LABEL[stan]}
+          {t(EVENT_STATE_KEY[stan])}
         </span>
 
         {event.guild?.name && (
@@ -137,14 +141,12 @@ function KartaTurnieju({ event }) {
 
       <div className="ui-row ui-row--wrap ui-tile__meta">
         <span className="ui-badge">
-          {event.participants}{" "}
-          {odmien(event.participants, "gracz", "gracze", "graczy")}
+          {t("common.playersCount", { count: event.participants })}
         </span>
 
         {Number(event.matches_count) > 0 && (
           <span className="ui-badge">
-            {event.matches_count}{" "}
-            {odmien(event.matches_count, "mecz", "mecze", "meczów")}
+            {t("common.matchesCount", { count: event.matches_count })}
           </span>
         )}
       </div>
@@ -153,12 +155,14 @@ function KartaTurnieju({ event }) {
 }
 
 function Turnieje({ events, loading, blad }) {
+  const t = useT();
+
   if (loading) {
     return (
       <div
         className="ui-stats"
         aria-busy="true"
-        aria-label="Ładowanie turniejów"
+        aria-label={t("common.loadingEvents")}
       >
         {Array.from({ length: 3 }, (_, i) => (
           <div className="ui-skeleton ui-skeleton--row" key={i} />
@@ -178,11 +182,9 @@ function Turnieje({ events, loading, blad }) {
           🏆
         </span>
 
-        <strong className="ui-empty__title">Pierwszy turniej przed nami</strong>
+        <strong className="ui-empty__title">{t("home.empty.title")}</strong>
 
-        <p className="ui-empty__text">
-          Gdy tylko ruszy typowanie, turnieje pojawią się tutaj.
-        </p>
+        <p className="ui-empty__text">{t("home.empty.text")}</p>
       </div>
     );
   }
@@ -204,6 +206,8 @@ function Turnieje({ events, loading, blad }) {
 // Lista serwerów była dostępna wyłącznie w panelu admina, za logowaniem -
 // zwykły odwiedzający nie miał jak sprawdzić, gdzie bot w ogóle działa.
 function Serwery() {
+  const t = useT();
+
   const [serwery, setSerwery] = useState(null);
   const [blad, setBlad] = useState("");
 
@@ -228,15 +232,14 @@ function Serwery() {
       } catch (err) {
         console.error("SERVERS ERROR:", err);
 
-        if (!anulowane)
-          setBlad(err.message || "Nie udało się pobrać serwerów.");
+        if (!anulowane) setBlad(err.message || t("home.servers.error"));
       }
     })();
 
     return () => {
       anulowane = true;
     };
-  }, []);
+  }, [t]);
 
   if (blad || (serwery && !serwery.length)) return null;
 
@@ -244,8 +247,8 @@ function Serwery() {
     <section className="ui-stack ui-stack--loose">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Gdzie działa bot</span>
-          <h2>Serwery</h2>
+          <span className="ui-kicker">{t("home.servers.kicker")}</span>
+          <h2>{t("home.servers.title")}</h2>
         </div>
       </div>
 
@@ -263,18 +266,12 @@ function Serwery() {
 
               <div className="ui-row ui-row--wrap ui-tile__meta">
                 <span className="ui-badge">
-                  {serwer.events_count}{" "}
-                  {odmien(
-                    serwer.events_count,
-                    "turniej",
-                    "turnieje",
-                    "turniejów",
-                  )}
+                  {t("common.eventsCount", { count: serwer.events_count })}
                 </span>
 
                 {serwer.open_events > 0 && (
                   <span className="ui-badge ui-badge--live">
-                    {serwer.open_events} w trakcie
+                    {t("home.servers.open", { count: serwer.open_events })}
                   </span>
                 )}
               </div>
@@ -286,7 +283,7 @@ function Serwery() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Dołącz na Discordzie
+                  {t("home.servers.join")}
                 </a>
               )}
             </article>
@@ -298,6 +295,8 @@ function Serwery() {
 }
 
 function HomePage() {
+  const t = useT();
+
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [blad, setBlad] = useState("");
@@ -313,8 +312,7 @@ function HomePage() {
       } catch (err) {
         console.error("HOME EVENTS ERROR:", err);
 
-        if (!anulowane)
-          setBlad(err.message || "Nie udało się pobrać turniejów.");
+        if (!anulowane) setBlad(err.message || t("common.eventsError"));
       } finally {
         if (!anulowane) setLoading(false);
       }
@@ -323,7 +321,7 @@ function HomePage() {
     return () => {
       anulowane = true;
     };
-  }, []);
+  }, [t]);
 
   return (
     <main className="ui-page">
@@ -334,12 +332,12 @@ function HomePage() {
       <section className="ui-stack ui-stack--loose">
         <div className="ui-section-head">
           <div>
-            <span className="ui-kicker">Turnieje</span>
-            <h2>{eventsHeading(events)}</h2>
+            <span className="ui-kicker">{t("home.events.kicker")}</span>
+            <h2>{t(eventsHeadingKey(events))}</h2>
           </div>
 
           <Link className="ui-btn ui-btn--ghost ui-btn--sm" to="/events">
-            Wszystkie turnieje →
+            {t("home.allEvents")}
           </Link>
         </div>
 

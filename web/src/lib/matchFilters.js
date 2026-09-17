@@ -22,12 +22,12 @@ export function matchState(match) {
   return "open";
 }
 
-// Etykiety podane wprost, nie sklejane - ta sama zasada co przy klasach CSS,
+// Klucze podane wprost, nie sklejane - ta sama zasada co przy klasach CSS,
 // a przy okazji to jest miejsce, w którym widać wszystkie możliwe stany naraz.
-export const STATE_LABELS = {
-  open: "Typowanie otwarte",
-  locked: "Typowanie zamknięte",
-  finished: "Zakończone",
+export const STATE_KEYS = {
+  open: "matchState.open",
+  locked: "matchState.locked",
+  finished: "matchState.finished",
 };
 
 /**
@@ -54,14 +54,14 @@ export function teamsFromMatches(matches) {
  * API oddaje fazy wielkimi literami (PLAYIN, DOUBLEELIM), a etykiety są
  * pisane małymi - stąd humanPhase, które sprowadza jedno do drugiego.
  */
-export function phasesFromMatches(matches) {
+export function phasesFromMatches(matches, t) {
   const fazy = new Set();
 
   for (const m of matches || []) {
     if (m?.phase) fazy.add(m.phase);
   }
 
-  return [...fazy].map((phase) => ({ phase, label: humanPhase(phase) }));
+  return [...fazy].map((phase) => ({ phase, label: humanPhase(phase, t) }));
 }
 
 // Porównanie faz odporne na wielkość liter. Adres może nieść "playin",

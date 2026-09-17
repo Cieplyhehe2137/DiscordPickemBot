@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import Ladowanie from "../../components/Ladowanie.jsx";
 
 import { getEventPickemConfig, saveEventPickemConfig } from "../../lib/api.js";
+import { translateApiMessage } from "../../lib/apiMessages.js";
+import { useT } from "../../i18n/useLanguage.js";
 
 // Konfiguracja typowania DRUŻYN dla konkretnego eventu.
 //
@@ -13,6 +15,9 @@ import { getEventPickemConfig, saveEventPickemConfig } from "../../lib/api.js";
 // więc każdy turniej musiał mieć identyczny format. Event bez zapisanej
 // konfiguracji dostaje wartości domyślne - czyli zachowanie sprzed zmiany.
 
+// Nazwy etapów i meczów drabinki zostają po angielsku we wszystkich
+// językach - tak nazywa je organizator. Tłumaczone są wyłącznie nazwy
+// KATEGORII, bo to nasze własne słowa, a nie terminy ze sceny.
 const ETYKIETY_FAZ = {
   stage1: "Swiss Stage 1",
   stage2: "Swiss Stage 2",
@@ -22,22 +27,33 @@ const ETYKIETY_FAZ = {
   doubleelim: "Double Elimination",
 };
 
-const ETYKIETY_GRUP = {
-  x3_0: "Drużyny 3-0",
-  x0_3: "Drużyny 0-3",
-  advancing: "Awansujące",
-  teams: "Drużyny awansujące",
-  semifinalists: "Półfinaliści",
-  finalists: "Finaliści",
-  winner: "Zwycięzca",
-  third: "3. miejsce (opcjonalne)",
+const KLUCZE_GRUP = {
+  x3_0: "phaseResults.teams30",
+  x0_3: "phaseResults.teams03",
+  advancing: "phaseResults.advancing",
+  teams: "phaseResults.advancingTeams",
+  semifinalists: "phaseResults.semifinalists",
+  finalists: "phaseResults.finalists",
+  winner: "phaseResults.winner",
+  third: "admin.group.thirdOptional",
+};
+
+const DRABINKA = {
   upperFinalA: "Upper Final A",
   lowerFinalA: "Lower Final A",
   upperFinalB: "Upper Final B",
   lowerFinalB: "Lower Final B",
 };
 
+function etykietaGrupy(t, grupa) {
+  if (KLUCZE_GRUP[grupa]) return t(KLUCZE_GRUP[grupa]);
+
+  return DRABINKA[grupa] ?? grupa;
+}
+
 function PickemConfigPanel({ slug }) {
+  const t = useT();
+
   const [fazy, setFazy] = useState([]);
   const [skonfigurowany, setSkonfigurowany] = useState(false);
   const [zaladowane, setZaladowane] = useState(false);
@@ -61,7 +77,7 @@ function PickemConfigPanel({ slug }) {
         console.error("PICKEM CONFIG LOAD:", err);
 
         if (!anulowane) {
-          setBlad(err.message || "Nie udało się wczytać konfiguracji.");
+          setBlad(err.message || t("admin.config.loadError"));
         }
       } finally {
         if (!anulowane) setZaladowane(true);
@@ -71,7 +87,7 @@ function PickemConfigPanel({ slug }) {
     return () => {
       anulowane = true;
     };
-  }, [slug]);
+  }, [slug, t]);
 
   function przelaczFaze(faza) {
     setKomunikat("");
@@ -118,32 +134,30 @@ function PickemConfigPanel({ slug }) {
 
       setKomunikat(
         wlaczone.length
-          ? `Zapisano. Ten event ma ${wlaczone.length} faz typowania drużyn: ${wlaczone
-              .map((f) => ETYKIETY_FAZ[f.faza])
-              .join(", ")}.`
-          : "Zapisano. Ten event nie ma włączonej żadnej fazy typowania drużyn.",
+          ? t("admin.config.savedWith", {
+              count: wlaczone.length,
+              phases: wlaczone
+                .map((f) => ETYKIETY_FAZ[f.faza])
+                .join(", "),
+            })
+          : t("admin.config.savedEmpty"),
       );
     } catch (err) {
-      setBlad(err.message || "Nie udało się zapisać konfiguracji.");
+      setBlad(err.message || t("admin.config.saveError"));
     } finally {
       setZapisywanie(false);
     }
   }
 
   if (!zaladowane) {
-    return <Ladowanie>Wczytywanie konfiguracji...</Ladowanie>;
+    return <Ladowanie>{t("admin.config.loading")}</Ladowanie>;
   }
 
   return (
     <div className="ui-stack">
       <p className="ui-hint">
-        Typowanie drużyn jest niezależne od typowania meczów. Włącz fazy, które
-        ten turniej faktycznie ma, i ustaw liczbę drużyn w każdej kategorii.
-        Fazę można zmieniać tylko dopóki nikt nie oddał w niej typu i nie ma
-        wpisanego wyniku — potem zostaje zablokowana, żeby zapisane typy
-        zgadzały się z zasadami, według których powstały.
-        {!skonfigurowany &&
-          " Ten event nie ma jeszcze własnej konfiguracji — poniżej wartości domyślne."}
+        {t("admin.config.hint")}
+        {!skonfigurowany && t("admin.config.noConfig")}
       </p>
 
       {fazy.map((wpis) => (
@@ -178,7 +192,13 @@ function PickemConfigPanel({ slug }) {
               limitu nie naprawiłaby ich, tylko rozjechała turniej. */}
           {wpis.zamrozona && (
             <p className="ui-note ui-note--warn">
-              🔒 Zablokowane — {wpis.powodZamrozenia}
+              🔒{" "}
+              {t("admin.config.locked", {
+                reason: translateApiMessage(
+                  wpis.powodZamrozeniaCode,
+                  wpis.powodZamrozenia,
+                ),
+              })}
             </p>
           )}
 
@@ -186,7 +206,7 @@ function PickemConfigPanel({ slug }) {
             <div className="ui-row ui-row--wrap">
               {Object.entries(wpis.limity ?? {}).map(([grupa, wartosc]) => (
                 <label className="ui-field" key={grupa}>
-                  <span>{ETYKIETY_GRUP[grupa] ?? grupa}</span>
+                  <span>{etykietaGrupy(t, grupa)}</span>
 
                   <input
                     type="number"
@@ -206,7 +226,7 @@ function PickemConfigPanel({ slug }) {
       ))}
 
       <button type="button" onClick={zapisz} disabled={zapisywanie}>
-        {zapisywanie ? "Zapisywanie..." : "Zapisz konfigurację"}
+        {zapisywanie ? t("admin.saving") : t("admin.config.save")}
       </button>
 
       {komunikat && <p className="ui-note ui-note--ok">{komunikat}</p>}

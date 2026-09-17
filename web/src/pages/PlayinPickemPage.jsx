@@ -3,8 +3,8 @@ import { useParams } from "react-router-dom";
 import { useAuth } from "../auth/useAuth.js";
 
 import { getPlayinPickem, savePlayinPickem } from "../lib/api.js";
-import { druzyny } from "../lib/odmiana.js";
-import { SAVED_MESSAGE } from "../lib/saveMessages.js";
+import { translateApiMessage } from "../lib/apiMessages.js";
+import { useT } from "../i18n/useLanguage.js";
 import { useToast } from "../components/ui/useToast.js";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PhaseResults from "../components/PhaseResults.jsx";
@@ -13,6 +13,8 @@ import PickCounter from "../components/PickCounter.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function PlayinPickemPage() {
+  const t = useT();
+
   const { slug } = useParams();
   const { user, authLoading } = useAuth();
   const toast = useToast();
@@ -48,19 +50,23 @@ function PlayinPickemPage() {
         }
       } catch (err) {
         console.error("PLAY-IN PICKEM ERROR:", err);
-        setError(err.message || "Nie udało się pobrać Play-In Pick'Em.");
+        setError(err.message || t("pickem.playin.loadError"));
       } finally {
         setLoading(false);
       }
     }
 
     loadPlayinPickem();
-  }, [slug]);
+  }, [slug, t]);
 
   if (loading) {
     return (
       <main className="ui-page">
-        <div className="ui-stack" aria-busy="true" aria-label="Ładowanie fazy">
+        <div
+          className="ui-stack"
+          aria-busy="true"
+          aria-label={t("pickem.loading")}
+        >
           <div className="ui-skeleton ui-skeleton--row" />
 
           <div className="ui-skeleton ui-skeleton--row" />
@@ -77,9 +83,7 @@ function PlayinPickemPage() {
             ⚠️
           </span>
 
-          <strong className="ui-error__title">
-            Nie udało się wczytać fazy
-          </strong>
+          <strong className="ui-error__title">{t("pickem.loadError")}</strong>
 
           <p className="ui-error__text">{error}</p>
         </div>
@@ -91,18 +95,15 @@ function PlayinPickemPage() {
 
   return (
     <main className="ui-page">
-      <BackLink to={`/events/${slug}`}>Wróć do eventu</BackLink>
+      <BackLink to={`/events/${slug}`} />
 
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">Faza turnieju</span>
+          <span className="ui-kicker">{t("pickem.playin.kicker")}</span>
 
           <h2>Play-In Pick&apos;Em</h2>
 
-          <p>
-            Wybierz {limitDruzyn} {druzyny(limitDruzyn)} do awansu z fazy
-            Play-In.
-          </p>
+          <p>{t("pickem.playin.pick", { count: limitDruzyn })} Play-In.</p>
         </div>
       </div>
 
@@ -112,7 +113,9 @@ function PlayinPickemPage() {
         <PickCounter selected={selectedTeams.length} limit={limitDruzyn} />
 
         {!data?.lock?.allowed && data?.lock?.message && (
-          <p className="ui-note ui-note--warn">🔒 {data.lock.message}</p>
+          <p className="ui-note ui-note--warn">
+          🔒 {translateApiMessage(data.lock.code, data.lock.message)}
+        </p>
         )}
 
         {!authLoading && !user && (
@@ -124,7 +127,7 @@ function PlayinPickemPage() {
               )}`,
             )}
           >
-            Zaloguj się przez Discord, aby typować
+            {t("pickem.loginCta")}
           </a>
         )}
 
@@ -188,10 +191,10 @@ function PlayinPickemPage() {
                 },
               }));
 
-              toast.success(SAVED_MESSAGE);
+              toast.success(t("pickem.saved"));
             } catch (err) {
               console.error("PLAY-IN SAVE ERROR:", err);
-              setSaveError(err.message || "Nie udało się zapisać typów.");
+              setSaveError(err.message || t("pickem.saveError"));
             } finally {
               setSaving(false);
             }

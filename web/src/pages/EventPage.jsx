@@ -11,26 +11,23 @@ import {
 } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
 import { phaseRouteLabel, humanPhase } from "../lib/phaseLabels.js";
-import { odmien, gracze, typy } from "../lib/odmiana.js";
 import { winnerFirstScore, nobodyPickedWinner } from "../lib/upset.js";
 import Ladowanie from "../components/Ladowanie.jsx";
+import { T } from "../i18n/T.jsx";
+import { useLanguage } from "../i18n/useLanguage.js";
 
-function formatMatchesCount(count) {
-  const number = Number(count) || 0;
-
-  return `${number} ${odmien(number, "mecz", "mecze", "meczów")}`;
+// Liczniki biorą tłumacza, bo liczba mnoga jest częścią zdania, a nie
+// czymś doklejanym po liczbie - patrz i18n/translate.js.
+function formatMatchesCount(t, count) {
+  return t("event.matchesCount", { count: Number(count) || 0 });
 }
 
-function formatFinishedCount(count) {
-  const number = Number(count) || 0;
-
-  return `${number} ${odmien(number, "zakończony", "zakończone", "zakończonych")}`;
+function formatFinishedCount(t, count) {
+  return t("event.finishedCount", { count: Number(count) || 0 });
 }
 
-function formatScheduledCount(count) {
-  const number = Number(count) || 0;
-
-  return `${number} ${odmien(number, "zaplanowany", "zaplanowane", "zaplanowanych")}`;
+function formatScheduledCount(t, count) {
+  return t("event.scheduledCount", { count: Number(count) || 0 });
 }
 
 // Klucz fazy z API -> adres na froncie. Swiss ma etap w ścieżce,
@@ -44,6 +41,8 @@ function sciezkaFazy(slug, faza) {
 }
 
 function EventPage() {
+  const { jezyk, t } = useLanguage();
+
   const { slug } = useParams();
   const { user: currentUser, authLoading } = useAuth();
   const { realtimeRefresh } = useOutletContext();
@@ -53,9 +52,9 @@ function EventPage() {
   // trafiał surowy identyfikator. humanPhase() normalizuje je wszystkie.
 
   const statusLabels = {
-    OPEN: "Otwarte",
-    CLOSED: "Zamknięte",
-    FINISHED: "Zakończone",
+    OPEN: t("event.status.open"),
+    CLOSED: t("event.status.closed"),
+    FINISHED: t("event.status.finished"),
   };
 
   // Ton plakietki statusu. Tablica, a nie sklejanie nazwy klasy z wartości:
@@ -148,7 +147,7 @@ function EventPage() {
         console.error("EVENT STATS ERROR:", err);
 
         setEventStatsError(
-          err.message || "Nie udało się pobrać statystyk eventu.",
+          err.message || t("event.statsError"),
         );
       } finally {
         setLoadingEventStats(false);
@@ -156,7 +155,7 @@ function EventPage() {
     }
 
     loadEventStats();
-  }, [slug]);
+  }, [slug, t]);
 
   useEffect(() => {
     async function loadTopPlayers() {
@@ -235,11 +234,11 @@ function EventPage() {
         otwarte: Boolean(aktywna.otwarta),
         opis: aktywna.otwarta
           ? aktywna.mamTyp
-            ? "typ zapisany, możesz zmienić"
-            : "otwarte — oddaj typ"
+            ? t("event.teamPick.saved")
+            : t("event.teamPick.open")
           : aktywna.wynikOpublikowany
-            ? "rozliczone"
-            : "zamknięte",
+            ? t("event.teamPick.settled")
+            : t("event.teamPick.closed"),
       };
     }
 
@@ -248,44 +247,49 @@ function EventPage() {
     return {
       faza: ostatnia.faza,
       otwarte: false,
-      opis: ostatnia.wynikOpublikowany ? "rozliczone" : "zamknięte",
+      opis: ostatnia.wynikOpublikowany
+        ? t("event.teamPick.settled")
+        : t("event.teamPick.closed"),
     };
   })();
 
   return (
     <main className="ui-page">
-      <BackLink to="/events">Wróć do listy turniejów</BackLink>
+      <BackLink to="/events">{t("event.backToList")}</BackLink>
       <section className="event-page__hero">
-        <span className="ui-kicker">Event</span>
+        <span className="ui-kicker">{t("event.kicker")}</span>
 
         <h1>
           {loading
-            ? "Ładowanie..."
+            ? t("common.loading")
             : error
-              ? "Błąd"
+              ? t("event.error")
               : (event?.event?.name ?? slug)}
         </h1>
 
         {!loading && !error && event && (
           <div className="event-page__meta">
             <span>
-              Faza:{" "}
+              {t("event.phaseLabel")}{" "}
               <strong>
-                {humanPhase(event.phase_info?.current) ?? "brak"}
+                {humanPhase(event.phase_info?.current, t) ?? t("event.none")}
               </strong>
             </span>
 
             <span>
-              Status:{" "}
-              <span className={STATUS_TONES[event.phase_info?.status] ?? "ui-badge"}>
+              {t("event.statusLabel")}{" "}
+              <span
+                className={STATUS_TONES[event.phase_info?.status] ?? "ui-badge"}
+              >
                 {statusLabels[event.phase_info?.status] ??
                   event.phase_info?.status ??
-                  "brak"}
+                  t("event.none")}
               </span>
             </span>
 
             <span>
-              Uczestnicy: <strong>{event.stats?.participants ?? 0}</strong>
+              {t("event.participantsLabel")}{" "}
+              <strong>{event.stats?.participants ?? 0}</strong>
             </span>
           </div>
         )}
@@ -294,9 +298,7 @@ function EventPage() {
         {error ? (
           <p>{error}</p>
         ) : (
-          <p>
-            Centrum eventu — mecze, typy, ranking i aktualny postęp turnieju.
-          </p>
+          <p>{t("event.intro")}</p>
         )}
 
         {/* Archiwum całego turnieju w jednym pliku: klasyfikacja, typy
@@ -319,7 +321,7 @@ function EventPage() {
             className="ui-btn ui-btn--accent event-page__archive"
             href={eventArchiveUrl(slug)}
           >
-            ⬇️ Pobierz archiwum (.xlsx)
+            ⬇️ {t("event.archive")}
           </a>
         )}
       </section>
@@ -330,50 +332,52 @@ function EventPage() {
               auto-fit daje przy 1440 px siedem, czyli 7 + 3. */}
           <section className="ui-stats ui-stats--5">
             <div className="ui-stat">
-              <span>🎯 Mecze</span>
+              <span>🎯 {t("event.stat.matches")}</span>
 
               <strong>{event.stats?.matches ?? 0}</strong>
 
               <small>
-                {formatFinishedCount(event.match_status?.finished)} ·{" "}
-                {formatScheduledCount(event.match_status?.scheduled)}
+                {formatFinishedCount(t, event.match_status?.finished)} ·{" "}
+                {formatScheduledCount(t, event.match_status?.scheduled)}
               </small>
             </div>
 
             <div className="ui-stat">
-              <span>👥 Uczestnicy</span>
+              <span>👥 {t("event.stat.participants")}</span>
 
               <strong>{eventStats?.participants ?? 0}</strong>
             </div>
 
             <div className="ui-stat">
-              <span>✓ Oddane typy</span>
+              <span>✓ {t("event.stat.predictions")}</span>
 
               <strong>{eventStats?.total_predictions ?? 0}</strong>
             </div>
 
             <div className="ui-stat">
-              <span>🗺️ Typy map</span>
+              <span>🗺️ {t("event.stat.mapPredictions")}</span>
 
               <strong>{eventStats?.total_map_predictions ?? 0}</strong>
             </div>
 
             <div className="ui-stat">
-              <span>📊 Średnia punktów</span>
+              <span>📊 {t("event.stat.averagePoints")}</span>
 
               <strong>{eventStats?.average_points ?? 0}</strong>
             </div>
 
             <div className="ui-stat">
-              <span>🎯 Exacty map</span>
+              <span>🎯 {t("event.stat.exactMaps")}</span>
 
               <strong>{eventStats?.exact_maps ?? 0}</strong>
             </div>
 
             <div className="ui-stat">
-              <span>🔥 Najlepszy wynik</span>
+              <span>🔥 {t("event.stat.bestScore")}</span>
 
-              <strong>{eventStats?.best_score ?? 0} pkt</strong>
+              <strong>
+                {t("common.pointsValue", { value: eventStats?.best_score ?? 0 })}
+              </strong>
 
               {eventStats?.best_player && (
                 <small>
@@ -387,7 +391,7 @@ function EventPage() {
             </div>
 
             <div className="ui-stat">
-              <span>🎯 Najwięcej exactów</span>
+              <span>🎯 {t("event.stat.mostExacts")}</span>
 
               <strong>{eventStats?.best_exact_player?.exact_maps ?? 0}</strong>
 
@@ -402,7 +406,7 @@ function EventPage() {
               )}
             </div>
             <div className="ui-stat">
-              <span>🏹 Najlepsza skuteczność</span>
+              <span>🏹 {t("event.stat.bestAccuracy")}</span>
 
               <strong>
                 {eventStats?.best_accuracy_player?.accuracy ?? 0}%
@@ -419,9 +423,11 @@ function EventPage() {
                   </small>
 
                   <small>
-                    {eventStats.best_accuracy_player.correct_winners}/
-                    {eventStats.best_accuracy_player.finished_predictions}{" "}
-                    trafionych
+                    {t("event.stat.correctOf", {
+                      correct: eventStats.best_accuracy_player.correct_winners,
+                      total:
+                        eventStats.best_accuracy_player.finished_predictions,
+                    })}
                   </small>
                 </>
               )}
@@ -432,16 +438,22 @@ function EventPage() {
               // tekstowy. Przy 375 px "GamerLegion" w rozmiarze dla liczb
               // wychodziło poza kafelek i rozpychało stronę w poziomie.
               <div className="ui-stat ui-stat--text">
-                <span>💜 Ulubieniec graczy</span>
+                <span>💜 {t("event.stat.favoriteTeam")}</span>
 
                 <strong>{eventStats.favorite_team.team}</strong>
 
-                <small>{eventStats.favorite_team.picks} {typy(eventStats.favorite_team.picks)}</small>
+                <small>
+                  {t("event.picksCount", {
+                    count: eventStats.favorite_team.picks,
+                  })}
+                </small>
               </div>
             )}
           </section>
 
-          {loadingEventStats && <Ladowanie>Ładowanie statystyk eventu...</Ladowanie>}
+          {loadingEventStats && (
+            <Ladowanie>{t("event.statsLoading")}</Ladowanie>
+          )}
 
           {eventStatsError && (
             <p className="ui-note ui-note--danger">
@@ -453,16 +465,16 @@ function EventPage() {
             <section className="ui-stack ui-stack--loose">
               <div className="ui-section-head">
                 <div>
-                  <span className="ui-kicker">Twój wynik</span>
+                  <span className="ui-kicker">{t("event.summary.kicker")}</span>
 
-                  <h2>Twoje podsumowanie eventu</h2>
+                  <h2>{t("event.summary.title")}</h2>
                 </div>
               </div>
 
               <div className="ui-card ui-stack ui-stack--loose">
                 <div className="ui-stats">
                   <div className="ui-stat">
-                    <span>Miejsce</span>
+                    <span>{t("event.summary.place")}</span>
 
                     {/* Brak miejsca = nic jeszcze nie rozliczono. Wtedy sam
                         myślnik, bez "#" i bez percentyla liczonego z pustej
@@ -474,33 +486,36 @@ function EventPage() {
                     {profilEventu.rank &&
                       profilEventu.event_comparison?.points && (
                         <small>
-                          TOP {profilEventu.event_comparison.points.top_percent}
-                          %
+                          {t("history.top", {
+                            percent:
+                              profilEventu.event_comparison.points.top_percent,
+                          })}
                         </small>
                       )}
                   </div>
 
                   <div className="ui-stat ui-stat--featured">
-                    <span>Punkty</span>
+                    <span>{t("profile.points")}</span>
 
                     <strong>{profilEventu.total_points ?? 0}</strong>
 
                     <small>
-                      Seria {profilEventu.series_points ?? 0}
-                      {" · "}
-                      Mapy {profilEventu.map_points ?? 0}
+                      {t("event.summary.split", {
+                        series: profilEventu.series_points ?? 0,
+                        maps: profilEventu.map_points ?? 0,
+                      })}
                     </small>
                   </div>
                 </div>
 
                 <div className="ui-stats">
                   <div className="ui-stat">
-                    <span>Skuteczność</span>
+                    <span>{t("profile.accuracy")}</span>
                     <strong>{profilEventu.accuracy ?? 0}%</strong>
                   </div>
 
                   <div className="ui-stat">
-                    <span>Trafione mecze</span>
+                    <span>{t("event.summary.correctMatches")}</span>
                     <strong>
                       {profilEventu.correct_winners ?? 0}/
                       {profilEventu.finished_predictions ?? 0}
@@ -508,12 +523,12 @@ function EventPage() {
                   </div>
 
                   <div className="ui-stat">
-                    <span>Exacty map</span>
+                    <span>{t("profile.exactMaps")}</span>
                     <strong>{profilEventu.exact_maps ?? 0}</strong>
                   </div>
 
                   <div className="ui-stat">
-                    <span>Aktualna seria</span>
+                    <span>{t("profile.currentStreak")}</span>
                     <strong>
                       {profilEventu.current_correct_streak ?? 0}
                     </strong>
@@ -524,7 +539,7 @@ function EventPage() {
                   className="ui-btn ui-btn--ghost ui-btn--sm"
                   to={`/events/${slug}/player/${currentUser.id}`}
                 >
-                  Zobacz pełny profil →
+                  {t("event.summary.fullProfile")}
                 </Link>
               </div>
             </section>
@@ -536,7 +551,7 @@ function EventPage() {
                 <div>
                   <span className="ui-kicker">TOP 3</span>
 
-                  <h2>Liderzy eventu</h2>
+                  <h2>{t("event.top.title")}</h2>
                 </div>
               </div>
 
@@ -573,7 +588,7 @@ function EventPage() {
 
                         <span className="ui-badge">
                           {position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}{" "}
-                          Miejsce {position}
+                          {t("event.top.place", { no: position })}
                         </span>
                       </div>
 
@@ -583,7 +598,10 @@ function EventPage() {
 
                       <span className="ui-stat__value ui-tile__meta">
                         {Number(player.total_points ?? 0)}
-                        <small className="ui-stat__hint"> pkt</small>
+                        <small className="ui-stat__hint">
+                          {" "}
+                          {t("badge.unitPoints").trim()}
+                        </small>
                       </span>
                     </Link>
                   );
@@ -597,10 +615,10 @@ function EventPage() {
               <section className="event-close-match">
                 <div className="event-close-match__header">
                   <span className="ui-kicker">
-                    ⚔️ Najbardziej wyrównane
+                    ⚔️ {t("event.close.kicker")}
                   </span>
 
-                  <h2>Najbardziej podzielony mecz społeczności</h2>
+                  <h2>{t("event.close.title")}</h2>
                 </div>
 
                 <Link
@@ -638,7 +656,11 @@ function EventPage() {
                   <div className="event-close-match__footer">
                     <span>BO{eventStats.closest_match.best_of}</span>
 
-                    <span>{eventStats.closest_match.total_picks} {typy(eventStats.closest_match.total_picks)}</span>
+                    <span>
+                      {t("event.picksCount", {
+                        count: eventStats.closest_match.total_picks,
+                      })}
+                    </span>
                   </div>
                 </Link>
               </section>
@@ -649,9 +671,11 @@ function EventPage() {
             Number(eventStats.biggest_upset.winner_percentage) < 50 && (
               <section className="event-upset">
                 <div className="event-upset__header">
-                  <span className="ui-kicker">💥 Największy upset</span>
+                  <span className="ui-kicker">
+                    💥 {t("event.upset.kicker")}
+                  </span>
 
-                  <h2>Społeczność się przeliczyła</h2>
+                  <h2>{t("event.upset.title")}</h2>
                 </div>
 
                 <Link
@@ -666,7 +690,7 @@ function EventPage() {
 
                       {eventStats.biggest_upset.winner ===
                         eventStats.biggest_upset.team_a && (
-                        <small>👑 ZWYCIĘZCA</small>
+                        <small>👑 {t("event.upset.winner")}</small>
                       )}
                     </div>
 
@@ -677,7 +701,7 @@ function EventPage() {
 
                       {eventStats.biggest_upset.winner ===
                         eventStats.biggest_upset.team_b && (
-                        <small>👑 ZWYCIĘZCA</small>
+                        <small>👑 {t("event.upset.winner")}</small>
                       )}
                     </div>
                   </div>
@@ -702,26 +726,35 @@ function EventPage() {
                     <strong>{eventStats.biggest_upset.winner}</strong>
 
                     <span>
-                      wygrał {winnerFirstScore(eventStats.biggest_upset)}
+                      {t("event.upset.won", {
+                        score: winnerFirstScore(eventStats.biggest_upset),
+                      })}
                     </span>
                   </div>
 
                   <div className="event-upset__footer">
                     <span>
                       {nobodyPickedWinner(eventStats.biggest_upset) ? (
-                        <strong>Nikt nie przewidział zwycięzcy</strong>
+                        <strong>{t("event.upset.nobody")}</strong>
                       ) : (
-                        <>
-                          Tylko{" "}
-                          <strong>
-                            {eventStats.biggest_upset.winner_percentage}%
-                          </strong>{" "}
-                          przewidziało zwycięzcę
-                        </>
+                        <T
+                          k="event.upset.only"
+                          vars={{
+                            percent: (
+                              <strong>
+                                {eventStats.biggest_upset.winner_percentage}%
+                              </strong>
+                            ),
+                          }}
+                        />
                       )}
                     </span>
 
-                    <span>{eventStats.biggest_upset.total_picks} {typy(eventStats.biggest_upset.total_picks)}</span>
+                    <span>
+                      {t("event.picksCount", {
+                        count: eventStats.biggest_upset.total_picks,
+                      })}
+                    </span>
                   </div>
                 </Link>
               </section>
@@ -732,12 +765,16 @@ function EventPage() {
               className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/matches`}
             >
-              <span>🎯 Mecze</span>
+              <span>🎯 {t("event.tile.matches")}</span>
 
               <strong>
-                Typuj BO1 / BO3 / BO5 ·{" "}
-                {formatMatchesCount(event.stats?.matches)} ·{" "}
-                {formatFinishedCount(event.match_status?.finished)}
+                {t("event.tile.matchesHint", {
+                  matches: formatMatchesCount(t, event.stats?.matches),
+                  finished: formatFinishedCount(
+                    t,
+                    event.match_status?.finished,
+                  ),
+                })}
               </strong>
             </Link>
 
@@ -753,10 +790,10 @@ function EventPage() {
                 }
                 to={sciezkaFazy(slug, pickemDruzyn.faza)}
               >
-                <span>🧩 Typowanie drużyn</span>
+                <span>🧩 {t("event.tile.teamPicks")}</span>
 
                 <strong>
-                  {phaseRouteLabel(pickemDruzyn.faza)}
+                  {phaseRouteLabel(pickemDruzyn.faza, t)}
                   {" · "}
                   {pickemDruzyn.opis}
                 </strong>
@@ -767,12 +804,14 @@ function EventPage() {
               className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-picks`}
             >
-              <span>✓ Moje typy</span>
+              <span>✓ {t("event.tile.myPicks")}</span>
 
               <strong>
-                Zobacz swoje zapisane predykcje ·{" "}
-                {event.stats?.my_predictions ?? 0}{" "}
-                {typy(event.stats?.my_predictions ?? 0)}
+                {t("event.tile.myPicksHint", {
+                  picks: t("event.picksCount", {
+                    count: event.stats?.my_predictions ?? 0,
+                  }),
+                })}
               </strong>
             </Link>
 
@@ -780,20 +819,23 @@ function EventPage() {
               className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/my-stats`}
             >
-              <span>📊 Moje statystyki</span>
+              <span>📊 {t("event.tile.myStats")}</span>
 
-              <strong>Skuteczność · forma · analiza · styl · trendy</strong>
+              <strong>{t("event.tile.myStatsHint")}</strong>
             </Link>
 
             <Link
               className="ui-card ui-card--interactive ui-tile"
               to={`/events/${slug}/leaderboard`}
             >
-              <span>🏆 Ranking</span>
+              <span>🏆 {t("event.tile.leaderboard")}</span>
 
               <strong>
-                Sprawdź tabelę graczy · {event.stats?.participants ?? 0}{" "}
-                {gracze(event.stats?.participants ?? 0)}
+                {t("event.tile.leaderboardHint", {
+                  players: t("common.playersCount", {
+                    count: event.stats?.participants ?? 0,
+                  }),
+                })}
               </strong>
             </Link>
             {/* Tylko fazy, które ten turniej faktycznie ma. Wcześniej
@@ -811,13 +853,13 @@ function EventPage() {
                     to={sciezkaFazy(slug, f.faza)}
                     title={
                       f.otwarta
-                        ? "Typowanie otwarte"
+                        ? t("matchState.open")
                         : f.wynikOpublikowany
-                          ? "Faza rozliczona"
-                          : "Faza zamknięta"
+                          ? t("event.phaseLink.settled")
+                          : t("event.phaseLink.closed")
                     }
                   >
-                    {phaseRouteLabel(f.faza)}
+                    {phaseRouteLabel(f.faza, t)}
 
                     {f.mamTyp && <em className="event-phase-link__pick">✓</em>}
                   </Link>
@@ -828,11 +870,11 @@ function EventPage() {
 
           <section className="event-next-match">
             <div className="event-next-match__header">
-              <span>Następny mecz</span>
+              <span>{t("event.nextMatch")}</span>
               <h2>
                 {event.next_match
                   ? `${event.next_match.team_a} vs ${event.next_match.team_b}`
-                  : "Brak zaplanowanego meczu"}
+                  : t("event.noNextMatch")}
               </h2>
             </div>
 
@@ -840,17 +882,19 @@ function EventPage() {
               <>
                 <p>
                   BO{event.next_match.best_of} ·{" "}
-                  {humanPhase(event.next_match.phase)}
+                  {humanPhase(event.next_match.phase, t)}
                 </p>
 
                 <p>
+                  {/* Data w formacie wybranego języka - 14.09.2026 po
+                      polsku i niemiecku, 9/14/2026 po angielsku. */}
                   {new Date(event.next_match.start_time_utc).toLocaleString(
-                    "pl-PL",
+                    jezyk,
                   )}
                 </p>
 
                 <Link to={`/events/${slug}/matches/${event.next_match.id}`}>
-                  Przejdź do meczu
+                  {t("event.goToMatch")}
                 </Link>
               </>
             )}
@@ -858,18 +902,18 @@ function EventPage() {
 
           <section className="event-phases">
             <div className="event-phases__header">
-              <span>Turniej</span>
+              <span>{t("event.phases.kicker")}</span>
 
-              <h2>Fazy eventu</h2>
+              <h2>{t("event.phases.title")}</h2>
             </div>
 
             <div className="event-phases__current">
-              <span>Aktualna faza</span>
+              <span>{t("event.phases.current")}</span>
 
               <strong>
                 {event.phase_info?.current
-                  ? humanPhase(event.phase_info.current)
-                  : "Brak aktywnej fazy"}
+                  ? humanPhase(event.phase_info.current, t)
+                  : t("event.phases.none")}
               </strong>
             </div>
 
@@ -880,7 +924,7 @@ function EventPage() {
                   key={phase}
                   to={`/events/${slug}/matches?phase=${phase}`}
                 >
-                  <span>{humanPhase(phase)}</span>
+                  <span>{humanPhase(phase, t)}</span>
                 </Link>
               ))}
             </div>

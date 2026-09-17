@@ -12,47 +12,66 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const PHASE = "../web/src/lib/phaseLabels.js";
+const I18N = "../web/src/i18n/index.js";
+
+// Tlumacz PRAWDZIWY, zbudowany na prawdziwych slownikach - nie atrapa
+// oddajaca klucz. Etykiety faz sa dzis kluczami, wiec z atrapa te testy
+// przechodzilyby, pokazujac "phase.playin" tam, gdzie ma byc "Play-In",
+// czyli dokladnie w tym bledzie, ktory mialy lapac.
+async function polski() {
+  const { createTranslator, SLOWNIKI } = await import(I18N);
+
+  return createTranslator("pl", SLOWNIKI);
+}
 const MAPS = "../web/src/lib/mapLabels.js";
 
 test("warianty zapisu tej samej fazy daja te sama etykiete", async () => {
   const { humanPhase } = await import(PHASE);
+  const t = await polski();
 
   for (const zapis of ["swiss_stage1", "SWISS_STAGE_1", "Swiss Stage 1", "stage1"]) {
-    assert.equal(humanPhase(zapis), "Swiss Stage 1", zapis);
+    assert.equal(humanPhase(zapis, t), "Swiss Stage 1", zapis);
   }
 
   for (const zapis of ["doubleelim", "DOUBLE_ELIM", "double elimination"]) {
-    assert.equal(humanPhase(zapis), "Double Elimination", zapis);
+    assert.equal(humanPhase(zapis, t), "Double Elimination", zapis);
   }
 
   for (const zapis of ["playin", "PLAY_IN", "play-in"]) {
-    assert.equal(humanPhase(zapis), "Play-In", zapis);
+    assert.equal(humanPhase(zapis, t), "Play-In", zapis);
   }
 });
 
 test("brak fazy to myslnik, nieznana faza zostaje surowa", async () => {
   const { humanPhase } = await import(PHASE);
+  const t = await polski();
 
-  assert.equal(humanPhase(null), "—");
-  assert.equal(humanPhase(""), "—");
+  assert.equal(humanPhase(null, t), "—");
+  assert.equal(humanPhase("", t), "—");
 
   // Lepiej pokazac NOWA_FAZA_2027 niz pusto - widac, czego szukac.
-  assert.equal(humanPhase("NOWA_FAZA_2027"), "NOWA_FAZA_2027");
+  assert.equal(humanPhase("NOWA_FAZA_2027", t), "NOWA_FAZA_2027");
 });
 
 test("stany turnieju tez maja czytelne nazwy", async () => {
   const { humanPhase } = await import(PHASE);
+  const t = await polski();
 
-  assert.equal(humanPhase("NOT_STARTED"), "Nie rozpoczęty");
-  assert.equal(humanPhase("FINISHED"), "Zakończony");
+  assert.equal(humanPhase("NOT_STARTED", t), "Nie rozpoczęty");
+  assert.equal(humanPhase("FINISHED", t), "Zakończony");
 });
 
 test("etykieta fazy z adresu dziala na malych literach", async () => {
   const { phaseRouteLabel } = await import(PHASE);
+  const t = await polski();
 
-  assert.equal(phaseRouteLabel("stage2"), "Swiss Stage 2");
-  assert.equal(phaseRouteLabel("playoffs"), "Playoffs");
-  assert.equal(phaseRouteLabel("cokolwiek"), "cokolwiek", "nieznane zostaje");
+  assert.equal(phaseRouteLabel("stage2", t), "Swiss Stage 2");
+  assert.equal(phaseRouteLabel("playoffs", t), "Playoffs");
+  assert.equal(
+    phaseRouteLabel("cokolwiek", t),
+    "cokolwiek",
+    "nieznane zostaje",
+  );
 });
 
 test("nazwy map w BO3 opisuja, kto wybieral", async () => {

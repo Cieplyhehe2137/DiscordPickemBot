@@ -1,4 +1,4 @@
-import { odmien } from "../lib/odmiana.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Format fazy, czyli ile drużyn wchodzi w którą kategorię.
 //
@@ -22,32 +22,34 @@ const GRUPY = {
   doubleelim: ["upperFinalA", "lowerFinalA", "upperFinalB", "lowerFinalB"],
 };
 
-// Rzeczownik odmieniany przez liczebnik: [1, 2-4, 5+].
-const OPIS = {
-  x3_0: (n) =>
-    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 3-0`,
-  x0_3: (n) =>
-    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} z bilansem 0-3`,
-  advancing: (n) =>
-    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} do awansu`,
-  // Rzeczownik i przymiotnik odmieniają się razem: "1 drużyna awansująca",
-  // "2 drużyny awansujące", "8 drużyn awansujących".
-  teams: (n) =>
-    `${n} ${odmien(n, "drużyna", "drużyny", "drużyn")} ` +
-    odmien(n, "awansująca", "awansujące", "awansujących"),
-  semifinalists: (n) =>
-    `${n} ${odmien(n, "półfinalista", "półfinalistów", "półfinalistów")}`,
-  finalists: (n) =>
-    `${n} ${odmien(n, "finalista", "finalistów", "finalistów")}`,
-  winner: (n) => `${n} ${odmien(n, "zwycięzca", "zwycięzców", "zwycięzców")}`,
-  third: (n) => `${n} na 3. miejscu`,
-  upperFinalA: (n) => `Upper Final A: ${n}`,
-  lowerFinalA: (n) => `Lower Final A: ${n}`,
-  upperFinalB: (n) => `Upper Final B: ${n}`,
-  lowerFinalB: (n) => `Lower Final B: ${n}`,
+// Opisy z liczbą mnogą - całe zdanie leży w słowniku, bo rzeczownik
+// i przymiotnik zmieniają końcówki razem ("1 drużyna awansująca", "8 drużyn
+// awansujących"), a każdy język dzieli liczby inaczej.
+const KLUCZE = {
+  x3_0: "phaseFormat.record30",
+  x0_3: "phaseFormat.record03",
+  advancing: "phaseFormat.advancing",
+  teams: "phaseFormat.teams",
+  semifinalists: "phaseFormat.semifinalists",
+  finalists: "phaseFormat.finalists",
+  winner: "phaseFormat.winner",
+  third: "phaseFormat.third",
+};
+
+// Nazwy meczów w drabince double elimination NIE SĄ tłumaczone w żadnym
+// języku - tak stoją na drabince organizatora i tak nazywają je gracze.
+// Dlatego są tutaj, a nie w słowniku: pięć identycznych kopii tego samego
+// napisu sugerowałoby, że kiedyś się rozejdą.
+const DRABINKA = {
+  upperFinalA: "Upper Final A",
+  lowerFinalA: "Lower Final A",
+  upperFinalB: "Upper Final B",
+  lowerFinalB: "Lower Final B",
 };
 
 function PhaseFormat({ faza, limity }) {
+  const t = useT();
+
   const grupy = GRUPY[faza];
 
   if (!grupy || !limity) return null;
@@ -60,7 +62,11 @@ function PhaseFormat({ faza, limity }) {
       // o 3. miejsce. Wtedy nie wymieniamy jej wcale.
       if (!Number.isFinite(liczba) || liczba <= 0) return null;
 
-      return OPIS[grupa] ? OPIS[grupa](liczba) : `${grupa}: ${liczba}`;
+      if (KLUCZE[grupa]) return t(KLUCZE[grupa], { count: liczba });
+
+      if (DRABINKA[grupa]) return `${DRABINKA[grupa]}: ${liczba}`;
+
+      return `${grupa}: ${liczba}`;
     })
     .filter(Boolean);
 
@@ -68,7 +74,7 @@ function PhaseFormat({ faza, limity }) {
 
   return (
     <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
-      <span className="ui-kicker">Format tej fazy</span>
+      <span className="ui-kicker">{t("phaseFormat.title")}</span>
 
       <span>{czesci.join(" · ")}</span>
     </div>

@@ -4,6 +4,7 @@ import { Dialog } from "./ui/Dialog.jsx";
 import PlayerAvatar from "./PlayerAvatar.jsx";
 import Ladowanie from "./Ladowanie.jsx";
 import { getEventLeaderboard } from "../lib/api.js";
+import { useT } from "../i18n/useLanguage.js";
 
 // Wybór gracza do porównania.
 //
@@ -24,6 +25,8 @@ import { getEventLeaderboard } from "../lib/api.js";
 const NA_STRONIE = 8;
 
 function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
+  const t = useT();
+
   const [wpisane, setWpisane] = useState("");
   const [szukane, setSzukane] = useState("");
   const [gracze, setGracze] = useState([]);
@@ -57,7 +60,7 @@ function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
         if (!anulowane) setGracze(dane.leaderboard ?? []);
       } catch (err) {
         if (!anulowane) {
-          setError(err.message || "Nie udało się wczytać listy graczy.");
+          setError(err.message || t("picker.loadError"));
         }
       } finally {
         if (!anulowane) setLoading(false);
@@ -69,7 +72,7 @@ function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
     return () => {
       anulowane = true;
     };
-  }, [slug, szukane]);
+  }, [slug, szukane, t]);
 
   // Siebie samego nie ma z kim porównywać - serwer i tak odrzuciłby taki
   // adres, ale wiersz, który po kliknięciu pokazuje błąd, jest gorszy niż
@@ -81,7 +84,7 @@ function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
   return (
     <Dialog open onClose={onClose} labelledBy={titleId}>
       <h2 className="ui-dialog__title" id={titleId}>
-        Z kim porównać?
+        {t("picker.title")}
       </h2>
 
       <input
@@ -89,20 +92,20 @@ function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
         type="search"
         value={wpisane}
         onChange={(e) => setWpisane(e.target.value)}
-        placeholder="Szukaj gracza po nicku..."
-        aria-label="Szukaj gracza"
+        placeholder={t("picker.search")}
+        aria-label={t("picker.searchLabel")}
         data-autofocus
       />
 
-      {loading && <Ladowanie>Szukam graczy...</Ladowanie>}
+      {loading && <Ladowanie>{t("picker.loading")}</Ladowanie>}
 
       {error && <p className="ui-note ui-note--danger">{error}</p>}
 
       {!loading && !error && doPokazania.length === 0 && (
         <p className="ui-hint">
           {szukane
-            ? `Nikt nie pasuje do "${szukane}".`
-            : "W tym turnieju nie ma jeszcze sklasyfikowanych graczy."}
+            ? t("picker.noMatch", { query: szukane })
+            : t("picker.empty")}
         </p>
       )}
 
@@ -143,7 +146,7 @@ function PlayerPicker({ slug, excludeUserId, onPick, onClose }) {
           className="ui-btn ui-btn--ghost"
           onClick={onClose}
         >
-          Anuluj
+          {t("common.cancel")}
         </button>
       </div>
     </Dialog>

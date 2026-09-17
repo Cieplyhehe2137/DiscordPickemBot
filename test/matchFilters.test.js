@@ -217,7 +217,14 @@ test("puste nazwy druzyn nie trafiaja na liste", async () => {
 test("fazy dostaja czytelne etykiety mimo wielkich liter", async () => {
   // To byl istniejacy blad na tej stronie: naglowek pokazywal surowe
   // "PLAYIN", bo lokalna mapa etykiet miala klucze malymi literami.
+  //
+  // Tlumacz jest PRAWDZIWY, zbudowany na prawdziwych slownikach, a nie
+  // atrapa oddajaca klucz. Dzieki temu test lapie takze brak klucza fazy
+  // w slowniku - z atrapa przeszedlby, pokazujac "phase.playin".
   const { phasesFromMatches } = await import(MODUL);
+  const { createTranslator, SLOWNIKI } = await import("../web/src/i18n/index.js");
+
+  const t = createTranslator("pl", SLOWNIKI);
 
   const lista = [
     mecz({ phase: "PLAYIN" }),
@@ -226,7 +233,7 @@ test("fazy dostaja czytelne etykiety mimo wielkich liter", async () => {
     mecz({ phase: "PLAYIN" }),
   ];
 
-  const fazy = phasesFromMatches(lista);
+  const fazy = phasesFromMatches(lista, t);
 
   assert.equal(fazy.length, 3, "bez powtorzen");
 

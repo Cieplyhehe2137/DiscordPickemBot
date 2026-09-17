@@ -6,6 +6,14 @@
 export const FROZEN_EVENT_OVER = "event zakończony";
 export const FROZEN_HAS_PICKS = "są już typy lub wynik";
 
+// Kody tych samych powodow. Powod idzie do odpowiedzi jako zdanie po polsku,
+// kod obok niego - strona pokazuje zdanie w swoim jezyku, a klient, ktory
+// kodu nie zna, dostaje to, co dostawal zawsze.
+export const FROZEN_CODES = {
+  [FROZEN_EVENT_OVER]: "server.frozen.eventOver",
+  [FROZEN_HAS_PICKS]: "server.frozen.hasPicks",
+};
+
 // Zaleznosci argumentem: pula, lista faz z konfiguracji i normalizePhase.
 // Dzieki temu regule da sie sprawdzic z atrapa puli, bez bazy.
 export function createFrozenPhases({ pool, phases, normalizePhase }) {

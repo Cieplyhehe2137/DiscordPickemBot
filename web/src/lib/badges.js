@@ -45,10 +45,11 @@ const RODZINY = [
     field: "accuracy",
     icon: "🎯",
     unit: "%",
+    descKey: "badge.accuracy.desc",
     poziomy: [
-      { tier: 1, prog: 50, label: "Celny", desc: "50% trafionych zwycięzców" },
-      { tier: 2, prog: 60, label: "Bardzo celny", desc: "60% trafionych zwycięzców" },
-      { tier: 3, prog: 65, label: "Snajper", desc: "65% trafionych zwycięzców" },
+      { tier: 1, prog: 50, labelKey: "badge.accuracy1" },
+      { tier: 2, prog: 60, labelKey: "badge.accuracy2" },
+      { tier: 3, prog: 65, labelKey: "badge.accuracy3" },
     ],
   },
 
@@ -57,10 +58,11 @@ const RODZINY = [
     field: "best_correct_streak",
     icon: "🔥",
     unit: "",
+    descKey: "badge.streak.desc",
     poziomy: [
-      { tier: 1, prog: 5, label: "Rozgrzany", desc: "5 trafień z rzędu" },
-      { tier: 2, prog: 8, label: "Gorąca ręka", desc: "8 trafień z rzędu" },
-      { tier: 3, prog: 10, label: "Nie do zatrzymania", desc: "10 trafień z rzędu" },
+      { tier: 1, prog: 5, labelKey: "badge.streak1" },
+      { tier: 2, prog: 8, labelKey: "badge.streak2" },
+      { tier: 3, prog: 10, labelKey: "badge.streak3" },
     ],
   },
 
@@ -69,10 +71,11 @@ const RODZINY = [
     field: "exact_series",
     icon: "📐",
     unit: "",
+    descKey: "badge.exactSeries.desc",
     poziomy: [
-      { tier: 1, prog: 5, label: "Dokładny", desc: "5 dokładnych wyników serii" },
-      { tier: 2, prog: 15, label: "Precyzyjny", desc: "15 dokładnych wyników serii" },
-      { tier: 3, prog: 20, label: "Zegarmistrz", desc: "20 dokładnych wyników serii" },
+      { tier: 1, prog: 5, labelKey: "badge.exactSeries1" },
+      { tier: 2, prog: 15, labelKey: "badge.exactSeries2" },
+      { tier: 3, prog: 20, labelKey: "badge.exactSeries3" },
     ],
   },
 
@@ -81,10 +84,11 @@ const RODZINY = [
     field: "exact_maps",
     icon: "💎",
     unit: "",
+    descKey: "badge.exactMaps.desc",
     poziomy: [
-      { tier: 1, prog: 3, label: "Znawca map", desc: "3 dokładne wyniki map" },
-      { tier: 2, prog: 7, label: "Kartograf", desc: "7 dokładnych wyników map" },
-      { tier: 3, prog: 10, label: "Jasnowidz", desc: "10 dokładnych wyników map" },
+      { tier: 1, prog: 3, labelKey: "badge.exactMaps1" },
+      { tier: 2, prog: 7, labelKey: "badge.exactMaps2" },
+      { tier: 3, prog: 10, labelKey: "badge.exactMaps3" },
     ],
   },
 
@@ -92,11 +96,12 @@ const RODZINY = [
     family: "points",
     field: "total_points",
     icon: "🏆",
-    unit: " pkt",
+    unitKey: "badge.unitPoints",
+    descKey: "badge.points.desc",
     poziomy: [
-      { tier: 1, prog: 50, label: "Pięćdziesiątka", desc: "50 punktów w turnieju" },
-      { tier: 2, prog: 100, label: "Setka", desc: "100 punktów w turnieju" },
-      { tier: 3, prog: 150, label: "Sto pięćdziesiąt", desc: "150 punktów w turnieju" },
+      { tier: 1, prog: 50, labelKey: "badge.points1" },
+      { tier: 2, prog: 100, labelKey: "badge.points2" },
+      { tier: 3, prog: 150, labelKey: "badge.points3" },
     ],
   },
 ];
@@ -109,8 +114,8 @@ const POJEDYNCZE = [
     prog: 1,
     tier: 3,
     icon: "✨",
-    label: "Komplet",
-    desc: "Mecz trafiony co do mapy",
+    labelKey: "badge.perfect",
+    descKey: "badge.perfect.desc",
     unit: "",
   },
 
@@ -120,9 +125,9 @@ const POJEDYNCZE = [
     prog: 9,
     tier: 2,
     icon: "💥",
-    label: "Wielki mecz",
-    desc: "9 punktów za jeden mecz",
-    unit: " pkt",
+    labelKey: "badge.bigMatch",
+    descKey: "badge.bigMatch.desc",
+    unitKey: "badge.unitPoints",
   },
 
   {
@@ -133,8 +138,8 @@ const POJEDYNCZE = [
     // Miejsce jest jedyną statystyką, w której MNIEJ znaczy lepiej.
     lowerIsBetter: true,
     icon: "🥇",
-    label: "Podium",
-    desc: "Miejsce w pierwszej trójce",
+    labelKey: "badge.podium",
+    descKey: "badge.podium.desc",
     unit: "",
   },
 
@@ -144,8 +149,8 @@ const POJEDYNCZE = [
     prog: 25,
     tier: 1,
     icon: "📋",
-    label: "Bywalec",
-    desc: "25 rozliczonych typów",
+    labelKey: "badge.regular",
+    descKey: "badge.regular.desc",
     unit: "",
   },
 ];
@@ -177,8 +182,20 @@ function postep(wartosc, prog, lowerIsBetter) {
  *
  * @returns {{ earned: Array, next: Array }}
  */
-export function awardBadges(profile, { ileNastepnych = 3 } = {}) {
+export function awardBadges(profile, { ileNastepnych = 3, t } = {}) {
   if (!profile) return { earned: [], next: [] };
+
+  // Domyślnie sam klucz. Ten moduł jest liczony także w testach, gdzie
+  // tłumacza nie ma i nie jest do niczego potrzebny - sprawdzają klucze
+  // odznak i progi, a nie brzmienie napisów.
+  const napis = t ?? ((klucz) => klucz);
+
+  // Opis odznaki to zawsze próg plus rzecz ("5 trafień z rzędu"), więc
+  // jeden klucz na rodzinę zamiast osobnego na każdy z trzech poziomów.
+  const opis = (klucz, prog) => napis(klucz, { count: prog });
+
+  const jednostka = (zrodlo) =>
+    zrodlo.unitKey ? napis(zrodlo.unitKey) : zrodlo.unit;
 
   const earned = [];
   const kandydaci = [];
@@ -202,11 +219,11 @@ export function awardBadges(profile, { ileNastepnych = 3 } = {}) {
       earned.push({
         key: `${rodzina.family}-${najwyzszy.tier}`,
         icon: rodzina.icon,
-        label: najwyzszy.label,
-        desc: najwyzszy.desc,
+        label: napis(najwyzszy.labelKey),
+        desc: opis(rodzina.descKey, najwyzszy.prog),
         tier: najwyzszy.tier,
         value: wartosc,
-        unit: rodzina.unit,
+        unit: jednostka(rodzina),
       });
     }
 
@@ -214,12 +231,12 @@ export function awardBadges(profile, { ileNastepnych = 3 } = {}) {
       kandydaci.push({
         key: `${rodzina.family}-${nastepny.tier}`,
         icon: rodzina.icon,
-        label: nastepny.label,
-        desc: nastepny.desc,
+        label: napis(nastepny.labelKey),
+        desc: opis(rodzina.descKey, nastepny.prog),
         tier: nastepny.tier,
         value: wartosc ?? 0,
         target: nastepny.prog,
-        unit: rodzina.unit,
+        unit: jednostka(rodzina),
         percent: postep(wartosc ?? 0, nastepny.prog, false),
       });
     }
@@ -232,22 +249,22 @@ export function awardBadges(profile, { ileNastepnych = 3 } = {}) {
       earned.push({
         key: o.key,
         icon: o.icon,
-        label: o.label,
-        desc: o.desc,
+        label: napis(o.labelKey),
+        desc: opis(o.descKey, o.prog),
         tier: o.tier,
         value: wartosc,
-        unit: o.unit,
+        unit: jednostka(o),
       });
     } else {
       kandydaci.push({
         key: o.key,
         icon: o.icon,
-        label: o.label,
-        desc: o.desc,
+        label: napis(o.labelKey),
+        desc: opis(o.descKey, o.prog),
         tier: o.tier,
         value: wartosc ?? 0,
         target: o.prog,
-        unit: o.unit,
+        unit: jednostka(o),
         percent: postep(wartosc ?? 0, o.prog, o.lowerIsBetter),
       });
     }

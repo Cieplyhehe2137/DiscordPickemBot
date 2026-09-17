@@ -148,7 +148,10 @@ export function registerPublicEventRoutes(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Nie znaleziono turnieju." });
+        return res.status(404).json({
+          error: "Nie znaleziono turnieju.",
+          code: "server.eventNotFound",
+        });
       }
 
       // Typ i punkty sa prywatne - pokazujemy je wylacznie zalogowanemu
@@ -375,13 +378,17 @@ export function registerPublicEventRoutes(
       );
 
       if (!event) {
-        return res.status(404).json({ error: "Nie ma takiego turnieju." });
+        return res.status(404).json({
+          error: "Nie ma takiego turnieju.",
+          code: "server.noSuchEvent",
+        });
       }
 
       if (Number(event.is_archived) !== 1) {
         return res.status(409).json({
           error:
             "Archiwum powstaje po zakończeniu turnieju. Ten jeszcze trwa.",
+          code: "server.archiveNotReady",
         });
       }
 
@@ -405,6 +412,7 @@ export function registerPublicEventRoutes(
 
       return res.status(500).json({
         error: "Nie udało się przygotować archiwum.",
+        code: "server.archiveFailed",
       });
     }
   });
