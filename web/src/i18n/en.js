@@ -1248,6 +1248,7 @@ const en = {
   "server.dePicksLoadFailed": "Could not load the Double Elimination predictions.",
   "server.dePicksSaveFailed": "Could not save the Double Elimination predictions.",
   "server.allTimeFailed": "Could not load the all-time classification.",
+  "server.upsetsFailed": "Could not load the upsets.",
   "server.matchMissing": "The match does not exist",
   "server.noSuchEvent": "No such tournament.",
   "server.notFound": "Not found.",
@@ -1321,6 +1322,58 @@ const en = {
   "allTime.note": {
     one: "The table holds players with at least {count} start. One tournament is too few to tell skill from luck — you are one start away.",
     other: "The table holds players with at least {count} starts. One tournament is too few to tell skill from luck — you are one start away.",
+  },
+
+  // --- Niespodzianki -------------------------------------------------------
+  "upsets.nav": "Upsets",
+  "upsets.kicker": "When almost everyone was wrong",
+  "upsets.title": "Upsets",
+  "upsets.intro": "Matches where fewer than {percent}% of players picked the winner. The rest of the site shows who was right — this page shows the moments when almost nobody was.",
+  "upsets.loading": "Looking for upsets...",
+  "upsets.error": "Could not load the upsets",
+  "upsets.counted": {
+    one: "{count} match went against the crowd",
+    other: "{count} matches went against the crowd",
+  },
+  "upsets.head.match": "Match",
+  "upsets.head.where": "Where",
+  "upsets.head.share": "Correct",
+  "upsets.head.player": "Player",
+  "upsets.head.hits": "Hits",
+  "upsets.head.rate": "Hit rate",
+  "upsets.head.team": "Team",
+  "upsets.head.judgement": "Judgement",
+  "upsets.head.gap": "Gap",
+  // Same liczby i ukosnik - czyta sie tak samo we wszystkich
+  // pieciu jezykach. Ten sam zabieg, co przy allTime.bestPlace,
+  // i z tego samego powodu: .ui-badge robi uppercase, wiec kazdy
+  // przyimek w srodku zaczyna krzyczec.
+  "upsets.hits": "{hits} / {total}",
+  "upsets.share": "{percent}%",
+  "upsets.note": {
+    one: "Only matches with at least {count} pick count — among three people \"nobody got it right\" means nothing. The line for an upset is {percent}% correct.",
+    other: "Only matches with at least {count} picks count — among three people \"nobody got it right\" means nothing. The line for an upset is {percent}% correct.",
+  },
+  "upsets.empty.title": "The favourites held",
+  "upsets.empty.text": "There is no match yet where fewer than {percent}% of players picked the winner. One will show up here the moment it happens.",
+  "upsets.people.kicker": "Against the crowd",
+  "upsets.people.title": "Who gets them right",
+  "upsets.people.intro": "In these matches the average player was right {percent}% of the time. Below are those who did better — and not off a single lucky call.",
+  // Zakres "od jednej do trzydziestu trzech" to liczba zmierzona
+  // na produkcji, a nie figura retoryczna - patrz naglowek
+  // server/lib/upsets.js.
+  "upsets.people.note": {
+    one: "The table holds players with at least {count} chance, meaning that many matches from this list that they picked. Position is decided by hit rate, not by the number of hits: chances range from one to thirty-three, so a raw count would reward playing often.",
+    other: "The table holds players with at least {count} chances, meaning that many matches from this list that they picked. Position is decided by hit rate, not by the number of hits: chances range from one to thirty-three, so a raw count would reward playing often.",
+  },
+  "upsets.teams.kicker": "Trust versus results",
+  "upsets.teams.title": "Overrated and underrated teams",
+  "upsets.teams.intro": "Trust is the share of picks placed on a team, the win rate is the share of matches it wins. A positive gap means a team trusted more than it deserves.",
+  "upsets.teams.trust": "Trust {percent}%",
+  "upsets.teams.wins": "Wins {percent}%",
+  "upsets.teams.note": {
+    one: "The table holds teams with at least {count} decided match. With a single match trust and win rate are zero or one hundred percent, and the gap between them says nothing about the team.",
+    other: "The table holds teams with at least {count} decided matches. With a single match trust and win rate are zero or one hundred percent, and the gap between them says nothing about the team.",
   },
 };
 

@@ -1248,6 +1248,7 @@ const de = {
   "server.dePicksLoadFailed": "Die Double-Elimination-Tipps konnten nicht geladen werden.",
   "server.dePicksSaveFailed": "Die Double-Elimination-Tipps konnten nicht gespeichert werden.",
   "server.allTimeFailed": "Die Ewige Tabelle konnte nicht geladen werden.",
+  "server.upsetsFailed": "Die Überraschungen konnten nicht geladen werden.",
   "server.matchMissing": "Das Spiel existiert nicht",
   "server.noSuchEvent": "Dieses Turnier gibt es nicht.",
   "server.notFound": "Nicht gefunden.",
@@ -1321,6 +1322,58 @@ const de = {
   "allTime.note": {
     one: "In der Tabelle stehen Spieler mit mindestens {count} Start. Ein Turnier reicht nicht, um Können von Glück zu trennen — dir fehlt ein Start.",
     other: "In der Tabelle stehen Spieler mit mindestens {count} Starts. Ein Turnier reicht nicht, um Können von Glück zu trennen — dir fehlt ein Start.",
+  },
+
+  // --- Niespodzianki -------------------------------------------------------
+  "upsets.nav": "Überraschungen",
+  "upsets.kicker": "Als sich fast alle irrten",
+  "upsets.title": "Überraschungen",
+  "upsets.intro": "Spiele, bei denen weniger als {percent}% der Tippenden den Sieger trafen. Der Rest der Seite zeigt, wer recht hatte — hier stehen die Momente, in denen es fast niemand hatte.",
+  "upsets.loading": "Suche nach Überraschungen...",
+  "upsets.error": "Die Überraschungen konnten nicht geladen werden",
+  "upsets.counted": {
+    one: "{count} Spiel ging gegen die Mehrheit aus",
+    other: "{count} Spiele gingen gegen die Mehrheit aus",
+  },
+  "upsets.head.match": "Spiel",
+  "upsets.head.where": "Wo",
+  "upsets.head.share": "Richtig",
+  "upsets.head.player": "Spieler",
+  "upsets.head.hits": "Treffer",
+  "upsets.head.rate": "Trefferquote",
+  "upsets.head.team": "Team",
+  "upsets.head.judgement": "Einschätzung",
+  "upsets.head.gap": "Differenz",
+  // Same liczby i ukosnik - czyta sie tak samo we wszystkich
+  // pieciu jezykach. Ten sam zabieg, co przy allTime.bestPlace,
+  // i z tego samego powodu: .ui-badge robi uppercase, wiec kazdy
+  // przyimek w srodku zaczyna krzyczec.
+  "upsets.hits": "{hits} / {total}",
+  "upsets.share": "{percent}%",
+  "upsets.note": {
+    one: "Es zählen nur Spiele mit mindestens {count} Tipp — bei drei Leuten sagt „niemand lag richtig\" nichts aus. Die Grenze für eine Überraschung liegt bei {percent}% Treffern.",
+    other: "Es zählen nur Spiele mit mindestens {count} Tipps — bei drei Leuten sagt „niemand lag richtig\" nichts aus. Die Grenze für eine Überraschung liegt bei {percent}% Treffern.",
+  },
+  "upsets.empty.title": "Die Favoriten haben geliefert",
+  "upsets.empty.text": "Es gibt noch kein Spiel, bei dem weniger als {percent}% den Sieger getippt haben. Sobald es eines gibt, steht es hier.",
+  "upsets.people.kicker": "Gegen den Strom",
+  "upsets.people.title": "Wer sie trotzdem trifft",
+  "upsets.people.intro": "In diesen Spielen lag der durchschnittliche Tipper zu {percent}% richtig. Unten stehen die, die öfter richtig lagen — und nicht wegen einer einzigen glücklichen Entscheidung.",
+  // Zakres "od jednej do trzydziestu trzech" to liczba zmierzona
+  // na produkcji, a nie figura retoryczna - patrz naglowek
+  // server/lib/upsets.js.
+  "upsets.people.note": {
+    one: "In der Tabelle stehen Spieler mit mindestens {count} Gelegenheit, also so vielen Spielen aus dieser Liste, die sie getippt haben. Über die Platzierung entscheidet die Trefferquote, nicht die Zahl der Treffer: Gelegenheiten gibt es zwischen einer und dreiunddreißig, eine reine Zahl würde also häufiges Spielen belohnen.",
+    other: "In der Tabelle stehen Spieler mit mindestens {count} Gelegenheiten, also so vielen Spielen aus dieser Liste, die sie getippt haben. Über die Platzierung entscheidet die Trefferquote, nicht die Zahl der Treffer: Gelegenheiten gibt es zwischen einer und dreiunddreißig, eine reine Zahl würde also häufiges Spielen belohnen.",
+  },
+  "upsets.teams.kicker": "Vertrauen und Ertrag",
+  "upsets.teams.title": "Über- und unterschätzte Teams",
+  "upsets.teams.intro": "Vertrauen ist der Anteil der Tipps auf ein Team, die Quote der Anteil der gewonnenen Spiele. Eine positive Differenz heißt: Dem Team wird mehr zugetraut, als es verdient.",
+  "upsets.teams.trust": "Vertrauen {percent}%",
+  "upsets.teams.wins": "Gewinnt {percent}%",
+  "upsets.teams.note": {
+    one: "In der Tabelle stehen Teams mit mindestens {count} entschiedenen Spiel. Bei einem einzigen Spiel sind Vertrauen und Quote null oder hundert Prozent, und die Differenz sagt nichts über das Team aus.",
+    other: "In der Tabelle stehen Teams mit mindestens {count} entschiedenen Spielen. Bei einem einzigen Spiel sind Vertrauen und Quote null oder hundert Prozent, und die Differenz sagt nichts über das Team aus.",
   },
 };
 

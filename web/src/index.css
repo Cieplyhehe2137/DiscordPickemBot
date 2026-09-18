@@ -251,7 +251,16 @@ p {
     padding: var(--space-3) 0;
   }
 
+  /* Nawigacja zawija sie do kolejnego rzedu, tak samo jak caly naglowek
+     wyzej i z tego samego powodu. Przy szesciu pozycjach pasek mial
+     440 px w kontenerze o szerokosci 320 px, wiec CALA strona przewijala
+     sie w bok - dokladnie ten blad, ktory naprawiono kiedys dla bloku
+     uzytkownika. Skracanie nazw nie jest wyjsciem: niemieckie
+     "Uberraschungen" jest jeszcze dluzsze od polskich "Niespodzianek",
+     a kolejna zakladka i tak by to przewrocila. */
   .app-nav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: var(--space-05);
   }
 
@@ -2031,6 +2040,58 @@ main > .page-back {
   font-size: var(--text-2xs);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* =========================================================
+   NIESPODZIANKI
+   ========================================================= */
+
+/* Para druzyn w jednym wierszu: przegrany, wynik, zwyciezca.
+   Zawijanie jest konieczne - przy 375px "Ninjas in Pyjamas 0:2 BC.Game"
+   nie miesci sie w jednej linii, a .ui-row-item__who to kolumna
+   minmax(0, 1fr), wiec bez zawijania napis wychodzilby poza wiersz. */
+.upset-teams {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+/* Bez nowrap i wielokropka, w przeciwienstwie do .ui-row-item__name:
+   ucieta nazwa druzyny w meczu znaczy mniej niz ucieta nazwa gracza,
+   bo bez obu stron nie wiadomo, co kogo zaskoczylo. */
+.upset-teams__side {
+  color: var(--text-muted);
+}
+
+.upset-teams__side--won {
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.upset-teams__score {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-faint);
+}
+
+/* Roznica miedzy zaufaniem a skutecznoscia. Kolor niesie znak, a nie ocene
+   druzyny: czerwien znaczy "ufamy jej bardziej, niz na to zasluguje",
+   a nie "slaba druzyna". Sam znak stoi przy liczbie, wiec kolor jest
+   wzmocnieniem, a nie jedynym nosnikiem - to samo zalozenie, co wszedzie
+   indziej na tej stronie. */
+.upset-gap {
+  font-variant-numeric: tabular-nums;
+}
+
+.upset-gap--over {
+  color: var(--danger);
+}
+
+.upset-gap--under {
+  color: var(--ok);
 }
 
 /* =========================================================

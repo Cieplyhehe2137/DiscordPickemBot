@@ -95,6 +95,9 @@ const TAKIE_SAME_NAPRAWDE = new Set([
   // sie krzyczacym "Z" - a niemieckie "von" "VON". Ukosnik czyta sie
   // tak samo we wszystkich pieciu jezykach i nie da sie go zepsuc.
   "allTime.bestPlace",
+
+  // "6 / 149" - ten sam zabieg i ten sam powod, co wyzej.
+  "upsets.hits",
 ]);
 
 // --- Mechanizm --------------------------------------------------------------

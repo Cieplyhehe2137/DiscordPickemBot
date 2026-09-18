@@ -20,6 +20,7 @@ import TeamPage from "./pages/TeamPage.jsx";
 
 import ScoringPage from "./pages/ScoringPage.jsx";
 import AllTimePage from "./pages/AllTimePage.jsx";
+import UpsetsPage from "./pages/UpsetsPage.jsx";
 
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
@@ -46,6 +47,9 @@ function App() {
 
         {/* ALL TIME */}
         <Route path="/all-time" element={<AllTimePage />} />
+
+        {/* UPSETS */}
+        <Route path="/upsets" element={<UpsetsPage />} />
 
         {/* RULES */}
         <Route path="/scoring" element={<ScoringPage />} />
