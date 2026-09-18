@@ -4,11 +4,16 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth.js";
 import socket from "../../lib/socket.js";
 import LanguageToggle from "../LanguageToggle.jsx";
+import NavDropdown from "./NavDropdown.jsx";
 import ThemeToggle from "../ThemeToggle.jsx";
 import { useT } from "../../i18n/useLanguage.js";
 import { recordVisit } from "../../lib/api.js";
 
 import { apiUrl } from "../../lib/apiUrl.js";
+
+// Klasa aktywnej zakladki. Wyciagniete z JSX, bo stalo tam szesc razy
+// to samo wyrazenie i przy kazdej nowej pozycji trzeba je bylo przepisac.
+const aktywna = ({ isActive }) => (isActive ? "active" : "");
 
 function AppLayout() {
   const { user, canAccessAdmin, authLoading, logout } = useAuth();
@@ -50,69 +55,51 @@ function AppLayout() {
             {t("layout.logo")}
           </Link>
 
+          {/* Kolejnosc odpowiada temu, po co sie tu wchodzi: najpierw
+              korzystanie ze strony (co sie dzieje, kto gra, jak sie liczy
+              punkty), potem statystyki. Wczesniej "Wszech czasow"
+              i "Niespodzianki" staly wsrod pozostalych jako rownorzedne
+              napisy i nic nie mowilo, ze sa czyms innym. */}
           <nav className="app-nav">
-            <NavLink
-              to="/"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
+            <NavLink to="/" className={aktywna}>
               {t("layout.nav.home")}
             </NavLink>
 
-            <NavLink
-              to="/events"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
+            <NavLink to="/events" className={aktywna}>
               {t("layout.nav.events")}
             </NavLink>
 
-            <NavLink
-              to="/teams"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
+            <NavLink to="/teams" className={aktywna}>
               {t("layout.nav.teams")}
             </NavLink>
 
-            {/* Klasyfikacja wszech czasów przed Punktacją, bo to wynik,
-                a nie regulamin - a wyniki czyta się częściej niż zasady. */}
-            <NavLink
-              to="/all-time"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              {t("allTime.nav")}
-            </NavLink>
-
-            {/* Niespodzianki zaraz za klasyfikacją, bo obie patrzą ponad
-                pojedynczym turniejem - a razem czytają się jako para:
-                kto ma rację najczęściej i kiedy nie miał jej nikt. */}
-            <NavLink
-              to="/upsets"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
-              {t("upsets.nav")}
-            </NavLink>
-
-            {/* Zasady w nawigacji, a nie w stopce: pytanie "skąd te punkty"
-                pada przy patrzeniu na ranking, czyli u góry ekranu, a nie
-                po przewinięciu strony do samego końca. */}
-            <NavLink
-              to="/scoring"
-              className={({ isActive }) => (isActive ? "active" : "")}
-            >
+            {/* Zasady w nawigacji, a nie w stopce: pytanie "skad te punkty"
+                pada przy patrzeniu na ranking, czyli u gory ekranu, a nie
+                po przewinieciu strony do samego konca. */}
+            <NavLink to="/scoring" className={aktywna}>
               {t("layout.nav.scoring")}
             </NavLink>
 
-            {/* Panel był osiągalny wyłącznie przez ręczne wpisanie /admin -
-                nawet dla kont z uprawnieniami. Widoczność to sama wygoda;
-                dostęp i tak pilnuje requireGuildAdmin na serwerze.
+            {/* Obie strony patrza ponad pojedynczym turniejem i to jest ich
+                wspolna cecha - stad jedna nazwa nad nimi. Przycisk zostaje
+                podswietlony, gdy otwarta jest ktorakolwiek z nich. */}
+            <NavDropdown
+              label={t("layout.nav.stats")}
+              items={[
+                { to: "/all-time", label: t("allTime.nav") },
+                { to: "/upsets", label: t("upsets.nav") },
+              ]}
+            />
+
+            {/* Panel byl osiagalny wylacznie przez reczne wpisanie /admin -
+                nawet dla kont z uprawnieniami. Widocznosc to sama wygoda;
+                dostep i tak pilnuje requireGuildAdmin na serwerze.
 
                 Warunek liczy serwer (/api/auth/me), nie sama bitmaska:
-                administrator prywatnego serwera, na którym bota nie ma,
-                widziałby zakładkę prowadzącą do pustej listy. */}
+                administrator prywatnego serwera, na ktorym bota nie ma,
+                widzialby zakladke prowadzaca do pustej listy. */}
             {canAccessAdmin && (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) => (isActive ? "active" : "")}
-              >
+              <NavLink to="/admin" className={aktywna}>
                 {t("layout.nav.admin")}
               </NavLink>
             )}
