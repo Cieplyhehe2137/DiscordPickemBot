@@ -11,6 +11,7 @@ const uk = {
   "layout.nav.events": "Турніри",
   "layout.nav.teams": "Команди",
   "layout.nav.scoring": "Бали",
+  "layout.nav.stats": "Статистика",
   "layout.nav.admin": "Панель",
   "layout.user.loading": "Завантаження...",
   "layout.user.logout": "Вийти",

@@ -28,6 +28,7 @@ const pl = {
   "layout.nav.events": "Eventy",
   "layout.nav.teams": "Drużyny",
   "layout.nav.scoring": "Punktacja",
+  "layout.nav.stats": "Statystyki",
   "layout.nav.admin": "Panel",
   "layout.user.loading": "Ładowanie...",
   "layout.user.logout": "Wyloguj",

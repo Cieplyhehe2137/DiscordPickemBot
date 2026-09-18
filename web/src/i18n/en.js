@@ -11,6 +11,7 @@ const en = {
   "layout.nav.events": "Events",
   "layout.nav.teams": "Teams",
   "layout.nav.scoring": "Scoring",
+  "layout.nav.stats": "Stats",
   "layout.nav.admin": "Admin",
   "layout.user.loading": "Loading...",
   "layout.user.logout": "Log out",

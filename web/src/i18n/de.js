@@ -11,6 +11,7 @@ const de = {
   "layout.nav.events": "Events",
   "layout.nav.teams": "Teams",
   "layout.nav.scoring": "Punkte",
+  "layout.nav.stats": "Statistik",
   "layout.nav.admin": "Verwaltung",
   "layout.user.loading": "Wird geladen...",
   "layout.user.logout": "Abmelden",

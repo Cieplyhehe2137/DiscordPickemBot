@@ -157,7 +157,7 @@ a {
   display: flex;
   align-items: center;
 
-  gap: var(--space-8);
+  gap: var(--space-6);
 }
 
 .app-logo {
@@ -170,16 +170,117 @@ a {
   text-decoration: none;
 }
 
-.app-nav {
-  margin-left: auto;
+/* Nawigacja stoi tuz przy logo, a blok konta jest zepchniety na drugi
+   koniec paska przez margin-left: auto na .app-user.
 
+   Wczesniej to nawigacja miala margin-left: auto, wiec obie grupy jechaly
+   razem w prawo i stykaly sie ze soba: "Punktacja" i przelacznik jezyka
+   dzielil dokladnie ten sam odstep, co dwie sasiednie zakladki. Nic nie
+   mowilo, gdzie konczy sie nawigacja, a zaczynaja ustawienia konta. */
+.app-nav {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.app-nav a {
+/* Zakladka i przycisk grupy maja WSPOLNE reguly, bo maja wygladac
+   identycznie - inaczej <button> i <a> rozjezdzaja sie o pare pikseli
+   wysokosci przez wlasne domyslne style przegladarki.
+
+   Selektor jest bezposredni (.app-nav > a), bo linki w rozwinietym menu
+   sa takze wewnatrz .app-nav i nie moga dostac tych samych rozmiarow. */
+.app-nav > a,
+.app-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  margin: 0;
   padding: var(--space-3) var(--space-4);
+
+  border: 0;
+  border-radius: var(--radius-sm);
+
+  background: transparent;
+  color: var(--text-muted);
+
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  line-height: 1.2;
+
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+
+  transition:
+    color var(--duration) var(--ease),
+    background var(--duration) var(--ease),
+    box-shadow var(--duration) var(--ease);
+}
+
+.app-nav > a:hover,
+.app-nav__item:hover {
+  color: var(--text-strong);
+
+  background: var(--layer);
+}
+
+/* Zaznaczenie aktywnej zakladki: tlo w kolorze akcentu plus cienka obwodka
+   od wewnatrz. Samo tlo przy jasnym motywie robilo sie ledwie widoczne,
+   a obwodka trzyma ksztalt pigulki w obu motywach. */
+.app-nav > a.active,
+.app-nav__item.active {
+  color: var(--text-strong);
+
+  background: var(--accent-bg);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+/* Grupa zakladek pod jednym przyciskiem (components/layout/NavDropdown.jsx).
+   Kontener jest punktem odniesienia dla rozwinietej listy. */
+.app-nav__group {
+  position: relative;
+}
+
+.app-nav__caret {
+  font-size: var(--text-2xs);
+  opacity: 0.65;
+
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+/* Strzalka obraca sie razem z otwarciem - stan menu widac wtedy takze
+   wtedy, gdy sama lista jest poza polem widzenia, np. przy przewijaniu. */
+.app-nav__item[aria-expanded="true"] .app-nav__caret {
+  transform: rotate(180deg);
+}
+
+/* z-index wyzszy niz sam naglowek (50), bo lista ma zaslaniac takze jego
+   dolna krawedz z obramowaniem. */
+.app-nav__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 60;
+
+  min-width: 200px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-05);
+
+  padding: var(--space-2);
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  background: var(--surface-4);
+  box-shadow: var(--shadow-lg);
+}
+
+.app-nav__menu-item {
+  padding: var(--space-2) var(--space-3);
 
   border-radius: var(--radius-sm);
 
@@ -189,21 +290,21 @@ a {
   font-weight: var(--weight-bold);
 
   text-decoration: none;
+  white-space: nowrap;
 
   transition:
     color var(--duration) var(--ease),
     background var(--duration) var(--ease);
 }
 
-.app-nav a:hover {
+.app-nav__menu-item:hover {
   color: var(--text-strong);
-
   background: var(--layer);
 }
 
-.app-nav a.active {
+.app-nav__menu-item.active {
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--accent-hover) 14%, transparent);
+  background: var(--accent-bg);
 }
 
 .app-content {
@@ -260,20 +361,38 @@ p {
      a kolejna zakladka i tak by to przewrocila. */
   .app-nav {
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: var(--space-05);
   }
 
-  .app-nav a {
+  .app-nav > a,
+  .app-nav__item {
     padding: var(--space-2);
 
     font-size: var(--text-sm);
   }
 
-  /* Nazwa użytkownika bywa długa - skracamy zamiast rozpychać nagłówek. */
-  .app-user {
+  /* Na waskim ekranie lista rozwija sie na CALA szerokosc naglowka i POD
+     nim, a nie pod samym przyciskiem.
+
+     Dwa powody. Przy zawijanej nawigacji przycisk grupy laduje raz po
+     lewej, raz przy prawej krawedzi - lista przyklejona do niego
+     wychodzilaby poza ekran, zaleznie od dlugosci nazw w danym jezyku.
+     A zaczepiona pod samym paskiem zakladek zaslanialaby rzad z jezykiem,
+     motywem i logowaniem, ktory na telefonie stoi pod nim. */
+  .app-header__inner {
+    position: relative;
+  }
+
+  .app-nav__group {
+    position: static;
+  }
+
+  .app-nav__menu {
+    left: 0;
+    right: 0;
+
     min-width: 0;
-    gap: var(--space-2);
   }
 
   .app-user > span {
@@ -396,7 +515,15 @@ p {
   font-weight: var(--weight-black);
 }
 
+/* Kreska i wcieciu oddzielaja ustawienia konta od nawigacji. Bez nich
+   przelacznik jezyka czytal sie jak kolejna zakladka - to samo wyrownanie,
+   ta sama wysokosc, ten sam odstep. */
 .app-user {
+  margin-left: auto;
+  padding-left: var(--space-6);
+
+  border-left: 1px solid var(--border-subtle);
+
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -412,6 +539,31 @@ p {
   height: 34px;
 
   border-radius: 50%;
+}
+
+/* Nadpisanie mobilne stoi TUTAJ, a nie w sekcji MOBILE wyzej, bo ta sekcja
+   jest w pliku WCZESNIEJ niz regula bazowa .app-user. Przy tej samej
+   szczegolowosci wygrywa regula pozniejsza, wiec tamto nadpisanie nie
+   dzialalo wcale: na telefonie blok konta dostawal i margin-left: auto,
+   i wciecie 24 px, i kreske wiszaca nad niczym.
+   (Ten sam problem dotyczyl `gap` juz wczesniej.) */
+@media (max-width: 640px) {
+  /* Kreska oddzielajaca ma sens wylacznie wtedy, gdy konto stoi OBOK
+     nawigacji. Po zawinieciu stoi w osobnym rzedzie i pionowa kreska
+     wisialaby nad niczym. */
+  .app-user {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .app-user img {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .app-login {

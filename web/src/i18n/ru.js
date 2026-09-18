@@ -11,6 +11,7 @@ const ru = {
   "layout.nav.events": "Турниры",
   "layout.nav.teams": "Команды",
   "layout.nav.scoring": "Очки",
+  "layout.nav.stats": "Статистика",
   "layout.nav.admin": "Панель",
   "layout.user.loading": "Загрузка...",
   "layout.user.logout": "Выйти",
