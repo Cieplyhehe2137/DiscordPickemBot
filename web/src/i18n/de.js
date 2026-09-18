@@ -1254,6 +1254,7 @@ const de = {
   "server.playerNotFound": "Spieler nicht gefunden.",
   "server.playerCareerFailed": "Das Spielerprofil konnte nicht geladen werden.",
   "server.mvpVoteFailed": "Die MVP-Abstimmung konnte nicht geladen werden.",
+  "server.mapsFailed": "Die Map-Statistik konnte nicht geladen werden.",
   "server.matchMissing": "Das Spiel existiert nicht",
   "server.noSuchEvent": "Dieses Turnier gibt es nicht.",
   "server.notFound": "Nicht gefunden.",
@@ -1450,6 +1451,49 @@ const de = {
   },
   "upsets.mvp.kicker": "Nicht jeder Irrtum ist ein Spiel",
   "upsets.mvp.headline": "Bei der MVP-Abstimmung lagen {percent}% richtig — gewonnen hat {nickname}, getippt von {votes} von {total} Personen.",
+
+  // --- Czytanie wynikow map ------------------------------------------------
+  "maps.nav": "Maps",
+  "maps.kicker": "Runden, nicht Maps",
+  "maps.title": "Wie wir Map-Ergebnisse lesen",
+  "maps.intro": "Wer eine Map tippt, tippt das Rundenergebnis. Diese Tipps neben das zu legen, was wirklich passiert ist, sagt eine ganz bestimmte Sache über diese Community — und zwar nicht die, die man erwarten würde.",
+  "maps.loading": "Maps werden ausgewertet...",
+  "maps.error": "Die Map-Statistik konnte nicht geladen werden",
+  "maps.stat.predicted": "Getippter Abstand",
+  "maps.stat.predictedHint": "Runden zwischen den Teams",
+  "maps.stat.actual": "Tatsächlicher Abstand",
+  "maps.stat.actualHint": "so fällt es wirklich aus",
+  "maps.lead": {
+    one: "Die Community tippt Maps ENGER, als sie ausgehen: im Schnitt {predicted} Runden Abstand gegenüber {actual} in Wirklichkeit. Gerechnet aus {count} abgerechneten Tipp.",
+    other: "Die Community tippt Maps ENGER, als sie ausgehen: im Schnitt {predicted} Runden Abstand gegenüber {actual} in Wirklichkeit. Gerechnet aus {count} abgerechneten Tipps.",
+  },
+  "maps.dist.kicker": "Tipp neben der Realität",
+  "maps.dist.title": "Die häufigsten Ergebnisse",
+  "maps.dist.intro": "Was am häufigsten getippt wird, gegenübergestellt dem, was am häufigsten passiert. Die Balken sind auf das häufigste Ergebnis der jeweiligen Aufstellung skaliert, damit sich beide Formen vergleichen lassen.",
+  "maps.dist.predicted": "Getippt",
+  "maps.dist.actual": "Tatsächlich",
+  "maps.readers.kicker": "Wer sie am besten liest",
+  "maps.readers.title": "Map-Lesen",
+  "maps.readers.intro": "Über die Platzierung entscheidet die Abweichung vom Ergebnis — genau das, worauf die Map-Wertung hier beruht. WENIGER ist besser.",
+  "maps.readers.head.player": "Spieler",
+  "maps.readers.head.record": "Bilanz",
+  "maps.readers.head.deviation": "Abweichung",
+  "maps.readers.picks": {
+    one: "{count} abgerechneter Tipp",
+    other: "{count} abgerechnete Tipps",
+  },
+  "maps.readers.winners": "Sieger {percent}%",
+  "maps.readers.exact": {
+    one: "{count} exakt",
+    other: "{count} exakt",
+  },
+  "maps.readers.note": {
+    one: "In der Tabelle stehen Spieler mit mindestens {count} abgerechneten Map-Tipp — etwa so viel, wie ein ganzes Turnier bringt.",
+    other: "In der Tabelle stehen Spieler mit mindestens {count} abgerechneten Map-Tipps — etwa so viel, wie ein ganzes Turnier bringt.",
+  },
+  "maps.noNames": "Hier steht nichts über einzelne Maps, weil der Map-Name nicht in den Daten steht — Tipps und Ergebnisse halten nur die Nummer der Map in der Serie. Die Nummer sagt ebenfalls nichts: Die Trefferquote auf der ersten, zweiten und dritten liegt bei 54%, 56% und 55%, die Entscheidungs-Map ist also nicht schwerer als die erste.",
+  "maps.empty.title": "Noch keine abgerechneten Maps",
+  "maps.empty.text": "Diese Seite entsteht aus Map-Tipps, die ein Ergebnis haben. Sie erscheint, sobald die ersten Maps abgerechnet sind.",
 };
 
 export default de;

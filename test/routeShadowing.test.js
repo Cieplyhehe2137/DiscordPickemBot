@@ -115,6 +115,30 @@ test("profil gracza ponad turniejami ma DWA segmenty i dlatego jest bezpieczny",
   );
 });
 
+test("mapy sa rejestrowane przed trasa, ktora je przeslania", async () => {
+  // /api/public/maps ma jeden segment, tak samo jak teams, scoring,
+  // all-time i upsets. Piaty raz ta sama pulapka.
+  const tresc = fs.readFileSync(APP, "utf8");
+
+  const mapy = pozycja(tresc, "registerMapRoutes(app,");
+  const przeslaniajaca = pozycja(tresc, "registerPickemConfigRoutes(app,");
+
+  assert.ok(
+    mapy < przeslaniajaca,
+    "registerMapRoutes musi stac PRZED registerPickemConfigRoutes - " +
+      "inaczej /api/public/maps oddaje pusta strone serwera i kod 200",
+  );
+});
+
+test("trasa map ma dokladnie jeden segment po /api/public/", async () => {
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "maps.js"),
+    "utf8",
+  );
+
+  assert.ok(tresc.includes('app.get("/api/public/maps"'));
+});
+
 test("druzyny sa rejestrowane przed trasa, ktora je przeslania", async () => {
   const tresc = fs.readFileSync(APP, "utf8");
 

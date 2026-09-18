@@ -88,6 +88,7 @@ function AppLayout() {
               items={[
                 { to: "/all-time", label: t("allTime.nav") },
                 { to: "/upsets", label: t("upsets.nav") },
+                { to: "/maps", label: t("maps.nav") },
               ]}
             />
 

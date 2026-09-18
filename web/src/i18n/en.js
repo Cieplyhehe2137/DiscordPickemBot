@@ -1254,6 +1254,7 @@ const en = {
   "server.playerNotFound": "Player not found.",
   "server.playerCareerFailed": "Could not load the player profile.",
   "server.mvpVoteFailed": "Could not load the MVP vote.",
+  "server.mapsFailed": "Could not load the map statistics.",
   "server.matchMissing": "The match does not exist",
   "server.noSuchEvent": "No such tournament.",
   "server.notFound": "Not found.",
@@ -1450,6 +1451,49 @@ const en = {
   },
   "upsets.mvp.kicker": "Not every miss is a match",
   "upsets.mvp.headline": "The MVP vote was {percent}% right — {nickname} won it, backed by {votes} people out of {total}.",
+
+  // --- Czytanie wynikow map ------------------------------------------------
+  "maps.nav": "Maps",
+  "maps.kicker": "Rounds, not maps",
+  "maps.title": "How we read map scores",
+  "maps.intro": "Picking a map means picking the round score. Putting those picks next to what actually happened says one specific thing about this community — and it is not the thing anyone would expect.",
+  "maps.loading": "Crunching the maps...",
+  "maps.error": "Could not load the map statistics",
+  "maps.stat.predicted": "Predicted gap",
+  "maps.stat.predictedHint": "rounds between the teams",
+  "maps.stat.actual": "Actual gap",
+  "maps.stat.actualHint": "what actually happens",
+  "maps.lead": {
+    one: "This community picks maps CLOSER than they turn out: {predicted} rounds of difference on average against {actual} in reality. Counted from {count} settled pick.",
+    other: "This community picks maps CLOSER than they turn out: {predicted} rounds of difference on average against {actual} in reality. Counted from {count} settled picks.",
+  },
+  "maps.dist.kicker": "Pick next to reality",
+  "maps.dist.title": "The most common scores",
+  "maps.dist.intro": "What people type in most often, set against what actually happens most often. The bars are scaled to the most common score within each set, so the two shapes can be compared.",
+  "maps.dist.predicted": "Predicted",
+  "maps.dist.actual": "Actual",
+  "maps.readers.kicker": "Who reads them best",
+  "maps.readers.title": "Map reading",
+  "maps.readers.intro": "Position is decided by deviation from the score — the very thing map scoring rests on here. LOWER is better.",
+  "maps.readers.head.player": "Player",
+  "maps.readers.head.record": "Record",
+  "maps.readers.head.deviation": "Deviation",
+  "maps.readers.picks": {
+    one: "{count} settled pick",
+    other: "{count} settled picks",
+  },
+  "maps.readers.winners": "Winner {percent}%",
+  "maps.readers.exact": {
+    one: "{count} exact",
+    other: "{count} exact",
+  },
+  "maps.readers.note": {
+    one: "The table holds players with at least {count} settled map pick — roughly what one full tournament gives you.",
+    other: "The table holds players with at least {count} settled map picks — roughly what one full tournament gives you.",
+  },
+  "maps.noNames": "There is nothing here about particular maps, because the map name is not in the data — picks and results hold only the map's number in the series. The number says nothing either: accuracy on the first, second and third comes out at 54%, 56% and 55%, so the decider is no harder than the opener.",
+  "maps.empty.title": "No settled maps yet",
+  "maps.empty.text": "This page is built from map picks that have a result. It shows up as soon as the first maps are settled.",
 };
 
 export default en;

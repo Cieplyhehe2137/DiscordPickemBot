@@ -22,6 +22,7 @@ import ScoringPage from "./pages/ScoringPage.jsx";
 import AllTimePage from "./pages/AllTimePage.jsx";
 import UpsetsPage from "./pages/UpsetsPage.jsx";
 import PlayerCareerPage from "./pages/PlayerCareerPage.jsx";
+import MapsPage from "./pages/MapsPage.jsx";
 
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
@@ -51,6 +52,9 @@ function App() {
 
         {/* UPSETS */}
         <Route path="/upsets" element={<UpsetsPage />} />
+
+        {/* MAPS */}
+        <Route path="/maps" element={<MapsPage />} />
 
         {/* PLAYER ACROSS TOURNAMENTS */}
         <Route path="/player/:userId" element={<PlayerCareerPage />} />

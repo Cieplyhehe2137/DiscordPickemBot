@@ -420,6 +420,12 @@ export function getEventMvp(slug) {
   return apiRequest(`/public/events/${encodeURIComponent(slug)}/mvp`);
 }
 
+// Czytanie wynikow map. Adres ma JEDEN segment po /public/, wiec trasa
+// po stronie serwera musi byc zarejestrowana przed :guildSlug.
+export function getMaps() {
+  return apiRequest("/public/maps");
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }

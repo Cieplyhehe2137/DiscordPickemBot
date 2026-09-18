@@ -2198,6 +2198,68 @@ main > .page-back {
 }
 
 /* =========================================================
+   CZYTANIE WYNIKOW MAP
+   ========================================================= */
+
+/* Dwa rozklady obok siebie: co ludzie typuja i co naprawde pada. Na waskim
+   ekranie jeden pod drugim - porownanie ksztaltu dziala tak samo, tylko
+   wymaga przewiniecia. */
+.map-dist {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+}
+
+@media (min-width: 720px) {
+  .map-dist {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-8);
+  }
+}
+
+.map-dist__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.map-dist__title {
+  margin: 0 0 var(--space-1);
+
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Wynik, pasek, procent - trzy kolumny o stalych krancach, zeby paski
+   zaczynaly sie i konczyly w tym samym miejscu w obu rozkladach. Bez tego
+   dluzszy napis "13:10" przesuwalby caly pasek i porownanie ksztaltu
+   przestawaloby byc porownaniem. */
+.map-dist__row {
+  display: grid;
+  grid-template-columns: 4.5ch minmax(0, 1fr) 4ch;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.map-dist__score {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.map-dist__share {
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+/* =========================================================
    GLOSOWANIE NA MVP
    ========================================================= */
 

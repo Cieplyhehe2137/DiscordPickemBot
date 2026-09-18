@@ -50,6 +50,7 @@ export function pageUrls({ origin, events = [], teams = [] }) {
     { loc: `${baza}/teams`, priority: "0.8" },
     { loc: `${baza}/all-time`, priority: "0.7" },
     { loc: `${baza}/upsets`, priority: "0.7" },
+    { loc: `${baza}/maps`, priority: "0.7" },
     { loc: `${baza}/scoring`, priority: "0.5" },
   ];
 

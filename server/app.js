@@ -42,6 +42,7 @@ import { registerAllTimeRoutes } from "./routes/allTime.js";
 import { registerUpsetsRoutes } from "./routes/upsets.js";
 import { registerPlayerCareerRoutes } from "./routes/playerCareer.js";
 import { registerMvpRoutes } from "./routes/mvp.js";
+import { registerMapRoutes } from "./routes/maps.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
@@ -415,6 +416,13 @@ registerAllTimeRoutes(app, { pool });
 // zestawienie dostałoby pustą stronę serwera o nazwie "upsets" i kod 200 -
 // bez śladu błędu.
 registerUpsetsRoutes(app, { pool });
+
+// Czytanie wynikow map (server/routes/maps.js). PIATA trasa w tej samej
+// pulapce: /api/public/maps ma JEDEN segment po /api/public/, wiec lapie
+// ja /api/public/:guildSlug rejestrowana nizej. Przy odwrotnej kolejnosci
+// strona dostalaby pusta strone serwera o nazwie "maps" i kod 200 - bez
+// sladu bledu.
+registerMapRoutes(app, { pool });
 
 // Profil gracza ponad turniejami (server/routes/playerCareer.js).
 // /api/public/players/:userId ma DWA segmenty po /api/public/, wiec jako
