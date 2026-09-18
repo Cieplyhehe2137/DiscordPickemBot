@@ -1320,6 +1320,8 @@ const pl = {
   "server.dePicksSaveFailed": "Nie udało się zapisać typów Double Elimination.",
   "server.allTimeFailed": "Nie udało się wczytać klasyfikacji wszech czasów.",
   "server.upsetsFailed": "Nie udało się wczytać niespodzianek.",
+  "server.playerNotFound": "Nie znaleziono gracza.",
+  "server.playerCareerFailed": "Nie udało się wczytać profilu gracza.",
   "server.matchMissing": "Mecz nie istnieje",
   "server.noSuchEvent": "Nie ma takiego turnieju.",
   "server.notFound": "Nie znaleziono.",
@@ -1453,6 +1455,58 @@ const pl = {
     one: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętym meczem. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
     few: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętymi meczami. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
     many: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętymi meczami. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
+  },
+
+  // --- Profil gracza ponad turniejami --------------------------------------
+  "career.kicker": "Ponad turniejami",
+  "career.loading": "Wczytuję dorobek...",
+  "career.error": "Nie udało się wczytać profilu",
+  "career.played": {
+    one: "{count} start w historii serwisu",
+    few: "{count} starty w historii serwisu",
+    many: "{count} startów w historii serwisu",
+  },
+  "career.noStarts": "Jeszcze bez miejsca w żadnej klasyfikacji",
+  "career.rate": "{percent}%",
+  "career.stat.average": "Średnio",
+  "career.stat.averageHint": "miejsce w stawce",
+  "career.stat.best": "Najlepszy start",
+  "career.stat.bestValue": "#{rank} / {total}",
+  "career.stat.bestHint": "brak sklasyfikowanego startu",
+  "career.stat.points": "Punkty",
+  "career.stat.pointsHint": "ze wszystkich turniejów razem",
+  "career.stat.contra": "Wbrew wszystkim",
+  "career.stat.contraHint": "{hits} z {total} niespodzianek",
+  "career.stat.contraNone": "żaden mecz nie zaskoczył wszystkich",
+  "career.contraShort": {
+    one: "Do zestawienia „kto trafia wbrew wszystkim” brakuje jeszcze {count} okazji, czyli meczu, w którym myliła się większość.",
+    few: "Do zestawienia „kto trafia wbrew wszystkim” brakuje jeszcze {count} okazji, czyli meczów, w których myliła się większość.",
+    many: "Do zestawienia „kto trafia wbrew wszystkim” brakuje jeszcze {count} okazji, czyli meczów, w których myliła się większość.",
+  },
+  "career.starts.kicker": "Turniej po turnieju",
+  "career.starts.title": "Wszystkie starty",
+  "career.starts.count": {
+    one: "{count} turniej",
+    few: "{count} turnieje",
+    many: "{count} turniejów",
+  },
+  // Doklejane do "history.count", dlatego zaczyna sie od myslnika
+  // ze spacjami - komponent sklada oba napisy bez separatora.
+  "career.starts.hint": " — kliknij, żeby otworzyć profil w tamtym turnieju.",
+  "career.teams.kicker": "Komu ufa",
+  "career.teams.title": "Na kogo stawia",
+  "career.teams.intro": "Drużyny typowane najczęściej, a obok to, jak często wygrywały. Najpierw ta, na którą stawia się najchętniej — skuteczność jest dopiero odpowiedzią na to, czy słusznie.",
+  "career.teams.head.team": "Drużyna",
+  "career.teams.head.record": "Bilans",
+  "career.teams.head.rate": "Wygrane",
+  // Same liczby i ukosnik - ten sam zabieg, co przy upsets.hits
+  // i allTime.bestPlace, i z tego samego powodu: .ui-badge robi
+  // uppercase, wiec kazdy przyimek w srodku zaczyna krzyczec.
+  "career.teams.record": "{wins} / {picks}",
+  "career.teams.empty": {
+    one: "Żadna drużyna nie zebrała jeszcze {count} typu od tego gracza — wszystkich typów na mecze jest {picks}.",
+    few: "Żadna drużyna nie zebrała jeszcze {count} typów od tego gracza — wszystkich typów na mecze jest {picks}.",
+    many: "Żadna drużyna nie zebrała jeszcze {count} typów od tego gracza — wszystkich typów na mecze jest {picks}.",
   },
 };
 

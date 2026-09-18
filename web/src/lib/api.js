@@ -408,6 +408,12 @@ export function getUpsets() {
   return apiRequest("/public/upsets");
 }
 
+// Profil gracza PONAD turniejami. Adres ma dwa segmenty po /public/,
+// wiec jako jedyna z ostatnich stron nie koliduje z /public/:guildSlug.
+export function getPlayerCareer(userId) {
+  return apiRequest(`/public/players/${encodeURIComponent(userId)}`);
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }

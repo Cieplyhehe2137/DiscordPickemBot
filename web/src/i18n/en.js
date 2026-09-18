@@ -1249,6 +1249,8 @@ const en = {
   "server.dePicksSaveFailed": "Could not save the Double Elimination predictions.",
   "server.allTimeFailed": "Could not load the all-time classification.",
   "server.upsetsFailed": "Could not load the upsets.",
+  "server.playerNotFound": "Player not found.",
+  "server.playerCareerFailed": "Could not load the player profile.",
   "server.matchMissing": "The match does not exist",
   "server.noSuchEvent": "No such tournament.",
   "server.notFound": "Not found.",
@@ -1374,6 +1376,54 @@ const en = {
   "upsets.teams.note": {
     one: "The table holds teams with at least {count} decided match. With a single match trust and win rate are zero or one hundred percent, and the gap between them says nothing about the team.",
     other: "The table holds teams with at least {count} decided matches. With a single match trust and win rate are zero or one hundred percent, and the gap between them says nothing about the team.",
+  },
+
+  // --- Profil gracza ponad turniejami --------------------------------------
+  "career.kicker": "Across tournaments",
+  "career.loading": "Loading the record...",
+  "career.error": "Could not load the profile",
+  "career.played": {
+    one: "{count} start since the site began",
+    other: "{count} starts since the site began",
+  },
+  "career.noStarts": "Not ranked in any tournament yet",
+  "career.rate": "{percent}%",
+  "career.stat.average": "Average",
+  "career.stat.averageHint": "place in the field",
+  "career.stat.best": "Best start",
+  "career.stat.bestValue": "#{rank} / {total}",
+  "career.stat.bestHint": "no ranked start yet",
+  "career.stat.points": "Points",
+  "career.stat.pointsHint": "across every tournament",
+  "career.stat.contra": "Against the crowd",
+  "career.stat.contraHint": "{hits} of {total} upsets",
+  "career.stat.contraNone": "no match here surprised everyone",
+  "career.contraShort": {
+    one: "{count} more chance - a match where the crowd was wrong - and this record joins the “against the crowd” table.",
+    other: "{count} more chances - matches where the crowd was wrong - and this record joins the “against the crowd” table.",
+  },
+  "career.starts.kicker": "Tournament by tournament",
+  "career.starts.title": "Every start",
+  "career.starts.count": {
+    one: "{count} tournament",
+    other: "{count} tournaments",
+  },
+  // Doklejane do "history.count", dlatego zaczyna sie od myslnika
+  // ze spacjami - komponent sklada oba napisy bez separatora.
+  "career.starts.hint": " — click to open the profile from that tournament.",
+  "career.teams.kicker": "Who they back",
+  "career.teams.title": "Teams they back",
+  "career.teams.intro": "The teams backed most often, next to how often they won. The most-backed comes first — the win rate only answers whether that trust was earned.",
+  "career.teams.head.team": "Team",
+  "career.teams.head.record": "Record",
+  "career.teams.head.rate": "Won",
+  // Same liczby i ukosnik - ten sam zabieg, co przy upsets.hits
+  // i allTime.bestPlace, i z tego samego powodu: .ui-badge robi
+  // uppercase, wiec kazdy przyimek w srodku zaczyna krzyczec.
+  "career.teams.record": "{wins} / {picks}",
+  "career.teams.empty": {
+    one: "No team has collected {count} pick from this player yet — {picks} match picks in total.",
+    other: "No team has collected {count} picks from this player yet — {picks} match picks in total.",
   },
 };
 

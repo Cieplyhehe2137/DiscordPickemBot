@@ -11,22 +11,37 @@ import { useT } from "../i18n/useLanguage.js";
 // turnieju. To nie jest stan pusty do zagospodarowania, tylko przypadek
 // normalny: nie ma czego pokazać, więc nie ma sekcji.
 
-function PlayerHistory({ events, userId }) {
+// Naglowek domyslny mowi "poza tym turniejem", bo ten komponent powstal
+// na profilu wewnatrz eventu. Profil ponad turniejami pokazuje TE SAMA
+// liste jako tresc glowna, wiec podaje wlasny naglowek - wiersze, linki
+// i sposob liczenia zostaja te same, bo to dokladnie te same starty.
+const DOMYSLNY_NAGLOWEK = {
+  kicker: "history.kicker",
+  title: "history.title",
+  // "{count} INNE turnieje" - slowo prawdziwe wylacznie wtedy, gdy jeden
+  // turniej wlasnie sie oglada. Dlatego liczebnik tez jest do podmiany.
+  count: "history.count",
+  hint: "history.hint",
+};
+
+function PlayerHistory({ events, userId, headings }) {
   const t = useT();
 
   if (!events?.length) return null;
+
+  const naglowek = headings ?? DOMYSLNY_NAGLOWEK;
 
   return (
     <section className="ui-card ui-stack">
       <div className="ui-section-head">
         <div>
-          <span className="ui-kicker">{t("history.kicker")}</span>
+          <span className="ui-kicker">{t(naglowek.kicker)}</span>
 
-          <h2>{t("history.title")}</h2>
+          <h2>{t(naglowek.title)}</h2>
 
           <p>
-            {t("history.count", { count: events.length })}
-            {t("history.hint")}
+            {t(naglowek.count, { count: events.length })}
+            {t(naglowek.hint)}
           </p>
         </div>
       </div>

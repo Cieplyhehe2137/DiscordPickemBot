@@ -41,7 +41,12 @@ const MIN_MECZOW_DRUZYNY = 5;
 // Mecze razem z wynikiem i podziałem głosów. Podział jako podzapytanie,
 // a nie osobna podróż: to ta sama grupa po match_id, którą liczy lista
 // drużyn, tyle że dopięta od razu do meczu.
-const SQL_MECZE = `
+// Eksportowane, bo tego samego zestawu wierszy potrzebuje profil gracza:
+// zeby powiedziec, czy ktos chodzil pod prad, trzeba najpierw wiedziec,
+// ktore mecze byly niespodziankami - a to wynika z typow WSZYSTKICH, nie
+// jego wlasnych. Skopiowane do drugiego pliku rozjechaloby sie przy
+// pierwszej zmianie i obie strony mowilyby co innego o tym samym meczu.
+export const SQL_MECZE = `
     SELECT
         m.id,
         m.event_id,

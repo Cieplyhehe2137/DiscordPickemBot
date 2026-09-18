@@ -1299,6 +1299,8 @@ const ru = {
   "server.dePicksSaveFailed": "Не удалось сохранить прогнозы Double Elimination.",
   "server.allTimeFailed": "Не удалось загрузить общий зачёт.",
   "server.upsetsFailed": "Не удалось загрузить сенсации.",
+  "server.playerNotFound": "Игрок не найден.",
+  "server.playerCareerFailed": "Не удалось загрузить профиль игрока.",
   "server.matchMissing": "Матча не существует",
   "server.noSuchEvent": "Такого турнира нет.",
   "server.notFound": "Не найдено.",
@@ -1432,6 +1434,58 @@ const ru = {
     one: "В таблице команды минимум с {count} сыгранным матчем. При одном матче доверие и точность равны нулю или ста процентам, а разница между ними не говорит о команде ничего.",
     few: "В таблице команды минимум с {count} сыгранными матчами. При одном матче доверие и точность равны нулю или ста процентам, а разница между ними не говорит о команде ничего.",
     many: "В таблице команды минимум с {count} сыгранными матчами. При одном матче доверие и точность равны нулю или ста процентам, а разница между ними не говорит о команде ничего.",
+  },
+
+  // --- Profil gracza ponad turniejami --------------------------------------
+  "career.kicker": "Поверх турниров",
+  "career.loading": "Загружаю достижения...",
+  "career.error": "Не удалось загрузить профиль",
+  "career.played": {
+    one: "{count} старт за историю сайта",
+    few: "{count} старта за историю сайта",
+    many: "{count} стартов за историю сайта",
+  },
+  "career.noStarts": "Пока без места ни в одном зачёте",
+  "career.rate": "{percent}%",
+  "career.stat.average": "В среднем",
+  "career.stat.averageHint": "место в общей массе",
+  "career.stat.best": "Лучший старт",
+  "career.stat.bestValue": "#{rank} / {total}",
+  "career.stat.bestHint": "нет зачётного старта",
+  "career.stat.points": "Очки",
+  "career.stat.pointsHint": "за все турниры вместе",
+  "career.stat.contra": "Против всех",
+  "career.stat.contraHint": "{hits} из {total} сенсаций",
+  "career.stat.contraNone": "ни один матч не удивил всех",
+  "career.contraShort": {
+    one: "До таблицы «кто угадывает вопреки всем» не хватает ещё {count} возможности - матча, в котором ошиблось большинство.",
+    few: "До таблицы «кто угадывает вопреки всем» не хватает ещё {count} возможностей - матчей, в которых ошиблось большинство.",
+    many: "До таблицы «кто угадывает вопреки всем» не хватает ещё {count} возможностей - матчей, в которых ошиблось большинство.",
+  },
+  "career.starts.kicker": "Турнир за турниром",
+  "career.starts.title": "Все старты",
+  "career.starts.count": {
+    one: "{count} турнир",
+    few: "{count} турнира",
+    many: "{count} турниров",
+  },
+  // Doklejane do "history.count", dlatego zaczyna sie od myslnika
+  // ze spacjami - komponent sklada oba napisy bez separatora.
+  "career.starts.hint": " — нажми, чтобы открыть профиль с того турнира.",
+  "career.teams.kicker": "Кому доверяет",
+  "career.teams.title": "На кого ставит",
+  "career.teams.intro": "Команды, на которые ставят чаще всего, и рядом то, как часто они выигрывали. Сначала та, на которую ставят охотнее всего, — точность лишь отвечает, заслуженно ли.",
+  "career.teams.head.team": "Команда",
+  "career.teams.head.record": "Баланс",
+  "career.teams.head.rate": "Побед",
+  // Same liczby i ukosnik - ten sam zabieg, co przy upsets.hits
+  // i allTime.bestPlace, i z tego samego powodu: .ui-badge robi
+  // uppercase, wiec kazdy przyimek w srodku zaczyna krzyczec.
+  "career.teams.record": "{wins} / {picks}",
+  "career.teams.empty": {
+    one: "Ни одна команда пока не набрала {count} прогноза от этого игрока — всего прогнозов на матчи {picks}.",
+    few: "Ни одна команда пока не набрала {count} прогнозов от этого игрока — всего прогнозов на матчи {picks}.",
+    many: "Ни одна команда пока не набрала {count} прогнозов от этого игрока — всего прогнозов на матчи {picks}.",
   },
 };
 

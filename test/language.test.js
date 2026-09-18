@@ -98,6 +98,14 @@ const TAKIE_SAME_NAPRAWDE = new Set([
 
   // "6 / 149" - ten sam zabieg i ten sam powod, co wyzej.
   "upsets.hits",
+
+  // "10 / 12" na profilu gracza - trzeci raz ten sam zabieg.
+  "career.teams.record",
+
+  // "#5 / 523" w kafelku najlepszego startu. Ten sam ksztalt, co
+  // allTime.bestPlace, i celowo osobny klucz: kazde miejsce w interfejsie
+  // ma wlasny, zeby poprawka jednego zdania nie ruszala drugiego.
+  "career.stat.bestValue",
 ]);
 
 // --- Mechanizm --------------------------------------------------------------

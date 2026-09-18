@@ -78,6 +78,27 @@ test("niespodzianki sa rejestrowane przed trasa, ktora je przeslania", async () 
   );
 });
 
+test("profil gracza ponad turniejami ma DWA segmenty i dlatego jest bezpieczny", async () => {
+  // Jedyna z ostatnich czterech stron, ktora NIE wpada w pulapke:
+  // /api/public/players/:userId ma dwa segmenty po /api/public/, a wzorzec
+  // przeslaniajacy lapie tylko jeden.
+  //
+  // Test istnieje wlasnie dlatego, ze ta trasa wyglada na bezpieczna. Gdyby
+  // ktos kiedys skrocil ja do /api/public/player albo dolozyl warianat
+  // z jednym segmentem, zachowanie zmieni sie po cichu - HTTP 200 i pusta
+  // strona serwera zamiast profilu.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "playerCareer.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    tresc.includes('app.get("/api/public/players/:userId"'),
+    "trasa profilu musi miec dwa segmenty po /api/public/ - " +
+      "przy jednym przeslania ja /api/public/:guildSlug",
+  );
+});
+
 test("druzyny sa rejestrowane przed trasa, ktora je przeslania", async () => {
   const tresc = fs.readFileSync(APP, "utf8");
 
