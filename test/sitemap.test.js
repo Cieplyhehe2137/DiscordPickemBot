@@ -61,7 +61,7 @@ test("sa strony stale, a kazdy turniej daje trzy adresy", async () => {
   const adresy = pageUrls({ origin: ORIGIN, events: EVENTY, teams: [] });
   const loc = adresy.map((a) => a.loc);
 
-  for (const s of ["/", "/events", "/teams", "/all-time", "/upsets", "/scoring"]) {
+  for (const s of ["/", "/events", "/teams", "/all-time", "/upsets", "/maps", "/scoring"]) {
     assert.ok(loc.includes(`${ORIGIN}${s}`), `brak strony stalej ${s}`);
   }
 
@@ -152,8 +152,9 @@ test("dokument jest poprawnym XML-em", async () => {
   const zamkniete = (xml.match(/<\/url>/g) || []).length;
 
   assert.equal(otwarte, zamkniete, "niedomkniete znaczniki <url>");
-  // Szesc stron stalych: /, /events, /teams, /all-time, /upsets, /scoring.
-  assert.equal(otwarte, 6 + EVENTY.length * 3 + DRUZYNY.length);
+  // Siedem stron stalych: /, /events, /teams, /all-time, /upsets, /maps,
+  // /scoring.
+  assert.equal(otwarte, 7 + EVENTY.length * 3 + DRUZYNY.length);
 
   assert.ok(bezSurowychAmpersandow(xml), "surowy & w dokumencie");
 });
