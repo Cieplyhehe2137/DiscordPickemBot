@@ -86,6 +86,15 @@ const TAKIE_SAME_NAPRAWDE = new Set([
 
   // Sam skrot MVP plus nazwa turnieju - nie ma tu czego tlumaczyc.
   "adminPage.section.mvp",
+
+  // "TOP 10%" - ten sam powod, co przy history.top wyzej.
+  "allTime.average",
+
+  // "#5 / 523" to same liczby i ukosnik. Stalo tu kiedys "#5 z 523",
+  // ale .ui-badge robi text-transform: uppercase i polskie "z" stawalo
+  // sie krzyczacym "Z" - a niemieckie "von" "VON". Ukosnik czyta sie
+  // tak samo we wszystkich pieciu jezykach i nie da sie go zepsuc.
+  "allTime.bestPlace",
 ]);
 
 // --- Mechanizm --------------------------------------------------------------

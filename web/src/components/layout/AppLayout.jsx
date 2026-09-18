@@ -72,6 +72,15 @@ function AppLayout() {
               {t("layout.nav.teams")}
             </NavLink>
 
+            {/* Klasyfikacja wszech czasów przed Punktacją, bo to wynik,
+                a nie regulamin - a wyniki czyta się częściej niż zasady. */}
+            <NavLink
+              to="/all-time"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              {t("allTime.nav")}
+            </NavLink>
+
             {/* Zasady w nawigacji, a nie w stopce: pytanie "skąd te punkty"
                 pada przy patrzeniu na ranking, czyli u góry ekranu, a nie
                 po przewinięciu strony do samego końca. */}

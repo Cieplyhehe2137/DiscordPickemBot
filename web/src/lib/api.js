@@ -400,6 +400,10 @@ export function getScoring() {
   return apiRequest("/public/scoring");
 }
 
+export function getAllTime() {
+  return apiRequest("/public/all-time");
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }

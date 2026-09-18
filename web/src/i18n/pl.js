@@ -1318,6 +1318,7 @@ const pl = {
   "server.playoffsPicksSaveFailed": "Nie udało się zapisać typów Playoffs.",
   "server.dePicksLoadFailed": "Nie udało się wczytać typów Double Elimination.",
   "server.dePicksSaveFailed": "Nie udało się zapisać typów Double Elimination.",
+  "server.allTimeFailed": "Nie udało się wczytać klasyfikacji wszech czasów.",
   "server.matchMissing": "Mecz nie istnieje",
   "server.noSuchEvent": "Nie ma takiego turnieju.",
   "server.notFound": "Nie znaleziono.",
@@ -1358,6 +1359,44 @@ const pl = {
   "server.noChannel": "Nie wiadomo, na którym kanale opublikować panel. {hint}",
   "server.archivedScoring": "Zasady punktacji map zmieniły się po jego zakończeniu - przeliczenie zmieniłoby zamknięty ranking. Jeśli naprawdę tego chcesz, najpierw cofnij archiwizację.",
   "server.notStarted": "nierozpoczęty",
+
+  // --- Klasyfikacja wszech czasow ------------------------------------------
+  "allTime.nav": "Wszech czasów",
+  "allTime.kicker": "Ponad turniejami",
+  "allTime.title": "Klasyfikacja wszech czasów",
+  "allTime.intro": "Kto typuje najlepiej przez cały czas, a nie w jednym turnieju. O miejscu decyduje średnia pozycja w stawce, a nie suma punktów — te są nieporównywalne między turniejami o różnej liczbie meczów.",
+  "allTime.loading": "Liczę klasyfikację...",
+  "allTime.error": "Nie udało się wczytać klasyfikacji",
+  "allTime.ranked": {
+    one: "{count} gracz z porównywalnym dorobkiem",
+    few: "{count} graczy z porównywalnym dorobkiem",
+    many: "{count} graczy z porównywalnym dorobkiem",
+  },
+  "allTime.head.player": "Gracz",
+  "allTime.head.starts": "Starty",
+  "allTime.head.best": "Najlepszy start",
+  "allTime.head.average": "Średnio",
+  "allTime.starts": {
+    one: "{count} start",
+    few: "{count} starty",
+    many: "{count} startów",
+  },
+  // Ta sama liczba, ktora profil gracza pokazuje przy kazdym
+  // starcie jako "TOP x%" - i to nie jest przypadek, patrz
+  // server/lib/allTime.js.
+  "allTime.average": "TOP {percent}%",
+  "allTime.bestPlace": "#{rank} / {total}",
+  "allTime.empty.title": "Za mało turniejów",
+  "allTime.empty.text": {
+    one: "Klasyfikacja obejmuje graczy z co najmniej {count} startem. Pojawi się, gdy ktokolwiek zagra w dwóch turniejach.",
+    few: "Klasyfikacja obejmuje graczy z co najmniej {count} startami. Pojawi się, gdy ktokolwiek zagra w dwóch turniejach.",
+    many: "Klasyfikacja obejmuje graczy z co najmniej {count} startami. Pojawi się, gdy ktokolwiek zagra w dwóch turniejach.",
+  },
+  "allTime.note": {
+    one: "W tabeli są gracze z co najmniej {count} startem. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
+    few: "W tabeli są gracze z co najmniej {count} startami. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
+    many: "W tabeli są gracze z co najmniej {count} startami. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
+  },
 };
 
 export default pl;

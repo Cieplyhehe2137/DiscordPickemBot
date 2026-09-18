@@ -2014,6 +2014,26 @@ main > .page-back {
 }
 
 /* =========================================================
+   KLASYFIKACJA WSZECH CZASOW
+   ========================================================= */
+
+/* Nick i liczba startow jedno pod drugim.
+   .ui-row-item__name ma nowrap i wielokropek, bo w klasyfikacji turnieju
+   stoi w tej komorce sam nick. Tutaj sa dwie rzeczy i bez tego stosu
+   skleja sie "Dekus2 starty", a potem oba napisy gina pod wielokropkiem. */
+.all-time-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.all-time-who__starts {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* =========================================================
    ZASADY PUNKTACJI
    ========================================================= */
 
