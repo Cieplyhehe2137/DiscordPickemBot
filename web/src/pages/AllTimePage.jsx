@@ -133,12 +133,13 @@ function AllTimePage() {
               >
                 <span className="ui-row-item__rank">{gracz.rank}</span>
 
-                {/* Profil jest zawsze w obrębie turnieju, więc link prowadzi
-                    do NAJLEPSZEGO startu tego gracza - jedynego, który ma tu
-                    jakieś znaczenie. */}
+                {/* Link prowadzi do profilu PONAD turniejami, a nie do
+                    najlepszego startu. Tabela jest o dorobku z kilku
+                    turniejów, więc wejście w jeden z nich urywało wątek
+                    dokładnie tam, gdzie się zaczyna. */}
                 <Link
                   className="ui-row-item__who"
-                  to={`/events/${gracz.best.slug}/player/${gracz.user_id}`}
+                  to={`/player/${gracz.user_id}`}
                 >
                   <PlayerAvatar
                     userId={gracz.user_id}

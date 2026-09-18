@@ -223,7 +223,10 @@ function UpsetsPage() {
               >
                 <span className="ui-row-item__rank">{gracz.rank}</span>
 
-                <span className="ui-row-item__who">
+                <Link
+                  className="ui-row-item__who"
+                  to={`/player/${gracz.user_id}`}
+                >
                   <PlayerAvatar
                     userId={gracz.user_id}
                     avatar={gracz.avatar}
@@ -233,7 +236,7 @@ function UpsetsPage() {
                   <span className="ui-row-item__name">
                     {gracz.displayname ?? gracz.user_id}
                   </span>
-                </span>
+                </Link>
 
                 <div className="ui-row-item__meta">
                   <span className="ui-badge">

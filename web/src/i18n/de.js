@@ -1249,6 +1249,8 @@ const de = {
   "server.dePicksSaveFailed": "Die Double-Elimination-Tipps konnten nicht gespeichert werden.",
   "server.allTimeFailed": "Die Ewige Tabelle konnte nicht geladen werden.",
   "server.upsetsFailed": "Die Überraschungen konnten nicht geladen werden.",
+  "server.playerNotFound": "Spieler nicht gefunden.",
+  "server.playerCareerFailed": "Das Spielerprofil konnte nicht geladen werden.",
   "server.matchMissing": "Das Spiel existiert nicht",
   "server.noSuchEvent": "Dieses Turnier gibt es nicht.",
   "server.notFound": "Nicht gefunden.",
@@ -1374,6 +1376,54 @@ const de = {
   "upsets.teams.note": {
     one: "In der Tabelle stehen Teams mit mindestens {count} entschiedenen Spiel. Bei einem einzigen Spiel sind Vertrauen und Quote null oder hundert Prozent, und die Differenz sagt nichts über das Team aus.",
     other: "In der Tabelle stehen Teams mit mindestens {count} entschiedenen Spielen. Bei einem einzigen Spiel sind Vertrauen und Quote null oder hundert Prozent, und die Differenz sagt nichts über das Team aus.",
+  },
+
+  // --- Profil gracza ponad turniejami --------------------------------------
+  "career.kicker": "Über alle Turniere",
+  "career.loading": "Bilanz wird geladen...",
+  "career.error": "Das Profil konnte nicht geladen werden",
+  "career.played": {
+    one: "{count} Start seit Bestehen der Seite",
+    other: "{count} Starts seit Bestehen der Seite",
+  },
+  "career.noStarts": "Noch in keiner Wertung platziert",
+  "career.rate": "{percent}%",
+  "career.stat.average": "Schnitt",
+  "career.stat.averageHint": "Platz im Feld",
+  "career.stat.best": "Bester Start",
+  "career.stat.bestValue": "#{rank} / {total}",
+  "career.stat.bestHint": "noch kein gewerteter Start",
+  "career.stat.points": "Punkte",
+  "career.stat.pointsHint": "aus allen Turnieren zusammen",
+  "career.stat.contra": "Gegen den Strom",
+  "career.stat.contraHint": "{hits} von {total} Überraschungen",
+  "career.stat.contraNone": "kein Spiel hat alle überrascht",
+  "career.contraShort": {
+    one: "Bis zur Tabelle „wer sie trotzdem trifft“ fehlt noch {count} Gelegenheit - ein Spiel, bei dem die Mehrheit danebenlag.",
+    other: "Bis zur Tabelle „wer sie trotzdem trifft“ fehlen noch {count} Gelegenheiten - Spiele, bei denen die Mehrheit danebenlag.",
+  },
+  "career.starts.kicker": "Turnier für Turnier",
+  "career.starts.title": "Alle Starts",
+  "career.starts.count": {
+    one: "{count} Turnier",
+    other: "{count} Turniere",
+  },
+  // Doklejane do "history.count", dlatego zaczyna sie od myslnika
+  // ze spacjami - komponent sklada oba napisy bez separatora.
+  "career.starts.hint": " — klicken, um das Profil aus jenem Turnier zu öffnen.",
+  "career.teams.kicker": "Wem vertraut wird",
+  "career.teams.title": "Auf wen getippt wird",
+  "career.teams.intro": "Die am häufigsten getippten Teams, daneben wie oft sie gewonnen haben. Zuerst das meistgetippte — die Quote beantwortet erst, ob das Vertrauen verdient war.",
+  "career.teams.head.team": "Team",
+  "career.teams.head.record": "Bilanz",
+  "career.teams.head.rate": "Gewonnen",
+  // Same liczby i ukosnik - ten sam zabieg, co przy upsets.hits
+  // i allTime.bestPlace, i z tego samego powodu: .ui-badge robi
+  // uppercase, wiec kazdy przyimek w srodku zaczyna krzyczec.
+  "career.teams.record": "{wins} / {picks}",
+  "career.teams.empty": {
+    one: "Noch kein Team kam bei diesem Spieler auf {count} Tipp — insgesamt {picks} Spieltipps.",
+    other: "Noch kein Team kam bei diesem Spieler auf {count} Tipps — insgesamt {picks} Spieltipps.",
   },
 };
 

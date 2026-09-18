@@ -40,6 +40,7 @@ import { registerTeamRoutes } from "./routes/teams.js";
 import { registerScoringRoutes } from "./routes/scoring.js";
 import { registerAllTimeRoutes } from "./routes/allTime.js";
 import { registerUpsetsRoutes } from "./routes/upsets.js";
+import { registerPlayerCareerRoutes } from "./routes/playerCareer.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
@@ -413,6 +414,14 @@ registerAllTimeRoutes(app, { pool });
 // zestawienie dostałoby pustą stronę serwera o nazwie "upsets" i kod 200 -
 // bez śladu błędu.
 registerUpsetsRoutes(app, { pool });
+
+// Profil gracza ponad turniejami (server/routes/playerCareer.js).
+// /api/public/players/:userId ma DWA segmenty po /api/public/, wiec jako
+// pierwsza z ostatnich czterech stron nie wpada w pulapke :guildSlug -
+// ten wzorzec lapie tylko jeden segment. Rejestracja stoi mimo to razem
+// z pozostalymi, zeby nikt nie musial sprawdzac, czy akurat ta jest
+// wyjatkiem.
+registerPlayerCareerRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,

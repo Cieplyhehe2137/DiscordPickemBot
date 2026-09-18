@@ -1299,6 +1299,8 @@ const uk = {
   "server.dePicksSaveFailed": "Не вдалося зберегти прогнози Double Elimination.",
   "server.allTimeFailed": "Не вдалося завантажити загальний залік.",
   "server.upsetsFailed": "Не вдалося завантажити сенсації.",
+  "server.playerNotFound": "Гравця не знайдено.",
+  "server.playerCareerFailed": "Не вдалося завантажити профіль гравця.",
   "server.matchMissing": "Матчу не існує",
   "server.noSuchEvent": "Такого турніру немає.",
   "server.notFound": "Не знайдено.",
@@ -1432,6 +1434,58 @@ const uk = {
     one: "У таблиці команди щонайменше з {count} зіграним матчем. За одного матчу довіра і влучність дорівнюють нулю або ста відсоткам, а різниця між ними не говорить про команду нічого.",
     few: "У таблиці команди щонайменше з {count} зіграними матчами. За одного матчу довіра і влучність дорівнюють нулю або ста відсоткам, а різниця між ними не говорить про команду нічого.",
     many: "У таблиці команди щонайменше з {count} зіграними матчами. За одного матчу довіра і влучність дорівнюють нулю або ста відсоткам, а різниця між ними не говорить про команду нічого.",
+  },
+
+  // --- Profil gracza ponad turniejami --------------------------------------
+  "career.kicker": "Понад турнірами",
+  "career.loading": "Завантажую доробок...",
+  "career.error": "Не вдалося завантажити профіль",
+  "career.played": {
+    one: "{count} старт за історію сайту",
+    few: "{count} старти за історію сайту",
+    many: "{count} стартів за історію сайту",
+  },
+  "career.noStarts": "Поки без місця в жодному заліку",
+  "career.rate": "{percent}%",
+  "career.stat.average": "У середньому",
+  "career.stat.averageHint": "місце серед усіх",
+  "career.stat.best": "Найкращий старт",
+  "career.stat.bestValue": "#{rank} / {total}",
+  "career.stat.bestHint": "немає залікового старту",
+  "career.stat.points": "Бали",
+  "career.stat.pointsHint": "за всі турніри разом",
+  "career.stat.contra": "Усупереч усім",
+  "career.stat.contraHint": "{hits} із {total} сенсацій",
+  "career.stat.contraNone": "жоден матч не здивував усіх",
+  "career.contraShort": {
+    one: "До таблиці «хто вгадує всупереч усім» бракує ще {count} нагоди - матчу, у якому помилилася більшість.",
+    few: "До таблиці «хто вгадує всупереч усім» бракує ще {count} нагод - матчів, у яких помилилася більшість.",
+    many: "До таблиці «хто вгадує всупереч усім» бракує ще {count} нагод - матчів, у яких помилилася більшість.",
+  },
+  "career.starts.kicker": "Турнір за турніром",
+  "career.starts.title": "Усі старти",
+  "career.starts.count": {
+    one: "{count} турнір",
+    few: "{count} турніри",
+    many: "{count} турнірів",
+  },
+  // Doklejane do "history.count", dlatego zaczyna sie od myslnika
+  // ze spacjami - komponent sklada oba napisy bez separatora.
+  "career.starts.hint": " — натисни, щоб відкрити профіль із того турніру.",
+  "career.teams.kicker": "Кому довіряє",
+  "career.teams.title": "На кого ставить",
+  "career.teams.intro": "Команди, на які ставлять найчастіше, і поряд те, як часто вони вигравали. Спершу та, на яку ставлять охочіше за все, — влучність лише відповідає, чи заслужено.",
+  "career.teams.head.team": "Команда",
+  "career.teams.head.record": "Баланс",
+  "career.teams.head.rate": "Перемог",
+  // Same liczby i ukosnik - ten sam zabieg, co przy upsets.hits
+  // i allTime.bestPlace, i z tego samego powodu: .ui-badge robi
+  // uppercase, wiec kazdy przyimek w srodku zaczyna krzyczec.
+  "career.teams.record": "{wins} / {picks}",
+  "career.teams.empty": {
+    one: "Жодна команда поки не зібрала {count} прогнозу від цього гравця — усіх прогнозів на матчі {picks}.",
+    few: "Жодна команда поки не зібрала {count} прогнозів від цього гравця — усіх прогнозів на матчі {picks}.",
+    many: "Жодна команда поки не зібрала {count} прогнозів від цього гравця — усіх прогнозів на матчі {picks}.",
   },
 };
 
