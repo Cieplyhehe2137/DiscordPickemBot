@@ -1319,6 +1319,7 @@ const pl = {
   "server.dePicksLoadFailed": "Nie udało się wczytać typów Double Elimination.",
   "server.dePicksSaveFailed": "Nie udało się zapisać typów Double Elimination.",
   "server.allTimeFailed": "Nie udało się wczytać klasyfikacji wszech czasów.",
+  "server.upsetsFailed": "Nie udało się wczytać niespodzianek.",
   "server.matchMissing": "Mecz nie istnieje",
   "server.noSuchEvent": "Nie ma takiego turnieju.",
   "server.notFound": "Nie znaleziono.",
@@ -1396,6 +1397,62 @@ const pl = {
     one: "W tabeli są gracze z co najmniej {count} startem. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
     few: "W tabeli są gracze z co najmniej {count} startami. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
     many: "W tabeli są gracze z co najmniej {count} startami. Jeden turniej to za mało, żeby odróżnić skuteczność od szczęścia — brakuje Ci jednego startu.",
+  },
+
+  // --- Niespodzianki -------------------------------------------------------
+  "upsets.nav": "Niespodzianki",
+  "upsets.kicker": "Kiedy mylili się prawie wszyscy",
+  "upsets.title": "Niespodzianki",
+  "upsets.intro": "Mecze, w których zwycięzcę wskazało mniej niż {percent}% typujących. Reszta serwisu pokazuje, kto miał rację — tutaj widać chwile, w których nie miał jej prawie nikt.",
+  "upsets.loading": "Szukam niespodzianek...",
+  "upsets.error": "Nie udało się wczytać niespodzianek",
+  "upsets.counted": {
+    one: "{count} mecz poszedł wbrew społeczności",
+    few: "{count} mecze poszły wbrew społeczności",
+    many: "{count} meczów poszło wbrew społeczności",
+  },
+  "upsets.head.match": "Mecz",
+  "upsets.head.where": "Gdzie",
+  "upsets.head.share": "Trafiło",
+  "upsets.head.player": "Gracz",
+  "upsets.head.hits": "Trafienia",
+  "upsets.head.rate": "Skuteczność",
+  "upsets.head.team": "Drużyna",
+  "upsets.head.judgement": "Ocena",
+  "upsets.head.gap": "Różnica",
+  // Same liczby i ukosnik - czyta sie tak samo we wszystkich
+  // pieciu jezykach. Ten sam zabieg, co przy allTime.bestPlace,
+  // i z tego samego powodu: .ui-badge robi uppercase, wiec kazdy
+  // przyimek w srodku zaczyna krzyczec.
+  "upsets.hits": "{hits} / {total}",
+  "upsets.share": "{percent}%",
+  "upsets.note": {
+    one: "Liczą się mecze z co najmniej {count} typem — przy trzech osobach „nikt nie trafił\" nie znaczy nic. Granicą niespodzianki jest {percent}% trafień.",
+    few: "Liczą się mecze z co najmniej {count} typami — przy trzech osobach „nikt nie trafił\" nie znaczy nic. Granicą niespodzianki jest {percent}% trafień.",
+    many: "Liczą się mecze z co najmniej {count} typami — przy trzech osobach „nikt nie trafił\" nie znaczy nic. Granicą niespodzianki jest {percent}% trafień.",
+  },
+  "upsets.empty.title": "Wszystko poszło z faworytami",
+  "upsets.empty.text": "Nie ma jeszcze meczu, w którym zwycięzcę wskazałoby mniej niż {percent}% typujących. Pojawi się tu sam, gdy tylko taki padnie.",
+  "upsets.people.kicker": "Pod prąd",
+  "upsets.people.title": "Kto trafia wbrew wszystkim",
+  "upsets.people.intro": "W tych meczach przeciętny uczestnik trafiał w {percent}%. Poniżej ci, którym udawało się częściej — i nie przez jedną szczęśliwą decyzję.",
+  // Zakres "od jednej do trzydziestu trzech" to liczba zmierzona
+  // na produkcji, a nie figura retoryczna - patrz naglowek
+  // server/lib/upsets.js.
+  "upsets.people.note": {
+    one: "W zestawieniu są gracze z co najmniej {count} okazją, czyli tyloma meczami z tej listy, które typowali. O miejscu decyduje skuteczność, a nie liczba trafień: okazji bywa od jednej do trzydziestu trzech, więc sama liczba nagradzałaby częste granie.",
+    few: "W zestawieniu są gracze z co najmniej {count} okazjami, czyli tyloma meczami z tej listy, które typowali. O miejscu decyduje skuteczność, a nie liczba trafień: okazji bywa od jednej do trzydziestu trzech, więc sama liczba nagradzałaby częste granie.",
+    many: "W zestawieniu są gracze z co najmniej {count} okazjami, czyli tyloma meczami z tej listy, które typowali. O miejscu decyduje skuteczność, a nie liczba trafień: okazji bywa od jednej do trzydziestu trzech, więc sama liczba nagradzałaby częste granie.",
+  },
+  "upsets.teams.kicker": "Zaufanie a skutek",
+  "upsets.teams.title": "Drużyny przeceniane i niedoceniane",
+  "upsets.teams.intro": "Zaufanie to odsetek typów stawianych na drużynę, a skuteczność — odsetek meczów, które wygrywa. Dodatnia różnica znaczy drużynę, której ufa się bardziej, niż na to zasługuje.",
+  "upsets.teams.trust": "Zaufanie {percent}%",
+  "upsets.teams.wins": "Wygrywa {percent}%",
+  "upsets.teams.note": {
+    one: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętym meczem. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
+    few: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętymi meczami. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
+    many: "W zestawieniu są drużyny z co najmniej {count} rozstrzygniętymi meczami. Przy jednym meczu zaufanie i skuteczność to zero albo sto procent, a różnica między nimi nie mówi o drużynie nic.",
   },
 };
 

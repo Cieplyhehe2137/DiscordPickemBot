@@ -81,6 +81,16 @@ function AppLayout() {
               {t("allTime.nav")}
             </NavLink>
 
+            {/* Niespodzianki zaraz za klasyfikacją, bo obie patrzą ponad
+                pojedynczym turniejem - a razem czytają się jako para:
+                kto ma rację najczęściej i kiedy nie miał jej nikt. */}
+            <NavLink
+              to="/upsets"
+              className={({ isActive }) => (isActive ? "active" : "")}
+            >
+              {t("upsets.nav")}
+            </NavLink>
+
             {/* Zasady w nawigacji, a nie w stopce: pytanie "skąd te punkty"
                 pada przy patrzeniu na ranking, czyli u góry ekranu, a nie
                 po przewinięciu strony do samego końca. */}

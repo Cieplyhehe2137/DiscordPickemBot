@@ -61,6 +61,23 @@ test("klasyfikacja wszech czasow jest rejestrowana przed trasa, ktora ja przesla
   );
 });
 
+test("niespodzianki sa rejestrowane przed trasa, ktora je przeslania", async () => {
+  // /api/public/upsets ma jeden segment, tak samo jak teams, scoring
+  // i all-time. Czwarty raz ta sama pulapka - dlatego kazda nowa trasa
+  // /api/public/<cos> dostaje tu wlasny przypadek, zamiast polegac na tym,
+  // ze ktos pamieta o kolejnosci w app.js.
+  const tresc = fs.readFileSync(APP, "utf8");
+
+  const niespodzianki = pozycja(tresc, "registerUpsetsRoutes(app,");
+  const przeslaniajaca = pozycja(tresc, "registerPickemConfigRoutes(app,");
+
+  assert.ok(
+    niespodzianki < przeslaniajaca,
+    "registerUpsetsRoutes musi stac PRZED registerPickemConfigRoutes - " +
+      "inaczej /api/public/upsets oddaje pusta strone serwera i kod 200",
+  );
+});
+
 test("druzyny sa rejestrowane przed trasa, ktora je przeslania", async () => {
   const tresc = fs.readFileSync(APP, "utf8");
 

@@ -404,6 +404,10 @@ export function getAllTime() {
   return apiRequest("/public/all-time");
 }
 
+export function getUpsets() {
+  return apiRequest("/public/upsets");
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }

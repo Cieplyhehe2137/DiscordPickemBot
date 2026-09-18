@@ -39,6 +39,7 @@ import { registerHeadToHeadRoutes } from "./routes/headToHead.js";
 import { registerTeamRoutes } from "./routes/teams.js";
 import { registerScoringRoutes } from "./routes/scoring.js";
 import { registerAllTimeRoutes } from "./routes/allTime.js";
+import { registerUpsetsRoutes } from "./routes/upsets.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
@@ -405,6 +406,13 @@ registerScoringRoutes(app, { scoring: SCORING });
 // Przy odwrotnej kolejności tabela dostałaby pustą stronę serwera
 // o nazwie "all-time" i kod 200 - bez śladu błędu.
 registerAllTimeRoutes(app, { pool });
+
+// Niespodzianki (server/routes/upsets.js). Czwarta trasa w tej samej
+// pułapce: /api/public/upsets ma JEDEN segment po /api/public/, więc łapie
+// ją /api/public/:guildSlug rejestrowana niżej. Przy odwrotnej kolejności
+// zestawienie dostałoby pustą stronę serwera o nazwie "upsets" i kod 200 -
+// bez śladu błędu.
+registerUpsetsRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,
