@@ -1297,6 +1297,7 @@ const uk = {
   "server.playoffsPicksSaveFailed": "Не вдалося зберегти прогнози Playoffs.",
   "server.dePicksLoadFailed": "Не вдалося завантажити прогнози Double Elimination.",
   "server.dePicksSaveFailed": "Не вдалося зберегти прогнози Double Elimination.",
+  "server.allTimeFailed": "Не вдалося завантажити загальний залік.",
   "server.matchMissing": "Матчу не існує",
   "server.noSuchEvent": "Такого турніру немає.",
   "server.notFound": "Не знайдено.",
@@ -1337,6 +1338,44 @@ const uk = {
   "server.noChannel": "Незрозуміло, у якому каналі опублікувати панель. {hint}",
   "server.archivedScoring": "Правила нарахування за карти змінилися після його завершення — перерахунок переписав би закритий рейтинг. Якщо справді цього хочеш, спершу скасуй архівацію.",
   "server.notStarted": "не розпочато",
+
+  // --- Klasyfikacja wszech czasow ------------------------------------------
+  "allTime.nav": "Загальний залік",
+  "allTime.kicker": "Понад турнірами",
+  "allTime.title": "Загальний залік",
+  "allTime.intro": "Хто прогнозує найкраще за весь час, а не на одному турнірі. Місце визначається середньою позицією серед усіх, а не сумою балів — вони незіставні між турнірами з різною кількістю матчів.",
+  "allTime.loading": "Рахую залік...",
+  "allTime.error": "Не вдалося завантажити залік",
+  "allTime.ranked": {
+    one: "{count} гравець із зіставним доробком",
+    few: "{count} гравці із зіставним доробком",
+    many: "{count} гравців із зіставним доробком",
+  },
+  "allTime.head.player": "Гравець",
+  "allTime.head.starts": "Старти",
+  "allTime.head.best": "Найкращий старт",
+  "allTime.head.average": "У середньому",
+  "allTime.starts": {
+    one: "{count} старт",
+    few: "{count} старти",
+    many: "{count} стартів",
+  },
+  // Ta sama liczba, ktora profil gracza pokazuje przy kazdym
+  // starcie jako "TOP x%" - i to nie jest przypadek, patrz
+  // server/lib/allTime.js.
+  "allTime.average": "ТОП {percent}%",
+  "allTime.bestPlace": "#{rank} / {total}",
+  "allTime.empty.title": "Замало турнірів",
+  "allTime.empty.text": {
+    one: "Залік охоплює гравців щонайменше з {count} стартом. Він з'явиться, коли хтось зіграє на двох турнірах.",
+    few: "Залік охоплює гравців щонайменше з {count} стартами. Він з'явиться, коли хтось зіграє на двох турнірах.",
+    many: "Залік охоплює гравців щонайменше з {count} стартами. Він з'явиться, коли хтось зіграє на двох турнірах.",
+  },
+  "allTime.note": {
+    one: "У таблиці гравці щонайменше з {count} стартом. Одного турніру замало, щоб відрізнити майстерність від везіння — тобі бракує одного старту.",
+    few: "У таблиці гравці щонайменше з {count} стартами. Одного турніру замало, щоб відрізнити майстерність від везіння — тобі бракує одного старту.",
+    many: "У таблиці гравці щонайменше з {count} стартами. Одного турніру замало, щоб відрізнити майстерність від везіння — тобі бракує одного старту.",
+  },
 };
 
 export default uk;

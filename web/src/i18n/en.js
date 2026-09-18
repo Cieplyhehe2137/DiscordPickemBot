@@ -1247,6 +1247,7 @@ const en = {
   "server.playoffsPicksSaveFailed": "Could not save the Playoffs predictions.",
   "server.dePicksLoadFailed": "Could not load the Double Elimination predictions.",
   "server.dePicksSaveFailed": "Could not save the Double Elimination predictions.",
+  "server.allTimeFailed": "Could not load the all-time classification.",
   "server.matchMissing": "The match does not exist",
   "server.noSuchEvent": "No such tournament.",
   "server.notFound": "Not found.",
@@ -1287,6 +1288,40 @@ const en = {
   "server.noChannel": "It is unclear which channel to publish the panel on. {hint}",
   "server.archivedScoring": "Map scoring rules changed after it ended - recomputing would rewrite a closed ranking. If you really want that, un-archive it first.",
   "server.notStarted": "not started",
+
+  // --- Klasyfikacja wszech czasow ------------------------------------------
+  "allTime.nav": "All-time",
+  "allTime.kicker": "Across tournaments",
+  "allTime.title": "All-time classification",
+  "allTime.intro": "Who predicts best over time, not in a single tournament. Position is decided by the average place in the field, not by total points — those are incomparable between tournaments with different numbers of matches.",
+  "allTime.loading": "Computing the classification...",
+  "allTime.error": "Could not load the classification",
+  "allTime.ranked": {
+    one: "{count} player with a comparable record",
+    other: "{count} players with a comparable record",
+  },
+  "allTime.head.player": "Player",
+  "allTime.head.starts": "Starts",
+  "allTime.head.best": "Best start",
+  "allTime.head.average": "Average",
+  "allTime.starts": {
+    one: "{count} start",
+    other: "{count} starts",
+  },
+  // Ta sama liczba, ktora profil gracza pokazuje przy kazdym
+  // starcie jako "TOP x%" - i to nie jest przypadek, patrz
+  // server/lib/allTime.js.
+  "allTime.average": "TOP {percent}%",
+  "allTime.bestPlace": "#{rank} / {total}",
+  "allTime.empty.title": "Not enough tournaments",
+  "allTime.empty.text": {
+    one: "The classification covers players with at least {count} start. It shows up once anyone has played two tournaments.",
+    other: "The classification covers players with at least {count} starts. It shows up once anyone has played two tournaments.",
+  },
+  "allTime.note": {
+    one: "The table holds players with at least {count} start. One tournament is too few to tell skill from luck — you are one start away.",
+    other: "The table holds players with at least {count} starts. One tournament is too few to tell skill from luck — you are one start away.",
+  },
 };
 
 export default en;

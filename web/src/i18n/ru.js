@@ -1297,6 +1297,7 @@ const ru = {
   "server.playoffsPicksSaveFailed": "Не удалось сохранить прогнозы Playoffs.",
   "server.dePicksLoadFailed": "Не удалось загрузить прогнозы Double Elimination.",
   "server.dePicksSaveFailed": "Не удалось сохранить прогнозы Double Elimination.",
+  "server.allTimeFailed": "Не удалось загрузить общий зачёт.",
   "server.matchMissing": "Матча не существует",
   "server.noSuchEvent": "Такого турнира нет.",
   "server.notFound": "Не найдено.",
@@ -1337,6 +1338,44 @@ const ru = {
   "server.noChannel": "Непонятно, в каком канале опубликовать панель. {hint}",
   "server.archivedScoring": "Правила начисления за карты изменились после его окончания — пересчёт переписал бы закрытый рейтинг. Если действительно этого хочешь, сначала отмени архивацию.",
   "server.notStarted": "не начат",
+
+  // --- Klasyfikacja wszech czasow ------------------------------------------
+  "allTime.nav": "Общий зачёт",
+  "allTime.kicker": "Поверх турниров",
+  "allTime.title": "Общий зачёт",
+  "allTime.intro": "Кто прогнозирует лучше всех за всё время, а не на одном турнире. Место определяется средней позицией в общей массе, а не суммой очков — они несопоставимы между турнирами с разным числом матчей.",
+  "allTime.loading": "Считаю зачёт...",
+  "allTime.error": "Не удалось загрузить зачёт",
+  "allTime.ranked": {
+    one: "{count} игрок с сопоставимым результатом",
+    few: "{count} игрока с сопоставимым результатом",
+    many: "{count} игроков с сопоставимым результатом",
+  },
+  "allTime.head.player": "Игрок",
+  "allTime.head.starts": "Старты",
+  "allTime.head.best": "Лучший старт",
+  "allTime.head.average": "В среднем",
+  "allTime.starts": {
+    one: "{count} старт",
+    few: "{count} старта",
+    many: "{count} стартов",
+  },
+  // Ta sama liczba, ktora profil gracza pokazuje przy kazdym
+  // starcie jako "TOP x%" - i to nie jest przypadek, patrz
+  // server/lib/allTime.js.
+  "allTime.average": "ТОП {percent}%",
+  "allTime.bestPlace": "#{rank} / {total}",
+  "allTime.empty.title": "Слишком мало турниров",
+  "allTime.empty.text": {
+    one: "Зачёт охватывает игроков минимум с {count} стартом. Он появится, когда кто-нибудь сыграет на двух турнирах.",
+    few: "Зачёт охватывает игроков минимум с {count} стартами. Он появится, когда кто-нибудь сыграет на двух турнирах.",
+    many: "Зачёт охватывает игроков минимум с {count} стартами. Он появится, когда кто-нибудь сыграет на двух турнирах.",
+  },
+  "allTime.note": {
+    one: "В таблице игроки минимум с {count} стартом. Одного турнира мало, чтобы отличить мастерство от везения — тебе не хватает одного старта.",
+    few: "В таблице игроки минимум с {count} стартами. Одного турнира мало, чтобы отличить мастерство от везения — тебе не хватает одного старта.",
+    many: "В таблице игроки минимум с {count} стартами. Одного турнира мало, чтобы отличить мастерство от везения — тебе не хватает одного старта.",
+  },
 };
 
 export default ru;

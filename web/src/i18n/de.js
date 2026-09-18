@@ -1247,6 +1247,7 @@ const de = {
   "server.playoffsPicksSaveFailed": "Die Playoffs-Tipps konnten nicht gespeichert werden.",
   "server.dePicksLoadFailed": "Die Double-Elimination-Tipps konnten nicht geladen werden.",
   "server.dePicksSaveFailed": "Die Double-Elimination-Tipps konnten nicht gespeichert werden.",
+  "server.allTimeFailed": "Die Ewige Tabelle konnte nicht geladen werden.",
   "server.matchMissing": "Das Spiel existiert nicht",
   "server.noSuchEvent": "Dieses Turnier gibt es nicht.",
   "server.notFound": "Nicht gefunden.",
@@ -1287,6 +1288,40 @@ const de = {
   "server.noChannel": "Es ist unklar, in welchem Kanal das Panel veröffentlicht werden soll. {hint}",
   "server.archivedScoring": "Die Map-Punkteregeln haben sich nach dem Ende geändert - eine Neuberechnung würde eine abgeschlossene Rangliste überschreiben. Wenn du das wirklich willst, hebe zuerst die Archivierung auf.",
   "server.notStarted": "nicht begonnen",
+
+  // --- Klasyfikacja wszech czasow ------------------------------------------
+  "allTime.nav": "Ewige Tabelle",
+  "allTime.kicker": "Über alle Turniere",
+  "allTime.title": "Ewige Tabelle",
+  "allTime.intro": "Wer über die Zeit am besten tippt, nicht in einem einzelnen Turnier. Über die Platzierung entscheidet der durchschnittliche Platz im Feld, nicht die Punktsumme — die ist zwischen Turnieren mit unterschiedlich vielen Spielen nicht vergleichbar.",
+  "allTime.loading": "Tabelle wird berechnet...",
+  "allTime.error": "Die Tabelle konnte nicht geladen werden",
+  "allTime.ranked": {
+    one: "{count} Spieler mit vergleichbarer Bilanz",
+    other: "{count} Spieler mit vergleichbarer Bilanz",
+  },
+  "allTime.head.player": "Spieler",
+  "allTime.head.starts": "Starts",
+  "allTime.head.best": "Bester Start",
+  "allTime.head.average": "Schnitt",
+  "allTime.starts": {
+    one: "{count} Start",
+    other: "{count} Starts",
+  },
+  // Ta sama liczba, ktora profil gracza pokazuje przy kazdym
+  // starcie jako "TOP x%" - i to nie jest przypadek, patrz
+  // server/lib/allTime.js.
+  "allTime.average": "TOP {percent}%",
+  "allTime.bestPlace": "#{rank} / {total}",
+  "allTime.empty.title": "Zu wenige Turniere",
+  "allTime.empty.text": {
+    one: "Die Tabelle umfasst Spieler mit mindestens {count} Start. Sie erscheint, sobald jemand zwei Turniere gespielt hat.",
+    other: "Die Tabelle umfasst Spieler mit mindestens {count} Starts. Sie erscheint, sobald jemand zwei Turniere gespielt hat.",
+  },
+  "allTime.note": {
+    one: "In der Tabelle stehen Spieler mit mindestens {count} Start. Ein Turnier reicht nicht, um Können von Glück zu trennen — dir fehlt ein Start.",
+    other: "In der Tabelle stehen Spieler mit mindestens {count} Starts. Ein Turnier reicht nicht, um Können von Glück zu trennen — dir fehlt ein Start.",
+  },
 };
 
 export default de;

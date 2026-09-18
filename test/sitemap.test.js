@@ -61,7 +61,7 @@ test("sa strony stale, a kazdy turniej daje trzy adresy", async () => {
   const adresy = pageUrls({ origin: ORIGIN, events: EVENTY, teams: [] });
   const loc = adresy.map((a) => a.loc);
 
-  for (const s of ["/", "/events", "/teams", "/scoring"]) {
+  for (const s of ["/", "/events", "/teams", "/all-time", "/scoring"]) {
     assert.ok(loc.includes(`${ORIGIN}${s}`), `brak strony stalej ${s}`);
   }
 
@@ -152,7 +152,8 @@ test("dokument jest poprawnym XML-em", async () => {
   const zamkniete = (xml.match(/<\/url>/g) || []).length;
 
   assert.equal(otwarte, zamkniete, "niedomkniete znaczniki <url>");
-  assert.equal(otwarte, 4 + EVENTY.length * 3 + DRUZYNY.length);
+  // Piec stron stalych: /, /events, /teams, /all-time, /scoring.
+  assert.equal(otwarte, 5 + EVENTY.length * 3 + DRUZYNY.length);
 
   assert.ok(bezSurowychAmpersandow(xml), "surowy & w dokumencie");
 });
@@ -291,6 +292,7 @@ test("padniete API nie psuje sitemapy - zostaja strony stale", async () => {
 
   assert.ok(xml.includes("<urlset"), "brak poprawnego dokumentu");
   assert.ok(xml.includes("https://pickembot.pl/scoring"));
+  assert.ok(xml.includes("https://pickembot.pl/all-time"));
   assert.ok(!xml.includes("/events/"), "bez API nie ma skad wziac turniejow");
 });
 

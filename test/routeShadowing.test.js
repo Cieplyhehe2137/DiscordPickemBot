@@ -46,6 +46,21 @@ test("trasa lapiaca kazdy adres /api/public/<cos> nadal istnieje", async () => {
   );
 });
 
+test("klasyfikacja wszech czasow jest rejestrowana przed trasa, ktora ja przeslania", async () => {
+  // /api/public/all-time ma jeden segment, tak samo jak /api/public/teams
+  // i /api/public/scoring. Trzeci raz ta sama pulapka.
+  const tresc = fs.readFileSync(APP, "utf8");
+
+  const wszechCzasow = pozycja(tresc, "registerAllTimeRoutes(app,");
+  const przeslaniajaca = pozycja(tresc, "registerPickemConfigRoutes(app,");
+
+  assert.ok(
+    wszechCzasow < przeslaniajaca,
+    "registerAllTimeRoutes musi stac PRZED registerPickemConfigRoutes - " +
+      "inaczej /api/public/all-time oddaje pusta strone serwera i kod 200",
+  );
+});
+
 test("druzyny sa rejestrowane przed trasa, ktora je przeslania", async () => {
   const tresc = fs.readFileSync(APP, "utf8");
 
