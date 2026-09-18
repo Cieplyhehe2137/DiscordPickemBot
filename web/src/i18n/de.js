@@ -1253,6 +1253,7 @@ const de = {
   "server.upsetsFailed": "Die Überraschungen konnten nicht geladen werden.",
   "server.playerNotFound": "Spieler nicht gefunden.",
   "server.playerCareerFailed": "Das Spielerprofil konnte nicht geladen werden.",
+  "server.mvpVoteFailed": "Die MVP-Abstimmung konnte nicht geladen werden.",
   "server.matchMissing": "Das Spiel existiert nicht",
   "server.noSuchEvent": "Dieses Turnier gibt es nicht.",
   "server.notFound": "Nicht gefunden.",
@@ -1389,7 +1390,7 @@ const de = {
     other: "{count} Starts seit Bestehen der Seite",
   },
   "career.noStarts": "Noch in keiner Wertung platziert",
-  "career.rate": "{percent}%",
+  "common.percentValue": "{percent}%",
   "career.stat.average": "Schnitt",
   "career.stat.averageHint": "Platz im Feld",
   "career.stat.best": "Bester Start",
@@ -1427,6 +1428,28 @@ const de = {
     one: "Noch kein Team kam bei diesem Spieler auf {count} Tipp — insgesamt {picks} Spieltipps.",
     other: "Noch kein Team kam bei diesem Spieler auf {count} Tipps — insgesamt {picks} Spieltipps.",
   },
+
+  // --- Glosowanie na MVP ---------------------------------------------------
+  "mvp.kicker": "Votum der Community",
+  "mvp.title": "Wer als MVP getippt wurde",
+  "mvp.resolved": "Gewonnen hat {nickname}, richtig lagen {percent}% der Abstimmenden.",
+  "mvp.open": {
+    one: "{count} Stimme abgegeben. Der Sieger steht noch nicht fest.",
+    other: "{count} Stimmen abgegeben. Der Sieger steht noch nicht fest.",
+  },
+  "mvp.head.player": "Kandidat",
+  "mvp.head.votes": "Stimmen",
+  "mvp.head.share": "Anteil",
+  "mvp.votes": {
+    one: "{count} Stimme",
+    other: "{count} Stimmen",
+  },
+  "mvp.note": {
+    one: "Gerechnet aus {count} abgegebenen Stimme. In der Liste stehen Kandidaten mit mindestens einer Stimme sowie der Sieger — auch ohne jede.",
+    other: "Gerechnet aus {count} abgegebenen Stimmen. In der Liste stehen Kandidaten mit mindestens einer Stimme sowie der Sieger — auch ohne jede.",
+  },
+  "upsets.mvp.kicker": "Nicht jeder Irrtum ist ein Spiel",
+  "upsets.mvp.headline": "Bei der MVP-Abstimmung lagen {percent}% richtig — gewonnen hat {nickname}, getippt von {votes} von {total} Personen.",
 };
 
 export default de;

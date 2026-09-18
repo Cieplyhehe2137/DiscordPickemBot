@@ -78,6 +78,22 @@ test("niespodzianki sa rejestrowane przed trasa, ktora je przeslania", async () 
   );
 });
 
+test("glosowanie na MVP ma TRZY segmenty i dlatego jest bezpieczne", async () => {
+  // /api/public/events/:slug/mvp nie koliduje z :guildSlug, bo tamten
+  // wzorzec lapie tylko jeden segment. Test istnieje z tego samego powodu,
+  // co przy profilu gracza: przy trasie, ktora wyglada na bezpieczna,
+  // najlatwiej przeoczyc skrocenie adresu.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "mvp.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    tresc.includes('app.get("/api/public/events/:slug/mvp"'),
+    "trasa MVP musi miec trzy segmenty po /api/public/",
+  );
+});
+
 test("profil gracza ponad turniejami ma DWA segmenty i dlatego jest bezpieczny", async () => {
   // Jedyna z ostatnich czterech stron, ktora NIE wpada w pulapke:
   // /api/public/players/:userId ma dwa segmenty po /api/public/, a wzorzec

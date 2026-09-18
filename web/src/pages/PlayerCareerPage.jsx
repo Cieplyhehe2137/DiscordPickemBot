@@ -169,7 +169,7 @@ function PlayerCareerPage() {
             <span>{t("career.stat.contra")}</span>
 
             <strong>
-              {kontra ? t("career.rate", { percent: kontra.hit_rate }) : "—"}
+              {kontra ? t("common.percentValue", { percent: kontra.hit_rate }) : "—"}
             </strong>
 
             <small>
@@ -245,7 +245,7 @@ function PlayerCareerPage() {
                 </div>
 
                 <strong className="ui-row-item__score">
-                  {t("career.rate", { percent: druzyna.win_rate })}
+                  {t("common.percentValue", { percent: druzyna.win_rate })}
                 </strong>
               </div>
             ))}

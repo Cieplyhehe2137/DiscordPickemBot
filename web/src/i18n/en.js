@@ -1253,6 +1253,7 @@ const en = {
   "server.upsetsFailed": "Could not load the upsets.",
   "server.playerNotFound": "Player not found.",
   "server.playerCareerFailed": "Could not load the player profile.",
+  "server.mvpVoteFailed": "Could not load the MVP vote.",
   "server.matchMissing": "The match does not exist",
   "server.noSuchEvent": "No such tournament.",
   "server.notFound": "Not found.",
@@ -1389,7 +1390,7 @@ const en = {
     other: "{count} starts since the site began",
   },
   "career.noStarts": "Not ranked in any tournament yet",
-  "career.rate": "{percent}%",
+  "common.percentValue": "{percent}%",
   "career.stat.average": "Average",
   "career.stat.averageHint": "place in the field",
   "career.stat.best": "Best start",
@@ -1427,6 +1428,28 @@ const en = {
     one: "No team has collected {count} pick from this player yet — {picks} match picks in total.",
     other: "No team has collected {count} picks from this player yet — {picks} match picks in total.",
   },
+
+  // --- Glosowanie na MVP ---------------------------------------------------
+  "mvp.kicker": "The community's vote",
+  "mvp.title": "Who was tipped for MVP",
+  "mvp.resolved": "{nickname} won it, and {percent}% of voters called it.",
+  "mvp.open": {
+    one: "{count} vote cast. The winner has not been named yet.",
+    other: "{count} votes cast. The winner has not been named yet.",
+  },
+  "mvp.head.player": "Candidate",
+  "mvp.head.votes": "Votes",
+  "mvp.head.share": "Share",
+  "mvp.votes": {
+    one: "{count} vote",
+    other: "{count} votes",
+  },
+  "mvp.note": {
+    one: "Counted from {count} vote cast. The list holds candidates with at least one vote, plus the winner — even with none.",
+    other: "Counted from {count} votes cast. The list holds candidates with at least one vote, plus the winner — even with none.",
+  },
+  "upsets.mvp.kicker": "Not every miss is a match",
+  "upsets.mvp.headline": "The MVP vote was {percent}% right — {nickname} won it, backed by {votes} people out of {total}.",
 };
 
 export default en;

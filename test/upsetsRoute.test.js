@@ -2,9 +2,9 @@
 //
 // Atrapa puli - nic nie laczy sie z baza. Test liczy FALE zapytan, bo kazda
 // to osobna podroz do bazy stojacej na innej maszynie niz API: zmierzone na
-// serwerze 177 ms, niezaleznie od tego, ile wierszy wraca. Piec zapytan
-// puszczonych rownolegle kosztuje jedna podroz, te same piec po kolei -
-// piec. Milisekundy na cudzej maszynie nic nie znacza, liczba fal znaczy
+// serwerze 177 ms, niezaleznie od tego, ile wierszy wraca. Szesc zapytan
+// puszczonych rownolegle kosztuje jedna podroz, te same szesc po kolei -
+// szesc. Milisekundy na cudzej maszynie nic nie znacza, liczba fal znaczy
 // wszystko.
 
 const test = require("node:test");
@@ -98,9 +98,35 @@ const NAZWY = [
 
 const LOGOTYPY = [{ name_key: "vitality", logo_url: "https://x/v.png" }];
 
+// Glosowanie na MVP: dwaj faworyci i zwyciezca z marginesu - uklad
+// z produkcji w mniejszej skali.
+const MVP = [
+  {
+    event_id: 1,
+    event_name: "Turniej",
+    event_slug: "turniej",
+    candidate_id: 1,
+    nickname: "faworyt",
+    team_name: "A",
+    votes: 30,
+    is_winner: 0,
+  },
+  {
+    event_id: 1,
+    event_name: "Turniej",
+    event_slug: "turniej",
+    candidate_id: 2,
+    nickname: "outsider",
+    team_name: "B",
+    votes: 2,
+    is_winner: 1,
+  },
+];
+
 // Odpowiedz dobrana po tresci zapytania - atrapa nie wie, w jakiej
 // kolejnosci trasa je puszcza, i nie powinna tego zakladac.
 function daneDla(sql) {
+  if (sql.includes("FROM mvp_candidates k")) return MVP;
   if (sql.includes("FROM user_profiles")) return PROFILE;
   if (sql.includes("FROM swiss_predictions")) return NAZWY;
   if (sql.includes("team_logos")) return LOGOTYPY;
@@ -162,8 +188,8 @@ test("wszystkie zapytania ida JEDNA fala", async () => {
 
   assert.equal(
     rozpoczete,
-    5,
-    `przed pierwsza odpowiedzia baza powinna dostac wszystkie piec zapytan, dostala ${rozpoczete}`,
+    6,
+    `przed pierwsza odpowiedzia baza powinna dostac wszystkie szesc zapytan, dostala ${rozpoczete}`,
   );
 
   for (const otworz of bramki) otworz();
@@ -179,7 +205,7 @@ test("drugie wejscie nie dotyka bazy", async () => {
   await handler({}, fakeRes());
   await handler({}, fakeRes());
 
-  assert.equal(licznik.zapytan, 5, "druga odpowiedz ma isc z pamieci podrecznej");
+  assert.equal(licznik.zapytan, 6, "druga odpowiedz ma isc z pamieci podrecznej");
 });
 
 test("piecdziesiat rownoczesnych wejsc to JEDNO przeliczenie", async () => {
@@ -201,7 +227,7 @@ test("piecdziesiat rownoczesnych wejsc to JEDNO przeliczenie", async () => {
 
   await Promise.all(Array.from({ length: 50 }, () => handler({}, fakeRes())));
 
-  assert.equal(licznik.zapytan, 5, `zapytan: ${licznik.zapytan}`);
+  assert.equal(licznik.zapytan, 6, `zapytan: ${licznik.zapytan}`);
 });
 
 test("w odpowiedzi jest mecz, ktory zaskoczyl, i nie ma tego, ktory nie", async () => {
@@ -263,6 +289,24 @@ test("tlo jedzie razem z lista, bo bez niego procenty nic nie znacza", async () 
 
   // Jedna niespodzianka: 1 trafienie na 41 typow.
   assert.equal(res.zapis.tresc.crowd_rate, 2);
+});
+
+test("najwieksza pomylka nie musi byc meczem", async () => {
+  // Ta strona mierzyla dotad wylacznie mecze, bo z nich powstala. Zmierzone
+  // na produkcji: w glosowaniu na MVP trafily trzy osoby z dziewiecdziesieciu
+  // dziewieciu - gorzej niz w ktorymkolwiek meczu z taka frekwencja.
+  const handler = await zbuduj(liczacaPula({ zapytan: 0 }));
+
+  const res = fakeRes();
+
+  await handler({}, res);
+
+  const [glosowanie] = res.zapis.tresc.mvp;
+
+  assert.equal(glosowanie.event_slug, "turniej");
+  assert.equal(glosowanie.winner.nickname, "outsider");
+  assert.equal(glosowanie.total_votes, 32);
+  assert.equal(glosowanie.hit_rate, 6);
 });
 
 test("statystyki druzyn licza sie tym samym modulem, co strona druzyny", async () => {

@@ -41,6 +41,7 @@ import { registerScoringRoutes } from "./routes/scoring.js";
 import { registerAllTimeRoutes } from "./routes/allTime.js";
 import { registerUpsetsRoutes } from "./routes/upsets.js";
 import { registerPlayerCareerRoutes } from "./routes/playerCareer.js";
+import { registerMvpRoutes } from "./routes/mvp.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
@@ -422,6 +423,12 @@ registerUpsetsRoutes(app, { pool });
 // z pozostalymi, zeby nikt nie musial sprawdzac, czy akurat ta jest
 // wyjatkiem.
 registerPlayerCareerRoutes(app, { pool });
+
+// Glosowanie na MVP (server/routes/mvp.js). Cztery tabele w bazie, a do
+// tej pory zero publicznych tras - MVP dalo sie zobaczyc wylacznie
+// w panelu administratora. Adres ma TRZY segmenty po /api/public/, wiec
+// nie koliduje z :guildSlug.
+registerMvpRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,

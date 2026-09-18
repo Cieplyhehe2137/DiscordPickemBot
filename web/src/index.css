@@ -2178,20 +2178,59 @@ main > .page-back {
    KLASYFIKACJA WSZECH CZASOW
    ========================================================= */
 
-/* Nick i liczba startow jedno pod drugim.
+/* Dwie rzeczy jedna pod druga w komorce z nazwa.
    .ui-row-item__name ma nowrap i wielokropek, bo w klasyfikacji turnieju
-   stoi w tej komorce sam nick. Tutaj sa dwie rzeczy i bez tego stosu
-   skleja sie "Dekus2 starty", a potem oba napisy gina pod wielokropkiem. */
-.all-time-who {
+   stoi w tej komorce sam nick. Tam, gdzie sa dwie rzeczy, bez tego stosu
+   skleja sie "Dekus2 starty", a potem oba napisy gina pod wielokropkiem.
+
+   Nazwa jest neutralna, bo z tego stosu korzysta juz klasyfikacja wszech
+   czasow (nick i liczba startow) ORAZ glosowanie na MVP (nick i druzyna). */
+.ui-row-item__stack {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.all-time-who__starts {
+.ui-row-item__sub {
   font-size: var(--text-2xs);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* =========================================================
+   GLOSOWANIE NA MVP
+   ========================================================= */
+
+/* Wiersz zwyciezcy. Nie medal i nie pierwsze miejsce - w tej tabeli
+   zwyciezca stoi tam, gdzie postawil go glos spolecznosci, i o to wlasnie
+   chodzi. Zmierzone na produkcji: wygral kandydat czwarty w kolejnosci,
+   z trzema glosami na osiemdziesiat cztery.
+
+   Obwodka od wewnatrz, a nie ramka: ramka zmienilaby wysokosc wiersza
+   i rzad rozjechalby sie wzgledem sasiadow. */
+/* Karta na gorze "Niespodzianek": najgorzej odgadniete glosowanie na MVP.
+   Stoi nad tabela meczow, bo odpowiada na pytanie, ktore ta tabela stawia,
+   a ktorego sama nie obejmuje - najwieksza pomylka nie byla meczem. */
+.upsets-mvp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding: var(--space-4) var(--space-5);
+
+  text-decoration: none;
+}
+
+.upsets-mvp__headline {
+  color: var(--text-strong);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-black);
+  line-height: 1.35;
+}
+
+.mvp-row--winner {
+  background: var(--accent-bg);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 
 /* =========================================================

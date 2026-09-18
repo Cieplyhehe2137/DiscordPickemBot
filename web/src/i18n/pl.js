@@ -1324,6 +1324,7 @@ const pl = {
   "server.upsetsFailed": "Nie udało się wczytać niespodzianek.",
   "server.playerNotFound": "Nie znaleziono gracza.",
   "server.playerCareerFailed": "Nie udało się wczytać profilu gracza.",
+  "server.mvpVoteFailed": "Nie udało się wczytać głosowania na MVP.",
   "server.matchMissing": "Mecz nie istnieje",
   "server.noSuchEvent": "Nie ma takiego turnieju.",
   "server.notFound": "Nie znaleziono.",
@@ -1469,7 +1470,7 @@ const pl = {
     many: "{count} startów w historii serwisu",
   },
   "career.noStarts": "Jeszcze bez miejsca w żadnej klasyfikacji",
-  "career.rate": "{percent}%",
+  "common.percentValue": "{percent}%",
   "career.stat.average": "Średnio",
   "career.stat.averageHint": "miejsce w stawce",
   "career.stat.best": "Najlepszy start",
@@ -1510,6 +1511,31 @@ const pl = {
     few: "Żadna drużyna nie zebrała jeszcze {count} typów od tego gracza — wszystkich typów na mecze jest {picks}.",
     many: "Żadna drużyna nie zebrała jeszcze {count} typów od tego gracza — wszystkich typów na mecze jest {picks}.",
   },
+
+  // --- Glosowanie na MVP ---------------------------------------------------
+  "mvp.kicker": "Głos społeczności",
+  "mvp.title": "Kto miał być MVP",
+  "mvp.resolved": "Wygrał {nickname}, a trafiło {percent}% głosujących.",
+  "mvp.open": {
+    one: "Oddano {count} głos. Zwycięzca nie jest jeszcze wskazany.",
+    few: "Oddano {count} głosy. Zwycięzca nie jest jeszcze wskazany.",
+    many: "Oddano {count} głosów. Zwycięzca nie jest jeszcze wskazany.",
+  },
+  "mvp.head.player": "Kandydat",
+  "mvp.head.votes": "Głosy",
+  "mvp.head.share": "Udział",
+  "mvp.votes": {
+    one: "{count} głos",
+    few: "{count} głosy",
+    many: "{count} głosów",
+  },
+  "mvp.note": {
+    one: "Liczone z {count} oddanego głosu. Na liście są kandydaci, którzy dostali choć jeden głos, oraz zwycięzca — nawet gdyby nie dostał żadnego.",
+    few: "Liczone z {count} oddanych głosów. Na liście są kandydaci, którzy dostali choć jeden głos, oraz zwycięzca — nawet gdyby nie dostał żadnego.",
+    many: "Liczone z {count} oddanych głosów. Na liście są kandydaci, którzy dostali choć jeden głos, oraz zwycięzca — nawet gdyby nie dostał żadnego.",
+  },
+  "upsets.mvp.kicker": "Nie każda pomyłka jest meczem",
+  "upsets.mvp.headline": "W głosowaniu na MVP trafiło {percent}% — wygrał {nickname}, a postawiło na niego {votes} z {total} osób.",
 };
 
 export default pl;

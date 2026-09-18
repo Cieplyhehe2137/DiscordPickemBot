@@ -137,6 +137,11 @@ function UpsetsPage() {
   const druzyny = dane?.teams ?? [];
 
   const tlo = dane?.crowd_rate ?? null;
+
+  // Najgorzej odgadnięte głosowanie na MVP. Ta strona mierzyła dotąd
+  // wyłącznie mecze, bo z nich powstała - a największa pomyłka w historii
+  // serwisu meczem nie była.
+  const najgorszeMvp = dane?.mvp?.[0] ?? null;
   const progProcent = dane?.threshold_percent ?? 25;
   const progTypow = dane?.min_picks ?? 20;
   const progOkazji = dane?.min_chances ?? 12;
@@ -153,6 +158,26 @@ function UpsetsPage() {
           <p>{t("upsets.intro", { percent: progProcent })}</p>
         </div>
       </div>
+
+      {najgorszeMvp && (
+        <Link
+          className="ui-card ui-card--interactive upsets-mvp"
+          to={`/events/${najgorszeMvp.event_slug}`}
+        >
+          <span className="ui-kicker">{t("upsets.mvp.kicker")}</span>
+
+          <strong className="upsets-mvp__headline">
+            {t("upsets.mvp.headline", {
+              nickname: najgorszeMvp.winner.nickname,
+              percent: najgorszeMvp.hit_rate,
+              votes: najgorszeMvp.winner.votes,
+              total: najgorszeMvp.total_votes,
+            })}
+          </strong>
+
+          <span className="ui-stat__hint">{najgorszeMvp.event_name}</span>
+        </Link>
+      )}
 
       {mecze.length === 0 ? (
         <div className="ui-empty">
