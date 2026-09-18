@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useOutletContext, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useOutletContext,
+  useParams,
+} from "react-router-dom";
 
 import { getEventPlayerProfile } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
@@ -201,6 +206,22 @@ function PlayerProfilePage() {
             <span className="ui-kicker">{t("profile.kicker")}</span>
 
             <h2>{player.displayname}</h2>
+
+            {/* Droga W GÓRĘ, do dorobku ponad turniejami. Klasyfikacja
+                wszech czasów i niespodzianki prowadzą tam i dalej w dół,
+                na tę stronę - ale kto wszedł tu z rankingu turnieju, nie
+                miał skąd się dowiedzieć, że tamta strona istnieje.
+
+                W nagłówku, a nie w sekcji z innymi startami: tamta nie
+                pojawia się dla 85% graczy, którzy zagrali raz - a dorobek
+                ponad turniejami ma dla nich sens tak samo, bo pokazuje
+                typy na drużyny i chodzenie pod prąd. */}
+            <Link
+              className="ui-btn ui-btn--ghost ui-btn--sm"
+              to={`/player/${userId}`}
+            >
+              {t("profile.career")} →
+            </Link>
           </div>
         </div>
 
