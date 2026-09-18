@@ -151,12 +151,12 @@ function AllTimePage() {
                       turnieju w tej komórce stoi sam nick i dlatego ma ona
                       nowrap - tutaj obie rzeczy sklejałyby się w jedną linię
                       i obie ginęły pod wielokropkiem. */}
-                  <span className="all-time-who">
+                  <span className="ui-row-item__stack">
                     <span className="ui-row-item__name">
                       {gracz.displayname ?? gracz.user_id}
                     </span>
 
-                    <span className="all-time-who__starts">
+                    <span className="ui-row-item__sub">
                       {t("allTime.starts", { count: gracz.starts })}
                     </span>
                   </span>

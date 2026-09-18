@@ -4,10 +4,10 @@
 // trafień i skąd progi - siedzi w server/lib/upsets.js. Tutaj jest wyłącznie
 // pobranie danych.
 //
-// PIĘĆ ZAPYTAŃ, JEDNA FALA. Każde to osobna podróż do bazy stojącej na
+// SZEŚĆ ZAPYTAŃ, JEDNA FALA. Każde to osobna podróż do bazy stojącej na
 // innej maszynie niż API: zmierzone 177 ms, niezależnie od tego, ile wierszy
 // wraca. Dlatego liczy się ich LICZBA, a nie rozmiar odpowiedzi - i dlatego
-// wszystkie pięć idzie przez jedno Promise.all zamiast po kolei.
+// wszystkie sześć idzie przez jedno Promise.all zamiast po kolei.
 //
 // NAJWIĘKSZE Z NICH to typy z rozstrzygniętych meczów: dziś 10 328 wierszy,
 // po cztery pola każdy. Są potrzebne w całości, bo o tym, kto chodzi pod
@@ -28,6 +28,7 @@ import {
   buildUpsets,
   crowdRate,
 } from "../lib/upsets.js";
+import { buildMvpMisses } from "../lib/mvpVote.js";
 import { createLeaderboardCache } from "../lib/leaderboardCache.js";
 
 // Progi. Stałe, a nie parametry zapytania: każdy z nich jest częścią tego,
@@ -217,16 +218,58 @@ const SQL_LOGOTYPY = `
     SELECT name_key, logo_url FROM team_logos WHERE logo_url IS NOT NULL
 `;
 
+// Glosowania na MVP ze wszystkich turniejow.
+//
+// Ta strona mierzyla dotad wylacznie mecze, bo z nich powstala - a to jest
+// ograniczenie narzedzia, nie wlasciwosc spolecznosci. Najwieksza pomylka
+// w historii serwisu nie byla meczem: w IEM Cologne na MVP trafily trzy
+// osoby z dziewiecdziesieciu dziewieciu.
+//
+// Kandydatow jest dzis 31, wiec cale zapytanie to kilkadziesiat wierszy;
+// grupowanie po turnieju robi buildMvpMisses, zeby regula dala sie
+// sprawdzic testem bez bazy.
+const SQL_MVP = `
+    SELECT
+        k.event_id,
+        e.name AS event_name,
+        e.slug AS event_slug,
+
+        k.id AS candidate_id,
+        k.nickname,
+        k.team_name,
+
+        COALESCE(g.votes, 0) AS votes,
+
+        CASE WHEN r.candidate_id = k.id THEN 1 ELSE 0 END AS is_winner
+
+    FROM mvp_candidates k
+
+    INNER JOIN events e
+        ON e.id = k.event_id
+
+    LEFT JOIN (
+        SELECT candidate_id, COUNT(*) AS votes
+        FROM mvp_predictions
+        GROUP BY candidate_id
+    ) g
+        ON g.candidate_id = k.id
+
+    LEFT JOIN mvp_results r
+        ON r.event_id = k.event_id
+       AND r.active = 1
+`;
+
 export function registerUpsetsRoutes(app, { pool }) {
   const cache = createLeaderboardCache({
     load: async () => {
-      const [[mecze], [typy], [profile], [nazwy], [logotypy]] =
+      const [[mecze], [typy], [profile], [nazwy], [logotypy], [mvp]] =
         await Promise.all([
           pool.query(SQL_MECZE),
           pool.query(SQL_TYPY),
           pool.query(SQL_PROFILE),
           pool.query(SQL_NAZWY),
           pool.query(SQL_LOGOTYPY),
+          pool.query(SQL_MVP),
         ]);
 
       const upsets = buildUpsets(mecze, {
@@ -262,6 +305,11 @@ export function registerUpsetsRoutes(app, { pool }) {
 
         // Tło, względem którego cokolwiek znaczy skuteczność gracza.
         crowd_rate: crowdRate(upsets),
+
+        // Ten sam próg głosów, co przy meczach - przy trzech głosujących
+        // „nikt nie trafił" nie znaczy nic, niezależnie od tego, czy chodzi
+        // o mecz, czy o MVP.
+        mvp: buildMvpMisses(mvp, { minVotes: MIN_TYPOW }),
       };
     },
   });

@@ -7,6 +7,7 @@ import {
   getEventStats,
   getEventLeaderboard,
   getEventPlayerProfile,
+  getEventMvp,
   eventArchiveUrl,
 } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
@@ -75,6 +76,8 @@ function EventPage() {
   const [loadingEventStats, setLoadingEventStats] = useState(true);
   const [eventStatsError, setEventStatsError] = useState("");
   const [topPlayers, setTopPlayers] = useState([]);
+
+  const [mvp, setMvp] = useState(null);
   // Trzymamy profil razem z kluczem (event + gracz), dla ktorego go pobrano.
   // Bez tego po zmianie eventu albo konta przez moment widac stare dane,
   // a zerowanie stanu w ciele efektu wywoluje kaskade renderow.
@@ -169,6 +172,23 @@ function EventPage() {
     }
 
     loadTopPlayers();
+  }, [slug]);
+
+  // Głosowanie na MVP. Osobne pobranie, tak samo jak reszta sekcji na tej
+  // stronie - i celowo BEZ zgłaszania błędu na ekran: nie każdy turniej ma
+  // MVP, a brak sekcji jest tu stanem normalnym, nie awarią.
+  useEffect(() => {
+    async function loadMvp() {
+      try {
+        const data = await getEventMvp(slug);
+
+        setMvp(data);
+      } catch (err) {
+        console.error("MVP VOTE ERROR:", err);
+      }
+    }
+
+    loadMvp();
   }, [slug]);
 
   useEffect(() => {
@@ -759,6 +779,86 @@ function EventPage() {
                 </Link>
               </section>
             )}
+
+          {/* Głosowanie na MVP. Cztery tabele w bazie, a do tej pory było je
+              widać wyłącznie w panelu administratora - i to mimo że kryje
+              największą pomyłkę w historii serwisu: w IEM Cologne trafiły
+              trzy osoby z dziewięćdziesięciu dziewięciu.
+
+              Sekcja znika, gdy nikt nie głosował. Nie każdy turniej ma MVP:
+              kandydatów musi najpierw ustawić administrator. */}
+          {mvp && mvp.total_votes > 0 && (
+            <section className="ui-card ui-stack">
+              <div className="ui-section-head">
+                <div>
+                  <span className="ui-kicker">🏆 {t("mvp.kicker")}</span>
+
+                  <h2>{t("mvp.title")}</h2>
+
+                  <p>
+                    {mvp.resolved
+                      ? t("mvp.resolved", {
+                          nickname: mvp.winner.nickname,
+                          percent: mvp.hit_rate,
+                        })
+                      : t("mvp.open", { count: mvp.total_votes })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="ui-table">
+                <div className="ui-table__head" aria-hidden="true">
+                  <span>#</span>
+                  <span>{t("mvp.head.player")}</span>
+                  <span>{t("mvp.head.votes")}</span>
+                  <span>{t("mvp.head.share")}</span>
+                </div>
+
+                {mvp.candidates.map((kandydat, i) => (
+                  <div
+                    className={`ui-row-item${
+                      kandydat.won ? " mvp-row--winner" : ""
+                    }`}
+                    key={kandydat.candidate_id}
+                  >
+                    {/* Numer to miejsce W GŁOSOWANIU, nie w turnieju -
+                        zwycięzca stoi tam, gdzie postawiła go społeczność,
+                        i o to w tej tabeli chodzi. */}
+                    <span className="ui-row-item__rank">{i + 1}</span>
+
+                    <span className="ui-row-item__who">
+                      <span className="ui-row-item__stack">
+                        <span className="ui-row-item__name">
+                          {kandydat.won && <span aria-hidden="true">👑 </span>}
+                          {kandydat.nickname}
+                        </span>
+
+                        {kandydat.team_name && (
+                          <span className="ui-row-item__sub">
+                            {kandydat.team_name}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+
+                    <div className="ui-row-item__meta">
+                      <span className="ui-badge">
+                        {t("mvp.votes", { count: kandydat.votes })}
+                      </span>
+                    </div>
+
+                    <strong className="ui-row-item__score">
+                      {t("common.percentValue", { percent: kandydat.share })}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              <p className="ui-note">
+                {t("mvp.note", { count: mvp.total_votes })}
+              </p>
+            </section>
+          )}
 
           <section className="ui-tiles">
             <Link

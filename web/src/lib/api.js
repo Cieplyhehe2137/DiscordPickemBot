@@ -414,6 +414,12 @@ export function getPlayerCareer(userId) {
   return apiRequest(`/public/players/${encodeURIComponent(userId)}`);
 }
 
+// Glosowanie na MVP turnieju. Cztery tabele w bazie, a do tej pory zero
+// publicznych tras - MVP dalo sie zobaczyc wylacznie w panelu.
+export function getEventMvp(slug) {
+  return apiRequest(`/public/events/${encodeURIComponent(slug)}/mvp`);
+}
+
 export function getTeam(name) {
   return apiRequest(`/public/teams/${encodeURIComponent(name)}`);
 }
