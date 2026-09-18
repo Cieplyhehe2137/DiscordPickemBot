@@ -517,6 +517,7 @@ const ru = {
   "profile.missing.text": "Никто с таким идентификатором не делал прогнозов на этом турнире.",
   "profile.compare": "Сравнить с игроком",
   "profile.kicker": "Профиль игрока",
+  "profile.career": "Достижения поверх турниров",
   "profile.points": "Очки",
   "profile.pointsPerMatch": "{value} очк. / матч",
   "profile.rank": "Рейтинг",

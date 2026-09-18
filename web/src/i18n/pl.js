@@ -538,6 +538,7 @@ const pl = {
   "profile.missing.text": "W tym evencie nikt o takim identyfikatorze nie typował.",
   "profile.compare": "Porównaj z graczem",
   "profile.kicker": "Profil gracza",
+  "profile.career": "Dorobek ponad turniejami",
   "profile.points": "Punkty",
   "profile.pointsPerMatch": "{value} pkt / mecz",
   "profile.rank": "Ranking",

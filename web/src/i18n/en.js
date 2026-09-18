@@ -489,6 +489,7 @@ const en = {
   "profile.missing.text": "Nobody with that identifier made predictions in this event.",
   "profile.compare": "Compare with a player",
   "profile.kicker": "Player profile",
+  "profile.career": "Record across tournaments",
   "profile.points": "Points",
   "profile.pointsPerMatch": "{value} pts / match",
   "profile.rank": "Ranking",

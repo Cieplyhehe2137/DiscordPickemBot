@@ -489,6 +489,7 @@ const de = {
   "profile.missing.text": "Niemand mit dieser Kennung hat in diesem Event getippt.",
   "profile.compare": "Mit einem Spieler vergleichen",
   "profile.kicker": "Spielerprofil",
+  "profile.career": "Bilanz über alle Turniere",
   "profile.points": "Punkte",
   "profile.pointsPerMatch": "{value} Pkt. / Spiel",
   "profile.rank": "Rangliste",

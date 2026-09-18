@@ -517,6 +517,7 @@ const uk = {
   "profile.missing.text": "Ніхто з таким ідентифікатором не робив прогнозів на цьому турнірі.",
   "profile.compare": "Порівняти з гравцем",
   "profile.kicker": "Профіль гравця",
+  "profile.career": "Доробок понад турнірами",
   "profile.points": "Бали",
   "profile.pointsPerMatch": "{value} оч. / матч",
   "profile.rank": "Рейтинг",
