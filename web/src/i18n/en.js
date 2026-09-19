@@ -1494,6 +1494,53 @@ const en = {
   "maps.noNames": "There is nothing here about particular maps, because the map name is not in the data — picks and results hold only the map's number in the series. The number says nothing either: accuracy on the first, second and third comes out at 54%, 56% and 55%, so the decider is no harder than the opener.",
   "maps.empty.title": "No settled maps yet",
   "maps.empty.text": "This page is built from map picks that have a result. It shows up as soon as the first maps are settled.",
+
+  // --- Rywale gracza w turnieju --------------------------------------------
+  // Rywale gracza w turnieju.
+  //
+  // Pojedynek dwoch graczy istnial od dawna, ale wchodzilo sie w niego
+  // z JEDNEGO miejsca i trzeba bylo wiedziec, czyj profil otworzyc.
+  // Ta sekcja odpowiada na pytanie, ktore pada wczesniej: z kim wlasciwie
+  // ten gracz sie sciga.
+  "rivals.kicker": "Who picks the same",
+  "rivals.title": "Rivals",
+  "rivals.intro": "Players who picked the same matches. Only what both of them picked — and what has been settled — counts; a match one of them skipped says nothing about who is ahead.",
+  "rivals.loading": "Working out the rivals...",
+  "rivals.error": "The rivals could not be loaded.",
+  "rivals.head.player": "Rival",
+  "rivals.head.record": "Record",
+  // Remisy maja wlasna liczbe, bo jest ich duzo: zmierzone na produkcji
+  // to 48% wspolnych meczow. Za 60% typow nie ma zadnych punktow,
+  // a dwa zera to remis - wiec bez tej liczby bilans 34-14 przy stu
+  // wspolnych meczach wygladalby na blad.
+  "rivals.ties": {
+    one: "{count} tie",
+    other: "{count} ties",
+  },
+  "rivals.sharedCount": {
+    one: "{count} shared match",
+    other: "{count} shared matches",
+  },
+  // Odznaki, nie osobne kafelki: ten sam czlowiek bywa jednoczesnie
+  // najczestszym i najrowniejszym rywalem.
+  "rivals.badge.most": "most frequent",
+  "rivals.badge.closest": "most even",
+  "rivals.badge.best": "biggest lead",
+  "rivals.badge.worst": "biggest deficit",
+  "rivals.duel": "Duel",
+  "rivals.more": {
+    one: "…and {count} more rival",
+    other: "…and {count} more rivals",
+  },
+  "rivals.empty.none": "This player has no settled picks in this tournament yet, so there is nothing to compare.",
+  "rivals.empty.tooFew": {
+    one: "Nobody shares even {count} settled match with this player — too few for a record to mean anything.",
+    other: "Nobody shares even {count} settled matches with this player — too few for a record to mean anything.",
+  },
+  "rivals.note": {
+    one: "The record counts matches settled BETWEEN the two players. Ties — the same points for a match — are counted separately, because they make up nearly half of all shared matches. A rival enters the list from {count} such match.",
+    other: "The record counts matches settled BETWEEN the two players. Ties — the same points for a match — are counted separately, because they make up nearly half of all shared matches. A rival enters the list from {count} such matches.",
+  },
 };
 
 export default en;

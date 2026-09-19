@@ -13,6 +13,7 @@ import PointsChart from "../components/PointsChart.jsx";
 import BadgeShelf from "../components/BadgeShelf.jsx";
 import PlayerHistory from "../components/PlayerHistory.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
+import Rivals from "../components/Rivals.jsx";
 import { useT } from "../i18n/useLanguage.js";
 
 function PlayerProfilePage() {
@@ -432,6 +433,16 @@ function PlayerProfilePage() {
           </div>
         </section>
       )}
+
+      {/* Rywale PO własnych liczbach gracza, a przed szczegółami typów.
+
+          Sekcja pobiera się sama, więc dochodzi na stronę chwilę po reszcie
+          - wysoko na stronie przesuwałaby w dół wszystko, co pod nią.
+          Tutaj to, co się przesuwa, jest i tak poza ekranem.
+
+          Na górze strony stoi przycisk „Porównaj”, który prowadzi w to samo
+          miejsce - ale wymaga, żeby wiedzieć z góry, kogo się szuka. */}
+      <Rivals slug={slug} userId={userId} />
 
       {/* Typy drużyn stoją PRZED historią meczów: dotyczą całego turnieju,
           a nie pojedynczych spotkań, więc czyta się je jako podsumowanie,

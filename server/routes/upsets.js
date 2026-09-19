@@ -137,7 +137,7 @@ const SQL_PROFILE = `
 // wcześniej i nie ma powodu rozwiązywać go drugi raz inaczej.
 //
 // Po połączeniu obu źródeł bez nazwy zostają 32 osoby z 638.
-const SQL_NAZWY = `
+export const SQL_NAZWY = `
     SELECT user_id, MAX(nazwa) AS displayname
     FROM (
         SELECT

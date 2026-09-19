@@ -36,6 +36,7 @@ import { registerMyPicksRoutes } from "./routes/myPicks.js";
 import { registerMatchExactRoutes } from "./routes/matchExact.js";
 import { registerPlayerProfileRoutes } from "./routes/playerProfile.js";
 import { registerHeadToHeadRoutes } from "./routes/headToHead.js";
+import { registerRivalsRoutes } from "./routes/rivals.js";
 import { registerTeamRoutes } from "./routes/teams.js";
 import { registerScoringRoutes } from "./routes/scoring.js";
 import { registerAllTimeRoutes } from "./routes/allTime.js";
@@ -637,6 +638,11 @@ registerPlayerProfileRoutes(app, { findNameFromPicks, pool });
 // bo liczy wylacznie czesc wspolna typow - nazwy, awatary i statystyki obu
 // stron strona porownania bierze z dwoch profili.
 registerHeadToHeadRoutes(app, { pool });
+
+// Rywale gracza w turnieju (server/routes/rivals.js). Stoi obok pojedynku,
+// bo odpowiada na pytanie, ktore przed nim pada: z KIM sie wlasciwie scigam.
+// Pojedynek mial dotad jedno wejscie i trzeba bylo znac odpowiedz zawczasu.
+registerRivalsRoutes(app, { pool });
 
 // Przeniesione do server/routes/eventStats.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
