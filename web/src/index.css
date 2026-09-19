@@ -2563,3 +2563,115 @@ main > .page-back {
   text-transform: uppercase;
   color: var(--text-faint);
 }
+
+/* =========================================================
+   TYPY NA FAZY SWISS
+   ========================================================= */
+
+/* Trzy grupy obok siebie na szerokim ekranie, jedna pod drugą na wąskim.
+   Minimalna szerokość kolumny bierze się z najdłuższej rzeczy w wierszu:
+   herb, nazwa drużyny, plakietka i pasek muszą zmieścić się w jednej linii,
+   zanim kolumna ma sens. */
+.swiss-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 900px) {
+  .swiss-groups {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.swiss-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.swiss-group__title {
+  margin: 0;
+
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.swiss-group__teams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Wiersz drużyny: herb, nazwa, ewentualna plakietka, pasek i procent.
+   Pasek dostaje całą resztę szerokości, nazwa skraca się pierwsza. */
+.swiss-team {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.swiss-team__name {
+  flex: 0 1 auto;
+  min-width: 0;
+
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pasek rośnie ostatni i kurczy się pierwszy - przy trzech kolumnach na
+   900 px zostaje mu kilkadziesiąt pikseli i to wystarcza, bo dokładną
+   wartość i tak podaje liczba obok. */
+.swiss-team .ui-meter {
+  flex: 1 1 var(--space-8);
+  min-width: var(--space-6);
+}
+
+/* Poniżej 560 px pasek znika. W wierszu stoi pięć rzeczy - herb, nazwa,
+   plakietka, pasek i liczba - a przy trzystu pikselach pasek ze swoją
+   minimalną szerokością wypychał nazwę do „BetB…". Wartość niesie liczba
+   obok, więc to pasek jest tu rzeczą, bez której da się żyć. */
+@media (max-width: 560px) {
+  .swiss-team .ui-meter {
+    display: none;
+  }
+}
+
+.swiss-team__share {
+  flex: 0 0 auto;
+  min-width: 4ch;
+
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+/* Trafiona odpowiedź czyta się mocniej niż reszta wiersza - kolor paska
+   i plakietka niosą to samo, a tu dochodzi jeszcze waga nazwy. */
+.swiss-team--correct .swiss-team__name {
+  color: var(--text-strong);
+}
+
+.swiss-group__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.swiss-group__note {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}

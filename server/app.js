@@ -44,6 +44,7 @@ import { registerUpsetsRoutes } from "./routes/upsets.js";
 import { registerPlayerCareerRoutes } from "./routes/playerCareer.js";
 import { registerMvpRoutes } from "./routes/mvp.js";
 import { registerOutcomeRoutes } from "./routes/outcome.js";
+import { registerSwissPicksRoutes } from "./routes/swissPicks.js";
 import { registerMapRoutes } from "./routes/maps.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
@@ -445,6 +446,11 @@ registerMvpRoutes(app, { pool });
 // TYPOWANIA fazy - mozna bylo otworzyc strone turnieju i nie dowiedziec
 // sie, kto go wygral. Trzy segmenty po /api/public/, wiec bezpieczne.
 registerOutcomeRoutes(app, { pool });
+
+// Typy na fazy Swiss (server/routes/swissPicks.js). teamStats.js mowi
+// wprost, ze liczy WYLACZNIE mecze i ze typy na awans to "osobna robota" -
+// to jest ta robota. Trzy segmenty po /api/public/, wiec bezpieczne.
+registerSwissPicksRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,

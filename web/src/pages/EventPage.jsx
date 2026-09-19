@@ -237,6 +237,12 @@ function EventPage() {
     refreshEventPage();
   }, [realtimeRefresh, slug, currentUser?.id, authLoading]);
 
+  // Czy ten turniej miał w ogóle fazę Swiss. Lista faz przychodzi
+  // z /summary i zawiera stage1..3 tylko tam, gdzie Swiss był rozgrywany.
+  const maSwiss = (event?.pickem_druzyn?.fazy ?? []).some((f) =>
+    String(f.faza).startsWith("stage"),
+  );
+
   // Kafelek typowania drużyn pokazuje fazę, w której event JEST teraz.
   // Gdy bieżąca faza nie ma typowania drużyn (albo turniej się skończył),
   // spadamy na ostatnią fazę z wynikiem - żeby kafelek prowadził do czegoś,
@@ -887,6 +893,21 @@ function EventPage() {
                 })}
               </strong>
             </Link>
+
+            {/* Typy na fazy Swiss zestawione z tym, co się stało. Kafelek
+                tylko dla turniejów, które Swiss w ogóle miały - IEM Kraków
+                2026 grał play-in i double elim, więc tam ta strona nie ma
+                czego pokazać. */}
+            {maSwiss && (
+              <Link
+                className="ui-card ui-card--interactive ui-tile"
+                to={`/events/${slug}/phase-picks`}
+              >
+                <span>🇨🇭 {t("swissPicks.link")}</span>
+
+                <strong>{t("swissPicks.kicker")}</strong>
+              </Link>
+            )}
 
             {/* Typowanie DRUŻYN - osobne od typowania meczów.
                 Prowadzi wprost do fazy, w której event aktualnie jest,

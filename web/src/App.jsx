@@ -23,6 +23,7 @@ import AllTimePage from "./pages/AllTimePage.jsx";
 import UpsetsPage from "./pages/UpsetsPage.jsx";
 import PlayerCareerPage from "./pages/PlayerCareerPage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
+import SwissPicksPage from "./pages/SwissPicksPage.jsx";
 
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
@@ -61,6 +62,12 @@ function App() {
 
         {/* RULES */}
         <Route path="/scoring" element={<ScoringPage />} />
+
+        {/* PHASE PICKS
+            Typy na fazy Swiss zestawione z tym, co sie stalo. Osobna strona,
+            bo trzy etapy razy trzy grupy to kilkadziesiat wierszy - na
+            stronie turnieju przykryloby to wszystko inne. */}
+        <Route path="/events/:slug/phase-picks" element={<SwissPicksPage />} />
 
         {/* MATCHES */}
         <Route path="/events/:slug/matches" element={<MatchesPage />} />

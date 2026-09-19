@@ -1576,6 +1576,50 @@ const en = {
     one: "The base is {count} playoff pick made in this tournament. Anyone who skipped the playoff picks is not in these percentages, even if they picked matches.",
     other: "The base is {count} playoff picks made in this tournament. Anyone who skipped the playoff picks is not in these percentages, even if they picked matches.",
   },
+
+  // --- Typy na fazy Swiss --------------------------------------------------
+  // Typy na fazy Swiss zestawione z tym, co sie stalo.
+  //
+  // teamStats.js mowi wprost, ze liczy WYLACZNIE mecze, bo typy na awans
+  // leza w bazie jako listy tekstowe i sa "osobna robota". To jest ta
+  // robota: 2 074 wiersze faz daja po rozbiciu 18 803 oceny druzyn,
+  // wobec 10 328 typow meczowych.
+  //
+  // StarLadder Budapest 2025 nie ma ani jednego meczu, wiec bez tej
+  // strony nie istnieje w zadnej statystyce druzyn - a ma 837 typow.
+  "swissPicks.kicker": "What the community backed",
+  "swissPicks.title": "Phase picks",
+  "swissPicks.intro": "The team statistics on this site count matches only. This is the other half of what the community thinks about teams — the 3-0, 0-3 and advancing picks, set against what actually happened.",
+  "swissPicks.loading": "Loading the phase picks...",
+  "swissPicks.errorText": "The phase picks could not be loaded.",
+  "swissPicks.back": "Back to the tournament",
+  "swissPicks.link": "Swiss phase picks",
+  "swissPicks.group.threeZero": "Who goes 3-0",
+  "swissPicks.group.zeroThree": "Who goes out 0-3",
+  "swissPicks.group.advancing": "Who advances",
+  "swissPicks.total": {
+    one: "{count} player picking",
+    other: "{count} players picking",
+  },
+  "swissPicks.correct": "correct",
+  // Najmocniej obstawiona druzyna, ktora NIE byla poprawna odpowiedzia.
+  // Zmierzone: GamerLegion 84% na 3-0, THUNDER dOWNUNDER 76% na 0-3,
+  // B8 71% na awans - zadna nie wyszla.
+  "swissPicks.overrated": "Safest bet that failed",
+  // Druga polowa tej historii: poprawne odpowiedzi, ktorych tlum nie
+  // widzial. Lynn Vision Gaming 1% na 0-3, FlyQuest 1% na 3-0,
+  // SINNERS 2% na 0-3 - wszystkie trzy trafione.
+  "swissPicks.missed": {
+    one: "{count} answer nobody saw",
+    other: "{count} answers nobody saw",
+  },
+  "swissPicks.pending": "This stage has no official result yet, so only the split of the votes is shown.",
+  "swissPicks.note": {
+    one: "An answer counts as missed when fewer than {count}% of the pickers named it. The list shows the top of each group plus EVERY correct answer, including one that fell outside the top — because that is what this page is about.",
+    other: "An answer counts as missed when fewer than {count}% of the pickers named it. The list shows the top of each group plus EVERY correct answer, including one that fell outside the top — because that is what this page is about.",
+  },
+  "swissPicks.empty.title": "This tournament had no Swiss stages",
+  "swissPicks.empty.text": "Not every format has a Swiss stage — some run a play-in or a double-elimination bracket instead. This page only appears where Swiss stage picks were made.",
 };
 
 export default en;

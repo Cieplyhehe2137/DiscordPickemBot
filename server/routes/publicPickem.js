@@ -17,6 +17,7 @@
 // regula no-undef, ktora widzi to statycznie.
 
 import { codeForDefault } from "../lib/messageCode.js";
+import { buildSwissPicks } from "../lib/swissPicks.js";
 
 // Zdania zapasowe blokad razem z kodami. Kod idzie do odpowiedzi obok zdania
 // i prowadzi do tlumaczenia - ale TYLKO wtedy, gdy na ekran idzie nasze
@@ -1939,39 +1940,46 @@ export function registerPublicPickemRoutes(
         [event.id, stage],
       );
 
-      function countCsvValues(values) {
-        const counts = new Map();
+      // Podział głosów liczy server/lib/swissPicks.js - ten sam moduł, co
+      // /api/public/events/:slug/swiss-picks. Wcześniej stała tu własna
+      // kopia zliczania i dwa miejsca musiałyby się zgadzać już na zawsze.
+      //
+      // Moduł grupuje nazwy przez teamKey, więc „FaZe Clan" i „Faze Clan"
+      // są tu teraz jedną drużyną zamiast dwóch mniejszych - to jedyna
+      // różnica w tym, co ta trasa oddaje.
+      //
+      // Bez wyników: ta trasa z założenia mówi tylko, na co stawiano.
+      // Porównanie z tym, co się stało, oddaje trasa /swiss-picks.
+      // topTeams bez ograniczenia: moduł domyślnie przycina listę do czołowej
+      // piątki na potrzeby strony, a ta trasa zawsze oddawała komplet drużyn
+      // i nie ma powodu tego zmieniać.
+      const { stages } = buildSwissPicks(
+        rows.map((r) => ({ ...r, stage })),
+        [],
+        { topTeams: Number.POSITIVE_INFINITY },
+      );
 
-        values.forEach((value) => {
-          if (!value) return;
+      const grupy = new Map(
+        (stages[0]?.groups ?? []).map((g) => [g.kind, g.teams]),
+      );
 
-          String(value)
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean)
-            .forEach((team) => {
-              counts.set(team, (counts.get(team) || 0) + 1);
-            });
-        });
-
-        return [...counts.entries()]
-          .map(([team, count]) => ({
-            team,
-            count,
-            percentage:
-              rows.length > 0 ? Math.round((count / rows.length) * 100) : 0,
-          }))
-          .sort((a, b) => b.count - a.count || a.team.localeCompare(b.team));
-      }
+      // Kształt odpowiedzi zostaje dokładnie ten, co był - trasa jest
+      // publiczna, więc tłumaczymy tylko nazwy pól na tutejsze.
+      const naStare = (kind) =>
+        (grupy.get(kind) ?? []).map((d) => ({
+          team: d.name,
+          count: d.count,
+          percentage: d.percent,
+        }));
 
       res.json({
         event,
         stage,
         total_predictions: rows.length,
         stats: {
-          three_zero: countCsvValues(rows.map((row) => row.pick_3_0)),
-          zero_three: countCsvValues(rows.map((row) => row.pick_0_3)),
-          advancing: countCsvValues(rows.map((row) => row.advancing)),
+          three_zero: naStare("three_zero"),
+          zero_three: naStare("zero_three"),
+          advancing: naStare("advancing"),
         },
       });
     } catch (err) {

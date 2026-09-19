@@ -1652,6 +1652,53 @@ const ru = {
     few: "Основа — {count} прогноза на плей-офф в этом турнире. Тот, кто плей-офф не прогнозировал, в эти проценты не попадает, даже если прогнозировал матчи.",
     many: "Основа — {count} прогнозов на плей-офф в этом турнире. Тот, кто плей-офф не прогнозировал, в эти проценты не попадает, даже если прогнозировал матчи.",
   },
+
+  // --- Typy na fazy Swiss --------------------------------------------------
+  // Typy na fazy Swiss zestawione z tym, co sie stalo.
+  //
+  // teamStats.js mowi wprost, ze liczy WYLACZNIE mecze, bo typy na awans
+  // leza w bazie jako listy tekstowe i sa "osobna robota". To jest ta
+  // robota: 2 074 wiersze faz daja po rozbiciu 18 803 oceny druzyn,
+  // wobec 10 328 typow meczowych.
+  //
+  // StarLadder Budapest 2025 nie ma ani jednego meczu, wiec bez tej
+  // strony nie istnieje w zadnej statystyce druzyn - a ma 837 typow.
+  "swissPicks.kicker": "На что ставило сообщество",
+  "swissPicks.title": "Прогнозы на этапы",
+  "swissPicks.intro": "Статистика команд на этом сайте считает только матчи. Это вторая половина того, что сообщество думает о командах — прогнозы на 3-0, на 0-3 и на выход, сопоставленные с тем, что произошло на самом деле.",
+  "swissPicks.loading": "Загрузка прогнозов на этапы...",
+  "swissPicks.errorText": "Не удалось загрузить прогнозы на этапы.",
+  "swissPicks.back": "Назад к турниру",
+  "swissPicks.link": "Прогнозы на этапы Swiss",
+  "swissPicks.group.threeZero": "Кто пройдёт 3-0",
+  "swissPicks.group.zeroThree": "Кто вылетит 0-3",
+  "swissPicks.group.advancing": "Кто выйдет дальше",
+  "swissPicks.total": {
+    one: "{count} прогнозист",
+    few: "{count} прогнозиста",
+    many: "{count} прогнозистов",
+  },
+  "swissPicks.correct": "верно",
+  // Najmocniej obstawiona druzyna, ktora NIE byla poprawna odpowiedzia.
+  // Zmierzone: GamerLegion 84% na 3-0, THUNDER dOWNUNDER 76% na 0-3,
+  // B8 71% na awans - zadna nie wyszla.
+  "swissPicks.overrated": "Верная ставка, которая не сыграла",
+  // Druga polowa tej historii: poprawne odpowiedzi, ktorych tlum nie
+  // widzial. Lynn Vision Gaming 1% na 0-3, FlyQuest 1% na 3-0,
+  // SINNERS 2% na 0-3 - wszystkie trzy trafione.
+  "swissPicks.missed": {
+    one: "{count} незамеченный ответ",
+    few: "{count} незамеченных ответа",
+    many: "{count} незамеченных ответов",
+  },
+  "swissPicks.pending": "У этого этапа ещё нет официального результата, поэтому виден только расклад голосов.",
+  "swissPicks.note": {
+    one: "Незамеченным считается верный ответ, который указали менее {count}% прогнозистов. В списке стоит верхушка каждой группы и КАЖДЫЙ верный ответ, в том числе выпавший за верхушку — именно о нём эта страница.",
+    few: "Незамеченным считается верный ответ, который указали менее {count}% прогнозистов. В списке стоит верхушка каждой группы и КАЖДЫЙ верный ответ, в том числе выпавший за верхушку — именно о нём эта страница.",
+    many: "Незамеченным считается верный ответ, который указали менее {count}% прогнозистов. В списке стоит верхушка каждой группы и КАЖДЫЙ верный ответ, в том числе выпавший за верхушку — именно о нём эта страница.",
+  },
+  "swissPicks.empty.title": "В этом турнире не было этапов Swiss",
+  "swissPicks.empty.text": "Не в каждом формате есть этап Swiss — бывает плей-ин или сетка с двойным выбыванием. Эта страница появляется только там, где были прогнозы на этапы Swiss.",
 };
 
 export default ru;
