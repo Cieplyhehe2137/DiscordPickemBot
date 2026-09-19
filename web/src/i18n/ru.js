@@ -1615,6 +1615,43 @@ const ru = {
     few: "Баланс считается по матчам, рассчитанным МЕЖДУ двумя игроками. Ничьи — одинаковое число очков за матч — считаются отдельно, потому что их почти половина от всех общих матчей. Соперник попадает в список от {count} таких матчей.",
     many: "Баланс считается по матчам, рассчитанным МЕЖДУ двумя игроками. Ничьи — одинаковое число очков за матч — считаются отдельно, потому что их почти половина от всех общих матчей. Соперник попадает в список от {count} таких матчей.",
   },
+
+  // --- Wynik turnieju ------------------------------------------------------
+  // Wynik turnieju na stronie turnieju.
+  //
+  // Mistrz lezal w playoffs_results od poczatku, ale pokazywal go
+  // wylacznie komponent PhaseResults na stronach TYPOWANIA fazy - mozna
+  // bylo otworzyc strone IEM Cologne Major 2026 i nie dowiedziec sie,
+  // ze wygraly Falcons.
+  "outcome.kicker": "Чем всё закончилось",
+  "outcome.title": "Итог турнира",
+  "outcome.intro": "Кто победил — и сколько игроков это предсказало. Проценты считаются от прогнозов на плей-офф, а не от всех участников турнира.",
+  // Etykieta plus nazwa, nigdy zdanie z nazwa w srodku. Nazwy druzyn to
+  // wolny tekst z bazy, wiec "Falcons pokonali FURIE" wymagaloby biernika,
+  // ktorego nie da sie zbudowac ani po polsku, ani po rosyjsku.
+  "outcome.champion": "Чемпион",
+  "outcome.runnerUp": "Финалист",
+  "outcome.semis": {
+    one: "Полуфиналист",
+    few: "Полуфиналисты",
+    many: "Полуфиналисты",
+  },
+  "outcome.third": "Третье место",
+  "outcome.called.title": "Кто это предсказал",
+  "outcome.called.winner": "Угадан чемпион",
+  "outcome.called.finalists": "Оба финалиста",
+  "outcome.called.semifinalists": "Все четыре полуфиналиста",
+  "outcome.favourite": "Фаворит сообщества",
+  // Dopisek przy faworycie, nie osobne zdanie - doklejany po nazwie
+  // i procencie, wiec dziala bez odmiany. Zmierzone: Krakow trafil
+  // (Vitality 80%), Cologne i Budapeszt nie (Spirit 42%, Furia 57%).
+  "outcome.favourite.hit": "так и вышло",
+  "outcome.favourite.miss": "но победил другой",
+  "outcome.note": {
+    one: "Основа — {count} прогноз на плей-офф в этом турнире. Тот, кто плей-офф не прогнозировал, в эти проценты не попадает, даже если прогнозировал матчи.",
+    few: "Основа — {count} прогноза на плей-офф в этом турнире. Тот, кто плей-офф не прогнозировал, в эти проценты не попадает, даже если прогнозировал матчи.",
+    many: "Основа — {count} прогнозов на плей-офф в этом турнире. Тот, кто плей-офф не прогнозировал, в эти проценты не попадает, даже если прогнозировал матчи.",
+  },
 };
 
 export default ru;

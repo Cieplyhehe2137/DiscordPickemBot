@@ -115,6 +115,22 @@ test("profil gracza ponad turniejami ma DWA segmenty i dlatego jest bezpieczny",
   );
 });
 
+test("wynik turnieju ma TRZY segmenty i dlatego jest bezpieczny", async () => {
+  // /api/public/events/:slug/outcome nie koliduje z :guildSlug, bo tamten
+  // wzorzec lapie tylko jeden segment. Przypadek istnieje z tego samego
+  // powodu, co przy MVP: przy trasie, ktora wyglada na bezpieczna,
+  // najlatwiej przeoczyc pozniejsze skrocenie adresu.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "outcome.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    tresc.includes('app.get("/api/public/events/:slug/outcome"'),
+    "trasa wyniku turnieju musi miec trzy segmenty po /api/public/",
+  );
+});
+
 test("rywale gracza maja CZTERY segmenty i dlatego sa bezpieczni", async () => {
   // /api/public/events/:slug/players/:userId/rivals nie koliduje
   // z :guildSlug, bo tamten wzorzec lapie tylko jeden segment.

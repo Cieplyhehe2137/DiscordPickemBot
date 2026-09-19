@@ -43,6 +43,7 @@ import { registerAllTimeRoutes } from "./routes/allTime.js";
 import { registerUpsetsRoutes } from "./routes/upsets.js";
 import { registerPlayerCareerRoutes } from "./routes/playerCareer.js";
 import { registerMvpRoutes } from "./routes/mvp.js";
+import { registerOutcomeRoutes } from "./routes/outcome.js";
 import { registerMapRoutes } from "./routes/maps.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
@@ -438,6 +439,12 @@ registerPlayerCareerRoutes(app, { pool });
 // w panelu administratora. Adres ma TRZY segmenty po /api/public/, wiec
 // nie koliduje z :guildSlug.
 registerMvpRoutes(app, { pool });
+
+// Wynik turnieju (server/routes/outcome.js). Mistrz lezal w bazie od
+// poczatku, ale pokazywal go wylacznie komponent PhaseResults na stronach
+// TYPOWANIA fazy - mozna bylo otworzyc strone turnieju i nie dowiedziec
+// sie, kto go wygral. Trzy segmenty po /api/public/, wiec bezpieczne.
+registerOutcomeRoutes(app, { pool });
 
 registerAuthRoutes(app, {
   pool,
