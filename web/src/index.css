@@ -2391,3 +2391,67 @@ main > .page-back {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* =========================================================
+   RYWALE GRACZA
+   ========================================================= */
+
+/* Sekcja korzysta z .ui-table i .ui-row-item - tych samych, co ranking
+   i czytanie map. Własnego tu jest tyle, ile trzeba na jedną rzecz:
+   bilans jest odnośnikiem, a odnośnik musi na to wyglądać.
+
+   Kolumny miejsca w tej tabeli nie ma, bo rywale nie są uszeregowani -
+   pierwszy obszar siatki zostaje pusty i zwija się do zera. */
+/* Podpis pod nazwą wraca do ZAWIJANIA, ale tylko w tej tabeli.
+
+   .ui-row-item__sub ma nowrap, bo w klasyfikacji wszech czasów stoi tam
+   krótkie „12 startów" i łamanie go wyglądałoby na przypadek. Tutaj stoją
+   dwie liczby ze spójnikiem: zmierzone przy 375 px ekranu to 189 px tekstu
+   w kolumnie szerokiej na 108. Bez zawijania podpis wychodził spod nazwy
+   i przechodził pod bilans po prawej - nowrap bez ucinania nie skraca
+   tekstu, tylko pozwala mu wyjść poza swoje pole. */
+.rivals-table .ui-row-item__sub {
+  white-space: normal;
+}
+
+.rivals-duel {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+
+  text-decoration: none;
+
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.rivals-duel:hover {
+  color: var(--accent);
+}
+
+/* Strzałka drobniejsza od liczby i przygaszona: ma powiedzieć "to prowadzi
+   dalej", a nie konkurować z bilansem o uwagę. Przy najechaniu odsuwa się
+   w prawo - ten sam ruch, co przy pozostałych odnośnikach ze strzałką. */
+.rivals-duel__arrow {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+
+  transition:
+    transform var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.rivals-duel:hover .rivals-duel__arrow {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+/* Kto woli ograniczyć ruch na stronie, dostaje sam kolor. */
+@media (prefers-reduced-motion: reduce) {
+  .rivals-duel__arrow {
+    transition: color var(--duration-fast) var(--ease);
+  }
+
+  .rivals-duel:hover .rivals-duel__arrow {
+    transform: none;
+  }
+}

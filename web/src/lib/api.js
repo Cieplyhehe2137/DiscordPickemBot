@@ -386,6 +386,21 @@ export function getEventPlayerProfile(slug, userId) {
   return apiRequest(`/public/events/${slug}/players/${userId}`);
 }
 
+// Rywale gracza w tym turnieju: kto obstawial te same mecze i jak mu
+// przy nim szlo.
+//
+// OSOBNE ZADANIE, a nie pole w profilu. Wiersze potrzebne do bilansu
+// licza sie 247 ms (mediana z pieciu prob na produkcji), a profil oddaje
+// odpowiedz po jednej podrozy do bazy. Doklejone tam opoznilyby CALY
+// profil dla sekcji na jego koncu; osobno leca rownolegle.
+export function getPlayerRivals(slug, userId) {
+  return apiRequest(
+    `/public/events/${encodeURIComponent(slug)}/players/${encodeURIComponent(
+      userId,
+    )}/rivals`,
+  );
+}
+
 // Druzyny sa wspolne dla wszystkich turniejow, wiec te trasy nie biora
 // slugu eventu. Nazwa w adresie jest czytelna dla czlowieka - serwer sam
 // sprowadza ja do klucza, wiec /teams/FUT i /teams/FUT%20Esports trafiaja

@@ -115,6 +115,28 @@ test("profil gracza ponad turniejami ma DWA segmenty i dlatego jest bezpieczny",
   );
 });
 
+test("rywale gracza maja CZTERY segmenty i dlatego sa bezpieczni", async () => {
+  // /api/public/events/:slug/players/:userId/rivals nie koliduje
+  // z :guildSlug, bo tamten wzorzec lapie tylko jeden segment.
+  //
+  // Przypadek istnieje z tego samego powodu, co przy MVP i profilu
+  // ponad turniejami: wlasnie przy trasie, ktora wyglada na bezpieczna,
+  // najlatwiej przeoczyc pozniejsze skrocenie adresu. Skrocenie do
+  // /api/public/rivals zmieniloby zachowanie po cichu - HTTP 200
+  // i pusta strona serwera zamiast sekcji.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "rivals.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    tresc.includes(
+      '"/api/public/events/:slug/players/:userId/rivals"',
+    ),
+    "trasa rywali musi miec cztery segmenty po /api/public/",
+  );
+});
+
 test("mapy sa rejestrowane przed trasa, ktora je przeslania", async () => {
   // /api/public/maps ma jeden segment, tak samo jak teams, scoring,
   // all-time i upsets. Piaty raz ta sama pulapka.

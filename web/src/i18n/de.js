@@ -1494,6 +1494,53 @@ const de = {
   "maps.noNames": "Hier steht nichts über einzelne Maps, weil der Map-Name nicht in den Daten steht — Tipps und Ergebnisse halten nur die Nummer der Map in der Serie. Die Nummer sagt ebenfalls nichts: Die Trefferquote auf der ersten, zweiten und dritten liegt bei 54%, 56% und 55%, die Entscheidungs-Map ist also nicht schwerer als die erste.",
   "maps.empty.title": "Noch keine abgerechneten Maps",
   "maps.empty.text": "Diese Seite entsteht aus Map-Tipps, die ein Ergebnis haben. Sie erscheint, sobald die ersten Maps abgerechnet sind.",
+
+  // --- Rywale gracza w turnieju --------------------------------------------
+  // Rywale gracza w turnieju.
+  //
+  // Pojedynek dwoch graczy istnial od dawna, ale wchodzilo sie w niego
+  // z JEDNEGO miejsca i trzeba bylo wiedziec, czyj profil otworzyc.
+  // Ta sekcja odpowiada na pytanie, ktore pada wczesniej: z kim wlasciwie
+  // ten gracz sie sciga.
+  "rivals.kicker": "Wer dasselbe tippt",
+  "rivals.title": "Rivalen",
+  "rivals.intro": "Spieler, die dieselben Spiele getippt haben. Es zählt nur, was beide getippt haben und was entschieden ist — ein Spiel, das einer ausgelassen hat, sagt nichts über den Vorsprung.",
+  "rivals.loading": "Rivalen werden berechnet...",
+  "rivals.error": "Die Rivalen konnten nicht geladen werden.",
+  "rivals.head.player": "Rivale",
+  "rivals.head.record": "Bilanz",
+  // Remisy maja wlasna liczbe, bo jest ich duzo: zmierzone na produkcji
+  // to 48% wspolnych meczow. Za 60% typow nie ma zadnych punktow,
+  // a dwa zera to remis - wiec bez tej liczby bilans 34-14 przy stu
+  // wspolnych meczach wygladalby na blad.
+  "rivals.ties": {
+    one: "{count} Unentschieden",
+    other: "{count} Unentschieden",
+  },
+  "rivals.sharedCount": {
+    one: "{count} gemeinsames Spiel",
+    other: "{count} gemeinsame Spiele",
+  },
+  // Odznaki, nie osobne kafelki: ten sam czlowiek bywa jednoczesnie
+  // najczestszym i najrowniejszym rywalem.
+  "rivals.badge.most": "am häufigsten",
+  "rivals.badge.closest": "am ausgeglichensten",
+  "rivals.badge.best": "größter Vorsprung",
+  "rivals.badge.worst": "größter Rückstand",
+  "rivals.duel": "Duell",
+  "rivals.more": {
+    one: "…und {count} weiterer Rivale",
+    other: "…und {count} weitere Rivalen",
+  },
+  "rivals.empty.none": "Dieser Spieler hat in diesem Turnier noch keine abgerechneten Tipps, es gibt also nichts zu vergleichen.",
+  "rivals.empty.tooFew": {
+    one: "Niemand teilt auch nur {count} entschiedenes Spiel mit diesem Spieler — zu wenig, als dass eine Bilanz etwas bedeuten würde.",
+    other: "Niemand teilt auch nur {count} entschiedene Spiele mit diesem Spieler — zu wenig, als dass eine Bilanz etwas bedeuten würde.",
+  },
+  "rivals.note": {
+    one: "Die Bilanz zählt Spiele, die ZWISCHEN den beiden entschieden wurden. Unentschieden — gleich viele Punkte für ein Spiel — werden getrennt gezählt, denn sie machen fast die Hälfte aller gemeinsamen Spiele aus. Ein Rivale kommt ab {count} solchen Spiel in die Liste.",
+    other: "Die Bilanz zählt Spiele, die ZWISCHEN den beiden entschieden wurden. Unentschieden — gleich viele Punkte für ein Spiel — werden getrennt gezählt, denn sie machen fast die Hälfte aller gemeinsamen Spiele aus. Ein Rivale kommt ab {count} solchen Spielen in die Liste.",
+  },
 };
 
 export default de;

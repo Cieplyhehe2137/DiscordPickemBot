@@ -1584,6 +1584,58 @@ const pl = {
   "maps.noNames": "Nie ma tu nic o konkretnych mapach, bo nazwy mapy nie ma w danych — typy i wyniki trzymają wyłącznie numer mapy w serii. Sam numer też nic nie mówi: skuteczność na pierwszej, drugiej i trzeciej wychodzi po 54%, 56% i 55%, więc mapa decydująca nie jest trudniejsza od otwierającej.",
   "maps.empty.title": "Brak rozliczonych map",
   "maps.empty.text": "Zestawienie powstaje z typów map, które doczekały się wyniku. Pojawi się, gdy tylko pierwsze mapy zostaną rozliczone.",
+
+  // --- Rywale gracza w turnieju --------------------------------------------
+  // Rywale gracza w turnieju.
+  //
+  // Pojedynek dwoch graczy istnial od dawna, ale wchodzilo sie w niego
+  // z JEDNEGO miejsca i trzeba bylo wiedziec, czyj profil otworzyc.
+  // Ta sekcja odpowiada na pytanie, ktore pada wczesniej: z kim wlasciwie
+  // ten gracz sie sciga.
+  "rivals.kicker": "Kto obstawia to samo",
+  "rivals.title": "Rywale",
+  "rivals.intro": "Gracze, którzy typowali te same mecze. Liczy się wyłącznie to, co obaj obstawili i co zostało rozstrzygnięte — mecz, którego jeden z nich nie typował, nie mówi nic o przewadze nad drugim.",
+  "rivals.loading": "Liczenie rywali...",
+  "rivals.error": "Nie udało się wczytać rywali.",
+  "rivals.head.player": "Rywal",
+  "rivals.head.record": "Bilans",
+  // Remisy maja wlasna liczbe, bo jest ich duzo: zmierzone na produkcji
+  // to 48% wspolnych meczow. Za 60% typow nie ma zadnych punktow,
+  // a dwa zera to remis - wiec bez tej liczby bilans 34-14 przy stu
+  // wspolnych meczach wygladalby na blad.
+  "rivals.ties": {
+    one: "{count} remis",
+    few: "{count} remisy",
+    many: "{count} remisów",
+  },
+  "rivals.sharedCount": {
+    one: "{count} wspólny mecz",
+    few: "{count} wspólne mecze",
+    many: "{count} wspólnych meczów",
+  },
+  // Odznaki, nie osobne kafelki: ten sam czlowiek bywa jednoczesnie
+  // najczestszym i najrowniejszym rywalem.
+  "rivals.badge.most": "najczęstszy",
+  "rivals.badge.closest": "najrówniejszy",
+  "rivals.badge.best": "największa przewaga",
+  "rivals.badge.worst": "największa strata",
+  "rivals.duel": "Pojedynek",
+  "rivals.more": {
+    one: "…i jeszcze {count} rywal",
+    few: "…i jeszcze {count} rywali",
+    many: "…i jeszcze {count} rywali",
+  },
+  "rivals.empty.none": "Ten gracz nie ma jeszcze rozstrzygniętych typów w tym turnieju, więc nie ma z czym porównywać.",
+  "rivals.empty.tooFew": {
+    one: "Nikt nie ma z tym graczem choćby {count} rozstrzygniętego wspólnego meczu — za mało, żeby bilans cokolwiek znaczył.",
+    few: "Nikt nie ma z tym graczem choćby {count} rozstrzygniętych wspólnych meczów — za mało, żeby bilans cokolwiek znaczył.",
+    many: "Nikt nie ma z tym graczem choćby {count} rozstrzygniętych wspólnych meczów — za mało, żeby bilans cokolwiek znaczył.",
+  },
+  "rivals.note": {
+    one: "Bilans liczy się z meczów rozstrzygniętych MIĘDZY dwojgiem graczy. Remisy — czyli tyle samo punktów za mecz — są liczone osobno, bo stanowią blisko połowę wspólnych meczów. Rywal wchodzi do zestawienia od {count} takiego meczu.",
+    few: "Bilans liczy się z meczów rozstrzygniętych MIĘDZY dwojgiem graczy. Remisy — czyli tyle samo punktów za mecz — są liczone osobno, bo stanowią blisko połowę wspólnych meczów. Rywal wchodzi do zestawienia od {count} takich meczów.",
+    many: "Bilans liczy się z meczów rozstrzygniętych MIĘDZY dwojgiem graczy. Remisy — czyli tyle samo punktów za mecz — są liczone osobno, bo stanowią blisko połowę wspólnych meczów. Rywal wchodzi do zestawienia od {count} takich meczów.",
+  },
 };
 
 export default pl;

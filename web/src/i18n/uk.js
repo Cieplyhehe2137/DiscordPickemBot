@@ -1563,6 +1563,58 @@ const uk = {
   "maps.noNames": "Тут немає нічого про конкретні карти, бо назви карти в даних немає — прогнози й результати зберігають лише номер карти в серії. Номер теж нічого не говорить: влучність на першій, другій і третій виходить 54%, 56% і 55%, тож вирішальна карта не складніша за стартову.",
   "maps.empty.title": "Немає розрахованих карт",
   "maps.empty.text": "Сторінка будується з прогнозів на карти, які мають результат. Вона з'явиться, щойно перші карти буде розраховано.",
+
+  // --- Rywale gracza w turnieju --------------------------------------------
+  // Rywale gracza w turnieju.
+  //
+  // Pojedynek dwoch graczy istnial od dawna, ale wchodzilo sie w niego
+  // z JEDNEGO miejsca i trzeba bylo wiedziec, czyj profil otworzyc.
+  // Ta sekcja odpowiada na pytanie, ktore pada wczesniej: z kim wlasciwie
+  // ten gracz sie sciga.
+  "rivals.kicker": "Хто прогнозує те саме",
+  "rivals.title": "Суперники",
+  "rivals.intro": "Гравці, які прогнозували ті самі матчі. Враховується лише те, що прогнозували обидва і що вже розраховано — матч, який один із них пропустив, нічого не каже про перевагу.",
+  "rivals.loading": "Обчислення суперників...",
+  "rivals.error": "Не вдалося завантажити суперників.",
+  "rivals.head.player": "Суперник",
+  "rivals.head.record": "Баланс",
+  // Remisy maja wlasna liczbe, bo jest ich duzo: zmierzone na produkcji
+  // to 48% wspolnych meczow. Za 60% typow nie ma zadnych punktow,
+  // a dwa zera to remis - wiec bez tej liczby bilans 34-14 przy stu
+  // wspolnych meczach wygladalby na blad.
+  "rivals.ties": {
+    one: "{count} нічия",
+    few: "{count} нічиї",
+    many: "{count} нічиїх",
+  },
+  "rivals.sharedCount": {
+    one: "{count} спільний матч",
+    few: "{count} спільні матчі",
+    many: "{count} спільних матчів",
+  },
+  // Odznaki, nie osobne kafelki: ten sam czlowiek bywa jednoczesnie
+  // najczestszym i najrowniejszym rywalem.
+  "rivals.badge.most": "найчастіший",
+  "rivals.badge.closest": "найрівніший",
+  "rivals.badge.best": "найбільша перевага",
+  "rivals.badge.worst": "найбільше відставання",
+  "rivals.duel": "Дуель",
+  "rivals.more": {
+    one: "…і ще {count} суперник",
+    few: "…і ще {count} суперники",
+    many: "…і ще {count} суперників",
+  },
+  "rivals.empty.none": "У цього гравця ще немає розрахованих прогнозів у цьому турнірі, тож порівнювати немає з чим.",
+  "rivals.empty.tooFew": {
+    one: "Ні в кого немає з цим гравцем навіть {count} розрахованого спільного матчу — замало, щоб баланс щось означав.",
+    few: "Ні в кого немає з цим гравцем навіть {count} розрахованих спільних матчів — замало, щоб баланс щось означав.",
+    many: "Ні в кого немає з цим гравцем навіть {count} розрахованих спільних матчів — замало, щоб баланс щось означав.",
+  },
+  "rivals.note": {
+    one: "Баланс рахується з матчів, розрахованих МІЖ двома гравцями. Нічиї — однакова кількість очок за матч — рахуються окремо, бо їх майже половина від усіх спільних матчів. Суперник потрапляє до списку від {count} такого матчу.",
+    few: "Баланс рахується з матчів, розрахованих МІЖ двома гравцями. Нічиї — однакова кількість очок за матч — рахуються окремо, бо їх майже половина від усіх спільних матчів. Суперник потрапляє до списку від {count} таких матчів.",
+    many: "Баланс рахується з матчів, розрахованих МІЖ двома гравцями. Нічиї — однакова кількість очок за матч — рахуються окремо, бо їх майже половина від усіх спільних матчів. Суперник потрапляє до списку від {count} таких матчів.",
+  },
 };
 
 export default uk;
