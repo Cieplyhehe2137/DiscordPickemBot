@@ -2712,3 +2712,27 @@ main > .page-back {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* =========================================================
+   TERMIN ZAMKNIECIA TYPOWANIA
+   ========================================================= */
+
+/* Zegar, zdanie i odliczanie w jednej linii, z zawijaniem - na telefonie
+   odliczanie schodzi pod date i nadal czyta sie jako jedna rzecz.
+
+   Kolor niesie pilnosc, ale nie sam: --warn na ostatniej godzinie i --danger
+   po terminie zmieniaja tlo, a tresc zdania i tak mowi to samo slowami. */
+.deadline-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+/* Odliczanie jest tu jedyna rzecza, ktora zmienia sie sama, wiec ma prawo
+   byc mocniejsze od daty obok. tabular-nums, zeby wiersz nie drgal przy
+   przejsciu z "za 10 godzin" na "za 9 godzin". */
+.deadline-note__left {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}

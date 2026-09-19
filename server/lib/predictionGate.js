@@ -117,22 +117,29 @@ export function createPredictionGate({
 
     if (!gate.allowed) return gate;
 
-    const { passed } = await isPickDeadlinePassed(
+    const { passed, deadline } = await isPickDeadlinePassed(
       pool,
       guildId,
       pickemPanelPhase[kind],
       stage,
     );
 
+    // TERMIN WRACA DO WOŁAJĄCEGO, także gdy jeszcze nie minął.
+    //
+    // Do tej pory był tu odrzucany: funkcja go zwracała, a gate brał samo
+    // `passed`. Przez to strona pozwalała typować i ani słowem nie mówiła,
+    // do kiedy - a bot wysyła na Discorda odliczanie. Typ klika się jednak
+    // na stronie, nie na kanale.
     if (passed) {
       return {
         allowed: false,
         message: "Deadline typowania dla tej fazy minął.",
         code: "server.phaseDeadlinePassed",
+        deadline,
       };
     }
 
-    return gate;
+    return { ...gate, deadline };
   }
 
   return { resolveMatchPredictionState, checkPickemGate };

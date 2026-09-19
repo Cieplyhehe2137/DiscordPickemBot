@@ -10,6 +10,7 @@ import PhaseResults from "../components/PhaseResults.jsx";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import PickCounter from "../components/PickCounter.jsx";
+import DeadlineNotice from "../components/DeadlineNotice.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function PlayoffsPickemPage() {
@@ -168,6 +169,11 @@ function PlayoffsPickemPage() {
       </div>
 
       <PhaseFormat faza="playoffs" limity={data?.limity} />
+
+      {/* Do kiedy mozna typowac. Nad komunikatem blokady, bo przy
+          otwartym typowaniu tamtego nie ma wcale - a wlasnie wtedy
+          termin jest najbardziej potrzebny. */}
+      <DeadlineNotice deadline={data?.lock?.deadline} />
 
       {!data?.lock?.allowed && data?.lock?.message && (
         <p className="ui-note ui-note--warn">

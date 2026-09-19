@@ -1747,6 +1747,21 @@ const uk = {
   "server.empty.title": "На цьому сервері ще не було турніру",
   "server.empty.text": "Бот тут є, але прогнози ще ніхто не відкрив. Сторінка заповниться з першим турніром.",
   "home.servers.view": "Відкрити сервер",
+
+  // --- Termin zamkniecia typowania -----------------------------------------
+  // Strona pozwalala typowac i nigdzie nie pisala, do kiedy.
+  //
+  // Bot wysyla na Discorda <t:unix:F> i <t:unix:R>, czyli date i zywy
+  // odliczacz - ale to jest wiadomosc na kanale, ktory mozna wyciszyc,
+  // a typ klika sie na stronie. Termin lezal w active_panels.deadline
+  // i byl nawet odczytywany przez bramke, ktora brala z niego samo
+  // "czy minal" i wyrzucala wartosc.
+  //
+  // Data jest formatowana w strefie PRZEGLADARKI wraz z nazwa strefy,
+  // bo terminy zapisuje sie w Europe/Warsaw, a serwis ma pieciu jezykow
+  // i graczy w roznych strefach.
+  "deadline.closesAt": "Прийом прогнозів закривається {date}",
+  "deadline.passedAt": "Термін минув {date}",
 };
 
 export default uk;
