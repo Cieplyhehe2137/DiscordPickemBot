@@ -1635,6 +1635,38 @@ const de = {
   // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
   // czyich rywali pokazac.
   "leaderboard.myRivals": "Meine Rivalen",
+
+  // --- Strona serwera ------------------------------------------------------
+  // Strona pojedynczej spolecznosci.
+  //
+  // Zmierzone: serwis obsluguje DWIE spolecznosci z turniejami, nie jedna.
+  // 848 graczy wylacznie na jednej, 221 wylacznie na drugiej, 41 w obu -
+  // a cala strona mieszala ich turnieje w jednej liscie.
+  "server.kicker": "Community",
+  "server.intro": "Die Turniere dieser Community und ihre eigene Rangliste. Die Seite bedient mehrere Discord-Server gleichzeitig — hier stehen nur die Daten dieses einen.",
+  "server.loading": "Server wird geladen...",
+  "server.errorText": "Dieser Server konnte nicht geladen werden.",
+  "server.back": "Zurück zur Startseite",
+  "server.stats.events": "Turniere",
+  "server.stats.participants": "Tippende",
+  "server.stats.predictions": "Abgegebene Tipps",
+  "server.top.kicker": "Die Besten dieser Community",
+  "server.top.title": "Server-Rangliste",
+  "server.top.intro": "Die Reihenfolge ergibt sich aus der durchschnittlichen Platzierung, nicht aus der Punktsumme — Turniere sind unterschiedlich groß und ihre Punkte nicht vergleichbar. WENIGER ist besser.",
+  // Prog dopasowany do serwera, nie sztywne dwa starty.
+  //
+  // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie. Ale serwer
+  // z jednym turniejem nie ma nikogo z dwoma - zmierzone, 221 graczy nie
+  // moglo tam wejsc i nie zalezalo to od nich, tylko od tego, ile turniejow
+  // zrobil ich serwer.
+  "server.top.note": {
+    one: "In der Rangliste stehen Spieler mit mindestens {count} Start in dieser Community. Die Schwelle liegt niedriger als in der Allzeit-Wertung, denn ein Server mit einem Turnier hat noch niemanden mit zwei Starts.",
+    other: "In der Rangliste stehen Spieler mit mindestens {count} Starts in dieser Community. Die Schwelle liegt niedriger als in der Allzeit-Wertung, denn ein Server mit einem Turnier hat noch niemanden mit zwei Starts.",
+  },
+  "server.events.title": "Turniere dieser Community",
+  "server.empty.title": "Dieser Server hat noch kein Turnier ausgetragen",
+  "server.empty.text": "Der Bot ist hier, aber noch hat niemand das Tippen eröffnet. Diese Seite füllt sich mit dem ersten Turnier.",
+  "home.servers.view": "Server ansehen",
 };
 
 export default de;

@@ -24,6 +24,7 @@ import UpsetsPage from "./pages/UpsetsPage.jsx";
 import PlayerCareerPage from "./pages/PlayerCareerPage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
 import SwissPicksPage from "./pages/SwissPicksPage.jsx";
+import ServerPage from "./pages/ServerPage.jsx";
 
 import SwissPickemPage from "./pages/SwissPickemPage.jsx";
 import PlayinPickemPage from "./pages/PlayinPickemPage.jsx";
@@ -41,6 +42,11 @@ function App() {
         {/* MAIN */}
         <Route path="/" element={<HomePage />} />
         <Route path="/events" element={<EventsPage />} />
+
+        {/* SERVER
+            Strona pojedynczej spolecznosci. Serwis obsluguje dwa serwery
+            z turniejami naraz, a do tej pory mieszal je w jednej liscie. */}
+        <Route path="/servers/:slug" element={<ServerPage />} />
         <Route path="/events/:slug" element={<EventPage />} />
 
         {/* TEAMS */}

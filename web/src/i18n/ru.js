@@ -1714,6 +1714,39 @@ const ru = {
   // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
   // czyich rywali pokazac.
   "leaderboard.myRivals": "Мои соперники",
+
+  // --- Strona serwera ------------------------------------------------------
+  // Strona pojedynczej spolecznosci.
+  //
+  // Zmierzone: serwis obsluguje DWIE spolecznosci z turniejami, nie jedna.
+  // 848 graczy wylacznie na jednej, 221 wylacznie na drugiej, 41 w obu -
+  // a cala strona mieszala ich turnieje w jednej liscie.
+  "server.kicker": "Сообщество",
+  "server.intro": "Турниры этого сообщества и его собственная верхушка. Сайт обслуживает несколько серверов Discord сразу — здесь только данные одного.",
+  "server.loading": "Загрузка сервера...",
+  "server.errorText": "Не удалось загрузить этот сервер.",
+  "server.back": "На главную",
+  "server.stats.events": "Турниры",
+  "server.stats.participants": "Прогнозисты",
+  "server.stats.predictions": "Сделано прогнозов",
+  "server.top.kicker": "Лучшие в этом сообществе",
+  "server.top.title": "Верхушка сервера",
+  "server.top.intro": "Порядок определяет среднее место в общем зачёте, а не сумма очков — турниры бывают разного размера, и очки из них несопоставимы. МЕНЬШЕ значит лучше.",
+  // Prog dopasowany do serwera, nie sztywne dwa starty.
+  //
+  // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie. Ale serwer
+  // z jednym turniejem nie ma nikogo z dwoma - zmierzone, 221 graczy nie
+  // moglo tam wejsc i nie zalezalo to od nich, tylko od tego, ile turniejow
+  // zrobil ich serwer.
+  "server.top.note": {
+    one: "В верхушке игроки минимум с {count} стартом в этом сообществе. Порог ниже, чем в зачёте всех времён, потому что у сервера с одним турниром ещё нет никого с двумя стартами.",
+    few: "В верхушке игроки минимум с {count} стартами в этом сообществе. Порог ниже, чем в зачёте всех времён, потому что у сервера с одним турниром ещё нет никого с двумя стартами.",
+    many: "В верхушке игроки минимум с {count} стартами в этом сообществе. Порог ниже, чем в зачёте всех времён, потому что у сервера с одним турниром ещё нет никого с двумя стартами.",
+  },
+  "server.events.title": "Турниры этого сообщества",
+  "server.empty.title": "На этом сервере ещё не было турнира",
+  "server.empty.text": "Бот здесь есть, но прогнозы ещё никто не открыл. Страница заполнится с первым турниром.",
+  "home.servers.view": "Открыть сервер",
 };
 
 export default ru;

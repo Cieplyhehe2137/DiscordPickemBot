@@ -405,6 +405,14 @@ export function getPlayerRivals(slug, userId) {
 // slugu eventu. Nazwa w adresie jest czytelna dla czlowieka - serwer sam
 // sprowadza ja do klucza, wiec /teams/FUT i /teams/FUT%20Esports trafiaja
 // w to samo miejsce.
+// Strona pojedynczej spolecznosci: jej turnieje, statystyki i wlasna
+// czolowka. Trasa istniala od dawna i oddawala komplet danych, a nic jej
+// nie wolalo - w kodzie przewijala sie wylacznie jako wzorzec
+// przeslaniajacy inne adresy /public/<cos>.
+export function getServer(slug) {
+  return apiRequest(`/public/${encodeURIComponent(slug)}`);
+}
+
 export function getTeams() {
   return apiRequest("/public/teams");
 }

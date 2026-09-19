@@ -1735,6 +1735,39 @@ const pl = {
   // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
   // czyich rywali pokazac.
   "leaderboard.myRivals": "Moi rywale",
+
+  // --- Strona serwera ------------------------------------------------------
+  // Strona pojedynczej spolecznosci.
+  //
+  // Zmierzone: serwis obsluguje DWIE spolecznosci z turniejami, nie jedna.
+  // 848 graczy wylacznie na jednej, 221 wylacznie na drugiej, 41 w obu -
+  // a cala strona mieszala ich turnieje w jednej liscie.
+  "server.kicker": "Społeczność",
+  "server.intro": "Turnieje tej społeczności i jej własna czołówka. Serwis obsługuje kilka serwerów Discorda naraz — tutaj są wyłącznie dane tego jednego.",
+  "server.loading": "Wczytywanie serwera...",
+  "server.errorText": "Nie udało się wczytać tego serwera.",
+  "server.back": "Wróć na stronę główną",
+  "server.stats.events": "Turnieje",
+  "server.stats.participants": "Typujący",
+  "server.stats.predictions": "Oddane typy",
+  "server.top.kicker": "Najlepsi w tej społeczności",
+  "server.top.title": "Czołówka serwera",
+  "server.top.intro": "O kolejności decyduje średnie miejsce w stawce, a nie suma punktów — turnieje bywają różnej wielkości i punkty z nich są nieporównywalne. MNIEJ znaczy lepiej.",
+  // Prog dopasowany do serwera, nie sztywne dwa starty.
+  //
+  // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie. Ale serwer
+  // z jednym turniejem nie ma nikogo z dwoma - zmierzone, 221 graczy nie
+  // moglo tam wejsc i nie zalezalo to od nich, tylko od tego, ile turniejow
+  // zrobil ich serwer.
+  "server.top.note": {
+    one: "W czołówce są gracze z co najmniej {count} startem w tej społeczności. Próg jest niższy niż w klasyfikacji wszech czasów, bo serwer, który rozegrał jeden turniej, nie ma jeszcze nikogo z dwoma startami.",
+    few: "W czołówce są gracze z co najmniej {count} startami w tej społeczności. Próg jest niższy niż w klasyfikacji wszech czasów, bo serwer, który rozegrał jeden turniej, nie ma jeszcze nikogo z dwoma startami.",
+    many: "W czołówce są gracze z co najmniej {count} startami w tej społeczności. Próg jest niższy niż w klasyfikacji wszech czasów, bo serwer, który rozegrał jeden turniej, nie ma jeszcze nikogo z dwoma startami.",
+  },
+  "server.events.title": "Turnieje tej społeczności",
+  "server.empty.title": "Ten serwer nie rozegrał jeszcze turnieju",
+  "server.empty.text": "Bot jest tu obecny, ale nikt jeszcze nie otworzył typowania. Strona zapełni się przy pierwszym turnieju.",
+  "home.servers.view": "Zobacz serwer",
 };
 
 export default pl;

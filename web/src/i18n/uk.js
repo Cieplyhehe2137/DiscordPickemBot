@@ -1714,6 +1714,39 @@ const uk = {
   // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
   // czyich rywali pokazac.
   "leaderboard.myRivals": "Мої суперники",
+
+  // --- Strona serwera ------------------------------------------------------
+  // Strona pojedynczej spolecznosci.
+  //
+  // Zmierzone: serwis obsluguje DWIE spolecznosci z turniejami, nie jedna.
+  // 848 graczy wylacznie na jednej, 221 wylacznie na drugiej, 41 w obu -
+  // a cala strona mieszala ich turnieje w jednej liscie.
+  "server.kicker": "Спільнота",
+  "server.intro": "Турніри цієї спільноти та її власна верхівка. Сайт обслуговує кілька серверів Discord одразу — тут лише дані одного.",
+  "server.loading": "Завантаження сервера...",
+  "server.errorText": "Не вдалося завантажити цей сервер.",
+  "server.back": "На головну",
+  "server.stats.events": "Турніри",
+  "server.stats.participants": "Прогнозисти",
+  "server.stats.predictions": "Зроблено прогнозів",
+  "server.top.kicker": "Найкращі в цій спільноті",
+  "server.top.title": "Верхівка сервера",
+  "server.top.intro": "Порядок визначає середнє місце в загальному заліку, а не сума очок — турніри бувають різного розміру, і очки з них незіставні. МЕНШЕ означає краще.",
+  // Prog dopasowany do serwera, nie sztywne dwa starty.
+  //
+  // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie. Ale serwer
+  // z jednym turniejem nie ma nikogo z dwoma - zmierzone, 221 graczy nie
+  // moglo tam wejsc i nie zalezalo to od nich, tylko od tego, ile turniejow
+  // zrobil ich serwer.
+  "server.top.note": {
+    one: "У верхівці гравці щонайменше з {count} стартом у цій спільноті. Поріг нижчий, ніж у заліку всіх часів, бо сервер з одним турніром ще не має нікого з двома стартами.",
+    few: "У верхівці гравці щонайменше з {count} стартами в цій спільноті. Поріг нижчий, ніж у заліку всіх часів, бо сервер з одним турніром ще не має нікого з двома стартами.",
+    many: "У верхівці гравці щонайменше з {count} стартами в цій спільноті. Поріг нижчий, ніж у заліку всіх часів, бо сервер з одним турніром ще не має нікого з двома стартами.",
+  },
+  "server.events.title": "Турніри цієї спільноти",
+  "server.empty.title": "На цьому сервері ще не було турніру",
+  "server.empty.text": "Бот тут є, але прогнози ще ніхто не відкрив. Сторінка заповниться з першим турніром.",
+  "home.servers.view": "Відкрити сервер",
 };
 
 export default uk;
