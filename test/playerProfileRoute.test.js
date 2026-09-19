@@ -336,3 +336,92 @@ test("gracz z jednego turnieju dostaje pusta liste startow", async () => {
 
   assert.deepEqual(zapis.tresc.other_events, []);
 });
+
+// --- Punkty z faz -----------------------------------------------------------
+
+test("punkty z faz jada TA SAMA fala, co reszta", async () => {
+  // Gdyby dolozyc je za fala, profil placilby kolejna pelna podroz (177 ms,
+  // zmierzone na serwerze) za jedno zapytanie, ktore od niczego nie zalezy.
+  const pool = fakePool(odpowiedzDomyslna);
+
+  await wywolaj({ pool });
+
+  const fazowe = pool.wywolania.filter((w) => w.sql.includes("AS phase"));
+
+  assert.equal(fazowe.length, 1, "jedno zapytanie na wszystkie fazy");
+  assert.equal(fazowe[0].fala, 1, "zapytanie o fazy wypadlo poza pierwsza fale");
+});
+
+test("zapytanie o fazy siega po wszystkie piec skladowych", async () => {
+  // Klasyfikacja sumuje szesc tabel. Pominiecie jednej daje rozbicie, ktore
+  // nie zgadza sie z liczba w kafelku obok - i nie da sie powiedziec, ktora
+  // z nich klamie.
+  const pool = fakePool(odpowiedzDomyslna);
+
+  await wywolaj({ pool });
+
+  const sql = pool.wywolania.find((w) => w.sql.includes("AS phase")).sql;
+
+  for (const tabela of [
+    "swiss_scores",
+    "playin_scores",
+    "playoffs_scores",
+    "doubleelim_scores",
+    "mvp_scores",
+  ]) {
+    assert.ok(sql.includes(tabela), `brak ${tabela} w rozbiciu na fazy`);
+  }
+
+  // BEZ filtra active - dokladnie tak liczy rebuildEventLeaderboard.
+  assert.ok(!/\bactive\b/.test(sql), "filtr active rozjechalby sume z rankingiem");
+});
+
+test("odpowiedz niesie rozbicie na fazy i przebieg po etapach", async () => {
+  // Liczby z produkcji: pierwsze miejsce StarLadder Budapest 2025 zbieralo
+  // 47 punktow jako 12 -> 28 -> 40 -> 47, nie majac ANI JEDNEGO meczu.
+  const pool = fakePool((sql) => {
+    if (toOdczytTurnieju(sql)) return [EVENT];
+
+    if (sql.includes("AS phase")) {
+      return [
+        { phase: "playoffs", stage: null, points: 7 },
+        { phase: "swiss", stage: "stage2", points: 16 },
+        { phase: "swiss", stage: "stage1", points: 12 },
+        { phase: "swiss", stage: "stage3", points: 12 },
+      ];
+    }
+
+    return [];
+  });
+
+  const zapis = await wywolaj({ pool });
+
+  const fazy = zapis.tresc.phase_points;
+
+  assert.equal(fazy.total, 47);
+
+  assert.deepEqual(fazy.groups, [
+    { phase: "swiss", points: 40 },
+    { phase: "playoffs", points: 7 },
+  ]);
+
+  assert.deepEqual(
+    fazy.progress.map((p) => p.total),
+    [12, 28, 40, 47],
+    "przebieg idzie za kolejnoscia turnieju, nie za kolejnoscia wierszy",
+  );
+});
+
+test("gracz bez punktow fazowych dostaje puste rozbicie, a nie brak pola", async () => {
+  // Front sprawdza dlugosc listy. `undefined` wywracaloby strone kazdemu,
+  // kto typowal wylacznie mecze.
+  const pool = fakePool(odpowiedzDomyslna);
+
+  const zapis = await wywolaj({ pool });
+
+  assert.deepEqual(zapis.tresc.phase_points, {
+    total: 0,
+    groups: [],
+    progress: [],
+  });
+});

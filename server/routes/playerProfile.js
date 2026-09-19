@@ -1,6 +1,7 @@
 import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
 import { buildProgress } from "../lib/pointsProgress.js";
 import { buildPlayerHistory } from "../lib/playerHistory.js";
+import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
 // z reszta stawki i historia typow.
@@ -64,6 +65,7 @@ export function registerPlayerProfileRoutes(
         [eventComparisonRows],
         teamPicks,
         [historyRows],
+        [phaseScoreRows],
       ] = await Promise.all([
         pool.query(
           `
@@ -687,6 +689,55 @@ export function registerPlayerProfileRoutes(
     `,
           [userId],
         ),
+        /*
+         * PUNKTY Z FAZ, po jednym wierszu na etap.
+         *
+         * Klasyfikacja eventu to suma szesciu skladowych, a profil czytal
+         * z tego wylacznie match_points - cala gorna polowa strony liczyla
+         * mecze i tylko mecze. Zmierzone: 708 z 1294 wpisow gracz-turniej
+         * nie ma ani jednego wiersza w match_points i ogladalo sciane zer.
+         *
+         * BEZ FILTRA active - dokladnie tak, jak liczy
+         * services/rebuildEventLeaderboard.js i ranking eventu. Gdyby to
+         * zapytanie filtrowalo, a tamte nie, rozbicie nie sumowaloby sie do
+         * liczby w kafelku obok i nie dalo by sie powiedziec, ktora klamie.
+         *
+         * Stage ma wylacznie swiss_scores - pozostale fazy to jeden wiersz
+         * na gracza, wiec NULL jest tu prawda, a nie brakiem danych.
+         */
+        pool.query(
+          `
+    SELECT 'swiss' AS phase, stage, COALESCE(points, 0) AS points
+      FROM swiss_scores
+     WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+       AND user_id = ?
+
+    UNION ALL
+    SELECT 'playin', NULL, COALESCE(points, 0)
+      FROM playin_scores
+     WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+       AND user_id = ?
+
+    UNION ALL
+    SELECT 'playoffs', NULL, COALESCE(points, 0)
+      FROM playoffs_scores
+     WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+       AND user_id = ?
+
+    UNION ALL
+    SELECT 'doubleelim', NULL, COALESCE(points, 0)
+      FROM doubleelim_scores
+     WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+       AND user_id = ?
+
+    UNION ALL
+    SELECT 'mvp', NULL, COALESCE(points, 0)
+      FROM mvp_scores
+     WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+       AND user_id = ?
+    `,
+          [slug, userId, slug, userId, slug, userId, slug, userId, slug, userId],
+        ),
       ]);
 
       if (!event) {
@@ -813,6 +864,12 @@ export function registerPlayerProfileRoutes(
       // migrations/0009_add_team_logos.sql.
       const teamLogos = await loadTeamLogos(pool, teamPicks);
 
+      // Punkty z faz - rozbicie i przebieg po etapach. Turniej bez ani
+      // jednego meczu w bazie (StarLadder Budapest 2025, 509 graczy) nie
+      // ma z czego narysowac przebiegu meczowego, a etapy Swiss daja go
+      // wprost: 12 -> 28 -> 40 -> 47 u pierwszego miejsca.
+      const phasePoints = buildPhasePoints(phaseScoreRows);
+
       res.json({
         event: {
           id: event.id,
@@ -822,6 +879,10 @@ export function registerPlayerProfileRoutes(
 
         team_picks: teamPicks,
         team_logos: teamLogos,
+
+        // Rozbicie sumy na fazy i przebieg po etapach. Osobno od
+        // `profile`, bo to struktura, a tamto plaski worek liczb.
+        phase_points: phasePoints,
 
         // Starty w pozostalych turniejach. Pusta lista dla 85% graczy,
         // ktorzy zagrali w dokladnie jednym - widok jej wtedy nie

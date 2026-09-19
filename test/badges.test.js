@@ -239,3 +239,64 @@ test("kazdy poziom ma swoja klase CSS", async () => {
     assert.ok(POZIOM_KLASA[tier], `brak klasy dla poziomu ${tier}`);
   }
 });
+
+// --- Turniej bez meczow -----------------------------------------------------
+
+test("turniej bez meczow nie stawia meczowych odznak w zasiegu", async () => {
+  // StarLadder Budapest 2025 nie ma w bazie ani jednego meczu, a ma 509
+  // sklasyfikowanych graczy. Kazdy z nich widzial "Celny 0 / 50%" i
+  // "Rozgrzany 0 / 5" jako cel, do ktorego nie da sie zblizyc nawet o krok,
+  // bo nie ma z czego. Sekcja "w zasiegu" ma mowic, co jeszcze mozna zrobic.
+  const { awardBadges } = await import(MODUL);
+
+  const bez = awardBadges(gracz({ total_points: 47, rank: 1 }), {
+    maMecze: false,
+  });
+
+  const MECZOWE = [
+    "accuracy",
+    "streak",
+    "exact_series",
+    "exact_maps",
+    "perfect",
+    "big-match",
+    "regular",
+  ];
+
+  for (const k of [...klucze(bez.earned), ...klucze(bez.next)]) {
+    assert.ok(
+      !MECZOWE.some((m) => k.startsWith(m)),
+      `odznaka "${k}" liczy mecze, a meczow nie bylo`,
+    );
+  }
+});
+
+test("bez meczow zostaja odznaki, ktore z meczow NIE wynikaja", async () => {
+  // Punkty i podium licza sie z klasyfikacji, a ta obejmuje fazy. Pierwsze
+  // miejsce Budapesztu ma 47 punktow i nalezy mu sie jedno i drugie.
+  const { awardBadges } = await import(MODUL);
+
+  const { earned, next } = awardBadges(gracz({ total_points: 47, rank: 1 }), {
+    maMecze: false,
+  });
+
+  assert.ok(klucze(earned).includes("podium"), "brak podium przy 1. miejscu");
+
+  assert.ok(
+    klucze(next).some((k) => k.startsWith("points")),
+    "prog 50 punktow jest w zasiegu przy 47 i musi byc widoczny",
+  );
+});
+
+test("domyslnie odznaki meczowe ZOSTAJA - stara wywolanie nic nie traci", async () => {
+  const { awardBadges } = await import(MODUL);
+
+  const zMeczami = gracz({ accuracy: 65, best_correct_streak: 10 });
+
+  assert.deepEqual(
+    klucze(awardBadges(zMeczami).earned).sort(),
+    klucze(awardBadges(zMeczami, { maMecze: true }).earned).sort(),
+  );
+
+  assert.ok(klucze(awardBadges(zMeczami).earned).includes("accuracy-3"));
+});

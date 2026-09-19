@@ -423,6 +423,57 @@ test("kazdy slownik ma DOKLADNIE te same klucze co polski", async () => {
   }
 });
 
+test("zaden klucz nie wpadl do srodka obiektu liczby mnogiej", async () => {
+  // ZNALEZIONE NA PRODUKCJI, nie wymyslone. Na stronie profilu gracza
+  // zamiast zdania renderowal sie goly napis "chart.empty", bo klucz lezal
+  // TU:
+  //
+  //   "chart.series": {
+  //     one: "{name}: {points} punktow po {count} meczu",
+  //     "chart.empty": "Wykres pojawi sie po pierwszym meczu.",   <-- tu
+  //     few: "...",
+  //   },
+  //
+  // czyli byl rodzenstwem form liczby mnogiej, a nie kluczem slownika.
+  // t() go nie widzial i oddawal sam klucz - dokladnie tak, jak ma robic
+  // przy kluczu nieistniejacym.
+  //
+  // DLACZEGO TEST WYZEJ TEGO NIE ZLAPAL: porownuje slowniki MIEDZY SOBA,
+  // a helper scratchpad/dopisz.py wstawil ten klucz w to samo zle miejsce
+  // we wszystkich pieciu plikach naraz. Zestawy kluczy byly zgodne, bo
+  // byly zepsute identycznie. Ten test porownuje slownik z WLASNYM plikiem
+  // zrodlowym i dlatego nie da sie go oszukac symetrycznym bledem.
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  const { SLOWNIKI } = await import(SLOWNIKI_MODUL);
+  const { LANGUAGES } = await import(MODUL);
+
+  // Klucze slownikow zapisuje sie w cudzyslowie i z kropka w srodku
+  // ("nav.start"), a formy liczby mnogiej golym slowem (one, few, many).
+  // Kazdy zapis pierwszego rodzaju MUSI wiec byc kluczem najwyzszego
+  // poziomu - jesli nie jest, znaczy, ze lezy w srodku obiektu.
+  const ZAPIS_KLUCZA = /^\s*"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)"\s*:/gm;
+
+  for (const kod of LANGUAGES) {
+    const plik = path.join(__dirname, "..", "web", "src", "i18n", `${kod}.js`);
+    const tekst = fs.readFileSync(plik, "utf8");
+
+    const osiagalne = new Set(Object.keys(SLOWNIKI[kod]));
+
+    const zgubione = [...tekst.matchAll(ZAPIS_KLUCZA)]
+      .map((m) => m[1])
+      .filter((klucz) => !osiagalne.has(klucz));
+
+    assert.deepEqual(
+      zgubione,
+      [],
+      `${kod}.js: klucz zapisany w pliku, ale nieosiagalny dla t() - ` +
+        "najpewniej wpadl do srodka obiektu liczby mnogiej",
+    );
+  }
+});
+
 test("kazdy jezyk ma swoj slownik", async () => {
   const { SLOWNIKI } = await import(SLOWNIKI_MODUL);
   const { LANGUAGES } = await import(MODUL);

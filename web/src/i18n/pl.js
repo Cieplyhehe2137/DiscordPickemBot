@@ -121,6 +121,10 @@ const pl = {
   },
   "badges.emptyTitle": "Jeszcze żadnej odznaki",
   "badges.emptyText": "Pojawią się po pierwszych rozliczonych meczach — niżej widać, co jest najbliżej.",
+  // „Pojawia sie po pierwszych rozliczonych meczach" przeczylo temu,
+  // co stalo linijke nizej: liscie odznak w zasiegu, zlozonej z takich,
+  // ktore z meczami nie maja nic wspolnego.
+  "badges.emptyTextNoMatches": "W tym turnieju nie ma meczów, więc odznaki meczowe nie wchodzą w grę — niżej widać, co jest najbliżej.",
   "badges.near": "W zasięgu",
 
   // --- Wybor gracza do porownania ------------------------------------------
@@ -510,10 +514,10 @@ const pl = {
   "chart.title": "Punkty narastająco. {series}.",
   "chart.series": {
     one: "{name}: {points} punktów po {count} meczu",
-  "chart.empty": "Wykres pojawi się po pierwszym rozliczonym meczu.",
     few: "{name}: {points} punktów po {count} meczach",
     many: "{name}: {points} punktów po {count} meczach",
   },
+  "chart.empty": "Wykres pojawi się po pierwszym rozliczonym meczu.",
 
   // --- Wyniki fazy ---------------------------------------------------------
   "phaseResults.kicker": "Rozstrzygnięcie",
@@ -1810,6 +1814,37 @@ const pl = {
   // wcale, mimo setek ocen.
   "team.phaseOnly.title": "Ta drużyna nie rozegrała u nas meczu",
   "team.phaseOnly.text": "Grała w turnieju, z którego w bazie nie ma ani jednego meczu — zostały same typy na fazy. Dlatego nie ma tu statystyk meczowych ani historii spotkań.",
+
+  // --- Profil gracza - punkty z faz ----------------------------------------
+  // Dymek nad punktem wykresu. Stala tu polska sklejka na sztywno,
+  // wiec „Mecz 3" pokazywalo sie tak samo w pieciu jezykach.
+  "chart.point.match": "Mecz {n}",
+  // Os moze stac na etapach zamiast na meczach - w turnieju bez ani
+  // jednego meczu w bazie „Mecz 3" byloby zwyczajnie nieprawda.
+  "chart.point.phase": "Etap {n}",
+  "chart.tooltip": "{name}: {points} pkt, razem {total}",
+  "chart.seriesPhase": {
+    one: "{name}: {points} punktów po {count} etapie",
+    few: "{name}: {points} punktów po {count} etapach",
+    many: "{name}: {points} punktów po {count} etapach",
+  },
+  // Klasyfikacja eventu to suma szesciu skladowych, a profil czytal
+  // z tego wylacznie match_points.
+  //
+  // Zmierzone: 708 z 1294 wpisow gracz-turniej nie ma ANI JEDNEGO
+  // wiersza w match_points. Pierwsze miejsce StarLadder Budapest 2025
+  // ma 47 punktow (stage1 +12, stage2 +16, stage3 +12, playoffs +7)
+  // i dostawalo siedem kafelkow z zerem.
+  "profile.phase.kicker": "Poza meczami",
+  "profile.phase.title": "Punkty z faz",
+  "profile.phase.intro": "Klasyfikacja turnieju liczy też typy na fazy — awanse, 3-0 i 0-3. Tyle punktów przyniosły.",
+  "profile.phase.total": "Z faz łącznie",
+  "profile.phase.mvp": "MVP",
+  // Budapeszt ma 509 sklasyfikowanych graczy i ZERO meczow w bazie.
+  // Kolonia 148 takich graczy na 523, Krakow 51 na 262.
+  "profile.noMatches.title": "Ten wynik nie ma w sobie ani jednego meczu",
+  "profile.noMatches.text": "Cały wynik pochodzi z typów na fazy. Dlatego nie ma tu skuteczności, serii ani rekordów meczowych — nie ma z czego ich policzyć.",
+  "profile.progress.captionPhase": "Najedź na punkt, żeby zobaczyć etap i zdobycz.",
 };
 
 export default pl;

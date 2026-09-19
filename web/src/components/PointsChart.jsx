@@ -66,8 +66,22 @@ function useChartLayout() {
   return wask ? UKLAD_WASKI : UKLAD;
 }
 
-function PointsChart({ series, caption }) {
+/*
+ * Co stoi na osi X.
+ *
+ * Domyslnie mecze - tak wykres powstal. Turniej bez ani jednego meczu
+ * w bazie (StarLadder Budapest 2025, 509 sklasyfikowanych graczy) ma
+ * przebieg po ETAPACH i tam „Mecz 3" w dymku byloby po prostu nieprawda.
+ */
+const NAPISY_OSI = {
+  match: { punkt: "chart.point.match", seria: "chart.series" },
+  phase: { punkt: "chart.point.phase", seria: "chart.seriesPhase" },
+};
+
+function PointsChart({ series, caption, kind = "match" }) {
   const t = useT();
+
+  const napisy = NAPISY_OSI[kind] ?? NAPISY_OSI.match;
 
   const uklad = useChartLayout();
 
@@ -99,7 +113,7 @@ function PointsChart({ series, caption }) {
 
   const opis = policzone
     .map((s) =>
-      t("chart.series", {
+      t(napisy.seria, {
         name: s.name,
         points: s.points[s.points.length - 1]?.total ?? 0,
         count: s.points.length,
@@ -182,8 +196,16 @@ function PointsChart({ series, caption }) {
                 cy={p.y}
                 r="10"
               >
+                {/* Etykieta punktu: własna, jeśli ciąg ją niesie
+                    („NAVI vs Vitality", „Swiss — etap 2"), inaczej sam numer.
+                    Stała tu polska sklejka na sztywno, więc dymek mówił
+                    „Mecz 3" tak samo we wszystkich pięciu językach. */}
                 <title>
-                  {`Mecz ${p.n}${p.label ? ` — ${p.label}` : ""}\n${s.name}: ${p.points >= 0 ? "+" : ""}${p.points} pkt, razem ${p.total}`}
+                  {`${p.label || t(napisy.punkt, { n: p.n })}\n${t("chart.tooltip", {
+                    name: s.name,
+                    points: `${p.points >= 0 ? "+" : ""}${p.points}`,
+                    total: p.total,
+                  })}`}
                 </title>
               </circle>
             </g>

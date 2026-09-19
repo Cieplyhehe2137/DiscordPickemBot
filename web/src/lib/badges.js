@@ -43,6 +43,7 @@ const RODZINY = [
   {
     family: "accuracy",
     field: "accuracy",
+    zMeczow: true,
     icon: "🎯",
     unit: "%",
     descKey: "badge.accuracy.desc",
@@ -56,6 +57,7 @@ const RODZINY = [
   {
     family: "streak",
     field: "best_correct_streak",
+    zMeczow: true,
     icon: "🔥",
     unit: "",
     descKey: "badge.streak.desc",
@@ -69,6 +71,7 @@ const RODZINY = [
   {
     family: "exact_series",
     field: "exact_series",
+    zMeczow: true,
     icon: "📐",
     unit: "",
     descKey: "badge.exactSeries.desc",
@@ -82,6 +85,7 @@ const RODZINY = [
   {
     family: "exact_maps",
     field: "exact_maps",
+    zMeczow: true,
     icon: "💎",
     unit: "",
     descKey: "badge.exactMaps.desc",
@@ -111,6 +115,7 @@ const POJEDYNCZE = [
   {
     key: "perfect",
     field: "perfect_matches",
+    zMeczow: true,
     prog: 1,
     tier: 3,
     icon: "✨",
@@ -122,6 +127,7 @@ const POJEDYNCZE = [
   {
     key: "big-match",
     field: "best_match_points",
+    zMeczow: true,
     prog: 9,
     tier: 2,
     icon: "💥",
@@ -146,6 +152,7 @@ const POJEDYNCZE = [
   {
     key: "regular",
     field: "finished_predictions",
+    zMeczow: true,
     prog: 25,
     tier: 1,
     icon: "📋",
@@ -182,8 +189,18 @@ function postep(wartosc, prog, lowerIsBetter) {
  *
  * @returns {{ earned: Array, next: Array }}
  */
-export function awardBadges(profile, { ileNastepnych = 3, t } = {}) {
+export function awardBadges(
+  profile,
+  { ileNastepnych = 3, t, maMecze = true } = {},
+) {
   if (!profile) return { earned: [], next: [] };
+
+  // Turniej BEZ ani jednego meczu w bazie - StarLadder Budapest 2025,
+  // 509 sklasyfikowanych graczy - nie ma z czego przyznac odznak
+  // meczowych. Zostawaly w sekcji „w zasięgu" jako „Celny 0 / 50%"
+  // i „Rozgrzany 0 / 5", czyli jako cel, do którego nie da się zbliżyć
+  // nawet o krok. Ta sekcja ma mówić, co jeszcze można zrobić.
+  const bierzemy = (zrodlo) => maMecze || !zrodlo.zMeczow;
 
   // Domyślnie sam klucz. Ten moduł jest liczony także w testach, gdzie
   // tłumacza nie ma i nie jest do niczego potrzebny - sprawdzają klucze
@@ -201,6 +218,8 @@ export function awardBadges(profile, { ileNastepnych = 3, t } = {}) {
   const kandydaci = [];
 
   for (const rodzina of RODZINY) {
+    if (!bierzemy(rodzina)) continue;
+
     const wartosc = liczbaAlbo(profile[rodzina.field]);
 
     // Najwyższy zdobyty poziom i pierwszy niezdobyty.
@@ -243,6 +262,8 @@ export function awardBadges(profile, { ileNastepnych = 3, t } = {}) {
   }
 
   for (const o of POJEDYNCZE) {
+    if (!bierzemy(o)) continue;
+
     const wartosc = liczbaAlbo(profile[o.field]);
 
     if (zdobyta(wartosc, o.prog, o.lowerIsBetter)) {
