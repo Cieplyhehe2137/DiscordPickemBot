@@ -11,6 +11,7 @@ import { useAuth } from "../auth/useAuth.js";
 import BackLink from "../components/BackLink.jsx";
 import PhaseFormat from "../components/PhaseFormat.jsx";
 import TeamPickGroup from "../components/TeamPickGroup.jsx";
+import DeadlineNotice from "../components/DeadlineNotice.jsx";
 import { apiUrl } from "../lib/apiUrl.js";
 
 function SwissPickemPage() {
@@ -187,6 +188,11 @@ function SwissPickemPage() {
       </nav>
 
       <PhaseFormat faza={stage} limity={limity} />
+
+      {/* Do kiedy mozna typowac. Nad komunikatem blokady, bo przy
+          otwartym typowaniu tamtego nie ma wcale - a wlasnie wtedy
+          termin jest najbardziej potrzebny. */}
+      <DeadlineNotice deadline={data?.lock?.deadline} />
 
       {!data?.lock?.allowed && data?.lock?.message && (
         <p className="ui-note ui-note--warn">

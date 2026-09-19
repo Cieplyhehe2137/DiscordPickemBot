@@ -1882,13 +1882,20 @@ export function registerPublicPickemRoutes(
 
         prediction,
 
-        lock: gate.allowed
-          ? { allowed: true, message: null, code: null }
-          : {
+        // `deadline` poza rozgalezieniem, bo dotyczy obu przypadkow: przed
+        // terminem strona ma napisac, ile zostalo, a po nim - kiedy minal.
+        // null, gdy administrator terminu nie ustawil.
+        lock: {
+          deadline: gate.deadline ?? null,
+
+          ...(gate.allowed
+            ? { allowed: true, message: null, code: null }
+            : {
               allowed: false,
               message: blokada(gate, toWebMessage, "phase").tresc,
               code: blokada(gate, toWebMessage, "phase").kod,
-            },
+            }),
+        },
       });
     } catch (err) {
       console.error("SWISS PICKEM LOAD ERROR:", err);
@@ -2065,6 +2072,9 @@ export function registerPublicPickemRoutes(
         lock: {
           allowed: gate.allowed,
           message: toWebMessage(gate.message, null),
+
+          // Termin zamkniecia typowania - patrz uwaga przy trasie Swiss.
+          deadline: gate.deadline ?? null,
         },
       });
     } catch (err) {
@@ -2322,6 +2332,9 @@ export function registerPublicPickemRoutes(
         lock: {
           allowed: gate.allowed,
           message: toWebMessage(gate.message, null),
+
+          // Termin zamkniecia typowania - patrz uwaga przy trasie Swiss.
+          deadline: gate.deadline ?? null,
         },
       });
     } catch (err) {
@@ -2664,6 +2677,9 @@ export function registerPublicPickemRoutes(
         lock: {
           allowed: gate.allowed,
           message: toWebMessage(gate.message, null),
+
+          // Termin zamkniecia typowania - patrz uwaga przy trasie Swiss.
+          deadline: gate.deadline ?? null,
         },
       });
     } catch (err) {

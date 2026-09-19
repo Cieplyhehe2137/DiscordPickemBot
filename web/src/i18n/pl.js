@@ -1768,6 +1768,21 @@ const pl = {
   "server.empty.title": "Ten serwer nie rozegrał jeszcze turnieju",
   "server.empty.text": "Bot jest tu obecny, ale nikt jeszcze nie otworzył typowania. Strona zapełni się przy pierwszym turnieju.",
   "home.servers.view": "Zobacz serwer",
+
+  // --- Termin zamkniecia typowania -----------------------------------------
+  // Strona pozwalala typowac i nigdzie nie pisala, do kiedy.
+  //
+  // Bot wysyla na Discorda <t:unix:F> i <t:unix:R>, czyli date i zywy
+  // odliczacz - ale to jest wiadomosc na kanale, ktory mozna wyciszyc,
+  // a typ klika sie na stronie. Termin lezal w active_panels.deadline
+  // i byl nawet odczytywany przez bramke, ktora brala z niego samo
+  // "czy minal" i wyrzucala wartosc.
+  //
+  // Data jest formatowana w strefie PRZEGLADARKI wraz z nazwa strefy,
+  // bo terminy zapisuje sie w Europe/Warsaw, a serwis ma pieciu jezykow
+  // i graczy w roznych strefach.
+  "deadline.closesAt": "Typowanie zamyka się {date}",
+  "deadline.passedAt": "Termin minął {date}",
 };
 
 export default pl;
