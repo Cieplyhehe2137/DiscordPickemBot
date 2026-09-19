@@ -1620,6 +1620,21 @@ const en = {
   },
   "swissPicks.empty.title": "This tournament had no Swiss stages",
   "swissPicks.empty.text": "Not every format has a Swiss stage — some run a play-in or a double-elimination bracket instead. This page only appears where Swiss stage picks were made.",
+
+  // --- Odnosniki do wyniku turnieju i rywali -------------------------------
+  // Lista turniejow pokazywala same nazwy w kafelkach, wiec zakonczony
+  // turniej nie mowil o sobie nic. Mistrz z procentem trafien robi
+  // z listy cos, co da sie czytac - i sam prowadzi na strone turnieju.
+  //
+  // Etykieta obok nazwy, nigdy zdanie z nazwa w srodku: nazwy druzyn to
+  // wolny tekst z bazy i nie da sie ich odmienic.
+  "events.outcome.champion": "Champion",
+  "events.outcome.called": "{percent}% called it",
+  // Sekcja rywali siedzi na profilu gracza, czyli dwa klikniecia od
+  // rankingu - i nic w rankingu nie mowilo, ze cos takiego istnieje.
+  // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
+  // czyich rywali pokazac.
+  "leaderboard.myRivals": "My rivals",
 };
 
 export default en;

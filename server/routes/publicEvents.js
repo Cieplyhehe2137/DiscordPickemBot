@@ -1,4 +1,5 @@
 import { createArchiveCache } from "../lib/archiveCache.js";
+import { buildOutcomeByEvent } from "../lib/outcome.js";
 
 // Publiczna lista eventow i wyniki pojedynczej fazy.
 //
@@ -32,7 +33,16 @@ export function registerPublicEventRoutes(
 
   app.get("/api/public/events", async (req, res) => {
     try {
-      const [rows] = await pool.query(
+      // TRZY ZAPYTANIA, JEDNA FALA. Wynik i typy playoffów dochodzą po to,
+      // żeby zakończony turniej mógł powiedzieć o sobie jedno zdanie:
+      // kto wygrał i ilu to przewidziało. Lista pokazywała dotąd same nazwy.
+      //
+      // Bez WHERE po turnieju - wierszy wyników są trzy, a typów playoffów
+      // 366 w całej bazie. Filtrowanie per event znaczyłoby tyle zapytań,
+      // ile turniejów, czyli tyle podróży do bazy po dane, które mieszczą
+      // się w jednej.
+      const [[rows], [wyniki], [typyPlayoffow], [logotypy]] = await Promise.all([
+        pool.query(
         `
         SELECT
           e.id,
@@ -63,7 +73,28 @@ export function registerPublicEventRoutes(
         FROM events e
         ORDER BY e.id DESC
         `,
-      );
+        ),
+
+        pool.query(
+          `SELECT event_id, correct_semifinalists, correct_finalists,
+                  correct_winner, correct_third_place_winner
+             FROM playoffs_results
+            WHERE active = 1`,
+        ),
+
+        pool.query(
+          `SELECT event_id, winner, finalists, semifinalists
+             FROM playoffs_predictions`,
+        ),
+
+        pool.query(
+          `SELECT name_key, logo_url FROM team_logos WHERE logo_url IS NOT NULL`,
+        ),
+      ]);
+
+      const skroty = buildOutcomeByEvent(wyniki, typyPlayoffow, {
+        logos: logotypy,
+      });
 
       return res.json({
         events: rows.map((row) => ({
@@ -79,6 +110,10 @@ export function registerPublicEventRoutes(
           participants: Number(row.participants || 0),
           created_at: row.created_at,
           guild: getKnownGuildInfo(row.guild_id),
+
+          // null dla turnieju bez rozstrzygniętych playoffów - kafelek
+          // pokazuje wtedy to, co dotąd, bez pustego miejsca po mistrzu.
+          outcome: skroty.get(Number(row.id)) ?? null,
         })),
       });
     } catch (err) {

@@ -212,6 +212,24 @@ function LeaderboardPage() {
             {t("leaderboard.findMe")}
           </button>
         )}
+
+        {/* Wejście w rywali prosto stąd. Sekcja siedzi na profilu gracza,
+            czyli dwa kliknięcia dalej, i nic w rankingu nie mówiło, że coś
+            takiego w ogóle jest.
+
+            Kotwica #rywale, bo sekcja stoi nisko na profilu; przewinięcie
+            do niej robi sam komponent, gdy dane dojdą - patrz Rivals.jsx.
+
+            Tylko dla zalogowanego: bez tego nie wiadomo, czyich rywali
+            pokazać. */}
+        {user?.id && (
+          <Link
+            className="ui-btn ui-btn--sm"
+            to={`/events/${slug}/player/${user.id}#rywale`}
+          >
+            ⚔️ {t("leaderboard.myRivals")}
+          </Link>
+        )}
       </div>
 
       {szukaj && strony && (

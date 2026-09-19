@@ -1699,6 +1699,21 @@ const ru = {
   },
   "swissPicks.empty.title": "В этом турнире не было этапов Swiss",
   "swissPicks.empty.text": "Не в каждом формате есть этап Swiss — бывает плей-ин или сетка с двойным выбыванием. Эта страница появляется только там, где были прогнозы на этапы Swiss.",
+
+  // --- Odnosniki do wyniku turnieju i rywali -------------------------------
+  // Lista turniejow pokazywala same nazwy w kafelkach, wiec zakonczony
+  // turniej nie mowil o sobie nic. Mistrz z procentem trafien robi
+  // z listy cos, co da sie czytac - i sam prowadzi na strone turnieju.
+  //
+  // Etykieta obok nazwy, nigdy zdanie z nazwa w srodku: nazwy druzyn to
+  // wolny tekst z bazy i nie da sie ich odmienic.
+  "events.outcome.champion": "Чемпион",
+  "events.outcome.called": "угадали {percent}%",
+  // Sekcja rywali siedzi na profilu gracza, czyli dwa klikniecia od
+  // rankingu - i nic w rankingu nie mowilo, ze cos takiego istnieje.
+  // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
+  // czyich rywali pokazac.
+  "leaderboard.myRivals": "Мои соперники",
 };
 
 export default ru;
