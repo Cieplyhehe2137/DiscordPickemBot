@@ -1783,6 +1783,33 @@ const pl = {
   // i graczy w roznych strefach.
   "deadline.closesAt": "Typowanie zamyka się {date}",
   "deadline.passedAt": "Termin minął {date}",
+
+  // --- Typy na fazy na stronie druzyny -------------------------------------
+  // teamStats.js mowi wprost, ze liczy WYLACZNIE mecze. To jest druga
+  // polowa - ta sama wiedza zebrana wokol druzyny.
+  //
+  // Zmierzone: GamerLegion typowana na awans 484 razy, trafnie 11%;
+  // PARIVISION 347 razy, trafnie 87%; Imperial skazywana na 0-3 285 razy
+  // i ANI RAZU sluszne, a na awans 76 razy przy 95% trafnosci.
+  "team.phase.kicker": "Poza meczami",
+  "team.phase.title": "Typy na fazy",
+  "team.phase.intro": "Statystyki wyżej liczą wyłącznie mecze. Tu jest to, co społeczność o tej drużynie orzekła w fazach turnieju — i jak często miała rację.",
+  "team.phase.advance": "Typowana na awans",
+  "team.phase.threeZero": "Typowana na 3-0",
+  "team.phase.zeroThree": "Skazywana na 0-3",
+  "team.phase.hit": "trafnie {percent}%",
+  "team.phase.picks": {
+    one: "{count} raz",
+    few: "{count} razy",
+    many: "{count} razy",
+  },
+  "team.phase.unsettled": "etap bez wyniku",
+  "teams.noMatches": "Tylko typy na fazy",
+  // Siedem druzyn gralo wylacznie w StarLadder Budapest 2025, ktory nie
+  // ma w bazie ani jednego meczu - do tej pory nie istnialy na stronie
+  // wcale, mimo setek ocen.
+  "team.phaseOnly.title": "Ta drużyna nie rozegrała u nas meczu",
+  "team.phaseOnly.text": "Grała w turnieju, z którego w bazie nie ma ani jednego meczu — zostały same typy na fazy. Dlatego nie ma tu statystyk meczowych ani historii spotkań.",
 };
 
 export default pl;

@@ -1,5 +1,6 @@
 import { teamKey } from "../lib/teamLogos.js";
 import { buildTeamStats, sortTeams } from "../lib/teamStats.js";
+import { buildTeamPhasePicks } from "../lib/teamPhasePicks.js";
 
 // Drużyny: lista i pojedyncza drużyna.
 //
@@ -13,7 +14,8 @@ import { buildTeamStats, sortTeams } from "../lib/teamStats.js";
 // niezależnie od tego, ile wierszy wraca.
 
 async function wczytaj(pool) {
-  const [[matches], [splits], [logos]] = await Promise.all([
+  const [[matches], [splits], [logos], [typyFaz], [wynikiFaz]] =
+    await Promise.all([
     pool.query(
       `
       SELECT
@@ -62,9 +64,67 @@ async function wczytaj(pool) {
     pool.query(
       `SELECT name_key, logo_url FROM team_logos WHERE logo_url IS NOT NULL`,
     ),
+
+    // Typy fazowe - druga połowa tego, co społeczność o drużynach sądzi.
+    // Bez WHERE po turnieju: wierszy jest 1420 w całej bazie, a filtrowanie
+    // znaczyłoby tyle zapytań, ile turniejów.
+    pool.query(
+      `SELECT event_id, stage, pick_3_0, pick_0_3, advancing
+         FROM swiss_predictions
+        WHERE active = 1`,
+    ),
+
+    pool.query(
+      `SELECT event_id, stage, correct_3_0, correct_0_3, correct_advancing
+         FROM swiss_results
+        WHERE active = 1`,
+    ),
   ]);
 
-  return buildTeamStats(matches, splits, logos);
+  const { teams, history } = buildTeamStats(matches, splits, logos);
+
+  const fazy = buildTeamPhasePicks(typyFaz, wynikiFaz, { logos });
+
+  // Drużyny z meczów dostają warstwę fazową doklejoną OSOBNO, a nie wmieszaną
+  // w istniejące liczby. „Zaufanie 80% / wygrywa 29%" mówi o meczach, a „ilu
+  // typowało awans" to inne pytanie i inna skala - zlane w jedną liczbę nie
+  // dałyby się zinterpretować.
+  const zFazami = teams.map((t) => ({ ...t, phase: fazy.get(t.key) ?? null }));
+
+  // ...a drużyny, które NIGDY nie zagrały meczu, dochodzą na koniec listy.
+  // To jest cały powód tej zmiany: siedem zespołów z Budapesztu nie miało
+  // dotąd na stronie żadnej reprezentacji.
+  const znane = new Set(teams.map((t) => t.key));
+
+  for (const [klucz, f] of fazy) {
+    if (znane.has(klucz)) continue;
+
+    zFazami.push({
+      key: klucz,
+      name: f.name,
+      logo: f.logo,
+
+      // Zera, nie null: tych meczów naprawdę nie ma. Widok pomija wtedy
+      // całą sekcję meczową, zamiast pokazywać "0 meczów, 0% skuteczności".
+      matches: 0,
+      settled: 0,
+      wins: 0,
+      losses: 0,
+      events: 0,
+
+      picks_for: 0,
+      picks_total: 0,
+      picks_right: 0,
+
+      trust: null,
+      trust_hit: null,
+      win_rate: null,
+
+      phase: f,
+    });
+  }
+
+  return { teams: zFazami, history };
 }
 
 export function registerTeamRoutes(app, { pool }) {

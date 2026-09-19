@@ -68,9 +68,13 @@ export const TEAM_NAME_ALIASES = {
  *
  * Klucz i wartość są już znormalizowane. Sprawdzone na wszystkich meczach
  * w bazie: 40 różnych zapisów nazw, 40 kluczy po normalizacji - czyli sama
- * normalizacja nie skleja tu NICZEGO, a mimo to jedna para jest tą samą
- * organizacją. Duplikaty w rodzaju "PARIVISION" i "Parivision" siedzą
+ * normalizacja nie skleja tu NICZEGO, a mimo to są tu dwie pary tej samej
+ * organizacji. Duplikaty w rodzaju "PARIVISION" i "Parivision" siedzą
  * w tabelach faz, gdzie normalizacja radzi sobie sama.
+ *
+ * Druga para wyszła dopiero przy liczeniu typów fazowych i pokazuje, czego
+ * tamto sprawdzenie nie mogło zobaczyć: porównywało nazwy MECZOWE między
+ * sobą, a rozjazd siedzi MIĘDZY meczami a fazami.
  *
  * Lista jest krótka celowo. Zgadywanie po podobieństwie jest tu groźniejsze
  * niż jej brak: "Ninjas in Pyjamas" i "Ninjas in Pyjamas Impact" mają wspólny
@@ -78,6 +82,17 @@ export const TEAM_NAME_ALIASES = {
  */
 export const TEAM_KEY_MERGES = {
   fut: "futesports",
+
+  // Mecze zapisują tę drużynę jako „FaZe", a tabele faz jako „FaZe Clan" -
+  // jedna organizacja pod dwoma kluczami. Skutek był taki, że na stronie
+  // drużyn stała „FaZe" z trzema meczami, a 506 typów na awans przy 69%
+  // trafności nie należało do nikogo.
+  //
+  // W STRONĘ KRÓTKIEJ NAZWY, odwrotnie niż przy FUT: TEAM_NAME_ALIASES ma
+  // już wpis „faze clan" -> „FaZe", więc krótka forma jest tu tożsamością
+  // przyjętą w projekcie. Dzięki temu nie zmienia się ani adres
+  // /teams/FaZe, ani wiersz `faze` w team_logos, z którego idzie logotyp.
+  fazeclan: "faze",
 };
 
 /**

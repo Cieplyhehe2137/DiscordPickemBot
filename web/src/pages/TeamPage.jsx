@@ -154,14 +154,24 @@ function TeamPage() {
             <h2>{team.name}</h2>
 
             <p className="ui-stat__hint">
-              {t("team.played", {
-                count: team.matches,
-                events: t("team.inEvents", { count: team.events }),
-              })}
+              {/* Drużyna bez meczów nie ma o czym powiedzieć „0 meczów
+                  w 0 turniejach" - istnieje tu wyłącznie dzięki typom
+                  na fazy i tak się przedstawia. */}
+              {team.matches === 0
+                ? t("teams.noMatches")
+                : t("team.played", {
+                  count: team.matches,
+                  events: t("team.inEvents", { count: team.events }),
+                })}
             </p>
           </div>
         </div>
 
+        {/* Kafelki meczowe znikają w CAŁOŚCI, gdy meczów nie ma. Inaczej
+            stało tu „Bilans 0–0 · Zaufanie — · Typów łącznie 0" - cztery
+            liczby, z których żadna nie jest o tej drużynie prawdą, a razem
+            wyglądają jak usterka. */}
+        {team.matches > 0 && (
         <div className="ui-stats ui-stats--4">
           <div className="ui-stat ui-stat--featured">
             <span>{t("team.record")}</span>
@@ -201,7 +211,56 @@ function TeamPage() {
             <small>{t("team.picksOf", { total: team.picks_total })}</small>
           </div>
         </div>
+        )}
       </section>
+
+      {/* Typy na fazy - druga połowa tego, co społeczność o tej drużynie
+          sądzi. OSOBNA sekcja, nie doklejona do liczb wyżej: tamte mówią
+          o meczach, a te o awansach, i mają inną skalę.
+
+          Zmierzone: GamerLegion typowana na awans 484 razy przy 11%
+          trafności, Imperial skazywana na 0-3 285 razy i ani razu słusznie. */}
+      {team.phase && team.phase.total > 0 && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("team.phase.kicker")}</span>
+
+              <h2>{t("team.phase.title")}</h2>
+
+              <p>{t("team.phase.intro")}</p>
+            </div>
+          </div>
+
+          <div className="ui-stats">
+            {[
+              ["advance", t("team.phase.advance")],
+              ["three_zero", t("team.phase.threeZero")],
+              ["zero_three", t("team.phase.zeroThree")],
+            ].map(([klucz, etykieta]) => {
+              const g = team.phase[klucz];
+
+              if (!g || g.picks === 0) return null;
+
+              return (
+                <div className="ui-stat" key={klucz}>
+                  <span>{etykieta}</span>
+
+                  <strong>{t("team.phase.picks", { count: g.picks })}</strong>
+
+                  {/* null, a nie zero: etap bez wpisanego wyniku nie mówi
+                      nic o trafności i nie może jej zaniżać. */}
+                  <small>
+                    {g.hit === null
+                      ? t("team.phase.unsettled")
+                      : t("team.phase.hit", { percent: g.hit })}
+                  </small>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="ui-card ui-stack">
         <div className="ui-section-head">
@@ -214,7 +273,19 @@ function TeamPage() {
           </div>
         </div>
 
-        {matches.length === 0 ? (
+        {/* Drużyna bez ANI JEDNEGO meczu w bazie to inny przypadek niż
+            drużyna, która mecze ma, ale żaden nie pasuje do filtra. Siedem
+            zespołów grało wyłącznie w turnieju bez zapisanych meczów -
+            „brak meczów" bez wyjaśnienia wyglądałoby na usterkę. */}
+        {team.matches === 0 ? (
+          <div className="ui-empty">
+            <strong className="ui-empty__title">
+              {t("team.phaseOnly.title")}
+            </strong>
+
+            <p className="ui-empty__text">{t("team.phaseOnly.text")}</p>
+          </div>
+        ) : matches.length === 0 ? (
           <p className="ui-hint">{t("team.noMatches")}</p>
         ) : (
           <div className="ui-stack ui-stack--tight">
