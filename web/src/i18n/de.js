@@ -1576,6 +1576,50 @@ const de = {
     one: "Grundlage ist {count} Playoff-Tipp aus diesem Turnier. Wer die Playoffs nicht getippt hat, taucht in diesen Prozenten nicht auf — auch dann nicht, wenn er Spiele getippt hat.",
     other: "Grundlage sind {count} Playoff-Tipps aus diesem Turnier. Wer die Playoffs nicht getippt hat, taucht in diesen Prozenten nicht auf — auch dann nicht, wenn er Spiele getippt hat.",
   },
+
+  // --- Typy na fazy Swiss --------------------------------------------------
+  // Typy na fazy Swiss zestawione z tym, co sie stalo.
+  //
+  // teamStats.js mowi wprost, ze liczy WYLACZNIE mecze, bo typy na awans
+  // leza w bazie jako listy tekstowe i sa "osobna robota". To jest ta
+  // robota: 2 074 wiersze faz daja po rozbiciu 18 803 oceny druzyn,
+  // wobec 10 328 typow meczowych.
+  //
+  // StarLadder Budapest 2025 nie ma ani jednego meczu, wiec bez tej
+  // strony nie istnieje w zadnej statystyce druzyn - a ma 837 typow.
+  "swissPicks.kicker": "Worauf die Community setzte",
+  "swissPicks.title": "Phasen-Tipps",
+  "swissPicks.intro": "Die Team-Statistiken auf dieser Seite zählen ausschließlich Spiele. Das hier ist die andere Hälfte dessen, was die Community über Teams denkt — die Tipps auf 3-0, 0-3 und Weiterkommen, gegenübergestellt mit dem, was wirklich passiert ist.",
+  "swissPicks.loading": "Phasen-Tipps werden geladen...",
+  "swissPicks.errorText": "Die Phasen-Tipps konnten nicht geladen werden.",
+  "swissPicks.back": "Zurück zum Turnier",
+  "swissPicks.link": "Tipps auf die Swiss-Phasen",
+  "swissPicks.group.threeZero": "Wer 3-0 geht",
+  "swissPicks.group.zeroThree": "Wer 0-3 ausscheidet",
+  "swissPicks.group.advancing": "Wer weiterkommt",
+  "swissPicks.total": {
+    one: "{count} Tippender",
+    other: "{count} Tippende",
+  },
+  "swissPicks.correct": "richtig",
+  // Najmocniej obstawiona druzyna, ktora NIE byla poprawna odpowiedzia.
+  // Zmierzone: GamerLegion 84% na 3-0, THUNDER dOWNUNDER 76% na 0-3,
+  // B8 71% na awans - zadna nie wyszla.
+  "swissPicks.overrated": "Sichere Wette, die scheiterte",
+  // Druga polowa tej historii: poprawne odpowiedzi, ktorych tlum nie
+  // widzial. Lynn Vision Gaming 1% na 0-3, FlyQuest 1% na 3-0,
+  // SINNERS 2% na 0-3 - wszystkie trzy trafione.
+  "swissPicks.missed": {
+    one: "{count} übersehene Antwort",
+    other: "{count} übersehene Antworten",
+  },
+  "swissPicks.pending": "Für diese Phase gibt es noch kein offizielles Ergebnis, daher ist nur die Stimmenverteilung zu sehen.",
+  "swissPicks.note": {
+    one: "Als übersehen gilt eine richtige Antwort, die weniger als {count}% der Tippenden genannt haben. Die Liste zeigt die Spitze jeder Gruppe und JEDE richtige Antwort, auch eine, die aus der Spitze herausfiel — denn genau darum geht es auf dieser Seite.",
+    other: "Als übersehen gilt eine richtige Antwort, die weniger als {count}% der Tippenden genannt haben. Die Liste zeigt die Spitze jeder Gruppe und JEDE richtige Antwort, auch eine, die aus der Spitze herausfiel — denn genau darum geht es auf dieser Seite.",
+  },
+  "swissPicks.empty.title": "Dieses Turnier hatte keine Swiss-Phasen",
+  "swissPicks.empty.text": "Nicht jedes Format hat eine Swiss-Phase — manche laufen stattdessen mit Play-in oder Double-Elimination. Diese Seite erscheint nur dort, wo auf Swiss-Phasen getippt wurde.",
 };
 
 export default de;

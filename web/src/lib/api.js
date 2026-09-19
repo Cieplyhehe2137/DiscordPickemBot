@@ -444,6 +444,19 @@ export function getEventOutcome(slug) {
   return apiRequest(`/public/events/${encodeURIComponent(slug)}/outcome`);
 }
 
+// Typy na fazy Swiss zestawione z poprawnymi odpowiedziami.
+//
+// Statystyki druzyn licza WYLACZNIE mecze - server/lib/teamStats.js mowi to
+// wprost i nazywa typy na awans "osobna robota". To jest ta robota.
+//
+// NIE MYLIC z /swiss-stats/:stage: tamta trasa oddaje sam podzial glosow
+// dla jednego etapu i nie wie, co sie naprawde stalo.
+export function getEventSwissPicks(slug) {
+  return apiRequest(
+    `/public/events/${encodeURIComponent(slug)}/swiss-picks`,
+  );
+}
+
 // Czytanie wynikow map. Adres ma JEDEN segment po /public/, wiec trasa
 // po stronie serwera musi byc zarejestrowana przed :guildSlug.
 export function getMaps() {
