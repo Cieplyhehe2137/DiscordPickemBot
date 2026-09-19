@@ -95,6 +95,10 @@ const de = {
   },
   "badges.emptyTitle": "Noch keine Abzeichen",
   "badges.emptyText": "Sie erscheinen nach den ersten abgerechneten Spielen — unten siehst du, was am nächsten ist.",
+  // „Pojawia sie po pierwszych rozliczonych meczach" przeczylo temu,
+  // co stalo linijke nizej: liscie odznak w zasiegu, zlozonej z takich,
+  // ktore z meczami nie maja nic wspolnego.
+  "badges.emptyTextNoMatches": "In diesem Turnier gibt es keine Spiele, Spiel-Abzeichen sind also ausgeschlossen — unten steht, was am nächsten liegt.",
   "badges.near": "In Reichweite",
 
   // --- Wybor gracza do porownania ------------------------------------------
@@ -462,9 +466,9 @@ const de = {
   "chart.title": "Kumulierte Punkte. {series}.",
   "chart.series": {
     one: "{name}: {points} Punkte nach {count} Spiel",
-  "chart.empty": "Das Diagramm erscheint nach dem ersten abgerechneten Spiel.",
     other: "{name}: {points} Punkte nach {count} Spielen",
   },
+  "chart.empty": "Das Diagramm erscheint nach dem ersten abgerechneten Spiel.",
 
   // --- Wyniki fazy ---------------------------------------------------------
   "phaseResults.kicker": "Entscheidung",
@@ -1708,6 +1712,36 @@ const de = {
   // wcale, mimo setek ocen.
   "team.phaseOnly.title": "Dieses Team hat hier kein Spiel bestritten",
   "team.phaseOnly.text": "Es spielte in einem Turnier, zu dem hier kein einziges Spiel erfasst ist — geblieben sind nur die Phasen-Tipps. Deshalb gibt es weder Spielstatistiken noch eine Spielhistorie.",
+
+  // --- Profil gracza - punkty z faz ----------------------------------------
+  // Dymek nad punktem wykresu. Stala tu polska sklejka na sztywno,
+  // wiec „Mecz 3" pokazywalo sie tak samo w pieciu jezykach.
+  "chart.point.match": "Spiel {n}",
+  // Os moze stac na etapach zamiast na meczach - w turnieju bez ani
+  // jednego meczu w bazie „Mecz 3" byloby zwyczajnie nieprawda.
+  "chart.point.phase": "Phase {n}",
+  "chart.tooltip": "{name}: {points} Pkt., insgesamt {total}",
+  "chart.seriesPhase": {
+    one: "{name}: {points} Punkte nach {count} Phase",
+    other: "{name}: {points} Punkte nach {count} Phasen",
+  },
+  // Klasyfikacja eventu to suma szesciu skladowych, a profil czytal
+  // z tego wylacznie match_points.
+  //
+  // Zmierzone: 708 z 1294 wpisow gracz-turniej nie ma ANI JEDNEGO
+  // wiersza w match_points. Pierwsze miejsce StarLadder Budapest 2025
+  // ma 47 punktow (stage1 +12, stage2 +16, stage3 +12, playoffs +7)
+  // i dostawalo siedem kafelkow z zerem.
+  "profile.phase.kicker": "Jenseits der Spiele",
+  "profile.phase.title": "Punkte aus den Phasen",
+  "profile.phase.intro": "Die Turnierwertung zählt auch Phasen-Tipps — Weiterkommen, 3-0 und 0-3. So viele Punkte brachten sie.",
+  "profile.phase.total": "Aus Phasen insgesamt",
+  "profile.phase.mvp": "MVP",
+  // Budapeszt ma 509 sklasyfikowanych graczy i ZERO meczow w bazie.
+  // Kolonia 148 takich graczy na 523, Krakow 51 na 262.
+  "profile.noMatches.title": "In dieses Ergebnis ist kein einziges Spiel eingeflossen",
+  "profile.noMatches.text": "Das gesamte Ergebnis stammt aus Phasen-Tipps. Deshalb gibt es hier weder Trefferquote noch Serien oder Spielrekorde — es fehlt die Grundlage dafür.",
+  "profile.progress.captionPhase": "Auf einen Punkt zeigen, um Phase und Ausbeute zu sehen.",
 };
 
 export default de;

@@ -61,10 +61,13 @@ function Blisko({ odznaka }) {
   );
 }
 
-function BadgeShelf({ profile }) {
+function BadgeShelf({ profile, maMecze = true }) {
   const t = useT();
 
-  const { earned, next } = awardBadges(profile, { t });
+  // Turniej bez meczow nie ma z czego przyznac odznak meczowych, a te
+  // stawaly w „w zasiegu" jako cel, do ktorego nie da sie zblizyc nawet
+  // o krok - patrz awardBadges.
+  const { earned, next } = awardBadges(profile, { t, maMecze });
 
   return (
     <section className="ui-card ui-stack">
@@ -90,7 +93,11 @@ function BadgeShelf({ profile }) {
             {t("badges.emptyTitle")}
           </strong>
 
-          <p className="ui-empty__text">{t("badges.emptyText")}</p>
+          <p className="ui-empty__text">
+            {t(
+              maMecze ? "badges.emptyText" : "badges.emptyTextNoMatches",
+            )}
+          </p>
         </div>
       ) : (
         <div className="badge-grid">
