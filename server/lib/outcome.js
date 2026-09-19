@@ -251,3 +251,55 @@ export function buildOutcome(result, predictions, { logos = [] } = {}) {
     favourite: faworyt,
   };
 }
+
+/**
+ * Skrót wyniku dla KAŻDEGO turnieju naraz - na potrzeby listy turniejów.
+ *
+ * Lista pokazywała same nazwy w kafelkach, więc zakończony turniej nie mówił
+ * o sobie nic. Tu dochodzi jedno zdanie: kto wygrał i ilu to przewidziało.
+ * Zmierzone - trzy turnieje, trzy różne historie: 4%, 10% i 80%.
+ *
+ * Liczy tym samym buildOutcome, co strona turnieju, tylko po kolei dla
+ * każdego wiersza wyników. Osobna reguła znaczyłaby dwie liczby na jedno
+ * pytanie, a lista i strona turnieju stoją o jedno kliknięcie od siebie.
+ *
+ * Oddaje SAM SKRÓT, nie całą drabinkę: na liście nie ma gdzie pokazać
+ * półfinalistów, a przesyłanie ich byłoby ładowaniem danych na zapas.
+ *
+ * @param results     wiersze playoffs_results Z event_id
+ * @param predictions wiersze playoffs_predictions Z event_id
+ * @returns Map event_id -> { winner, called_percent, total }
+ */
+export function buildOutcomeByEvent(results, predictions, { logos = [] } = {}) {
+  const typyEventu = new Map();
+
+  for (const p of predictions || []) {
+    const id = Number(p?.event_id);
+
+    if (!Number.isFinite(id)) continue;
+
+    if (!typyEventu.has(id)) typyEventu.set(id, []);
+
+    typyEventu.get(id).push(p);
+  }
+
+  const skroty = new Map();
+
+  for (const r of results || []) {
+    const id = Number(r?.event_id);
+
+    if (!Number.isFinite(id)) continue;
+
+    const pelny = buildOutcome(r, typyEventu.get(id) ?? [], { logos });
+
+    if (!pelny.settled) continue;
+
+    skroty.set(id, {
+      winner: pelny.winner,
+      called_percent: pelny.called_percent.winner,
+      total: pelny.total,
+    });
+  }
+
+  return skroty;
+}

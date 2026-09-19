@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { getAllEvents } from "../lib/api.js";
 import { humanPhase } from "../lib/phaseLabels.js";
+import TeamCrest from "../components/TeamCrest.jsx";
 import {
   EVENT_STATE_BADGE,
   EVENT_STATE_KEY,
@@ -29,6 +30,35 @@ function EventCard({ event }) {
       </div>
 
       <strong className="ui-tile__name">{event.name}</strong>
+
+      {/* Zakończony turniej mówi o sobie jedno zdanie: kto wygrał i ilu to
+          przewidziało. Bez tego lista była spisem samych nazw, a wynik
+          leżał o jedno kliknięcie dalej i nic o nim nie mówiło.
+
+          Etykieta obok nazwy, nie zdanie z nazwą w środku - nazwy drużyn
+          to wolny tekst z bazy i nie da się ich odmienić. */}
+      {event.outcome && (
+        <div className="event-outcome">
+          <span className="event-outcome__label">
+            {t("events.outcome.champion")}
+          </span>
+
+          <TeamCrest
+            name={event.outcome.winner.name}
+            logo={event.outcome.winner.logo}
+          />
+
+          <span className="event-outcome__name">
+            {event.outcome.winner.name}
+          </span>
+
+          <span className="ui-badge">
+            {t("events.outcome.called", {
+              percent: event.outcome.called_percent,
+            })}
+          </span>
+        </div>
+      )}
 
       <div className="ui-row ui-row--wrap ui-tile__meta">
         {event.participants > 0 && (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import Ladowanie from "./Ladowanie.jsx";
 import PlayerAvatar from "./PlayerAvatar.jsx";
@@ -30,8 +30,14 @@ const KLASA_ODZNAKI = {
   most: "ui-badge",
 };
 
+// Identyfikator kotwicy. Ranking turnieju linkuje wprost tutaj, bo sekcja
+// stoi nisko na profilu i bez tego trzeba by jej szukać przewijaniem.
+const KOTWICA = "rywale";
+
 function Rivals({ slug, userId }) {
   const t = useT();
+
+  const { hash } = useLocation();
 
   const [dane, setDane] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,9 +70,25 @@ function Rivals({ slug, userId }) {
     };
   }, [slug, userId, t]);
 
+  // Przewinięcie do kotwicy musi poczekać na dane.
+  //
+  // Zwykły odnośnik z #rywale nie zadziałałby tu wcale: przeglądarka szuka
+  // elementu zaraz po wejściu na stronę, a tej sekcji wtedy jeszcze nie ma -
+  // pobiera się osobnym żądaniem i pojawia dopiero po nim. Stąd przewijanie
+  // w efekcie zależnym od `dane`, a nie atrybut w adresie.
+  useEffect(() => {
+    if (!dane || hash !== `#${KOTWICA}`) return;
+
+    // BEZ animacji. Sekcja stoi blisko czterech tysięcy pikseli niżej,
+    // a nad nią doczytują się wykres, awatary i inne sekcje pobierane
+    // osobno - płynne przewijanie przez ten dystans gubi się przy
+    // pierwszym przeskoku układu i ląduje z powrotem na górze.
+    document.getElementById(KOTWICA)?.scrollIntoView({ block: "start" });
+  }, [dane, hash]);
+
   if (loading) {
     return (
-      <section className="ui-card ui-stack">
+      <section className="ui-card ui-stack" id={KOTWICA}>
         <Ladowanie>{t("rivals.loading")}</Ladowanie>
       </section>
     );
@@ -76,7 +98,7 @@ function Rivals({ slug, userId }) {
   // na ekranie i działa.
   if (error) {
     return (
-      <section className="ui-card ui-stack">
+      <section className="ui-card ui-stack" id={KOTWICA}>
         <p className="ui-note">{t("rivals.error")}</p>
       </section>
     );
@@ -103,7 +125,7 @@ function Rivals({ slug, userId }) {
   // a jedno zdanie na obie sytuacje kłamałoby w połowie przypadków.
   if (rywale.length === 0) {
     return (
-      <section className="ui-card ui-stack">
+      <section className="ui-card ui-stack" id={KOTWICA}>
         {naglowek}
 
         <p className="ui-note">
@@ -118,7 +140,7 @@ function Rivals({ slug, userId }) {
   const ukryci = dane.total - rywale.length;
 
   return (
-    <section className="ui-card ui-stack">
+    <section className="ui-card ui-stack" id={KOTWICA}>
       {naglowek}
 
       <div className="ui-table rivals-table">

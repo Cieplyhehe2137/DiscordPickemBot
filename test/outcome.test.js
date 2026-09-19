@@ -309,3 +309,68 @@ test("brak logotypu to null, a nie puste miejsce w odpowiedzi", async () => {
 
   assert.equal(o.winner.logo, null);
 });
+
+// --- skrot dla listy turniejow ----------------------------------------------
+
+test("skrot dla listy liczy kazdy turniej osobno", async () => {
+  const { buildOutcomeByEvent } = await import(MODUL);
+
+  const skroty = buildOutcomeByEvent(
+    [
+      { event_id: 37, ...wynik({ correct_winner: "Falcons" }) },
+      { event_id: 88, ...wynik({ correct_winner: "Vitality" }) },
+    ],
+    [
+      // Cologne: 1 z 4 trafil.
+      { event_id: 37, winner: "Falcons" },
+      ...typy(3, { winner: "Spirit" }).map((t) => ({ ...t, event_id: 37 })),
+
+      // Krakow: 4 z 5 trafilo.
+      ...typy(4, { winner: "Vitality" }).map((t) => ({ ...t, event_id: 88 })),
+      { event_id: 88, winner: "FURIA" },
+    ],
+  );
+
+  assert.equal(skroty.get(37).winner.name, "Falcons");
+  assert.equal(skroty.get(37).called_percent, 25);
+  assert.equal(skroty.get(37).total, 4);
+
+  assert.equal(skroty.get(88).winner.name, "Vitality");
+  assert.equal(skroty.get(88).called_percent, 80);
+});
+
+test("turniej bez rozstrzygniecia nie trafia do skrotow", async () => {
+  // Kafelek pokazuje wtedy to, co dotad - bez pustego miejsca po mistrzu.
+  const { buildOutcomeByEvent } = await import(MODUL);
+
+  const skroty = buildOutcomeByEvent(
+    [{ event_id: 1, ...wynik({ correct_winner: null }) }],
+    [{ event_id: 1, winner: "Falcons" }],
+  );
+
+  assert.equal(skroty.has(1), false);
+  assert.equal(skroty.size, 0);
+});
+
+test("skrot niesie sam wynik, bez calej drabinki", async () => {
+  // Na liscie nie ma gdzie pokazac polfinalistow, a przesylanie ich byloby
+  // ladowaniem danych na zapas.
+  const { buildOutcomeByEvent } = await import(MODUL);
+
+  const skroty = buildOutcomeByEvent(
+    [{ event_id: 5, ...wynik() }],
+    [{ event_id: 5, winner: "Falcons" }],
+  );
+
+  assert.deepEqual(
+    Object.keys(skroty.get(5)).sort(),
+    ["called_percent", "total", "winner"],
+  );
+});
+
+test("brak wierszy nie wywraca skrotow", async () => {
+  const { buildOutcomeByEvent } = await import(MODUL);
+
+  assert.equal(buildOutcomeByEvent([], []).size, 0);
+  assert.equal(buildOutcomeByEvent(null, null).size, 0);
+});
