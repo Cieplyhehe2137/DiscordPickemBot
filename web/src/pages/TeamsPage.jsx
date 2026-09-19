@@ -135,13 +135,19 @@ function TeamsPage() {
                 <strong className="team-card__name">{team.name}</strong>
 
                 <span className="ui-stat__hint">
-                  {team.settled > 0
-                    ? t("teams.record", {
+                  {/* Trzy różne stany, nie dwa. Drużyna bez ani jednego
+                      meczu w bazie istnieje na stronie WYŁĄCZNIE dzięki
+                      typom na fazy - „0 meczów" mówiłoby o niej nieprawdę
+                      przez przemilczenie. */}
+                  {team.matches === 0
+                    ? t("teams.noMatches")
+                    : team.settled > 0
+                      ? t("teams.record", {
                         wins: team.wins,
                         losses: team.losses,
                         count: team.settled,
                       })
-                    : t("teams.noResult", { count: team.matches })}
+                      : t("teams.noResult", { count: team.matches })}
                 </span>
               </div>
 
