@@ -1541,6 +1541,41 @@ const de = {
     one: "Die Bilanz zählt Spiele, die ZWISCHEN den beiden entschieden wurden. Unentschieden — gleich viele Punkte für ein Spiel — werden getrennt gezählt, denn sie machen fast die Hälfte aller gemeinsamen Spiele aus. Ein Rivale kommt ab {count} solchen Spiel in die Liste.",
     other: "Die Bilanz zählt Spiele, die ZWISCHEN den beiden entschieden wurden. Unentschieden — gleich viele Punkte für ein Spiel — werden getrennt gezählt, denn sie machen fast die Hälfte aller gemeinsamen Spiele aus. Ein Rivale kommt ab {count} solchen Spielen in die Liste.",
   },
+
+  // --- Wynik turnieju ------------------------------------------------------
+  // Wynik turnieju na stronie turnieju.
+  //
+  // Mistrz lezal w playoffs_results od poczatku, ale pokazywal go
+  // wylacznie komponent PhaseResults na stronach TYPOWANIA fazy - mozna
+  // bylo otworzyc strone IEM Cologne Major 2026 i nie dowiedziec sie,
+  // ze wygraly Falcons.
+  "outcome.kicker": "Wie es ausging",
+  "outcome.title": "Turnierergebnis",
+  "outcome.intro": "Wer gewonnen hat — und wie viele Spieler es vorhergesagt haben. Die Prozente stammen aus den Playoff-Tipps, nicht aus dem gesamten Teilnehmerfeld.",
+  // Etykieta plus nazwa, nigdy zdanie z nazwa w srodku. Nazwy druzyn to
+  // wolny tekst z bazy, wiec "Falcons pokonali FURIE" wymagaloby biernika,
+  // ktorego nie da sie zbudowac ani po polsku, ani po rosyjsku.
+  "outcome.champion": "Champion",
+  "outcome.runnerUp": "Finalist",
+  "outcome.semis": {
+    one: "Halbfinalist",
+    other: "Halbfinalisten",
+  },
+  "outcome.third": "Dritter Platz",
+  "outcome.called.title": "Wer es vorhergesagt hat",
+  "outcome.called.winner": "Champion getippt",
+  "outcome.called.finalists": "Beide Finalisten",
+  "outcome.called.semifinalists": "Alle vier Halbfinalisten",
+  "outcome.favourite": "Favorit der Community",
+  // Dopisek przy faworycie, nie osobne zdanie - doklejany po nazwie
+  // i procencie, wiec dziala bez odmiany. Zmierzone: Krakow trafil
+  // (Vitality 80%), Cologne i Budapeszt nie (Spirit 42%, Furia 57%).
+  "outcome.favourite.hit": "und so kam es",
+  "outcome.favourite.miss": "doch es gewann ein anderer",
+  "outcome.note": {
+    one: "Grundlage ist {count} Playoff-Tipp aus diesem Turnier. Wer die Playoffs nicht getippt hat, taucht in diesen Prozenten nicht auf — auch dann nicht, wenn er Spiele getippt hat.",
+    other: "Grundlage sind {count} Playoff-Tipps aus diesem Turnier. Wer die Playoffs nicht getippt hat, taucht in diesen Prozenten nicht auf — auch dann nicht, wenn er Spiele getippt hat.",
+  },
 };
 
 export default de;

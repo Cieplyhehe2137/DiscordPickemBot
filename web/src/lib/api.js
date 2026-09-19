@@ -435,6 +435,15 @@ export function getEventMvp(slug) {
   return apiRequest(`/public/events/${encodeURIComponent(slug)}/mvp`);
 }
 
+// Wynik turnieju: mistrz, finalisci, polfinalisci i trafnosc spolecznosci.
+//
+// Mistrz lezal w playoffs_results od poczatku, ale pokazywal go wylacznie
+// komponent PhaseResults na stronach TYPOWANIA fazy - mozna bylo otworzyc
+// strone turnieju i nie dowiedziec sie, kto go wygral.
+export function getEventOutcome(slug) {
+  return apiRequest(`/public/events/${encodeURIComponent(slug)}/outcome`);
+}
+
 // Czytanie wynikow map. Adres ma JEDEN segment po /public/, wiec trasa
 // po stronie serwera musi byc zarejestrowana przed :guildSlug.
 export function getMaps() {

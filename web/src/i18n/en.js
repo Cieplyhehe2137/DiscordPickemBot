@@ -1541,6 +1541,41 @@ const en = {
     one: "The record counts matches settled BETWEEN the two players. Ties — the same points for a match — are counted separately, because they make up nearly half of all shared matches. A rival enters the list from {count} such match.",
     other: "The record counts matches settled BETWEEN the two players. Ties — the same points for a match — are counted separately, because they make up nearly half of all shared matches. A rival enters the list from {count} such matches.",
   },
+
+  // --- Wynik turnieju ------------------------------------------------------
+  // Wynik turnieju na stronie turnieju.
+  //
+  // Mistrz lezal w playoffs_results od poczatku, ale pokazywal go
+  // wylacznie komponent PhaseResults na stronach TYPOWANIA fazy - mozna
+  // bylo otworzyc strone IEM Cologne Major 2026 i nie dowiedziec sie,
+  // ze wygraly Falcons.
+  "outcome.kicker": "How it ended",
+  "outcome.title": "Tournament result",
+  "outcome.intro": "Who won — and how many players called it. The percentages come from playoff picks, not from everyone in the tournament.",
+  // Etykieta plus nazwa, nigdy zdanie z nazwa w srodku. Nazwy druzyn to
+  // wolny tekst z bazy, wiec "Falcons pokonali FURIE" wymagaloby biernika,
+  // ktorego nie da sie zbudowac ani po polsku, ani po rosyjsku.
+  "outcome.champion": "Champion",
+  "outcome.runnerUp": "Runner-up",
+  "outcome.semis": {
+    one: "Semi-finalist",
+    other: "Semi-finalists",
+  },
+  "outcome.third": "Third place",
+  "outcome.called.title": "Who called it",
+  "outcome.called.winner": "Champion called",
+  "outcome.called.finalists": "Both finalists",
+  "outcome.called.semifinalists": "All four semi-finalists",
+  "outcome.favourite": "Community favourite",
+  // Dopisek przy faworycie, nie osobne zdanie - doklejany po nazwie
+  // i procencie, wiec dziala bez odmiany. Zmierzone: Krakow trafil
+  // (Vitality 80%), Cologne i Budapeszt nie (Spirit 42%, Furia 57%).
+  "outcome.favourite.hit": "and so it was",
+  "outcome.favourite.miss": "but someone else won",
+  "outcome.note": {
+    one: "The base is {count} playoff pick made in this tournament. Anyone who skipped the playoff picks is not in these percentages, even if they picked matches.",
+    other: "The base is {count} playoff picks made in this tournament. Anyone who skipped the playoff picks is not in these percentages, even if they picked matches.",
+  },
 };
 
 export default en;

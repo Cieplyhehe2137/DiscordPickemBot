@@ -11,6 +11,7 @@ import {
   eventArchiveUrl,
 } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
+import TournamentOutcome from "../components/TournamentOutcome.jsx";
 import { phaseRouteLabel, humanPhase } from "../lib/phaseLabels.js";
 import { winnerFirstScore, nobodyPickedWinner } from "../lib/upset.js";
 import Ladowanie from "../components/Ladowanie.jsx";
@@ -779,6 +780,15 @@ function EventPage() {
                 </Link>
               </section>
             )}
+
+          {/* Wynik turnieju: mistrz, finaliści i trafność społeczności.
+
+              Stoi przy głosowaniu na MVP, bo obie sekcje odpowiadają na to
+              samo pytanie - jak to się skończyło - i obie pobierają się
+              osobno, więc żadna nie opóźnia reszty strony.
+
+              Znika dla turnieju bez rozstrzygnięcia. */}
+          <TournamentOutcome slug={slug} />
 
           {/* Głosowanie na MVP. Cztery tabele w bazie, a do tej pory było je
               widać wyłącznie w panelu administratora - i to mimo że kryje

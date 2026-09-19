@@ -2455,3 +2455,111 @@ main > .page-back {
     transform: none;
   }
 }
+
+/* =========================================================
+   WYNIK TURNIEJU
+   ========================================================= */
+
+/* Mistrz obok reszty drabinki, a nie w jednym rzędzie z nią: pozostałe
+   miejsca są dla niego kontekstem, nie równorzędną listą. Poniżej 640 px
+   jedno pod drugim - mistrz zostaje pierwszy, więc kolejność czytania
+   nie zmienia się wraz z układem. */
+.outcome-podium {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .outcome-podium {
+    grid-template-columns: auto 1fr;
+    gap: var(--space-6);
+  }
+}
+
+.outcome-champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.outcome-champion__name {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--text-strong);
+}
+
+/* Lista definicji, a nie tabela: to są pary etykieta-wartość, a nie wiersze
+   o wspólnych kolumnach. Etykieta ma stałą szerokość, żeby nazwy drużyn
+   zaczynały się w jednej linii pionowej. */
+.outcome-rest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.outcome-rest__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.outcome-rest__row dt {
+  flex: 0 0 auto;
+  min-width: 10ch;
+
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.outcome-rest__row dd {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Dwaj półfinaliści w jednym wierszu, z zawijaniem - na wąskim ekranie
+   schodzą pod siebie zamiast rozpychać kartę. */
+.outcome-rest__teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.outcome-team {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.outcome-team__name {
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Faworyt to jedna linia złożona z czterech rzeczy: etykiety, drużyny,
+   procentu i dopisku. Flex z zawijaniem, bo na telefonie nie mieszczą się
+   obok siebie, a żadna z nich nie ma sensu bez pozostałych. */
+.outcome-favourite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.outcome-favourite__label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}

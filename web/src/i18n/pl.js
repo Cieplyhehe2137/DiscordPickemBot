@@ -1636,6 +1636,43 @@ const pl = {
     few: "Bilans liczy się z meczów rozstrzygniętych MIĘDZY dwojgiem graczy. Remisy — czyli tyle samo punktów za mecz — są liczone osobno, bo stanowią blisko połowę wspólnych meczów. Rywal wchodzi do zestawienia od {count} takich meczów.",
     many: "Bilans liczy się z meczów rozstrzygniętych MIĘDZY dwojgiem graczy. Remisy — czyli tyle samo punktów za mecz — są liczone osobno, bo stanowią blisko połowę wspólnych meczów. Rywal wchodzi do zestawienia od {count} takich meczów.",
   },
+
+  // --- Wynik turnieju ------------------------------------------------------
+  // Wynik turnieju na stronie turnieju.
+  //
+  // Mistrz lezal w playoffs_results od poczatku, ale pokazywal go
+  // wylacznie komponent PhaseResults na stronach TYPOWANIA fazy - mozna
+  // bylo otworzyc strone IEM Cologne Major 2026 i nie dowiedziec sie,
+  // ze wygraly Falcons.
+  "outcome.kicker": "Jak to się skończyło",
+  "outcome.title": "Wynik turnieju",
+  "outcome.intro": "Kto wygrał — i ilu graczy to przewidziało. Procenty liczą się z typów na playoffy, a nie z całej stawki turnieju.",
+  // Etykieta plus nazwa, nigdy zdanie z nazwa w srodku. Nazwy druzyn to
+  // wolny tekst z bazy, wiec "Falcons pokonali FURIE" wymagaloby biernika,
+  // ktorego nie da sie zbudowac ani po polsku, ani po rosyjsku.
+  "outcome.champion": "Mistrz",
+  "outcome.runnerUp": "Finalista",
+  "outcome.semis": {
+    one: "Półfinalista",
+    few: "Półfinaliści",
+    many: "Półfinaliści",
+  },
+  "outcome.third": "Trzecie miejsce",
+  "outcome.called.title": "Ilu to przewidziało",
+  "outcome.called.winner": "Trafiony mistrz",
+  "outcome.called.finalists": "Obaj finaliści",
+  "outcome.called.semifinalists": "Komplet półfinalistów",
+  "outcome.favourite": "Faworyt społeczności",
+  // Dopisek przy faworycie, nie osobne zdanie - doklejany po nazwie
+  // i procencie, wiec dziala bez odmiany. Zmierzone: Krakow trafil
+  // (Vitality 80%), Cologne i Budapeszt nie (Spirit 42%, Furia 57%).
+  "outcome.favourite.hit": "i tak było",
+  "outcome.favourite.miss": "a wygrał kto inny",
+  "outcome.note": {
+    one: "Podstawą jest {count} typ na playoffy oddany w tym turnieju. Kto nie typował playoffów, nie liczy się w tych procentach — także wtedy, gdy obstawiał mecze.",
+    few: "Podstawą są {count} typy na playoffy oddane w tym turnieju. Kto nie typował playoffów, nie liczy się w tych procentach — także wtedy, gdy obstawiał mecze.",
+    many: "Podstawą jest {count} typów na playoffy oddanych w tym turnieju. Kto nie typował playoffów, nie liczy się w tych procentach — także wtedy, gdy obstawiał mecze.",
+  },
 };
 
 export default pl;
