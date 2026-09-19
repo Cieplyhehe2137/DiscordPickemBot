@@ -1635,6 +1635,38 @@ const en = {
   // Odnosnik pokazuje sie tylko zalogowanemu, bo tylko wtedy wiadomo,
   // czyich rywali pokazac.
   "leaderboard.myRivals": "My rivals",
+
+  // --- Strona serwera ------------------------------------------------------
+  // Strona pojedynczej spolecznosci.
+  //
+  // Zmierzone: serwis obsluguje DWIE spolecznosci z turniejami, nie jedna.
+  // 848 graczy wylacznie na jednej, 221 wylacznie na drugiej, 41 w obu -
+  // a cala strona mieszala ich turnieje w jednej liscie.
+  "server.kicker": "Community",
+  "server.intro": "This community's tournaments and its own leaderboard. The site serves several Discord servers at once — this page shows only this one.",
+  "server.loading": "Loading the server...",
+  "server.errorText": "This server could not be loaded.",
+  "server.back": "Back to the home page",
+  "server.stats.events": "Tournaments",
+  "server.stats.participants": "Players picking",
+  "server.stats.predictions": "Picks made",
+  "server.top.kicker": "Best in this community",
+  "server.top.title": "Server leaderboard",
+  "server.top.intro": "The order comes from the average finishing position, not from total points — tournaments differ in size and their points are not comparable. LOWER is better.",
+  // Prog dopasowany do serwera, nie sztywne dwa starty.
+  //
+  // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie. Ale serwer
+  // z jednym turniejem nie ma nikogo z dwoma - zmierzone, 221 graczy nie
+  // moglo tam wejsc i nie zalezalo to od nich, tylko od tego, ile turniejow
+  // zrobil ich serwer.
+  "server.top.note": {
+    one: "The leaderboard lists players with at least {count} start in this community. The threshold is lower than in the all-time classification, because a server that has run one tournament has nobody with two starts yet.",
+    other: "The leaderboard lists players with at least {count} starts in this community. The threshold is lower than in the all-time classification, because a server that has run one tournament has nobody with two starts yet.",
+  },
+  "server.events.title": "This community's tournaments",
+  "server.empty.title": "This server has not run a tournament yet",
+  "server.empty.text": "The bot is here, but nobody has opened the picking yet. This page fills up with the first tournament.",
+  "home.servers.view": "Open the server",
 };
 
 export default en;

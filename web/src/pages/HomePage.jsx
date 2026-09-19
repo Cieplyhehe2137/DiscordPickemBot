@@ -276,16 +276,28 @@ function Serwery() {
                 )}
               </div>
 
-              {serwer.discord_url && (
-                <a
-                  className="ui-btn ui-btn--ghost ui-btn--sm"
-                  href={serwer.discord_url}
-                  target="_blank"
-                  rel="noreferrer"
+              <div className="ui-row ui-row--wrap">
+                {/* Wejście DO SERWISU, nie na Discorda. Kafelek miał dotąd
+                    jeden odnośnik i prowadził wyłącznie na zewnątrz, mimo że
+                    strona tej społeczności istniała po stronie API od dawna. */}
+                <Link
+                  className="ui-btn ui-btn--sm"
+                  to={`/servers/${serwer.slug ?? serwer.guild_id}`}
                 >
-                  {t("home.servers.join")}
-                </a>
-              )}
+                  {t("home.servers.view")}
+                </Link>
+
+                {serwer.discord_url && (
+                  <a
+                    className="ui-btn ui-btn--ghost ui-btn--sm"
+                    href={serwer.discord_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {t("home.servers.join")}
+                  </a>
+                )}
+              </div>
             </article>
           ))}
         </div>

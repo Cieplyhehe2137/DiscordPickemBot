@@ -7,6 +7,8 @@
 // samej kolejnosci - npm run routes wywala sie takze na przestawieniu.
 
 import { createGuildInfo } from "../lib/guildInfo.js";
+import { buildAllTime } from "../lib/allTime.js";
+import { SQL_NAZWY } from "./upsets.js";
 
 export function registerPublicOverviewRoutes(
   app,
@@ -166,24 +168,100 @@ export function registerPublicOverviewRoutes(
         [guildId],
       );
 
-      const [topPlayers] = await pool.query(
+      // CZOLOWKA SERWERA LICZONA PERCENTYLEM, NIE SUMA PUNKTOW.
+      //
+      // Stala tu wczesniej suma total_points po turniejach - dokladnie to,
+      // co server/lib/allTime.js odrzuca i tlumaczy dlaczego: punkty z roznych
+      // turniejow sa nieporownywalne. Na tym serwerze IEM Cologne dawalo
+      // maksymalnie 316 punktow, a StarLadder Budapest 47, bo nie mial ani
+      // jednego meczu. Suma robila z tego ranking tego, KTO GRAL W COLOGNE.
+      //
+      // Teraz liczy to ten sam modul, co klasyfikacja wszech czasow, wiec
+      // gracz widzi te sama miare na obu stronach zamiast dwoch liczb na
+      // jedno pytanie.
+      const [wierszeKlasyfikacji] = await pool.query(
         `
-      SELECT
-          lb.user_id,
-          SUM(lb.total_points) AS total_points
-      FROM leaderboard lb
-      JOIN events e
-          ON e.id = lb.event_id
-      WHERE e.guild_id = ?
-      GROUP BY lb.user_id
-      ORDER BY total_points DESC
-      LIMIT 5
-      `,
+        SELECT
+            r.user_id,
+            r.event_id,
+            r.total_points,
+            r.rank_position,
+            r.uczestnicy,
+
+            e.name,
+            e.slug,
+
+            p.displayname,
+            p.avatar
+
+        FROM (
+            SELECT
+                event_id,
+                CAST(user_id AS CHAR CHARACTER SET utf8mb4)
+                  COLLATE utf8mb4_unicode_ci AS user_id,
+
+                COALESCE(total_points, 0) AS total_points,
+
+                ROW_NUMBER() OVER (
+                    PARTITION BY event_id
+                    ORDER BY
+                        COALESCE(total_points, 0) DESC,
+                        user_id ASC
+                ) AS rank_position,
+
+                COUNT(*) OVER (PARTITION BY event_id) AS uczestnicy
+
+            FROM leaderboard
+            WHERE event_id IN (SELECT id FROM events WHERE guild_id = ?)
+        ) r
+
+        INNER JOIN events e
+            ON e.id = r.event_id
+
+        LEFT JOIN user_profiles p
+            ON CAST(p.user_id AS CHAR CHARACTER SET utf8mb4)
+               COLLATE utf8mb4_unicode_ci = r.user_id
+        `,
         [guildId],
       );
 
+      // Nazwy graczy, ktorzy nigdy nie logowali sie na stronie. Bez tego
+      // w czolowce stalyby surowe dziewietnastocyfrowe identyfikatory -
+      // wiersz w user_profiles powstaje dopiero przy logowaniu, a wiekszosc
+      // typuje wylacznie na Discordzie.
+      const [nazwyZFaz] = await pool.query(SQL_NAZWY);
+
       const featuredEvent =
         events.find((e) => e.status === "OPEN") || events[0] || null;
+
+      // Nazwa z profilu ma pierwszenstwo przed nazwa z fazy: profil niesie
+      // awatar i jest odswiezany przy kazdym logowaniu, a zapis z fazy
+      // pamieta nick z dnia typowania. Ta sama kolejnosc, co na stronie
+      // niespodzianek i przy rywalach.
+      const nazwy = new Map();
+
+      for (const n of nazwyZFaz) {
+        if (n?.user_id) nazwy.set(String(n.user_id), n.displayname);
+      }
+
+      const wiersze = wierszeKlasyfikacji.map((r) => ({
+        ...r,
+        displayname: r.displayname || nazwy.get(String(r.user_id)) || null,
+      }));
+
+      // PROG DOPASOWANY DO SERWERA, a nie sztywne dwa starty.
+      //
+      // Klasyfikacja wszech czasow wymaga dwoch startow i slusznie - bez
+      // progu czolowke zajmuja jednorazowi gracze. Ale serwer, ktory
+      // rozegral JEDEN turniej, nie ma nikogo z dwoma startami: zmierzone,
+      // 221 graczy z takiego serwera nie moze tam wejsc i nie zalezy to od
+      // nich, tylko od tego, ile turniejow zrobil ich serwer.
+      //
+      // Tutaj prog to dwa starty ALBO tyle, ile serwer w ogole rozegral -
+      // co jest mniejsze. Dzieki temu kazda spolecznosc ma swoja czolowke
+      // od pierwszego turnieju.
+      const turniejow = Number(stats?.events_count || 0);
+      const progStartow = Math.max(1, Math.min(2, turniejow));
 
       res.json({
         guild: {
@@ -197,7 +275,18 @@ export function registerPublicOverviewRoutes(
           participants: Number(stats?.participants || 0),
           predictions: Number(stats?.predictions || 0),
         },
-        top_players: topPlayers,
+
+        // Dziesiatka, nie piatka: to jest czolowka calej spolecznosci,
+        // a nie kafelek na stronie glownej.
+        top_players: buildAllTime(wiersze, { minStarts: progStartow }).slice(
+          0,
+          10,
+        ),
+
+        // Prog jedzie razem z danymi - strona ma powiedziec wprost, czego
+        // brakuje komus, kogo w tabeli nie ma.
+        min_starts: progStartow,
+
         featured_event: featuredEvent,
         events,
       });
