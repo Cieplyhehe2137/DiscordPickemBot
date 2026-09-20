@@ -2736,3 +2736,50 @@ main > .page-back {
   font-variant-numeric: tabular-nums;
   color: var(--text-strong);
 }
+
+/* =========================================================
+   PRZECENIANE I NIEDOCENIANE
+   ========================================================= */
+
+/* Dwie listy obok siebie, bo czyta sie je jako parę: „za czesto" po lewej,
+   „za rzadko" po prawej. Ponizej 720 px jedna pod druga - przy dwoch
+   kolumnach po 180 px sama nazwa druzyny nie ma gdzie stanac.
+
+   minmax(260px, 1fr) to ta sama miara, co w .ui-tiles: przelamanie wypada
+   w tym samym miejscu, wiec strona nie zmienia ukladu dwa razy przy jednym
+   zwezaniu okna. */
+.bias-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* Wiersz jest odnosnikiem do strony druzyny, wiec musi na to wygladac -
+   .ui-row-item sam z siebie jest pojemnikiem, nie linkiem. */
+.bias-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Podpis wraca do ZAWIJANIA, tak samo jak w tabeli rywali i z tego samego
+   powodu: .ui-row-item__sub ma nowrap bez ucinania, wiec dluzszy tekst nie
+   skraca sie, tylko wychodzi poza swoje pole. Tu stoi „stawiano 85%,
+   wygrala 40% · 10 meczow" w kolumnie, ktora na telefonie ma 260 px. */
+.bias-columns .ui-row-item__sub {
+  white-space: normal;
+}
+
+/* Liczba niesie kierunek znakiem, kolor tylko go wzmacnia - na wydruku,
+   przy daltonizmie i wyrwana z kolumny nadal mowi to samo. */
+.bias-row__gap {
+  font-size: var(--text-lg);
+}
+
+.bias-row__gap--over {
+  color: var(--danger);
+}
+
+.bias-row__gap--under {
+  color: var(--ok);
+}

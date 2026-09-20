@@ -1824,6 +1824,28 @@ const uk = {
   "profile.noMatches.title": "У цьому результаті немає жодного матчу",
   "profile.noMatches.text": "Увесь результат склався з прогнозів на етапи. Тому тут немає ні влучності, ні серій, ні рекордів за матчами — їх немає з чого рахувати.",
   "profile.progress.captionPhase": "Наведіть на точку, щоб побачити етап і здобуток.",
+
+  // --- Przeceniane i niedoceniane druzyny ----------------------------------
+  // Strona druzyny podaje „zaufanie" i „wygrywa" obok siebie i nikt
+  // ich od siebie nie odejmuje - a to odejmowanie jest cala trescia.
+  //
+  // Zmierzone: GamerLegion - stawiano 85%, wygrala 40%. NRG odwrotnie:
+  // stawiano 14%, wygrala 44%.
+  "bias.kicker": "Де ми помиляємося",
+  "bias.title": "Переоцінені й недооцінені",
+  // Prog osmiu meczow nie jest okragla liczba z sufitu. Mediana
+  // |roznicy| spada z 30 (5-7 meczow) na 12 (8-11) i 9 (12+) - to szum,
+  // ktory znika, a nie wiedza, ktora sie pojawia.
+  "bias.intro": "Як охоче на команду ставили і як часто вона справді вигравала. Рахується з {count} команд щонайменше з {min} зіграними матчами — за меншої кількості різниця це шум, а не знання.",
+  "bias.overrated": "Ставили надто часто",
+  "bias.underrated": "Ставили надто рідко",
+  "bias.row": "ставили {trust}%, виграла {win}%",
+  "bias.sample": {
+    one: "{count} матч",
+    few: "{count} матчі",
+    many: "{count} матчів",
+  },
+  "bias.empty": "Поки жодна команда не вирізняється настільки, щоб назвати це помилкою загалу.",
 };
 
 export default uk;

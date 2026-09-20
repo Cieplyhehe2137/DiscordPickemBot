@@ -4,6 +4,10 @@ import { Link } from "react-router-dom";
 import Ladowanie from "../components/Ladowanie.jsx";
 import TeamCrest from "../components/TeamCrest.jsx";
 import { getTeams } from "../lib/api.js";
+import {
+  buildCrowdBias,
+  MIN_ROZSTRZYGNIETYCH,
+} from "../lib/crowdBias.js";
 import { T } from "../i18n/T.jsx";
 import { useT } from "../i18n/useLanguage.js";
 
@@ -48,6 +52,11 @@ function TeamsPage() {
     };
   }, [t]);
 
+  // Przecenienie liczy się z CAŁEJ listy, nie z przefiltrowanej -
+  // „najbardziej przeceniana" ma znaczyć to samo niezależnie od tego,
+  // co ktoś wpisał w wyszukiwarkę.
+  const bias = buildCrowdBias(teams);
+
   // Czterdzieści drużyn przychodzi jednym zapytaniem, więc filtrowanie
   // odbywa się na miejscu - bez odpytywania serwera przy każdej literze.
   const fraza = szukane.trim().toLowerCase();
@@ -91,6 +100,83 @@ function TeamsPage() {
           <p>{t("teams.intro", { count: teams.length })}</p>
         </div>
       </div>
+
+      {/* PRZECENIANE I NIEDOCENIANE.
+          Nad listą, bo to jedyne miejsce na tej stronie, które coś TWIERDZI -
+          reszta wylicza. Nic nie dociąga: `trust` i `win_rate` przychodzą
+          w tej samej odpowiedzi, na której stoi lista niżej. */}
+      {(bias.overrated.length > 0 || bias.underrated.length > 0) && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("bias.kicker")}</span>
+
+              <h2>{t("bias.title")}</h2>
+
+              <p>
+                {t("bias.intro", {
+                  count: bias.considered,
+                  min: MIN_ROZSTRZYGNIETYCH,
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div className="bias-columns">
+            {[
+              { klucz: "bias.overrated", ikona: "📉", lista: bias.overrated },
+              { klucz: "bias.underrated", ikona: "📈", lista: bias.underrated },
+            ].map((kolumna) => (
+              <div className="ui-stack ui-stack--tight" key={kolumna.klucz}>
+                <span className="ui-stat__hint">
+                  {kolumna.ikona} {t(kolumna.klucz)}
+                </span>
+
+                {kolumna.lista.length === 0 ? (
+                  <p className="ui-hint">{t("bias.empty")}</p>
+                ) : (
+                  kolumna.lista.map((team) => (
+                    <Link
+                      className="ui-row-item bias-row"
+                      key={team.key}
+                      to={`/teams/${encodeURIComponent(team.name)}`}
+                    >
+                      <span className="ui-row-item__who">
+                        <TeamCrest name={team.name} logo={team.logo} />
+
+                        <span className="ui-row-item__stack">
+                          <span className="ui-row-item__name">{team.name}</span>
+
+                          <span className="ui-row-item__sub">
+                            {t("bias.row", {
+                              trust: team.trust,
+                              win: team.win_rate,
+                            })}
+                            {" · "}
+                            {t("bias.sample", { count: team.settled })}
+                          </span>
+                        </span>
+                      </span>
+
+                      {/* Znak zostaje przy liczbie. „+45" i „−30" niosą
+                          kierunek nawet wyrwane z kolumny - a wyrwane będą,
+                          bo na telefonie kolumny stoją jedna pod drugą.
+                          Sam kolor nie wystarczy. */}
+                      <span
+                        className={`ui-row-item__score bias-row__gap ${
+                          team.gap > 0 ? "bias-row__gap--over" : "bias-row__gap--under"
+                        }`}
+                      >
+                        {team.gap > 0 ? `+${team.gap}` : `−${Math.abs(team.gap)}`}
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="ui-row ui-row--wrap leaderboard-search">
         <input

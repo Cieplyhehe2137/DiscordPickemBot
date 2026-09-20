@@ -1742,6 +1742,27 @@ const de = {
   "profile.noMatches.title": "In dieses Ergebnis ist kein einziges Spiel eingeflossen",
   "profile.noMatches.text": "Das gesamte Ergebnis stammt aus Phasen-Tipps. Deshalb gibt es hier weder Trefferquote noch Serien oder Spielrekorde — es fehlt die Grundlage dafür.",
   "profile.progress.captionPhase": "Auf einen Punkt zeigen, um Phase und Ausbeute zu sehen.",
+
+  // --- Przeceniane i niedoceniane druzyny ----------------------------------
+  // Strona druzyny podaje „zaufanie" i „wygrywa" obok siebie i nikt
+  // ich od siebie nie odejmuje - a to odejmowanie jest cala trescia.
+  //
+  // Zmierzone: GamerLegion - stawiano 85%, wygrala 40%. NRG odwrotnie:
+  // stawiano 14%, wygrala 44%.
+  "bias.kicker": "Wo wir danebenliegen",
+  "bias.title": "Überschätzt und unterschätzt",
+  // Prog osmiu meczow nie jest okragla liczba z sufitu. Mediana
+  // |roznicy| spada z 30 (5-7 meczow) na 12 (8-11) i 9 (12+) - to szum,
+  // ktory znika, a nie wiedza, ktora sie pojawia.
+  "bias.intro": "Wie bereitwillig auf ein Team getippt wurde und wie oft es wirklich gewann. Gerechnet aus {count} Teams mit mindestens {min} entschiedenen Spielen — darunter ist der Abstand Rauschen, kein Wissen.",
+  "bias.overrated": "Zu oft getippt",
+  "bias.underrated": "Zu selten getippt",
+  "bias.row": "getippt {trust}%, gewonnen {win}%",
+  "bias.sample": {
+    one: "{count} Spiel",
+    other: "{count} Spiele",
+  },
+  "bias.empty": "Bisher fällt kein Team weit genug heraus, um von einem Irrtum der Allgemeinheit zu sprechen.",
 };
 
 export default de;
