@@ -67,7 +67,10 @@ function WierszMeczu({ mecz, slug }) {
             {/* Odnośnik przy opisie, a nie osobnym przyciskiem pod
                 wierszem: przycisk na całą szerokość czytał się jak główna
                 akcja audytu, a to jest tylko przejście do meczu. */}
-            <Link to={`/events/${slug}/matches/${mecz.match_id}`}>
+            <Link
+              className="ui-link"
+              to={`/events/${slug}/matches/${mecz.match_id}`}
+            >
               #{mecz.match_id}
             </Link>
           </p>
