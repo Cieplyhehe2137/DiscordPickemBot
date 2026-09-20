@@ -2,9 +2,14 @@
 //
 // Uzupełnia tabelę `team_logos` adresami logotypów z PandaScore.
 //
-// Skąd bierze nazwy: z bazy, a nie z listy wpisanej na sztywno - z meczów
-// (team_a, team_b) i z opublikowanych wyników faz. To jest komplet nazw, jakie
-// mogą trafić na ekran. Dziś jest ich 48.
+// Skąd bierze nazwy: z bazy, a nie z listy wpisanej na sztywno - z meczów,
+// z opublikowanych wyników faz I Z TYPÓW. Te trzy źródła razem to komplet
+// nazw, jakie mogą trafić na ekran; dziś jest ich 46.
+//
+// Same mecze i wyniki to za mało - drugą połowę strony drużyn zbudowały
+// typy na fazy. Trzy zespoły, które zagrały wyłącznie StarLadder Budapest
+// 2025 i nie trafiły do żadnej poprawnej odpowiedzi, miały własne strony
+// i 596 typów, a logotypu nie miały skąd wziąć.
 //
 // Domyślnie NIC nie zapisuje. Pokazuje, co by zrobił, i kończy. Żeby zapisał,
 // trzeba podać --apply:
@@ -79,6 +84,21 @@ async function zbierzNazwy(pool) {
     dodaj(m.team_b);
   }
 
+  // SKĄD BIORĄ SIĘ NAZWY: ze wszystkiego, co może trafić na ekran.
+  //
+  // Mecze i OPUBLIKOWANE WYNIKI faz to nie jest komplet. Drużyna, która
+  // zagrała turniej bez zapisanych meczów i nie znalazła się w żadnej
+  // poprawnej odpowiedzi, nie występuje w żadnym z tych dwóch miejsc -
+  // a mimo to ma na stronie własną kartę i własną stronę, bo zbudowały ją
+  // TYPY. Trzy takie zostały bez logotypu: Fluxo, RED Canids i The Huns
+  // Esports, razem 596 typów fazowych.
+  //
+  // Dlatego czytamy też tabele typów. Źródłem nazw jest tam roster serwera,
+  // a ten potrafi być śmieciem - na produkcji stało w nim "DFGDFGDFGS"
+  // (patrz test/phaseTeamsSource.test.js). Nic złego się jednak nie stanie:
+  // nazwa, której dostawca nie zna, ląduje w kubełku "nieznane" i NIE jest
+  // zapisywana. Zmierzone przy tej zmianie: nazw występujących wyłącznie
+  // w typach jest dokładnie trzy i wszystkie trzy są prawdziwymi zespołami.
   const zrodla = [
     ["swiss_results", ["correct_3_0", "correct_0_3", "correct_advancing"]],
     ["playin_results", ["correct_teams"]],
@@ -93,6 +113,17 @@ async function zbierzNazwy(pool) {
     ],
     [
       "doubleelim_results",
+      ["upper_final_a", "lower_final_a", "upper_final_b", "lower_final_b"],
+    ],
+
+    ["swiss_predictions", ["pick_3_0", "pick_0_3", "advancing"]],
+    ["playin_predictions", ["teams"]],
+    [
+      "playoffs_predictions",
+      ["semifinalists", "finalists", "winner", "third_place_winner"],
+    ],
+    [
+      "doubleelim_predictions",
       ["upper_final_a", "lower_final_a", "upper_final_b", "lower_final_b"],
     ],
   ];
