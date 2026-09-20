@@ -66,19 +66,38 @@ export const TEAM_NAME_ALIASES = {
  * Zapisy, które są tą samą drużyną, a nie sprowadza ich do siebie samo
  * usunięcie wielkich liter i znaków.
  *
- * Klucz i wartość są już znormalizowane. Sprawdzone na wszystkich meczach
- * w bazie: 40 różnych zapisów nazw, 40 kluczy po normalizacji - czyli sama
- * normalizacja nie skleja tu NICZEGO, a mimo to są tu dwie pary tej samej
- * organizacji. Duplikaty w rodzaju "PARIVISION" i "Parivision" siedzą
- * w tabelach faz, gdzie normalizacja radzi sobie sama.
+ * Klucz i wartość są już znormalizowane.
  *
- * Druga para wyszła dopiero przy liczeniu typów fazowych i pokazuje, czego
- * tamto sprawdzenie nie mogło zobaczyć: porównywało nazwy MECZOWE między
- * sobą, a rozjazd siedzi MIĘDZY meczami a fazami.
+ * SKĄD SIĘ BIERZE TA LISTA. Nie ze zgadywania po podobieństwie - to byłoby
+ * groźniejsze niż jej brak, bo „Ninjas in Pyjamas" i „Ninjas in Pyjamas
+ * Impact" mają wspólny początek i są dwoma różnymi składami. Bierze się
+ * wprost z TEAM_NAME_ALIASES wyżej: każdy tamten wpis MÓWI, że dwa zapisy
+ * to ten sam klub. Jeżeli oba zapisy dają różne klucze, muszą tu zostać
+ * sklejone - i tego pilnuje test.
  *
- * Lista jest krótka celowo. Zgadywanie po podobieństwie jest tu groźniejsze
- * niż jej brak: "Ninjas in Pyjamas" i "Ninjas in Pyjamas Impact" mają wspólny
- * początek i są dwoma różnymi składami, więc automat skleiłby im statystyki.
+ * DLACZEGO TEN TEST MUSIAŁ POWSTAĆ. Reguła stała w tym pliku od początku,
+ * ale była stosowana ręcznie i wybiórczo. Na produkcji dało to TRZY
+ * organizacje rozbite na pół, każda z dwiema stronami i dwoma kompletami
+ * statystyk:
+ *
+ *   Liquid          3 mecze, 207 typów na awans, trafnie 79%
+ *   Team Liquid     5 meczów, 198 typów,         trafnie  0%
+ *
+ *   Lynn Vision        5 meczów,  67 typów
+ *   Lynn Vision Gaming 0 meczów, 230 typów
+ *
+ *   NAVI            5 meczów, 550 typów
+ *   Natus Vincere   3 mecze,    0 typów
+ *
+ * KIERUNEK jest osądem, nie regułą - liczy się tylko to, żeby oba zapisy
+ * trafiły na ten sam klucz. Wybieramy tę formę, której używa baza i która
+ * ma wiersz w `team_logos` z logotypem, bo to ona stoi w adresie strony.
+ *
+ * MARTWE DZIŚ, A MIMO TO POPRAWNE: betboomteam, bcgameesports, auroragaming
+ * i nip nie występują w bazie jako nazwy drużyn - to nazwy, pod którymi
+ * prowadzi je dostawca logotypów. Zostają, bo reguła ma być całkowita:
+ * lista z wyjątkami to dokładnie to, co tu zawiodło. Gdyby ktoś kiedyś
+ * wpisał „NIP" w typie na fazę, ma się policzyć jako Ninjas in Pyjamas.
  */
 export const TEAM_KEY_MERGES = {
   fut: "futesports",
@@ -93,6 +112,26 @@ export const TEAM_KEY_MERGES = {
   // przyjętą w projekcie. Dzięki temu nie zmienia się ani adres
   // /teams/FaZe, ani wiersz `faze` w team_logos, z którego idzie logotyp.
   fazeclan: "faze",
+
+  // Ta sama historia, dwa razy. Obie krótkie formy mają wiersz z logotypem
+  // w team_logos i obie stoją w meczach, więc adresy /teams/Liquid
+  // i /teams/Lynn%20Vision zostają takie, jakie są.
+  teamliquid: "liquid",
+  lynnvisiongaming: "lynnvision",
+
+  // Tu odwrotnie niż wyżej: sklejamy DŁUGĄ formę w krótką, choć alias
+  // prowadzi do długiej. Powód jest w danych - „NAVI" występuje 555 razy,
+  // „Natus Vincere" trzy. Klucz `navi` ma własny wiersz w team_logos
+  // z logotypem pierwszej drużyny (alias istnieje po to, żeby dostawca nie
+  // oddał składu juniorów), więc nic nie traci obrazka.
+  natusvincere: "navi",
+
+  // Nazwy, pod którymi drużyny prowadzi dostawca logotypów. W naszej bazie
+  // nie występują - patrz akapit o martwych wpisach wyżej.
+  betboomteam: "betboom",
+  bcgameesports: "bcgame",
+  auroragaming: "aurora",
+  nip: "ninjasinpyjamas",
 };
 
 /**

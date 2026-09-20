@@ -1742,6 +1742,27 @@ const en = {
   "profile.noMatches.title": "Not a single match went into this result",
   "profile.noMatches.text": "The whole result comes from phase picks. That is why there is no accuracy, no streaks and no match records here — there is nothing to compute them from.",
   "profile.progress.captionPhase": "Hover a point to see the stage and what it brought.",
+
+  // --- Przeceniane i niedoceniane druzyny ----------------------------------
+  // Strona druzyny podaje „zaufanie" i „wygrywa" obok siebie i nikt
+  // ich od siebie nie odejmuje - a to odejmowanie jest cala trescia.
+  //
+  // Zmierzone: GamerLegion - stawiano 85%, wygrala 40%. NRG odwrotnie:
+  // stawiano 14%, wygrala 44%.
+  "bias.kicker": "Where we get it wrong",
+  "bias.title": "Overrated and underrated",
+  // Prog osmiu meczow nie jest okragla liczba z sufitu. Mediana
+  // |roznicy| spada z 30 (5-7 meczow) na 12 (8-11) i 9 (12+) - to szum,
+  // ktory znika, a nie wiedza, ktora sie pojawia.
+  "bias.intro": "How readily the community backed a team, and how often it actually won. Counted from {count} teams with at least {min} settled matches — below that the gap is noise, not knowledge.",
+  "bias.overrated": "Backed too often",
+  "bias.underrated": "Backed too rarely",
+  "bias.row": "backed {trust}%, won {win}%",
+  "bias.sample": {
+    one: "{count} match",
+    other: "{count} matches",
+  },
+  "bias.empty": "So far no team stands out enough to call it a crowd error.",
 };
 
 export default en;

@@ -7,6 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "routes": "node tools/checkRoutes.mjs",
     "deps": "node tools/checkRouteDeps.mjs",
+    "teamkeys": "node tools/checkTeamKeys.mjs",
     "routes:save": "node tools/checkRoutes.mjs --save",
     "lint": "eslint --no-config-lookup --config tools/noUndef.config.mjs ."
   },

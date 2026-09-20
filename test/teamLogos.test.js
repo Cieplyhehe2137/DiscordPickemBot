@@ -162,3 +162,81 @@ test("remis rozstrzyga sie tylko miedzy DOKLADNYMI trafieniami", async () => {
   assert.equal(pickExactTeam(kandydaci, "Legacy")?.name, "Legacy");
   assert.equal(pickExactTeam(kandydaci, "Legacy")?.image_url, null);
 });
+
+// --- Aliasy a klucze --------------------------------------------------------
+
+test("KAZDY alias skleja sie do jednego klucza", async () => {
+  // NAJWAZNIEJSZY TEST W TYM PLIKU.
+  //
+  // TEAM_NAME_ALIASES mowi wprost, ze dwa zapisy to ten sam klub. Jesli oba
+  // daja rozne klucze, strona pokazuje DWIE druzyny zamiast jednej: dwie
+  // osobne strony, dwa komplety statystyk i dwie liczby, ktore sobie
+  // przecza.
+  //
+  // Regula stala w komentarzu tego modulu od poczatku, ale byla stosowana
+  // recznie. Na produkcji dalo to trzy rozbite organizacje naraz:
+  //
+  //   Liquid       3 mecze, 207 typow na awans, trafnie 79%
+  //   Team Liquid  5 meczow, 198 typow,         trafnie  0%
+  //
+  //   Lynn Vision 5 meczow / Lynn Vision Gaming 0 meczow, 230 typow
+  //   NAVI        5 meczow, 550 typow / Natus Vincere 3 mecze
+  //
+  // Test NIE narzuca kierunku sklejenia - to jest osad. Wymaga tylko, zeby
+  // oba zapisy trafialy na ten sam klucz.
+  const { TEAM_NAME_ALIASES, teamKey } = await import(LOGOS);
+
+  const rozjechane = Object.entries(TEAM_NAME_ALIASES)
+    .filter(([zapis, alias]) => teamKey(zapis) !== teamKey(alias))
+    .map(([zapis, alias]) => `${zapis} -> ${alias}`);
+
+  assert.deepEqual(
+    rozjechane,
+    [],
+    "alias mowi, ze to ten sam klub, a TEAM_KEY_MERGES o tym nie wie",
+  );
+});
+
+test("sklejenie NIE dotyka innego skladu tej samej organizacji", async () => {
+  // Granica calej listy. "Ninjas in Pyjamas Impact" to sklad zenski,
+  // a nie inny zapis pierwszej druzyny - sklejenie zabralo by mu wlasne
+  // statystyki i doliczylo je komus innemu.
+  const { teamKey } = await import(LOGOS);
+
+  assert.notEqual(
+    teamKey("Ninjas in Pyjamas Impact"),
+    teamKey("Ninjas in Pyjamas"),
+  );
+
+  assert.notEqual(teamKey("NAVI Junior"), teamKey("NAVI"));
+});
+
+test("sklejenie prowadzi do klucza, ktory naprawde istnieje", async () => {
+  // Wartosc mapy MUSI byc juz znormalizowana i nie moze sama podlegac
+  // dalszemu sklejaniu - inaczej wynik zalezalby od kolejnosci kluczy
+  // w obiekcie, czyli od niczego.
+  const { TEAM_KEY_MERGES, normalizeTeamName, teamKey } = await import(LOGOS);
+
+  for (const [z, na] of Object.entries(TEAM_KEY_MERGES)) {
+    assert.equal(z, normalizeTeamName(z), `klucz "${z}" nie jest znormalizowany`);
+    assert.equal(na, normalizeTeamName(na), `cel "${na}" nie jest znormalizowany`);
+
+    assert.ok(
+      !(na in TEAM_KEY_MERGES),
+      `"${z}" -> "${na}" -> ... - sklejenie lancuchowe`,
+    );
+
+    assert.equal(teamKey(z), na);
+  }
+});
+
+test("trzy rozbite organizacje z produkcji sa juz jedna", async () => {
+  const { teamKey } = await import(LOGOS);
+
+  assert.equal(teamKey("Team Liquid"), teamKey("Liquid"));
+  assert.equal(teamKey("Lynn Vision Gaming"), teamKey("Lynn Vision"));
+  assert.equal(teamKey("Natus Vincere"), teamKey("NAVI"));
+
+  // I ta, ktora naprawiono wczesniej - zeby nie wrocila.
+  assert.equal(teamKey("FaZe Clan"), teamKey("FaZe"));
+});

@@ -1845,6 +1845,28 @@ const pl = {
   "profile.noMatches.title": "Ten wynik nie ma w sobie ani jednego meczu",
   "profile.noMatches.text": "Cały wynik pochodzi z typów na fazy. Dlatego nie ma tu skuteczności, serii ani rekordów meczowych — nie ma z czego ich policzyć.",
   "profile.progress.captionPhase": "Najedź na punkt, żeby zobaczyć etap i zdobycz.",
+
+  // --- Przeceniane i niedoceniane druzyny ----------------------------------
+  // Strona druzyny podaje „zaufanie" i „wygrywa" obok siebie i nikt
+  // ich od siebie nie odejmuje - a to odejmowanie jest cala trescia.
+  //
+  // Zmierzone: GamerLegion - stawiano 85%, wygrala 40%. NRG odwrotnie:
+  // stawiano 14%, wygrala 44%.
+  "bias.kicker": "Gdzie się mylimy",
+  "bias.title": "Przeceniane i niedoceniane",
+  // Prog osmiu meczow nie jest okragla liczba z sufitu. Mediana
+  // |roznicy| spada z 30 (5-7 meczow) na 12 (8-11) i 9 (12+) - to szum,
+  // ktory znika, a nie wiedza, ktora sie pojawia.
+  "bias.intro": "Jak chętnie stawiano na drużynę, a jak często naprawdę wygrywała. Liczone z {count} drużyn, które mają co najmniej {min} rozstrzygniętych meczów — przy mniejszej liczbie różnica jest szumem, nie wiedzą.",
+  "bias.overrated": "Stawiano na nie za często",
+  "bias.underrated": "Stawiano na nie za rzadko",
+  "bias.row": "stawiano {trust}%, wygrała {win}%",
+  "bias.sample": {
+    one: "{count} mecz",
+    few: "{count} mecze",
+    many: "{count} meczów",
+  },
+  "bias.empty": "Na razie żadna drużyna nie odstaje na tyle, żeby to nazwać pomyłką ogółu.",
 };
 
 export default pl;
