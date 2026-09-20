@@ -35,6 +35,7 @@ import { registerPublicMatchRoutes } from "./routes/publicMatches.js";
 import { registerMyPicksRoutes } from "./routes/myPicks.js";
 import { registerMatchExactRoutes } from "./routes/matchExact.js";
 import { registerPlayerProfileRoutes } from "./routes/playerProfile.js";
+import { registerAdminUserRoutes } from "./routes/adminUsers.js";
 import { registerHeadToHeadRoutes } from "./routes/headToHead.js";
 import { registerRivalsRoutes } from "./routes/rivals.js";
 import { registerTeamRoutes } from "./routes/teams.js";
@@ -647,6 +648,15 @@ registerMatchOpsRoutes(app, {
 // Przeniesione do server/routes/playerProfile.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
 registerPlayerProfileRoutes(app, { findNameFromPicks, pool });
+
+// Wyszukiwarka graczy i audyt jednego gracza (server/routes/adminUsers.js).
+// Obie trasy maja WIECEJ segmentow niz /api/events/:slug/leaderboard,
+// wiec nic ich nie przyslania - pilnuje tego test routeShadowing.
+registerAdminUserRoutes(app, {
+  pool,
+  requireGuildAdmin,
+  guildIdFromEventSlug,
+});
 
 // Pojedynek dwoch graczy (server/routes/headToHead.js). Dostaje sama pule,
 // bo liczy wylacznie czesc wspolna typow - nazwy, awatary i statystyki obu

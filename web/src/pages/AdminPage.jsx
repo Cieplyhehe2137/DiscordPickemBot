@@ -29,6 +29,7 @@ import {
 import { adminGuildIds } from "../lib/permissions.js";
 import PhaseResultsAdmin from "../components/admin/PhaseResultsAdmin.jsx";
 import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
+import UsersAdminPanel from "../components/admin/UsersAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
@@ -1058,6 +1059,17 @@ export default function AdminPage() {
         </button>{" "}
         <button
           type="button"
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "users" ? "ui-card--selected" : ""}`}
+          disabled={!selectedEvent}
+          onClick={() => setActiveAdminSection("users")}
+        >
+          {" "}
+          <span>🔎 {t("adminPage.tile.users")}</span>{" "}
+          <strong>{t("adminPage.tile.users")}</strong>{" "}
+          <p>{t("adminPage.tile.usersHint")}</p>{" "}
+        </button>{" "}
+        <button
+          type="button"
           className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "ops" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("ops")}
@@ -1828,6 +1840,15 @@ export default function AdminPage() {
           <h2>{t("adminPage.section.mvp", { name: selectedEvent.name })}</h2>
 
           <MvpAdminPanel slug={selectedEvent.slug} />
+        </section>
+      )}
+      {activeAdminSection === "users" && selectedEvent && (
+        <section className="ui-card ui-stack">
+          <h2>
+            {t("adminPage.section.users", { name: selectedEvent.name })}
+          </h2>
+
+          <UsersAdminPanel slug={selectedEvent.slug} />
         </section>
       )}
       {activeAdminSection === "ops" && selectedEvent && (

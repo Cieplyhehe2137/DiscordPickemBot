@@ -1797,6 +1797,44 @@ const de = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} von {all} Tipps",
   "leaderboard.picksHit": "{done} von {all} Tipps · {percent}% richtig",
+
+  // --- Panel - wyszukiwarka graczy i audyt ---------------------------------
+  // Audyt gracza bez grzebania w bazie. Publiczny profil pokazuje
+  // prawie wszystko, ale historia meczow jest tam UCIETA DO DZIESIECIU
+  // ostatnich - czolowy gracz Kolonii ma 106 typow, czyli widac 9%
+  // jego wyborow. I nie da sie znalezc czlowieka, nie wiedzac,
+  // w ktorym turnieju gral.
+  "adminPage.tile.users": "Spieler",
+  "adminPage.tile.usersHint": "Einen Spieler finden und alle seine Tipps in diesem Turnier ansehen.",
+  "adminPage.section.users": "Spieler — {name}",
+  "adminUsers.search": "Nickname, Benutzername oder Discord-ID…",
+  "adminUsers.searchLabel": "Spieler suchen",
+  // Szukanie obejmuje caly serwer, a nie turniej - ale NIE wychodzi
+  // poza serwer. Zmierzone: fraza „piek" widziana z Krakowa daje zero
+  // wynikow, bo pieka gra w Hyperlandzie.
+  "adminUsers.searchHint": "Sucht im ganzen Server, nicht nur in diesem Turnier — nach Nickname, Benutzername und ID. Mindestens {count} Zeichen eingeben.",
+  "adminUsers.found": {
+    one: "{count} Spieler",
+    other: "{count} Spieler",
+  },
+  "adminUsers.nobody": "Unter diesem Namen hat auf diesem Server niemand getippt.",
+  "adminUsers.backToSearch": "← Zurück zur Suche",
+  "adminUsers.profileLink": "Öffentliches Profil →",
+  "adminUsers.sum.points": "Punkte aus Spielen",
+  "adminUsers.sum.picked": "Getippte Spiele",
+  "adminUsers.sum.correct": "Richtige Sieger",
+  "adminUsers.sum.accuracy": "Trefferquote",
+  "adminUsers.sum.ofAll": "von {count} im Turnier",
+  "adminUsers.sum.ofSettled": "von {count} entschiedenen",
+  "adminUsers.table.title": "Alle Tipps",
+  "adminUsers.table.lead": "Alle Spiele des Turniers, auch die ungetippten. Das öffentliche Profil zeigt nur die letzten zehn.",
+  "adminUsers.noPick": "kein Tipp",
+  "adminUsers.notSettled": "ohne Ergebnis",
+  "adminUsers.pick": "Tipp",
+  "adminUsers.result": "Ergebnis",
+  "adminUsers.map": "Map {no}",
+  "adminUsers.onlyPicked": "Nur getippte",
+  "adminUsers.emptyEvent": "Zu diesem Turnier ist kein Spiel erfasst — der Spieler konnte nur Phasen tippen. Die stehen im öffentlichen Profil.",
 };
 
 export default de;

@@ -1880,6 +1880,45 @@ const ru = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} из {all} прогнозов",
   "leaderboard.picksHit": "{done} из {all} прогнозов · {percent}% верных",
+
+  // --- Panel - wyszukiwarka graczy i audyt ---------------------------------
+  // Audyt gracza bez grzebania w bazie. Publiczny profil pokazuje
+  // prawie wszystko, ale historia meczow jest tam UCIETA DO DZIESIECIU
+  // ostatnich - czolowy gracz Kolonii ma 106 typow, czyli widac 9%
+  // jego wyborow. I nie da sie znalezc czlowieka, nie wiedzac,
+  // w ktorym turnieju gral.
+  "adminPage.tile.users": "Игроки",
+  "adminPage.tile.usersHint": "Найдите игрока и просмотрите все его прогнозы в этом турнире.",
+  "adminPage.section.users": "Игроки — {name}",
+  "adminUsers.search": "Ник, имя пользователя или Discord ID…",
+  "adminUsers.searchLabel": "Поиск игрока",
+  // Szukanie obejmuje caly serwer, a nie turniej - ale NIE wychodzi
+  // poza serwer. Zmierzone: fraza „piek" widziana z Krakowa daje zero
+  // wynikow, bo pieka gra w Hyperlandzie.
+  "adminUsers.searchHint": "Ищет по всему серверу, а не только в этом турнире — по нику, имени пользователя и идентификатору. Введите минимум {count} символа.",
+  "adminUsers.found": {
+    one: "{count} игрок",
+    few: "{count} игрока",
+    many: "{count} игроков",
+  },
+  "adminUsers.nobody": "Никто с таким именем не делал прогнозов на этом сервере.",
+  "adminUsers.backToSearch": "← Назад к поиску",
+  "adminUsers.profileLink": "Публичный профиль →",
+  "adminUsers.sum.points": "Очки за матчи",
+  "adminUsers.sum.picked": "Спрогнозировано матчей",
+  "adminUsers.sum.correct": "Угаданные победители",
+  "adminUsers.sum.accuracy": "Точность",
+  "adminUsers.sum.ofAll": "из {count} в турнире",
+  "adminUsers.sum.ofSettled": "из {count} завершённых",
+  "adminUsers.table.title": "Все прогнозы",
+  "adminUsers.table.lead": "Все матчи турнира, включая те, которые игрок не прогнозировал. Публичный профиль показывает только последние десять.",
+  "adminUsers.noPick": "без прогноза",
+  "adminUsers.notSettled": "без результата",
+  "adminUsers.pick": "прогноз",
+  "adminUsers.result": "результат",
+  "adminUsers.map": "Карта {no}",
+  "adminUsers.onlyPicked": "Только спрогнозированные",
+  "adminUsers.emptyEvent": "По этому турниру нет ни одного матча — игрок мог прогнозировать только этапы. Они есть в публичном профиле.",
 };
 
 export default ru;

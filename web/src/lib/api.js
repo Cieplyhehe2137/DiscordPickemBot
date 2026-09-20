@@ -313,6 +313,26 @@ export function setAdminMatchDeadline(guildId, payload) {
   });
 }
 
+// Wyszukiwarka graczy w panelu. Szuka w obrębie SERWERA, do którego
+// należy turniej - audyt zaczyna się od „znajdź mi tego człowieka", a
+// pytający zwykle nie wie, w którym turnieju szukać.
+export function searchAdminUsers(eventSlug, szukaj) {
+  const parametry = new URLSearchParams({ szukaj: String(szukaj ?? "") });
+
+  return apiRequest(
+    `/events/${encodeURIComponent(eventSlug)}/admin/users?${parametry}`,
+  );
+}
+
+// Komplet typów jednego gracza w jednym turnieju - to jest ta część,
+// której publiczny profil nie daje: tam historia jest ucięta do dziesięciu
+// ostatnich meczów.
+export function getAdminUserAudit(eventSlug, userId) {
+  return apiRequest(
+    `/events/${encodeURIComponent(eventSlug)}/admin/users/${encodeURIComponent(userId)}`,
+  );
+}
+
 export function getAdminMatches(eventSlug) {
   return apiRequest(`/events/${encodeURIComponent(eventSlug)}/matches`);
 }

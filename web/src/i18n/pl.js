@@ -1901,6 +1901,45 @@ const pl = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} z {all} typów",
   "leaderboard.picksHit": "{done} z {all} typów · {percent}% trafień",
+
+  // --- Panel - wyszukiwarka graczy i audyt ---------------------------------
+  // Audyt gracza bez grzebania w bazie. Publiczny profil pokazuje
+  // prawie wszystko, ale historia meczow jest tam UCIETA DO DZIESIECIU
+  // ostatnich - czolowy gracz Kolonii ma 106 typow, czyli widac 9%
+  // jego wyborow. I nie da sie znalezc czlowieka, nie wiedzac,
+  // w ktorym turnieju gral.
+  "adminPage.tile.users": "Gracze",
+  "adminPage.tile.usersHint": "Znajdź gracza i obejrzyj wszystkie jego typy w tym turnieju.",
+  "adminPage.section.users": "Gracze — {name}",
+  "adminUsers.search": "Nick, nazwa użytkownika albo ID Discord…",
+  "adminUsers.searchLabel": "Szukaj gracza",
+  // Szukanie obejmuje caly serwer, a nie turniej - ale NIE wychodzi
+  // poza serwer. Zmierzone: fraza „piek" widziana z Krakowa daje zero
+  // wynikow, bo pieka gra w Hyperlandzie.
+  "adminUsers.searchHint": "Szuka w całym serwerze, nie tylko w tym turnieju — po nicku, nazwie użytkownika i identyfikatorze. Wpisz co najmniej {count} znaki.",
+  "adminUsers.found": {
+    one: "{count} gracz",
+    few: "{count} graczy",
+    many: "{count} graczy",
+  },
+  "adminUsers.nobody": "Nikt taki nie typował na tym serwerze.",
+  "adminUsers.backToSearch": "← Wróć do wyszukiwania",
+  "adminUsers.profileLink": "Profil publiczny →",
+  "adminUsers.sum.points": "Punkty z meczów",
+  "adminUsers.sum.picked": "Wytypowane mecze",
+  "adminUsers.sum.correct": "Trafieni zwycięzcy",
+  "adminUsers.sum.accuracy": "Skuteczność",
+  "adminUsers.sum.ofAll": "z {count} w turnieju",
+  "adminUsers.sum.ofSettled": "z {count} rozstrzygniętych",
+  "adminUsers.table.title": "Wszystkie typy",
+  "adminUsers.table.lead": "Komplet meczów turnieju, także tych, których gracz nie typował. Publiczny profil pokazuje tylko dziesięć ostatnich.",
+  "adminUsers.noPick": "bez typu",
+  "adminUsers.notSettled": "bez wyniku",
+  "adminUsers.pick": "typ",
+  "adminUsers.result": "wynik",
+  "adminUsers.map": "Mapa {no}",
+  "adminUsers.onlyPicked": "Tylko wytypowane",
+  "adminUsers.emptyEvent": "Ten turniej nie ma w bazie ani jednego meczu — gracz mógł typować wyłącznie fazy. Widać je na profilu publicznym.",
 };
 
 export default pl;
