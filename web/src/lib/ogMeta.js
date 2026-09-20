@@ -107,6 +107,141 @@ export function teamMeta(team, path) {
 }
 
 /**
+ * Opis profilu gracza W JEDNYM TURNIEJU.
+ *
+ * To jest najczęściej wklejany rodzaj adresu w serwisie, który cały żyje
+ * na Discordzie - „zobacz mój profil". Do tej pory dostawał kartę TURNIEJU,
+ * bo funkcja brzegowa rozpoznawała tylko pierwszy segment ścieżki. Zmierzone
+ * na produkcji: adres profilu zwycięzcy Budapesztu dawał kartę „StarLadder
+ * Budapest Major 2025 · Turniej zakończony · 509 typujących" - ani nazwy
+ * gracza, ani jego wyniku.
+ *
+ * Nazwa turnieju zostaje w tytule, bo bez niej „Lemonziiko — Pick'Em" nie
+ * mówi, czego dotyczy link.
+ */
+export function playerEventMeta(profile, event, path) {
+  const nazwa = profile?.displayname;
+
+  if (!nazwa) return null;
+
+  // NIEISTNIEJĄCY GRACZ TEŻ DOSTAJE ODPOWIEDŹ 200.
+  //
+  // Trasa profilu oddaje wtedy komplet zer, a jako `displayname` samo
+  // user_id z adresu - bo tak wygląda gracz, którego nie ma w
+  // user_profiles. Bez tego sprawdzenia podgląd zmyślonego adresu
+  // pokazywał kartę „000000000000000000 — IEM Kraków 2026 · 0 pkt";
+  // wyszło to dopiero na uruchomieniu funkcji brzegowej na żywym API.
+  //
+  // Ślad po udziale, a nie sama nazwa: ktoś bez miejsca, punktów
+  // i typów nie ma na tej karcie czego pokazać, więc lepsza jest
+  // karta turnieju.
+  const zagral =
+    profile.rank > 0 ||
+    Number(profile.total_points) > 0 ||
+    Number(profile.total_predictions) > 0;
+
+  if (!zagral) return null;
+
+  const czesci = [];
+
+  // Miejsce razem ze stawką - „#1" bez „z 509" nie mówi, ile było warte.
+  if (profile.rank > 0) {
+    czesci.push(
+      event?.participants > 0
+        ? `#${profile.rank} z ${event.participants}`
+        : `#${profile.rank}`,
+    );
+  }
+
+  czesci.push(`${profile.total_points ?? 0} pkt`);
+
+  // Skuteczność tylko wtedy, gdy stoi za nią choć jeden rozliczony mecz.
+  // Turniej bez meczów w bazie ma ją zerową dla wszystkich i „0%" na karcie
+  // czytałoby się jak ocena gracza, a nie jak brak danych.
+  if (profile.finished_predictions > 0) {
+    czesci.push(`${profile.accuracy}% trafień`);
+  }
+
+  const tytul = event?.name ? `${nazwa} — ${event.name}` : `${nazwa} — Pick'Em`;
+
+  return {
+    title: tytul,
+    description: `${czesci.join(" · ")}.`,
+    url: `${STRONA}${path}`,
+  };
+}
+
+/**
+ * Opis dorobku gracza PONAD turniejami (/player/:id).
+ *
+ * Ten adres nie miał własnej karty wcale - dostawał kartę strony głównej,
+ * razem z jej adresem, więc podgląd potrafił prowadzić gdzie indziej niż
+ * wklejony link.
+ */
+export function playerCareerMeta(dane, path) {
+  const nazwa = dane?.player?.displayname;
+
+  if (!nazwa) return null;
+
+  const s = dane.summary || {};
+
+  const czesci = [];
+
+  if (s.starts > 0) {
+    czesci.push(s.starts === 1 ? "1 start" : `${s.starts} starty`);
+  }
+
+  if (s.total_points > 0) czesci.push(`${s.total_points} pkt łącznie`);
+
+  // Najlepszy start mówi więcej niż średnia: to jest zdanie, które
+  // wkleja się znajomym.
+  if (s.best?.rank > 0 && s.best?.name) {
+    czesci.push(
+      s.best.participants > 0
+        ? `najlepiej #${s.best.rank} z ${s.best.participants} (${s.best.name})`
+        : `najlepiej #${s.best.rank} (${s.best.name})`,
+    );
+  }
+
+  return {
+    title: `${nazwa} — dorobek w Pick'Em`,
+
+    description: czesci.length
+      ? `${czesci.join(" · ")}.`
+      : "Jeszcze bez rozliczonego startu.",
+
+    url: `${STRONA}${path}`,
+  };
+}
+
+/**
+ * Opis społeczności (/servers/:slug).
+ *
+ * Serwis obsługuje kilka serwerów Discorda i to jest adres, który wysyła
+ * się „do siebie na kanał" - a pokazywał kartę strony głównej.
+ */
+export function serverMeta(server, path) {
+  if (!server?.name) return null;
+
+  const ile = Number(server.events_count) || 0;
+
+  const turnieje =
+    ile === 1 ? "1 turniej" : ile > 1 && ile < 5 ? `${ile} turnieje` : `${ile} turniejów`;
+
+  const otwarte = Number(server.open_events) || 0;
+
+  return {
+    title: `${server.name} — Pick'Em`,
+
+    description: ile
+      ? `${turnieje}${otwarte > 0 ? ", typowanie otwarte" : ""}. Ranking społeczności i statystyki graczy.`
+      : "Ranking społeczności i statystyki graczy.",
+
+    url: `${STRONA}${path}`,
+  };
+}
+
+/**
  * Wstawia tytuł, opis i adres do gotowego HTML-a.
  *
  * Podmiana, a nie doklejanie: znacznik, który wystąpi drugi raz, bywa
