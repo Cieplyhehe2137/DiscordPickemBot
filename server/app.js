@@ -87,6 +87,7 @@ const calculateScores = require("../handlers/matches/calculateScores");
 // i handlers/ wyżej. Kopia tych liczb w server/ byłaby drugim źródłem prawdy,
 // czyli tym samym błędem, który ta trasa ma zlikwidować.
 const SCORING = require("../rules/scoring");
+const SCORING_HISTORY = require("../rules/scoringHistory");
 const {
   assertPredictionsAllowed,
   normalizePhase,
@@ -404,7 +405,7 @@ registerTeamRoutes(app, { pool });
 // /api/public/:guildSlug rejestrowana w środku registerPickemConfigRoutes.
 // Przy odwrotnej kolejności strona z zasadami dostałaby pustą stronę serwera
 // o nazwie "scoring" i kod 200 - bez śladu błędu.
-registerScoringRoutes(app, { scoring: SCORING });
+registerScoringRoutes(app, { scoring: SCORING, scoringHistory: SCORING_HISTORY });
 
 // Klasyfikacja wszech czasów (server/routes/allTime.js). Trzecia trasa
 // w tej samej pułapce: /api/public/all-time ma JEDEN segment po

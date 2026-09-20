@@ -348,7 +348,6 @@ const pl = {
   "scoring.page.error": "Nie udało się wczytać punktacji",
   "scoring.page.errorText": "Nie udało się wczytać punktacji.",
   "scoring.page.noRates": "Serwer nie oddał stawek punktowych. Spróbuj odświeżyć stronę.",
-  "scoring.page.note": "Zarchiwizowany turniej zachowuje punkty z chwili rozliczenia. Zasady punktacji map zmieniły się po IEM Cologne Major 2026 — wcześniej mapa dawała punkty wyłącznie za dokładny wynik, dziś liczy się odchylenie. Starych turniejów nie przeliczamy, bo przeliczenie przepisałoby zamknięty ranking.",
   "scoring.match.title": "Mecze",
   "scoring.match.lead": "Każdy mecz w turnieju. Punkty za serię i punkty za mapy sumują się - to są dwie osobne rzeczy, nie alternatywa.",
   "scoring.matchWinner.label": "Trafiony zwycięzca serii",
@@ -1867,6 +1866,25 @@ const pl = {
     many: "{count} meczów",
   },
   "bias.empty": "Na razie żadna drużyna nie odstaje na tyle, żeby to nazwać pomyłką ogółu.",
+
+  // --- Punktacja - regulaminy juz nieobowiazujace --------------------------
+  // Strona pokazywala JEDNA tabele i przypis o zmianie zasad
+  // punktowania MAP. Stawka za SERIE zmienila sie mocniej i nie bylo
+  // o niej ani slowa - a strona twierdzila wprost, ze „dokladny wynik
+  // serii nie daje nic ponad to".
+  //
+  // Zmierzone: w IEM Cologne Major 2026 trafiony zwyciezca z dokladnym
+  // wynikiem dawal 4 pkt, sam zwyciezca 1 pkt. Kolonia trzyma 12 812
+  // punktow za serie; wedlug dzisiejszych stawek byloby 7 988.
+  "scoringHistory.title": "Co obowiązywało wcześniej",
+  "scoringHistory.lead": "Zarchiwizowany turniej zachowuje punkty z chwili rozliczenia — nie przeliczamy go, bo przeliczenie przepisałoby ranking, który gracze widzieli jako ostateczny. Tabela wyżej opisuje więc tylko część turniejów.",
+  "scoringHistory.applied": "Obowiązywało w: {events}",
+  "scoringHistory.was": "wtedy",
+  "scoringHistory.now": "dziś",
+  "scoringHistory.cologne.seriesWinnerOnly": "sam trafiony zwycięzca, bez dokładnego wyniku",
+  // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
+  // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
+  "scoringHistory.reconstructed": "Te stawki są odtworzone z naliczonych punktów, a nie spisane z ówczesnego regulaminu — takiego zapisu nie ma. Zgadzają się co do punktu na 6378 z 6424 typów na mecze i 6224 z 6274 typów na mapy; pozostałe to wiersze przeliczone później już nową regułą.",
 };
 
 export default pl;

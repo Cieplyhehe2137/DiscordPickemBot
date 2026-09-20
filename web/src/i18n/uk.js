@@ -327,7 +327,6 @@ const uk = {
   "scoring.page.error": "Не вдалося завантажити правила нарахування",
   "scoring.page.errorText": "Не вдалося завантажити правила нарахування.",
   "scoring.page.noRates": "Сервер не повернув значення балів. Спробуйте оновити сторінку.",
-  "scoring.page.note": "Архівний турнір зберігає бали на момент підрахунку. Правила нарахування за карти змінилися після IEM Cologne Major 2026 — раніше карта давала бали лише за точний рахунок, сьогодні враховується відхилення. Старі турніри ми не перераховуємо, бо перерахунок переписав би закритий рейтинг.",
   "scoring.match.title": "Матчі",
   "scoring.match.lead": "Кожен матч турніру. Бали за серію і бали за карти додаються — це дві різні речі, а не альтернатива.",
   "scoring.matchWinner.label": "Вгаданий переможець серії",
@@ -1846,6 +1845,25 @@ const uk = {
     many: "{count} матчів",
   },
   "bias.empty": "Поки жодна команда не вирізняється настільки, щоб назвати це помилкою загалу.",
+
+  // --- Punktacja - regulaminy juz nieobowiazujace --------------------------
+  // Strona pokazywala JEDNA tabele i przypis o zmianie zasad
+  // punktowania MAP. Stawka za SERIE zmienila sie mocniej i nie bylo
+  // o niej ani slowa - a strona twierdzila wprost, ze „dokladny wynik
+  // serii nie daje nic ponad to".
+  //
+  // Zmierzone: w IEM Cologne Major 2026 trafiony zwyciezca z dokladnym
+  // wynikiem dawal 4 pkt, sam zwyciezca 1 pkt. Kolonia trzyma 12 812
+  // punktow za serie; wedlug dzisiejszych stawek byloby 7 988.
+  "scoringHistory.title": "Що діяло раніше",
+  "scoringHistory.lead": "Архівний турнір зберігає бали з моменту підрахунку — ми його не перераховуємо, бо це переписало б таблицю, яку гравці вже побачили як остаточну. Отже, таблиця вище описує лише частину турнірів.",
+  "scoringHistory.applied": "Діяло на: {events}",
+  "scoringHistory.was": "тоді",
+  "scoringHistory.now": "сьогодні",
+  "scoringHistory.cologne.seriesWinnerOnly": "лише вгаданий переможець, без точного рахунку",
+  // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
+  // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
+  "scoringHistory.reconstructed": "Ці ставки відтворено з нарахованих балів, а не переписано з тодішнього регламенту — такого запису немає. Вони сходяться до бала на 6378 з 6424 прогнозів на матчі та 6224 з 6274 прогнозів на карти; решта — рядки, перераховані пізніше вже за новим правилом.",
 };
 
 export default uk;

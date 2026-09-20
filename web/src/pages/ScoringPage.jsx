@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 
 import Ladowanie from "../components/Ladowanie.jsx";
 import { getScoring } from "../lib/api.js";
-import { SECTIONS, pointsAt } from "../lib/scoring.js";
+import {
+  SECTIONS,
+  buildScoringHistory,
+  pointsAt,
+} from "../lib/scoring.js";
 import { useT } from "../i18n/useLanguage.js";
 
 // Zasady punktacji.
@@ -37,6 +41,7 @@ function ScoringPage() {
   const t = useT();
 
   const [scoring, setScoring] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -50,6 +55,8 @@ function ScoringPage() {
         const odpowiedz = await getScoring();
 
         if (!anulowane) setScoring(odpowiedz?.scoring ?? null);
+
+        if (!anulowane) setHistory(odpowiedz?.history ?? []);
       } catch (err) {
         if (!anulowane) {
           setError(err.message || t("scoring.page.errorText"));
@@ -94,6 +101,11 @@ function ScoringPage() {
     );
   }
 
+  // Nazwy wierszy i dzisiejsze stawki doklejają się tutaj - serwer oddaje
+  // same różnice, bo tylko on wie, co się zmieniło, a tylko strona wie,
+  // jak to nazwać w pięciu językach.
+  const historia = buildScoringHistory(history, scoring);
+
   return (
     <main className="ui-page ui-page--narrow">
       <div className="ui-section-head">
@@ -136,11 +148,69 @@ function ScoringPage() {
         </section>
       ))}
 
-      {/* Uczciwe zastrzeżenie, a nie drobny druk: reguła map faktycznie się
-          zmieniła, a zarchiwizowanych turniejów nie przeliczamy. Bez tego
-          ktoś porównałby powyższą tabelę ze swoim wynikiem z Cologne i wyszłoby
-          mu, że ranking się nie zgadza. */}
-      <p className="ui-note">{t("scoring.page.note")}</p>
+      {/* CO OBOWIĄZYWAŁO WCZEŚNIEJ.
+          Stała tu wcześniej jedna linijka przypisu o zmianie zasad
+          punktowania MAP. Zmiana stawki za SERIĘ była większa i nie było
+          o niej ani słowa - a tabela wyżej twierdzi wprost, że dokładny
+          wynik serii nie daje nic ponad trafionego zwycięzcę. W Cologne
+          dawał czterokrotność. */}
+      {historia.map((regulamin) => (
+        <section className="ui-card ui-stack" key={regulamin.id}>
+          <div className="ui-section-head">
+            <div>
+              <h2>{t("scoringHistory.title")}</h2>
+
+              <p>{t("scoringHistory.lead")}</p>
+
+              <p className="ui-stat__hint">
+                {t("scoringHistory.applied", {
+                  events: regulamin.events.map((e) => e.name).join(", "),
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            {regulamin.changes.map((zmiana) => (
+              <div className="scoring-rule" key={zmiana.path}>
+                <div className="scoring-rule__text">
+                  <strong>{t(zmiana.labelKey)}</strong>
+
+                  {zmiana.alsoKey && (
+                    <span className="scoring-rule__hint">
+                      {t(zmiana.alsoKey)} — {t("common.points", {
+                        count: zmiana.alsoValue,
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {/* Obie stawki obok siebie. Sama dawna liczba nie mówi
+                    nic - zmianę widać dopiero w parze. */}
+                <span className="scoring-then-now">
+                  <span className="ui-badge">
+                    {t("scoringHistory.was")}{" "}
+                    {t("common.points", { count: zmiana.was })}
+                  </span>
+
+                  <span aria-hidden="true">→</span>
+
+                  <span
+                    className={`ui-badge ${
+                      zmiana.now > 0 ? "ui-badge--accent" : ""
+                    }`}
+                  >
+                    {t("scoringHistory.now")}{" "}
+                    {t("common.points", { count: zmiana.now })}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="ui-note">{t("scoringHistory.reconstructed")}</p>
+        </section>
+      ))}
     </main>
   );
 }
