@@ -409,6 +409,7 @@ function EventPage() {
               {eventStats?.best_player && (
                 <small>
                   <Link
+                    className="ui-link"
                     to={`/events/${slug}/player/${eventStats.best_player.user_id}`}
                   >
                     {eventStats.best_player.displayname}
@@ -425,6 +426,7 @@ function EventPage() {
               {eventStats?.best_exact_player && (
                 <small>
                   <Link
+                    className="ui-link"
                     to={`/events/${slug}/player/${eventStats.best_exact_player.user_id}`}
                   >
                     {eventStats.best_exact_player.displayname}
@@ -443,6 +445,7 @@ function EventPage() {
                 <>
                   <small>
                     <Link
+                      className="ui-link"
                       to={`/events/${slug}/player/${eventStats.best_accuracy_player.user_id}`}
                     >
                       {eventStats.best_accuracy_player.displayname}
@@ -1024,7 +1027,10 @@ function EventPage() {
                   )}
                 </p>
 
-                <Link to={`/events/${slug}/matches/${event.next_match.id}`}>
+                <Link
+                  className="ui-link"
+                  to={`/events/${slug}/matches/${event.next_match.id}`}
+                >
                   {t("event.goToMatch")}
                 </Link>
               </>

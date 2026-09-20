@@ -516,6 +516,92 @@
   border-color: var(--accent-border);
 }
 
+/* -------------------------------------------------------------------------
+   WIERSZ, KTÓRY GDZIEŚ PROWADZI
+
+   Wiersz listy wyglądał jak karta z ramką i podświetlał się pod kursorem,
+   ale klikalny był wyłącznie blok z nickiem. Zmierzone na rankingu Kolonii:
+   kursor rozjaśniał CAŁY wiersz, a odnośnik zajmował 28% jego powierzchni -
+   kliknięcie w punkty, w numer miejsca albo w plakietki nie robiło nic.
+   Pięćdziesiąt takich wierszy na stronę.
+
+   Do tego sam nick nie wyglądał na odnośnik: `a { color: inherit }` na
+   początku arkusza zdejmuje z linków kolor i podkreślenie, więc miał
+   dokładnie ten sam kolor co tekst obok. Zmierzone: 51 z 64 klikalnych
+   rzeczy na stronie rankingu nie miało ŻADNEGO znaku - ani ramki, ani tła,
+   ani podkreślenia, ani innego koloru niż rodzic.
+   ------------------------------------------------------------------------- */
+
+/* Strzałka przy nazwie jest jedynym znakiem widocznym BEZ kursora - a więc
+   jedynym, który cokolwiek mówi na telefonie i przy pierwszym spojrzeniu.
+   Stąd nie hover, tylko stan spoczynku. */
+a.ui-row-item__who .ui-row-item__name::after,
+.ui-row-item--link .ui-row-item__name::after {
+  content: "›";
+
+  margin-left: var(--space-2);
+  color: var(--text-faint);
+  font-weight: var(--weight-semibold);
+}
+
+/* Podkreślenie dokłada się dopiero pod kursorem: przy pięćdziesięciu
+   wierszach stałe podkreślenie każdego nicku robi z listy gęstwinę kresek,
+   a strzałka wyżej i tak niesie tę samą informację. */
+a.ui-row-item__who:hover .ui-row-item__name,
+.ui-row-item--link:hover .ui-row-item__name {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a.ui-row-item__who:hover .ui-row-item__name::after,
+.ui-row-item--link:hover .ui-row-item__name::after {
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+/* Wiersz z JEDNYM celem klika się w całości.
+
+   Odnośnik rozciągnięty przez ::after na całą kartę - dzięki temu obietnica
+   podświetlenia zaczyna być prawdziwa, a cel kliknięcia rośnie z 28% do
+   100% wiersza. */
+.ui-row-item--link {
+  position: relative;
+  cursor: pointer;
+}
+
+/* `:only-of-type` NIE jest tu ozdobą składni - jest bezpiecznikiem.
+
+   Rozciągnięte ::after przykrywa wszystko pod sobą, więc w wierszu z dwoma
+   celami (lista rywali: nick prowadzi na profil, bilans na stronę pojedynku)
+   jeden z odnośników przestałby się dać kliknąć BEZ ŚLADU: element zostaje
+   w drzewie, ma href, tylko mysz go nie dosięga. Taka awaria nie wywala
+   niczego i nie widać jej na zrzucie ekranu.
+
+   Z tym selektorem wiersz z drugim odnośnikiem po prostu traci rozciągnięcie
+   i wraca do zachowania sprzed zmiany - zamiast po cichu gubić pół
+   nawigacji. Samo dopisanie modyfikatora nie może więc już nic zepsuć. */
+.ui-row-item--link > a:only-of-type::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.ui-row-item--link:hover {
+  border-color: var(--accent-border);
+}
+
+/* Wiersz BĘDĄCY przyciskiem (wybór gracza do porównania). Przeglądarki
+   dają <button> kursor domyślny, nie łapkę - a to ten sam wiersz, który
+   dwie listy dalej jest odnośnikiem. */
+button.ui-row-item {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
 /* Od tabletu w górę wiersz spłaszcza się do jednej linii i dostaje kolumny
    o stałej szerokości - wtedy liczby układają się w pion i czyta się to
    jak tabelę wyników, a nie listę kart. */
@@ -784,6 +870,39 @@
 .ui-btn--sm {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+}
+
+/* -------------------------------------------------------------------------
+   ODNOŚNIK W TEKŚCIE
+
+   `a { color: inherit; text-decoration: none }` na początku index.css zdejmuje
+   z odnośników wszystko, po czym poznaje się odnośnik. Dla karty i wiersza
+   jest to słuszne - tam klikalność niesie ramka albo podświetlenie - ale
+   odnośnik stojący w zdaniu zostawał wtedy zwykłym tekstem.
+
+   Zmierzone: nazwiska w kafelkach na stronie eventu („najlepszy wynik:
+   pieka") i odnośnik „Przejdź do meczu" miały ten sam kolor co tekst obok,
+   bez ramki, tła i podkreślenia - nic nie mówiło, że da się w nie kliknąć.
+
+   Podkreślenie jest tu STALE, nie od kursora: to jedyny wariant, który
+   działa na telefonie i przy pierwszym spojrzeniu. Odsunięte o 3px i cieńsze
+   niż domyślne, żeby nie przecinało ogonków polskich liter. */
+.ui-link {
+  color: var(--accent-bright);
+
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.ui-link:hover {
+  color: var(--text-strong);
+  text-decoration-thickness: 2px;
 }
 
 .ui-btn:disabled,

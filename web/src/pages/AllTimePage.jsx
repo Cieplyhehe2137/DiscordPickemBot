@@ -128,7 +128,7 @@ function AllTimePage() {
 
             {gracze.map((gracz) => (
               <div
-                className={`ui-row-item${PODIUM[gracz.rank] ?? ""}`}
+                className={`ui-row-item ui-row-item--link${PODIUM[gracz.rank] ?? ""}`}
                 key={gracz.user_id}
               >
                 <span className="ui-row-item__rank">{gracz.rank}</span>

@@ -303,7 +303,10 @@ function LeaderboardPage() {
             const fazy = rozbicieNaFazy(player, t);
 
             return (
-              <div className={`ui-row-item${podium}${ja}`} key={player.user_id}>
+              <div
+                className={`ui-row-item ui-row-item--link${podium}${ja}`}
+                key={player.user_id}
+              >
                 <span className="ui-row-item__rank">{player.rank}</span>
 
                 <Link
