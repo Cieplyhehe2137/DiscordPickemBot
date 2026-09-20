@@ -1535,6 +1535,30 @@ const uk = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} з {all} прогнозів",
   "leaderboard.picksHit": "{done} з {all} прогнозів · {percent}% влучних",
+
+  // --- Tlum jako miara odniesienia -----------------------------------------
+  // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
+  // bezwzgledna - "69% trafien" nie mowi, czy to duzo. Zmierzone:
+  // w Kolonii chodzenie za wiekszoscia dalo by SZOSTE miejsce na 410
+  // typujacych, w Krakowie dopiero 28. z 252.
+  "crowd.kicker": "Планка",
+  "crowd.title": "Натовп проти гравців",
+  "crowd.intro": "Уявіть людину, яка в кожному матчі обирала просто те, що обрала більшість, без жодної власної думки. Ось скільки б вона вгадала.",
+  "crowd.stat.correct": "Натовп вгадав",
+  "crowd.stat.place": "Місце за вгаданими",
+  "crowd.stat.beatenBy": "Гравців обійшли його",
+  "crowd.stat.ofPlayers": "з {count} тих, хто прогнозував",
+  "crowd.whoBeat": "Око гостріше, ніж у всіх разом узятих:",
+  // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
+  // skad mial wiedziec przed terminem, co wybierze wiekszosc.
+  "crowd.disclaimer": "Більшість рахується постфактум, з усіх зроблених прогнозів, — до дедлайну її ніхто не міг знати. Це не стратегія, а міра того, чи додало власне судження щось до судження групи.",
+  "crowd.player.title": "Ви проти натовпу",
+  "crowd.player.intro": "Усе вище каже, скільки цей гравець вгадав. Це каже, чи додало його власне судження щось до судження групи. Більшість рахується без його голосу.",
+  "crowd.player.gap": "Проти натовпу",
+  "crowd.player.gapHint": "вгаданих більше або менше на {count} матчах",
+  "crowd.player.you": "Цей гравець вгадав",
+  "crowd.player.crowd": "Натовп вгадав би",
+  "crowd.player.ofMatches": "з тих самих {count} матчів",
 };
 
 export default uk;

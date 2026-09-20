@@ -1,6 +1,7 @@
 import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
 import { buildProgress } from "../lib/pointsProgress.js";
 import { buildPlayerHistory } from "../lib/playerHistory.js";
+import { buildPlayerVsCrowd } from "../lib/crowdBaseline.js";
 import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
@@ -66,6 +67,7 @@ export function registerPlayerProfileRoutes(
         teamPicks,
         [historyRows],
         [phaseScoreRows],
+        [glosowanieRows],
       ] = await Promise.all([
         pool.query(
           `
@@ -738,6 +740,49 @@ export function registerPlayerProfileRoutes(
     `,
           [slug, userId, slug, userId, slug, userId, slug, userId, slug, userId],
         ),
+
+        /*
+         * TEN GRACZ WOBEC TŁUMU.
+         *
+         * Jeden wiersz na mecz, który wytypował i który się rozstrzygnął:
+         * jego strona, zwycięzca i rozkład głosów całej społeczności.
+         * Odjęcie własnego głosu od większości robi już czysta biblioteka,
+         * bo to jest reguła, a nie zapytanie.
+         *
+         * Złączenie match_predictions z samą sobą: dla 106 meczów i stu
+         * typujących to dziesięć tysięcy wierszy zwijanych do 106.
+         * Zmierzone na produkcji - mieści się w tej samej fali, co reszta.
+         */
+        pool.query(
+          `
+    SELECT
+      p.match_id,
+      (p.pred_a > p.pred_b) AS mine_a,
+      (r.res_a > r.res_b) AS winner_a,
+      SUM(CASE WHEN q.pred_a > q.pred_b THEN 1 ELSE 0 END) AS on_a,
+      SUM(CASE WHEN q.pred_b > q.pred_a THEN 1 ELSE 0 END) AS on_b
+
+    FROM match_predictions p
+
+    JOIN matches m
+      ON m.id = p.match_id
+     AND m.event_id = p.event_id
+
+    JOIN match_results r
+      ON r.match_id = m.id
+     AND r.event_id = m.event_id
+
+    JOIN match_predictions q
+      ON q.match_id = m.id
+     AND q.event_id = m.event_id
+
+    WHERE p.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+      AND p.user_id = ?
+
+    GROUP BY p.match_id, mine_a, winner_a
+    `,
+          [slug, userId],
+        ),
       ]);
 
       if (!event) {
@@ -883,6 +928,12 @@ export function registerPlayerProfileRoutes(
         // Rozbicie sumy na fazy i przebieg po etapach. Osobno od
         // `profile`, bo to struktura, a tamto plaski worek liczb.
         phase_points: phasePoints,
+
+        // Ten gracz wobec najprostszego mozliwego sposobu typowania.
+        // Zmierzone w Kolonii: 75% graczy ma te liczbe UJEMNA, czyli
+        // wypadlo gorzej, niz gdyby szli za wiekszoscia. To jest ta
+        // informacja, ktorej profil dotad nie mial.
+        vs_crowd: buildPlayerVsCrowd(glosowanieRows),
 
         // Starty w pozostalych turniejach. Pusta lista dla 85% graczy,
         // ktorzy zagrali w dokladnie jednym - widok jej wtedy nie

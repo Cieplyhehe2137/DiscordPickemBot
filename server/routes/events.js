@@ -6,6 +6,7 @@
 // ma wiersz tylko dla osob logujacych sie na stronie. Kto typowal wylacznie
 // z Discorda, ma tam nick tylko dzieki temu zlaczeniu.
 
+import { buildCrowdBaseline } from "../lib/crowdBaseline.js";
 import { createLeaderboardCache } from "../lib/leaderboardCache.js";
 
 export function registerEventRoutes(
@@ -649,6 +650,7 @@ export function registerEventRoutes(
             [pointBreakdownRows],
             [mapStatsRows],
             [[rozstrzygniete]],
+            [glosowanieRows],
           ] = await Promise.all([
             pool.query(
               `
@@ -946,6 +948,41 @@ export function registerEventRoutes(
           `,
               [slug],
             ),
+
+            // Jak głosowała społeczność w każdym rozstrzygniętym meczu.
+            //
+            // Z tego liczy się TŁUM: gracz-widmo, który zawsze typuje to,
+            // co większość. Zmierzone w Kolonii - trafiłby 71 ze 106
+            // i zająłby szóste miejsce na 410 typujących, czyli tylko pięć
+            // osób z czterystu dziewięciu miało lepsze oko niż sam środek
+            // ciężkości ich wszystkich.
+            //
+            // Jeden wiersz na mecz, więc 106 wierszy w największym turnieju.
+            // Idzie tą samą falą i siedzi w tym samym buforze, co ranking.
+            pool.query(
+              `
+          SELECT
+            m.id AS match_id,
+            (r.res_a > r.res_b) AS winner_a,
+            SUM(CASE WHEN p.pred_a > p.pred_b THEN 1 ELSE 0 END) AS on_a,
+            SUM(CASE WHEN p.pred_b > p.pred_a THEN 1 ELSE 0 END) AS on_b
+
+          FROM matches m
+
+          JOIN match_results r
+            ON r.match_id = m.id
+           AND r.event_id = m.event_id
+
+          JOIN match_predictions p
+            ON p.match_id = m.id
+           AND p.event_id = m.event_id
+
+          WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+          GROUP BY m.id
+          `,
+              [slug],
+            ),
           ]);
 
           // Brak turnieju to też wynik i też wart zapamiętania: inaczej błędny
@@ -1088,6 +1125,20 @@ export function registerEventRoutes(
         // oddało mniej niż co dziesiąty typ. Bez mianownika „miejsce 200
         // z 523" czyta się jak „za mną 323 rywali".
         meczow: Number(rozstrzygniete?.ile || 0),
+
+        // TŁUM: poprzeczka dla wszystkich liczb wyżej.
+        //
+        // Ranking mówi, kto był lepszy od kogo. Nie mówi, czy ktokolwiek
+        // był lepszy od najprostszego możliwego sposobu typowania - a to
+        // jest jedyne porównanie, które daje tym procentom skalę.
+        //
+        // Liczone z `wszystkie`, a nie ze strony: miejsce tłumu ma być
+        // liczone wobec CAŁEJ stawki, nie wobec pięćdziesięciu widocznych
+        // wierszy.
+        tlum: buildCrowdBaseline({
+          matches: glosowanieRows,
+          players: wszystkie,
+        }),
       };
     },
   });
@@ -1104,7 +1155,7 @@ export function registerEventRoutes(
         });
       }
 
-      const { wszystkie, uczestnicy, meczow } = dane;
+      const { wszystkie, uczestnicy, meczow, tlum } = dane;
 
 
       const NA_STRONIE_DOMYSLNIE = 50;
@@ -1160,6 +1211,12 @@ export function registerEventRoutes(
         leaderboard,
         uczestnicy,
         meczow,
+
+        // Poprzeczka dla liczb w tabeli. Idzie w kazdej odpowiedzi, takze
+        // przy szukaniu i na dalszych stronach - jest wlasciwoscia turnieju,
+        // a nie widocznego wycinka.
+        tlum,
+
         strony: {
           numer,
           naStronie,

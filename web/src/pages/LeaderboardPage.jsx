@@ -34,6 +34,83 @@ const PODIUM = {
   3: " ui-row-item--3",
 };
 
+/**
+ * Tłum: co dałoby typowanie zawsze tego, co większość.
+ *
+ * Jedyna liczba na tej stronie, która daje pozostałym skalę. Zmierzone
+ * w IEM Cologne: taki gracz-widmo trafiłby 71 zwycięzców ze 106 i stanąłby
+ * na SZÓSTYM miejscu wśród 410 typujących - pięć osób z czterystu dziewięciu
+ * miało lepsze oko niż sam środek ciężkości ich wszystkich. W IEM Kraków
+ * jest odwrotnie: tłum trafił 26 z 50, czyli niewiele ponad rzut monetą,
+ * i pobiło go dwadzieścia siedem osób.
+ */
+function TlumKontraLudzie({ tlum, slug }) {
+  const t = useT();
+
+  const pobili = tlum.beatenBy ?? [];
+
+  // Ilu pokazać z imienia. Przy pięciu nazwiska są treścią, przy
+  // dwudziestu siedmiu - ścianą; wtedy liczy się sama liczba.
+  const ILU_Z_IMIENIA = 5;
+
+  return (
+    <section className="ui-card ui-stack crowd-baseline">
+      <div className="ui-section-head">
+        <div>
+          <span className="ui-kicker">{t("crowd.kicker")}</span>
+
+          <h2>{t("crowd.title")}</h2>
+
+          <p>{t("crowd.intro")}</p>
+        </div>
+      </div>
+
+      <div className="ui-stats ui-stats--4">
+        <div className="ui-stat ui-stat--featured">
+          <span>{t("crowd.stat.correct")}</span>
+          <strong>
+            {tlum.correct}/{tlum.matches}
+          </strong>
+          <small>{t("common.percentValue", { percent: tlum.accuracy })}</small>
+        </div>
+
+        <div className="ui-stat">
+          <span>{t("crowd.stat.place")}</span>
+          <strong>#{tlum.rank}</strong>
+          <small>{t("crowd.stat.ofPlayers", { count: tlum.players + 1 })}</small>
+        </div>
+
+        <div className="ui-stat">
+          <span>{t("crowd.stat.beatenBy")}</span>
+          <strong>{pobili.length}</strong>
+          <small>{t("crowd.stat.ofPlayers", { count: tlum.players })}</small>
+        </div>
+      </div>
+
+      {pobili.length > 0 && pobili.length <= ILU_Z_IMIENIA && (
+        <div className="ui-row ui-row--wrap">
+          <span className="ui-stat__hint">{t("crowd.whoBeat")}</span>
+
+          {pobili.map((gracz) => (
+            <Link
+              className="ui-badge ui-badge--accent"
+              key={gracz.user_id}
+              to={`/events/${slug}/player/${gracz.user_id}`}
+            >
+              {gracz.displayname || gracz.user_id} · {gracz.correct_winners}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* TO NIE JEST STRATEGIA, KTÓRĄ KTOŚ MÓGŁ ZASTOSOWAĆ - i strona ma to
+          powiedzieć wprost, zanim ktoś słusznie zapyta, skąd miał wiedzieć,
+          co wybierze większość. */}
+      <p className="ui-note">{t("crowd.disclaimer")}</p>
+    </section>
+  );
+}
+
 function LeaderboardPage() {
   const t = useT();
 
@@ -44,6 +121,7 @@ function LeaderboardPage() {
   const [uczestnicy, setUczestnicy] = useState(0);
   const [meczow, setMeczow] = useState(0);
   const [strony, setStrony] = useState(null);
+  const [tlum, setTlum] = useState(null);
 
   // Numer strony trzymamy razem z turniejem, dla którego go wybrano.
   // Dzięki temu wejście na inny turniej wraca na stronę 1 samo, bez
@@ -92,6 +170,7 @@ function LeaderboardPage() {
         setUczestnicy(Number(data.uczestnicy) || 0);
         setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
+        setTlum(data.tlum ?? null);
 
         // Skok jest jednorazowy - inaczej każde kliknięcie "Następna"
         // wracałoby na stronę z naszym miejscem.
@@ -129,6 +208,7 @@ function LeaderboardPage() {
         setUczestnicy(Number(data.uczestnicy) || 0);
         setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
+        setTlum(data.tlum ?? null);
         setError(null);
       } catch (err) {
         console.error("LEADERBOARD REALTIME REFRESH ERROR:", err);
@@ -253,6 +333,11 @@ function LeaderboardPage() {
           )}
         </p>
       )}
+
+      {/* POPRZECZKA DLA WSZYSTKICH LICZB W TABELI.
+          Ranking mówi, kto był lepszy od kogo. Nie mówi, czy ktokolwiek był
+          lepszy od najprostszego możliwego sposobu typowania. */}
+      {tlum?.matches > 0 && <TlumKontraLudzie tlum={tlum} slug={slug} />}
 
       {leaderboard.length === 0 ? (
         <div className="ui-empty">
