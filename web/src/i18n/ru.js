@@ -1918,7 +1918,17 @@ const ru = {
   "adminUsers.result": "результат",
   "adminUsers.map": "Карта {no}",
   "adminUsers.onlyPicked": "Только спрогнозированные",
-  "adminUsers.emptyEvent": "По этому турниру нет ни одного матча — игрок мог прогнозировать только этапы. Они есть в публичном профиле.",
+  "adminUsers.emptyEvent": "По этому турниру нет ни одного матча — всё, что игрок здесь сделал, это прогнозы на этапы выше.",
+
+  // --- Panel - typy na fazy w audycie --------------------------------------
+  // Klasyfikacja turnieju to suma SZESCIU skladowych, a piec z nich to
+  // fazy. Zmierzone: 634 wpisy gracz-turniej - w tym caly StarLadder
+  // Budapest, 509 osob - nie maja ani jednego typu meczowego.
+  "adminUsers.sum.phasePoints": "Очки за этапы",
+  "adminUsers.phases.title": "Прогнозы на этапы",
+  "adminUsers.phases.lead": "Команды, выбранные вне матчей: кто пройдёт 3-0, кто выйдет дальше, кто станет MVP. Под каждой группой стоит официальный результат, а очки рядом с этапом взяты из таблицы, а не пересчитаны.",
+  "adminUsers.mvpPick": "Кандидат в MVP",
+  "adminUsers.nothingAtAll": "У этого игрока в этом турнире нет ни одного прогноза — ни на матч, ни на этап.",
 };
 
 export default ru;

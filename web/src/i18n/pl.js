@@ -1939,7 +1939,17 @@ const pl = {
   "adminUsers.result": "wynik",
   "adminUsers.map": "Mapa {no}",
   "adminUsers.onlyPicked": "Tylko wytypowane",
-  "adminUsers.emptyEvent": "Ten turniej nie ma w bazie ani jednego meczu — gracz mógł typować wyłącznie fazy. Widać je na profilu publicznym.",
+  "adminUsers.emptyEvent": "Ten turniej nie ma w bazie ani jednego meczu — cały jego dorobek to typy na fazy, wyżej.",
+
+  // --- Panel - typy na fazy w audycie --------------------------------------
+  // Klasyfikacja turnieju to suma SZESCIU skladowych, a piec z nich to
+  // fazy. Zmierzone: 634 wpisy gracz-turniej - w tym caly StarLadder
+  // Budapest, 509 osob - nie maja ani jednego typu meczowego.
+  "adminUsers.sum.phasePoints": "Punkty z faz",
+  "adminUsers.phases.title": "Typy na fazy",
+  "adminUsers.phases.lead": "Drużyny wskazane poza meczami: kto pójdzie 3-0, kto awansuje, kto weźmie MVP. Pod każdą grupą stoi oficjalny wynik, a punkty przy fazie pochodzą z klasyfikacji, nie z przeliczenia trafień.",
+  "adminUsers.mvpPick": "Kandydat na MVP",
+  "adminUsers.nothingAtAll": "Ten gracz nie ma w tym turnieju ani jednego typu — ani na mecz, ani na fazę.",
 };
 
 export default pl;

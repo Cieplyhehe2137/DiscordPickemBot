@@ -1834,7 +1834,17 @@ const de = {
   "adminUsers.result": "Ergebnis",
   "adminUsers.map": "Map {no}",
   "adminUsers.onlyPicked": "Nur getippte",
-  "adminUsers.emptyEvent": "Zu diesem Turnier ist kein Spiel erfasst — der Spieler konnte nur Phasen tippen. Die stehen im öffentlichen Profil.",
+  "adminUsers.emptyEvent": "Zu diesem Turnier ist kein Spiel erfasst — alles, was dieser Spieler hier getippt hat, steht oben bei den Phasen-Tipps.",
+
+  // --- Panel - typy na fazy w audycie --------------------------------------
+  // Klasyfikacja turnieju to suma SZESCIU skladowych, a piec z nich to
+  // fazy. Zmierzone: 634 wpisy gracz-turniej - w tym caly StarLadder
+  // Budapest, 509 osob - nie maja ani jednego typu meczowego.
+  "adminUsers.sum.phasePoints": "Punkte aus Phasen",
+  "adminUsers.phases.title": "Phasen-Tipps",
+  "adminUsers.phases.lead": "Teams, die außerhalb der Spiele getippt wurden: wer 3-0 geht, wer weiterkommt, wer MVP wird. Unter jeder Gruppe steht das offizielle Ergebnis, und die Punkte neben einer Phase stammen aus der Wertung, nicht aus einer Neuberechnung.",
+  "adminUsers.mvpPick": "MVP-Kandidat",
+  "adminUsers.nothingAtAll": "Dieser Spieler hat in diesem Turnier keinen einzigen Tipp abgegeben — weder auf ein Spiel noch auf eine Phase.",
 };
 
 export default de;

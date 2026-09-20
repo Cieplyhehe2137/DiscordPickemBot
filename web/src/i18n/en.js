@@ -1834,7 +1834,17 @@ const en = {
   "adminUsers.result": "result",
   "adminUsers.map": "Map {no}",
   "adminUsers.onlyPicked": "Picked only",
-  "adminUsers.emptyEvent": "This tournament has no match recorded — the player could only pick phases. Those are on the public profile.",
+  "adminUsers.emptyEvent": "This tournament has no match recorded — everything this player did here is the phase picks above.",
+
+  // --- Panel - typy na fazy w audycie --------------------------------------
+  // Klasyfikacja turnieju to suma SZESCIU skladowych, a piec z nich to
+  // fazy. Zmierzone: 634 wpisy gracz-turniej - w tym caly StarLadder
+  // Budapest, 509 osob - nie maja ani jednego typu meczowego.
+  "adminUsers.sum.phasePoints": "Points from phases",
+  "adminUsers.phases.title": "Phase picks",
+  "adminUsers.phases.lead": "Teams picked outside matches: who goes 3-0, who advances, who takes MVP. Each group shows the official answer below it, and the points next to a phase come from the ranking, not from counting hits.",
+  "adminUsers.mvpPick": "MVP candidate",
+  "adminUsers.nothingAtAll": "This player has not made a single pick in this tournament — neither on a match nor on a phase.",
 };
 
 export default en;
