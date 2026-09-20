@@ -10,11 +10,22 @@ import { useT } from "../i18n/useLanguage.js";
 
 // Nazwy faz zostają po angielsku we wszystkich językach - tak nazywają je
 // organizatorzy turniejów i tak stoją na drabince.
+//
+// KLUCZE MUSZĄ BYĆ TE Z KOLUMNY matches.phase. Trasa
+// /my-predictions/:phase porównuje je dosłownie (`WHERE m.phase = ?`),
+// bez żadnej normalizacji. Wcześniej stały tu SWISS, PLAY_IN i DOUBLE_ELIM,
+// czyli zapis, którego w tej kolumnie nie ma: zmierzone na produkcji,
+// cztery ówczesne zakładki docierały do 14 ze 157 meczów, a Play-In
+// i Double Elim pokazywały pustkę w każdym turnieju. Swiss ma trzy etapy
+// i każdy jest osobną wartością - jedna zakładka „Swiss" nie mogła trafić
+// w żaden z nich.
 const PHASES = [
-  { key: "SWISS", label: "Swiss" },
-  { key: "PLAY_IN", label: "Play-In" },
-  { key: "DOUBLE_ELIM", label: "Double Elim" },
-  { key: "PLAYOFFS", label: "Playoffs" },
+  { key: "swiss_stage1", label: "Swiss Stage 1" },
+  { key: "swiss_stage2", label: "Swiss Stage 2" },
+  { key: "swiss_stage3", label: "Swiss Stage 3" },
+  { key: "playin", label: "Play-In" },
+  { key: "playoffs", label: "Playoffs" },
+  { key: "doubleelim", label: "Double Elim" },
 ];
 
 function MyPicksPage() {
@@ -22,7 +33,7 @@ function MyPicksPage() {
 
   const { slug } = useParams();
   const { realtimeRefresh } = useOutletContext();
-  const [phase, setPhase] = useState("SWISS");
+  const [phase, setPhase] = useState(PHASES[0].key);
   const [page, setPage] = useState(0);
 
   const [data, setData] = useState(null);

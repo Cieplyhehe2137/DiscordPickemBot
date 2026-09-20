@@ -38,6 +38,27 @@ import LoginRequired from "../components/LoginRequired.jsx";
 // Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
 // "admin-badge--status-" i statusu z API - czyli CSS musial znac z gory kazda
 // wartosc, jaka backend kiedykolwiek zwroci, a literowka byla niewidoczna.
+// Fazy, w jakich można założyć mecz.
+//
+// Klucze muszą być te, którymi panel Discorda PYTA o mecze
+// (utils/pickemPanelBuilder.js: `match_pick:swiss_stage1` i zapytanie
+// `WHERE m.phase = ?`). Wcześniej stały tu SWISS, PLAY_IN i DOUBLE_ELIM -
+// trzy wartości, których nie czyta nic: zmierzone na produkcji, trafiały
+// w zero meczów, a mecz założony jako „SWISS" nie pojawiał się w żadnym
+// panelu typowania. Ta sama lista, co w kreatorze hurtowym
+// (TournamentOpsPanel), bo obie drogi zapisują do jednej kolumny.
+//
+// Nazwy faz zostają po angielsku we wszystkich językach - tak nazywają je
+// organizatorzy i tak stoją na drabince.
+const FAZY_MECZU = [
+  { klucz: "swiss_stage1", etykieta: "Swiss Stage 1" },
+  { klucz: "swiss_stage2", etykieta: "Swiss Stage 2" },
+  { klucz: "swiss_stage3", etykieta: "Swiss Stage 3" },
+  { klucz: "playin", etykieta: "Play-In" },
+  { klucz: "playoffs", etykieta: "Playoffs" },
+  { klucz: "doubleelim", etykieta: "Double Elimination" },
+];
+
 // Nagłówki kolumn klasyfikacji. Ta sama lista trafia do nagłówka tabeli i -
 // przez data-label na komórkach - do podpisów na telefonie, więc nie da się
 // ich rozjechać.
@@ -114,7 +135,7 @@ export default function AdminPage() {
   const [newEventSlug, setNewEventSlug] = useState("");
   const [creatingEvent, setCreatingEvent] = useState(false);
   const [createEventMessage, setCreateEventMessage] = useState(null);
-  const [newMatchPhase, setNewMatchPhase] = useState("SWISS");
+  const [newMatchPhase, setNewMatchPhase] = useState(FAZY_MECZU[0].klucz);
   const [newMatchTeamA, setNewMatchTeamA] = useState("");
   const [newMatchTeamB, setNewMatchTeamB] = useState("");
   const [newMatchBestOf, setNewMatchBestOf] = useState("3");
@@ -1200,10 +1221,11 @@ export default function AdminPage() {
               disabled={creatingMatch}
             >
               {" "}
-              <option value="SWISS">SWISS</option>{" "}
-              <option value="PLAY_IN">PLAY_IN</option>{" "}
-              <option value="PLAYOFFS">PLAYOFFS</option>{" "}
-              <option value="DOUBLE_ELIM">DOUBLE_ELIM</option>{" "}
+              {FAZY_MECZU.map((faza) => (
+                <option key={faza.klucz} value={faza.klucz}>
+                  {faza.etykieta}
+                </option>
+              ))}{" "}
             </select>{" "}
             {loadingTeams && (
               <Ladowanie>{t("adminPage.matches.loadingTeams")}</Ladowanie>

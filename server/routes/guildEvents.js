@@ -2,6 +2,39 @@
 //
 // Cztery trasy: metadane gildii, utworzenie eventu oraz dodawanie meczow -
 // pojedynczo i hurtem.
+//
+// FAZA MECZU JEST TU SPRAWDZANA, a nie przepisywana z żądania. Do tej pory
+// `phase` szło prosto z ciała POST-a do INSERT-a, więc o tym, czy mecz
+// będzie w ogóle widoczny, decydowała wyłącznie lista <option> na froncie.
+// Ta lista była błędna: formularz pojedynczego meczu oferował SWISS,
+// PLAY_IN i DOUBLE_ELIM, a panel Discorda pyta `WHERE m.phase = ?`
+// wartościami swiss_stage1..3 / playin / playoffs / doubleelim. Zmierzone
+// na produkcji: z czterech pozycji tamtego formularza trzy trafiały
+// w ZERO meczów, a mecz założony jako „SWISS" nie pokazywał się w żadnym
+// panelu - ani na Stage 1, ani nigdzie indziej.
+//
+// To jest dokładnie ta sama pomyłka, którą opisuje komentarz przy
+// MATCH_PANEL_PHASE w server/app.js. Tam poprawiono odczyt; tutaj zapis.
+
+/**
+ * Fazy, w których mecz jest OSIĄGALNY.
+ *
+ * Nie jest to lista „ładnych nazw", tylko zbiór kluczy, dla których
+ * utils/pickemPanelBuilder.js potrafi wystawić panel z przyciskiem
+ * „Typuj mecze". Mecz zapisany poza tym zbiorem istnieje w bazie i nie
+ * da się go wytypować - ani z Discorda, ani ze strony.
+ *
+ * Wartości po normalizePhase(), bo to ona jest w tym projekcie jedynym
+ * źródłem prawdy o zapisie nazw faz (utils/phaseNames.js).
+ */
+const FAZY_MECZOW = new Set([
+  "SWISS_STAGE1",
+  "SWISS_STAGE2",
+  "SWISS_STAGE3",
+  "PLAYIN",
+  "PLAYOFFS",
+  "DOUBLEELIM",
+]);
 
 export function registerGuildEventRoutes(
   app,
@@ -10,12 +43,39 @@ export function registerGuildEventRoutes(
     io,
     logInfo,
     nextMatchNumber,
+    normalizePhase,
     parseMatchList,
     pool,
     requireGuildAdmin,
     runInTransaction,
   },
 ) {
+  /**
+   * Faza sprowadzona do postaci kanonicznej albo null.
+   *
+   * Przyjmujemy każdy wariant zapisu, który rozumie reszta systemu
+   * ('swiss_stage1', 'SWISS_STAGE_1', 'stage1', 'play-in'), i odrzucamy
+   * wszystko, czego nie da się potem wytypować - łącznie z gołym „SWISS",
+   * bo panel Swiss bez numeru etapu nie istnieje.
+   */
+  function fazaMeczu(surowa) {
+    const znormalizowana = normalizePhase(surowa);
+
+    return FAZY_MECZOW.has(znormalizowana) ? znormalizowana : null;
+  }
+
+  /** Jedna odpowiedź na złą fazę, żeby obie trasy mówiły to samo. */
+  function zlaFaza(res, surowa) {
+    return res.status(400).json({
+      error:
+        `Nieznana faza meczu: „${surowa}". Mecz w takiej fazie nie pojawiłby ` +
+        `się w żadnym panelu typowania. Dozwolone: ` +
+        `${[...FAZY_MECZOW].join(", ")}.`,
+      code: "server.badMatchPhase",
+      allowed: [...FAZY_MECZOW],
+    });
+  }
+
   app.get("/api/guilds/:guildId/meta", async (req, res) => {
     try {
       const { guildId } = req.params;
@@ -131,6 +191,10 @@ export function registerGuildEventRoutes(
             });
         }
 
+        const fazaDoZapisu = fazaMeczu(phase);
+
+        if (!fazaDoZapisu) return zlaFaza(res, phase);
+
         if (![1, 3, 5].includes(Number(defaultBestOf))) {
           return res
             .status(400)
@@ -220,7 +284,7 @@ export function registerGuildEventRoutes(
               `INSERT INTO matches
                           (guild_id, event_id, phase, match_no, team_a, team_b, best_of, is_locked)
                        VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-              [guildId, event.id, phase, numer, m.teamA, m.teamB, m.bestOf],
+              [guildId, event.id, fazaDoZapisu, numer, m.teamA, m.teamB, m.bestOf],
             );
 
             lista.push({ id: wynik.insertId, matchNo: numer, ...m });
@@ -233,7 +297,7 @@ export function registerGuildEventRoutes(
         logInfo("matches", "Bulk match creation", {
           guildId,
           slug,
-          phase,
+          phase: fazaDoZapisu,
           utworzonych: utworzone.length,
           odrzuconych: bledy.length,
           by: req.session?.user?.id,
@@ -266,6 +330,10 @@ export function registerGuildEventRoutes(
               "phase, teamA, teamB and a valid bestOf (1, 3 or 5) are required",
           });
         }
+
+        const fazaDoZapisu = fazaMeczu(phase);
+
+        if (!fazaDoZapisu) return zlaFaza(res, phase);
 
         if (teamA === teamB) {
           return res.status(400).json({
@@ -311,7 +379,7 @@ export function registerGuildEventRoutes(
           [
             guildId,
             event.id,
-            phase,
+            fazaDoZapisu,
             numerMeczu,
             teamA,
             teamB,
@@ -326,7 +394,11 @@ export function registerGuildEventRoutes(
             id: result.insertId,
             guild_id: guildId,
             event_id: event.id,
-            phase,
+
+            // To, co NAPRAWDĘ stoi w bazie, a nie to, co przysłał front -
+            // inaczej panel pokazywałby po dodaniu fazę, której tam nie ma.
+            phase: fazaDoZapisu,
+
             match_no: numerMeczu,
             team_a: teamA,
             team_b: teamB,

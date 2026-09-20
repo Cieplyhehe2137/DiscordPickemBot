@@ -536,6 +536,7 @@ registerPickemConfigRoutes(app, {
   io,
   logInfo,
   nextMatchNumber,
+  normalizePhase,
   parseMatchList,
   pool,
   registerGuildEventRoutes,
