@@ -246,3 +246,231 @@ test("druzyna bez rozegranych meczow nie pokazuje bilansu 0-0", async () => {
   assert.ok(m.description.includes("Jeszcze bez rozegranych"));
   assert.ok(!m.description.includes("0–0"));
 });
+
+// --- Karta profilu gracza ---------------------------------------------------
+
+test("karta profilu mowi, KTO i jak mu poszlo", async () => {
+  // Zmierzone na produkcji: ten adres dawal karte turnieju - "StarLadder
+  // Budapest Major 2025 - Turniej zakonczony - 509 typujacych". Ani nazwy
+  // gracza, ani wyniku, mimo ze to zwyciezca tego turnieju.
+  const { playerEventMeta } = await import(MODUL);
+
+  const meta = playerEventMeta(
+    { displayname: "pieka", rank: 1, total_points: 316, accuracy: 69, finished_predictions: 106 },
+    { name: "IEM Cologne Major 2026", participants: 523 },
+    "/events/iem-cologne-major-2026/player/1216263156742094870",
+  );
+
+  assert.equal(meta.title, "pieka — IEM Cologne Major 2026");
+  assert.equal(meta.description, "#1 z 523 · 316 pkt · 69% trafień.");
+  assert.equal(
+    meta.url,
+    "https://pickembot.pl/events/iem-cologne-major-2026/player/1216263156742094870",
+  );
+});
+
+test("turniej bez meczow nie chwali sie zerowa skutecznoscia", async () => {
+  // Lemonziiko wygral StarLadder Budapest 2025 z 47 punktami, a jego
+  // accuracy wynosi 0, bo ten turniej NIE MA w bazie ani jednego meczu.
+  // "0% trafien" na karcie czytaloby sie jako ocena gracza.
+  const { playerEventMeta } = await import(MODUL);
+
+  const meta = playerEventMeta(
+    { displayname: "Lemonziiko", rank: 1, total_points: 47, accuracy: 0, finished_predictions: 0 },
+    { name: "StarLadder Budapest Major 2025", participants: 509 },
+    "/events/starladder-budapest-major-2025/player/421726542104625163",
+  );
+
+  assert.equal(meta.description, "#1 z 509 · 47 pkt.");
+  assert.ok(!meta.description.includes("%"));
+});
+
+test("gracz bez miejsca w rankingu dostaje karte bez zmyslonej pozycji", async () => {
+  // Typowal, wiec karta ma sens - ale tabela jeszcze go nie klasyfikuje,
+  // bo nic nie zostalo rozliczone. Miejsce ma wtedy zniknac, a nie
+  // pokazac sie jako #0.
+  const { playerEventMeta } = await import(MODUL);
+
+  const meta = playerEventMeta(
+    {
+      displayname: "nowy",
+      rank: null,
+      total_points: 0,
+      total_predictions: 12,
+      accuracy: 0,
+      finished_predictions: 0,
+    },
+    { name: "IEM Kraków 2026", participants: 262 },
+    "/events/iem-krakow-2026/player/1",
+  );
+
+  assert.equal(meta.description, "0 pkt.");
+  assert.ok(!meta.description.includes("#"));
+});
+
+test("brak nazwy gracza daje null, a nie karte o nikim", async () => {
+  const { playerEventMeta } = await import(MODUL);
+
+  assert.equal(playerEventMeta(null, { name: "X" }, "/a"), null);
+  assert.equal(playerEventMeta({ rank: 1 }, { name: "X" }, "/a"), null);
+});
+
+test("gracz-widmo nie dostaje karty z wlasnym identyfikatorem", async () => {
+  // Trasa profilu oddaje 200 takze dla adresu wymyslonego: komplet zer,
+  // a jako displayname samo user_id. Bez straznika podglad zmyslonego
+  // adresu pokazywal karte "000000000000000000 - IEM Krakow 2026 - 0 pkt".
+  //
+  // Wyszlo to dopiero na URUCHOMIENIU funkcji brzegowej na zywym API -
+  // zaden test na samych danych by tego nie zlapal, bo dane wygladaly
+  // poprawnie.
+  const { playerEventMeta } = await import(MODUL);
+
+  const widmo = {
+    displayname: "000000000000000000",
+    rank: null,
+    total_points: 0,
+    total_predictions: 0,
+    accuracy: 0,
+    finished_predictions: 0,
+  };
+
+  assert.equal(
+    playerEventMeta(widmo, { name: "IEM Kraków 2026", participants: 262 }, "/a"),
+    null,
+    "brak sladu udzialu ma oddac karte turnieju, a nie karte o nikim",
+  );
+
+  // Ktos, kto typowal, ale nie ma jeszcze punktow ani miejsca, ZOSTAJE.
+  const nowicjusz = { ...widmo, displayname: "ktos", total_predictions: 3 };
+
+  assert.ok(playerEventMeta(nowicjusz, { name: "X" }, "/a"));
+});
+
+test("nieznany turniej nie wywraca karty gracza", async () => {
+  // Funkcja brzegowa bierze turniej z listy, a profil osobnym zapytaniem -
+  // jedno moze wrocic bez drugiego.
+  const { playerEventMeta } = await import(MODUL);
+
+  const meta = playerEventMeta(
+    { displayname: "pieka", rank: 4, total_points: 100 },
+    null,
+    "/events/x/player/1",
+  );
+
+  assert.equal(meta.title, "pieka — Pick'Em");
+  assert.equal(meta.description, "#4 · 100 pkt.");
+});
+
+// --- Karta dorobku ponad turniejami -----------------------------------------
+
+test("karta dorobku niesie starty, punkty i najlepszy wynik", async () => {
+  const { playerCareerMeta } = await import(MODUL);
+
+  const meta = playerCareerMeta(
+    {
+      player: { displayname: "Lemonziiko" },
+      summary: {
+        starts: 2,
+        total_points: 222,
+        best: { rank: 1, participants: 509, name: "StarLadder Budapest Major 2025" },
+      },
+    },
+    "/player/421726542104625163",
+  );
+
+  assert.equal(meta.title, "Lemonziiko — dorobek w Pick'Em");
+  assert.match(meta.description, /^2 starty · 222 pkt łącznie · najlepiej #1 z 509/);
+
+  // Adres MUSI byc adresem profilu. Dotad karta niosla adres strony
+  // glownej, wiec podglad potrafil prowadzic gdzie indziej niz link.
+  assert.equal(meta.url, "https://pickembot.pl/player/421726542104625163");
+});
+
+test("gracz z jednym startem nie dostaje liczby mnogiej", async () => {
+  const { playerCareerMeta } = await import(MODUL);
+
+  const meta = playerCareerMeta(
+    { player: { displayname: "ktos" }, summary: { starts: 1, total_points: 47 } },
+    "/player/1",
+  );
+
+  assert.match(meta.description, /^1 start · /);
+});
+
+test("gracz bez rozliczonego startu ma zdanie, a nie pusty opis", async () => {
+  const { playerCareerMeta } = await import(MODUL);
+
+  const meta = playerCareerMeta(
+    { player: { displayname: "ktos" }, summary: {} },
+    "/player/1",
+  );
+
+  assert.equal(meta.description, "Jeszcze bez rozliczonego startu.");
+});
+
+test("brak gracza daje null", async () => {
+  const { playerCareerMeta } = await import(MODUL);
+
+  assert.equal(playerCareerMeta(null, "/player/1"), null);
+  assert.equal(playerCareerMeta({ summary: { starts: 3 } }, "/player/1"), null);
+});
+
+// --- Karta spolecznosci -----------------------------------------------------
+
+test("karta serwera odmienia liczbe turniejow", async () => {
+  const { serverMeta } = await import(MODUL);
+
+  const opis = (n) =>
+    serverMeta({ name: "Hyperland", events_count: n }, "/servers/hyperland").description;
+
+  assert.match(opis(1), /^1 turniej\./);
+  assert.match(opis(2), /^2 turnieje\./);
+  assert.match(opis(7), /^7 turniejów\./);
+});
+
+test("otwarte typowanie jest na karcie, bo to powod, zeby kliknac", async () => {
+  const { serverMeta } = await import(MODUL);
+
+  const meta = serverMeta(
+    { name: "Hyperland", events_count: 2, open_events: 1 },
+    "/servers/hyperland",
+  );
+
+  assert.equal(meta.title, "Hyperland — Pick'Em");
+  assert.match(meta.description, /typowanie otwarte/);
+  assert.equal(meta.url, "https://pickembot.pl/servers/hyperland");
+});
+
+test("serwer bez turniejow nie pokazuje zera", async () => {
+  const { serverMeta } = await import(MODUL);
+
+  const meta = serverMeta({ name: "Test Server", events_count: 0 }, "/servers/testserwer");
+
+  assert.ok(!meta.description.includes("0"));
+});
+
+test("nieznany serwer daje null", async () => {
+  const { serverMeta } = await import(MODUL);
+
+  assert.equal(serverMeta(undefined, "/servers/x"), null);
+});
+
+test("kazda nowa karta przechodzi przez to samo zabezpieczenie znakow", async () => {
+  // Nazwy graczy pochodza z Discorda, wiec moga zawierac cudzyslow
+  // i ostry nawias. rewriteHtml escapuje, ale tylko jesli karta w ogole
+  // do niego trafi - ten test pilnuje calej drogi.
+  const { playerCareerMeta, rewriteHtml } = await import(MODUL);
+
+  const meta = playerCareerMeta(
+    { player: { displayname: '"><script>x</script>' }, summary: { starts: 1 } },
+    "/player/1",
+  );
+
+  const html = rewriteHtml(
+    '<title>a</title><meta property="og:title" content="b" />',
+    meta,
+  );
+
+  assert.ok(!html.includes("<script>"));
+  assert.ok(html.includes("&quot;&gt;&lt;script&gt;"));
+});

@@ -1,6 +1,11 @@
-import { isCrawler, eventMeta, rewriteHtml } from "../../src/lib/ogMeta.js";
+import {
+  isCrawler,
+  eventMeta,
+  playerEventMeta,
+  rewriteHtml,
+} from "../../src/lib/ogMeta.js";
 
-// Podgląd linku do turnieju.
+// Podgląd linku do turnieju i do profilu gracza w turnieju.
 //
 // Cloudflare Pages oddaje ten sam index.html pod każdym adresem, a boty
 // budujące podgląd nie wykonują JavaScriptu - więc bez tej funkcji wklejenie
@@ -26,6 +31,15 @@ const API = "https://api.pickembot.pl";
 // zawieszone API zawiesza też funkcję.
 const LIMIT_MS = 3000;
 
+async function pobierzJson(url) {
+  const odp = await fetch(url, {
+    signal: AbortSignal.timeout(LIMIT_MS),
+    headers: { accept: "application/json" },
+  });
+
+  return odp.ok ? odp.json() : null;
+}
+
 export async function onRequest({ request, env, params }) {
   const zasob = () => env.ASSETS.fetch(request);
 
@@ -34,27 +48,53 @@ export async function onRequest({ request, env, params }) {
   }
 
   try {
-    // params.path to tablica segmentów po /events/. Slug to pierwszy z nich;
-    // podstrony turnieju (ranking, mecze, profil gracza) dostają kartę tego
-    // samego turnieju, co jest i tak znacznie lepsze niż karta ogólna.
-    const slug = Array.isArray(params?.path) ? params.path[0] : params?.path;
+    // params.path to tablica segmentów po /events/.
+    const czesci = Array.isArray(params?.path)
+      ? params.path
+      : [params?.path].filter(Boolean);
+
+    const slug = czesci[0];
 
     if (!slug) return zasob();
 
-    const odp = await fetch(`${env.API_URL || API}/api/public/events`, {
-      signal: AbortSignal.timeout(LIMIT_MS),
-      headers: { accept: "application/json" },
-    });
+    const api = env.API_URL || API;
 
-    if (!odp.ok) return zasob();
+    // PROFIL GRACZA MA WŁASNĄ KARTĘ.
+    //
+    // To jest najczęściej wklejany adres w serwisie - „zobacz mój profil" -
+    // a dostawał kartę turnieju: nazwę imprezy i liczbę typujących, bez
+    // słowa o tym, czyj to profil i jak mu poszło.
+    //
+    // Pozostałe podstrony turnieju (ranking, mecze, typy na fazy, pojedynek)
+    // zostają przy karcie turnieju. Dla nich to jest właściwa odpowiedź na
+    // pytanie „co to za link", a pojedynek dwóch graczy wymagałby dwóch
+    // dodatkowych zapytań o same nazwy.
+    const userId = czesci[1] === "player" ? czesci[2] : null;
 
-    const dane = await odp.json();
+    const adresProfilu = userId
+      ? `${api}/api/public/events/${encodeURIComponent(slug)}/players/${encodeURIComponent(userId)}`
+      : null;
+
+    // Oba zapytania naraz: żadne nie potrzebuje wyniku drugiego, a bot
+    // czeka na podgląd tylko tyle, ile trwa wolniejsze z nich.
+    const [dane, profil] = await Promise.all([
+      pobierzJson(`${api}/api/public/events`),
+      adresProfilu ? pobierzJson(adresProfilu).catch(() => null) : null,
+    ]);
+
+    if (!dane) return zasob();
 
     const event = (dane.events || []).find(
       (e) => e.slug === decodeURIComponent(slug),
     );
 
-    const meta = eventMeta(event, new URL(request.url).pathname);
+    const sciezka = new URL(request.url).pathname;
+
+    // Gdy profilu nie udało się pobrać, zostaje karta turnieju - a nie brak
+    // karty. Ta sama zasada, co przy każdej innej awarii w tym pliku.
+    const meta =
+      (profil?.profile && playerEventMeta(profil.profile, event, sciezka)) ||
+      eventMeta(event, sciezka);
 
     if (!meta) return zasob();
 
