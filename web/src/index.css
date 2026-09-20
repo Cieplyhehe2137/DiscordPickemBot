@@ -149,13 +149,31 @@ a {
   backdrop-filter: blur(14px);
 }
 
+/* WYSOKOSC JEST DOLNA GRANICA, nie sztywna wartoscia.
+
+   Pasek mial `height: 72px` i zawijal sie dopiero ponizej 640 px. Miedzy
+   tym progiem a szerokoscia, ktorej naprawde potrzebuje, CALA strona
+   przewijala sie w bok - na kazdej podstronie. Zmierzone w przegladarce,
+   dla niezalogowanego:
+
+     en  887 px     de  926 px     pl  955 px
+     uk  966 px     ru  974 px
+
+   Czyli martwa strefa miala ponad trzysta pikseli: caly zakres tabletow
+   i mniejsze okna na laptopie. Zalogowany potrzebuje jeszcze wiecej, bo
+   dochodzi awatar, nick i „Wyloguj".
+
+   Prog nie jest rozwiazaniem, bo ta szerokosc zalezy od jezyka i od tego,
+   czy ktos jest zalogowany - a kazda nowa zakladka przesuwa ja znowu.
+   Dlatego pasek po prostu ROSNIE, gdy zabraknie miejsca. */
 .app-header__inner {
   width: min(1200px, calc(100% - 32px));
-  height: 72px;
+  min-height: 72px;
   margin: 0 auto;
 
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
 
   gap: var(--space-6);
 }
@@ -177,9 +195,37 @@ a {
    razem w prawo i stykaly sie ze soba: "Punktacja" i przelacznik jezyka
    dzielil dokladnie ten sam odstep, co dwie sasiednie zakladki. Nic nie
    mowilo, gdzie konczy sie nawigacja, a zaczynaja ustawienia konta. */
+/* Zakladki lamia sie do drugiego wiersza WEWNATRZ paska, zamiast spychac
+   blok konta pod spod.
+
+   Dzieki temu konto zostaje na tej samej linii co nawigacja, zamiast
+   spadac pod nia przy kazdym zwezeniu okna - pasek jest wtedy nizszy
+   i nie przeskakuje w dol na jednej szerokosci, zeby wrocic na
+   nastepnej.
+
+   min-width: 0 jest konieczne: bez niego element siatki flex nie schodzi
+   ponizej swojej szerokosci minimalnej i zamiast sie zlamac, wypycha
+   sasiadow poza ekran. */
 .app-nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+
+  /* Podstawa 0, nie `auto`. To jest cala sztuczka.
+
+     Przy podstawie `auto` przegladarka najpierw sprawdza, czy zakladki
+     mieszcza sie w jednej linii OBOK konta - a gdy nie, spycha konto do
+     drugiego rzedu i dopiero tam je zostawia. Zmierzone przy 780 px:
+     pasek miał 104 px i konto stalo pod nawigacja, czyli pionowa kreska
+     przy .app-user wisiala nad niczym.
+
+     Przy podstawie 0 nawigacja nigdy nie przepelnia linii sama z siebie:
+     bierze miejsce, ktore zostalo po logo i koncie, i lamie zakladki
+     w swoim srodku. Ten sam pomiar daje wtedy 90 px i konto NADAL obok
+     nawigacji. */
+  flex: 1 1 0;
+  min-width: 0;
+
   gap: var(--space-2);
 }
 
@@ -337,30 +383,37 @@ p {
    MOBILE
 ========================= */
 
-@media (max-width: 640px) {
-  /* Nagłówek miał sztywną wysokość i nie zawijał się, więc blok użytkownika
-     (awatar + nazwa + "Wyloguj") wypychał go 67 px poza ekran i CAŁA strona
-     przewijała się w bok - na każdej podstronie, niezależnie od treści.
-     Teraz elementy zawijają się do drugiego rzędu, a nagłówek rośnie. */
+/* PROG 768, A NIE 640.
+
+   Odkad pasek rosnie zamiast wypychac strone, sam nadmiar znikl w kazdym
+   jezyku - ale ponizej ~700 px nawigacja dostaje juz tylko ok. 190 px
+   obok bloku konta i uklada sie w cztery rzedy. Zmierzone przy 645 px:
+   pasek mial 187 px, czyli cwierc ekranu telefonu, przyklejona na stale.
+
+   Dlatego lzejszy uklad (mniejsze zakladki, ciasniejsze odstepy, konto
+   w osobnym rzedzie) wchodzi wczesniej. 768 to zwykla granica
+   tabletu, a nie liczba dobrana pod jeden jezyk - i z zapasem miesci sie
+   pod najwezszym ukladem jednorzedowym, ktory zaczyna sie ok. 890 px. */
+@media (max-width: 768px) {
+  /* Zawijanie i elastyczna wysokość są już w regule bazowej - tu zostaje
+     wyłącznie to, co dotyczy samego telefonu: węższe marginesy, ciasniejsze
+     odstępy i niższy pasek. */
   .app-header__inner {
     width: min(100% - 24px, 1200px);
-    height: auto;
     min-height: 64px;
 
-    flex-wrap: wrap;
     gap: var(--space-2) var(--space-3);
     padding: var(--space-3) 0;
   }
 
-  /* Nawigacja zawija sie do kolejnego rzedu, tak samo jak caly naglowek
-     wyzej i z tego samego powodu. Przy szesciu pozycjach pasek mial
-     440 px w kontenerze o szerokosci 320 px, wiec CALA strona przewijala
-     sie w bok - dokladnie ten blad, ktory naprawiono kiedys dla bloku
-     uzytkownika. Skracanie nazw nie jest wyjsciem: niemieckie
-     "Uberraschungen" jest jeszcze dluzsze od polskich "Niespodzianek",
-     a kolejna zakladka i tak by to przewrocila. */
+  /* Samo zawijanie stoi w regule bazowej. Tu zostaje ciasniejszy odstep -
+     przy szesciu pozycjach zakladki zajmuja na telefonie trzy wiersze,
+     a kazdy piksel odstepu miedzy nimi mnozy sie przez te trzy.
+
+     Skracanie nazw nie jest wyjsciem: niemieckie "Uberraschungen" jest
+     dluzsze od polskich "Niespodzianek", a kolejna zakladka i tak by
+     to przewrocila. */
   .app-nav {
-    flex-wrap: wrap;
     justify-content: flex-start;
     gap: var(--space-05);
   }
@@ -515,14 +568,29 @@ p {
   font-weight: var(--weight-black);
 }
 
-/* Kreska i wcieciu oddzielaja ustawienia konta od nawigacji. Bez nich
-   przelacznik jezyka czytal sie jak kolejna zakladka - to samo wyrownanie,
-   ta sama wysokosc, ten sam odstep. */
+/* Ustawienia konta oddziela od nawigacji SAM ODSTEP, bez pionowej kreski.
+
+   Kreska stala tu po to, zeby przelacznik jezyka nie czytal sie jak
+   kolejna zakladka - to samo wyrownanie, ta sama wysokosc, ten sam
+   odstep. Robila jednak zalozenie, ktorego w CSS nie da sie sprawdzic:
+   ze konto stoi OBOK nawigacji. Gdy blok konta zawinie sie do wlasnego
+   rzedu - a zalogowanemu z dluzszym nickiem zdarza sie to juz przy
+   780 px - kreska zostawala widoczna obok niczego.
+
+   Prog jej nie naprawia, bo szerokosc zawiniecia zalezy od jezyka, od
+   dlugosci nicku i od kazdej nowej zakladki. Odstep dziala tak samo
+   w kazdym z tych przypadkow i jest az nadto widoczny - zmierzone
+   miedzy ostatnia zakladka a przelacznikiem jezyka:
+
+     przy 1270 px    325 px
+     przy  870 px     86 px   (najciasniej poza ukladem mobilnym)
+     miedzy sasiednimi zakladkami   8 px
+
+   Nawet w najciasniejszym miejscu granica grup jest dziesiec razy
+   szersza niz odstep wewnatrz nawigacji, wiec nie trzeba jej rysowac. */
 .app-user {
   margin-left: auto;
   padding-left: var(--space-6);
-
-  border-left: 1px solid var(--border-subtle);
 
   display: flex;
   align-items: center;
@@ -545,16 +613,17 @@ p {
    jest w pliku WCZESNIEJ niz regula bazowa .app-user. Przy tej samej
    szczegolowosci wygrywa regula pozniejsza, wiec tamto nadpisanie nie
    dzialalo wcale: na telefonie blok konta dostawal i margin-left: auto,
-   i wciecie 24 px, i kreske wiszaca nad niczym.
+   i wciecie 24 px, ktorego na telefonie byc nie powinno.
    (Ten sam problem dotyczyl `gap` juz wczesniej.) */
-@media (max-width: 640px) {
-  /* Kreska oddzielajaca ma sens wylacznie wtedy, gdy konto stoi OBOK
-     nawigacji. Po zawinieciu stoi w osobnym rzedzie i pionowa kreska
-     wisialaby nad niczym. */
+/* Ten sam prog, co przy nagowku wyzej - powod opisany tam, w sekcji
+   MOBILE. Blok stoi osobno, bo tamta sekcja jest w pliku WCZESNIEJ niz
+   regula bazowa .app-user. */
+@media (max-width: 768px) {
+  /* Na telefonie konto stoi w osobnym rzedzie i zaczyna sie od lewej,
+     wiec wciecie 24 px byloby widoczne jako przypadkowe przesuniecie. */
   .app-user {
     margin-left: 0;
     padding-left: 0;
-    border-left: 0;
 
     min-width: 0;
     gap: var(--space-2);
