@@ -2783,3 +2783,17 @@ main > .page-back {
 .bias-row__gap--under {
   color: var(--ok);
 }
+
+/* Dwie stawki tej samej pozycji: dawna i dzisiejsza, ze strzalka miedzy nimi.
+   Sama dawna liczba nie mowi nic - zmiane widac dopiero w parze.
+
+   Zawijanie, bo na telefonie "wtedy 4 pkt -> dzis 2 pkt" nie miesci sie
+   w jednej linii obok nazwy zasady. */
+.scoring-then-now {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+
+  color: var(--text-faint);
+}

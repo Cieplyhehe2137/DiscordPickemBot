@@ -313,7 +313,6 @@ const de = {
   "scoring.page.error": "Die Punktevergabe konnte nicht geladen werden",
   "scoring.page.errorText": "Die Punktevergabe konnte nicht geladen werden.",
   "scoring.page.noRates": "Der Server hat keine Punktwerte geliefert. Versuche die Seite neu zu laden.",
-  "scoring.page.note": "Ein archiviertes Turnier behält die Punkte vom Zeitpunkt der Abrechnung. Die Map-Punktevergabe hat sich nach dem IEM Cologne Major 2026 geändert — früher gab eine Map nur für das exakte Ergebnis Punkte, heute zählt die Abweichung. Alte Turniere rechnen wir nicht neu, denn das würde eine abgeschlossene Rangliste überschreiben.",
   "scoring.match.title": "Spiele",
   "scoring.match.lead": "Jedes Spiel im Turnier. Serien- und Map-Punkte addieren sich - das sind zwei getrennte Dinge, kein Entweder-oder.",
   "scoring.matchWinner.label": "Richtiger Serien-Sieger",
@@ -1763,6 +1762,25 @@ const de = {
     other: "{count} Spiele",
   },
   "bias.empty": "Bisher fällt kein Team weit genug heraus, um von einem Irrtum der Allgemeinheit zu sprechen.",
+
+  // --- Punktacja - regulaminy juz nieobowiazujace --------------------------
+  // Strona pokazywala JEDNA tabele i przypis o zmianie zasad
+  // punktowania MAP. Stawka za SERIE zmienila sie mocniej i nie bylo
+  // o niej ani slowa - a strona twierdzila wprost, ze „dokladny wynik
+  // serii nie daje nic ponad to".
+  //
+  // Zmierzone: w IEM Cologne Major 2026 trafiony zwyciezca z dokladnym
+  // wynikiem dawal 4 pkt, sam zwyciezca 1 pkt. Kolonia trzyma 12 812
+  // punktow za serie; wedlug dzisiejszych stawek byloby 7 988.
+  "scoringHistory.title": "Was vorher galt",
+  "scoringHistory.lead": "Ein archiviertes Turnier behält die Punkte aus dem Moment der Abrechnung — wir rechnen es nicht neu, denn das würde eine Wertung überschreiben, die für die Spieler bereits endgültig war. Die Tabelle oben beschreibt also nur einen Teil der Turniere.",
+  "scoringHistory.applied": "Galt bei: {events}",
+  "scoringHistory.was": "damals",
+  "scoringHistory.now": "heute",
+  "scoringHistory.cologne.seriesWinnerOnly": "nur der richtige Sieger, ohne exaktes Ergebnis",
+  // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
+  // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
+  "scoringHistory.reconstructed": "Diese Sätze sind aus den vergebenen Punkten rekonstruiert, nicht aus einem damaligen Regelwerk übernommen — ein solches gibt es nicht. Sie stimmen punktgenau bei 6378 von 6424 Spiel-Tipps und 6224 von 6274 Map-Tipps; der Rest sind später nach der neuen Regel neu berechnete Zeilen.",
 };
 
 export default de;

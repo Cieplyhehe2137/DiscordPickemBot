@@ -12,15 +12,30 @@
 // ekran z inną liczbą punktów niż ranking, więc wychodzi dopiero wtedy, gdy
 // ktoś to zauważy i zgłosi.
 //
+// Ta sama trasa oddaje też REGULAMINY JUŻ NIEOBOWIĄZUJĄCE
+// (rules/scoringHistory.js). Strona pokazywała jedną tabelę i przypis
+// o zmianie zasad punktowania MAP - a stawka za SERIĘ zmieniła się mocniej
+// i nie było o niej ani słowa. W IEM Cologne Major 2026 trafiony zwycięzca
+// z dokładnym wynikiem dawał 4 pkt, a sam zwycięzca 1 pkt; dziś jest 2 pkt
+// niezależnie od wyniku.
+//
 // Trasa nie dotyka bazy. Oddaje stałe z modułu, który i tak siedzi w pamięci
 // procesu, więc nie ma tu ani async, ani obsługi błędu zapytania.
 
-export function registerScoringRoutes(app, { scoring }) {
+export function registerScoringRoutes(app, { scoring, scoringHistory }) {
   app.get("/api/public/scoring", (req, res) => {
     // Cały obiekt, bez przepisywania kategoria po kategorii. Wybieranie pól
     // tutaj znaczyłoby, że kategoria dopisana do rules/scoring.js nie dociera
     // na stronę, dopóki ktoś nie poprawi również tego miejsca - czyli ten sam
     // rozjazd, tylko przesunięty o jeden plik.
-    res.json({ scoring });
+    //
+    // Historia obok stawek, a nie osobną trasą: to jedna odpowiedź na
+    // jedno pytanie „ile dają punktów", tylko dla dwóch różnych czasów.
+    // Osobna trasa znaczyłaby drugie okrążenie po to, żeby pokazać dwie
+    // kolumny tej samej tabeli.
+    //
+    // Pusta lista jest stanem normalnym: dopóki regulamin się nie zmienił,
+    // nie ma historii i strona nie pokazuje tej sekcji wcale.
+    res.json({ scoring, history: scoringHistory ?? [] });
   });
 }

@@ -136,3 +136,155 @@ test("kazda stawka w wynikach fazy wskazuje na istniejaca pozycje", async () => 
     );
   }
 });
+
+// --- Regulaminy juz nieobowiazujace ----------------------------------------
+
+test("kazda zmiana w historii wskazuje na istniejaca pozycje tabeli", async () => {
+  // Literowka w sciezce nie daje bledu - daje wiersz, ktory po cichu znika
+  // z sekcji "co obowiazywalo wczesniej". Czyli dokladnie ten sam rodzaj
+  // milczacej straty, ktorego pilnuje ten plik przy biezacych stawkach.
+  const HISTORIA = require("../rules/scoringHistory");
+  const { SECTIONS } = await import(MODUL);
+
+  const znane = new Set(SECTIONS.flatMap((s) => s.rows.map((r) => r.path)));
+
+  for (const regulamin of HISTORIA) {
+    for (const zmiana of regulamin.changes) {
+      assert.ok(
+        znane.has(zmiana.path),
+        `${regulamin.id}: sciezka "${zmiana.path}" nie ma odpowiednika w SECTIONS`,
+      );
+    }
+  }
+});
+
+test("historia opisuje ZMIANY, a nie powtarza dzisiejszych stawek", async () => {
+  // Wpis, ktory mowi to samo co dzisiejsza tabela, nie jest historia -
+  // jest druga kopia biezacych stawek i to on rozjedzie sie jako pierwszy.
+  //
+  // Wyjatek: MAP.EXACT zostaje w liscie mimo tej samej wartosci, bo bez
+  // niego sekcja mowilaby, ze mapy dawaly 0 pkt za wszystko. Dlatego test
+  // wymaga, zeby CO NAJMNIEJ JEDNA pozycja regulaminu byla inna.
+  const HISTORIA = require("../rules/scoringHistory");
+  const { pointsAt } = await import(MODUL);
+
+  for (const regulamin of HISTORIA) {
+    const rozne = regulamin.changes.filter(
+      (z) => z.was !== pointsAt(SCORING, z.path),
+    );
+
+    assert.ok(
+      rozne.length > 0,
+      `${regulamin.id}: zaden wiersz nie rozni sie od dzisiejszych stawek`,
+    );
+  }
+});
+
+test("kazdy regulamin mowi, ktorych turniejow dotyczy", async () => {
+  // Bez tego sekcja brzmi "kiedys bylo inaczej" i nie da sie sprawdzic
+  // wlasnego wyniku - a po to ona jest.
+  const HISTORIA = require("../rules/scoringHistory");
+
+  for (const regulamin of HISTORIA) {
+    assert.ok(regulamin.id, "regulamin bez identyfikatora");
+    assert.ok(regulamin.events?.length > 0, `${regulamin.id}: pusta lista turniejow`);
+
+    for (const e of regulamin.events) {
+      assert.ok(e.slug, `${regulamin.id}: turniej bez sluga`);
+      assert.ok(e.name, `${regulamin.id}: turniej bez nazwy`);
+    }
+  }
+});
+
+test("buildScoringHistory sklada dawna stawke z dzisiejsza", async () => {
+  const { buildScoringHistory } = await import(MODUL);
+
+  const [regulamin] = buildScoringHistory(
+    [
+      {
+        id: "x",
+        events: [{ slug: "e", name: "E" }],
+        changes: [{ path: "MATCH.WINNER", was: 4 }],
+      },
+    ],
+    { MATCH: { WINNER: 2 } },
+  );
+
+  assert.equal(regulamin.changes[0].was, 4);
+  assert.equal(regulamin.changes[0].now, 2);
+  assert.equal(regulamin.changes[0].labelKey, "scoring.matchWinner.label");
+});
+
+test("zmiana bez odpowiednika w tabeli jest pomijana, a nie pokazywana bez nazwy", async () => {
+  const { buildScoringHistory } = await import(MODUL);
+
+  const wynik = buildScoringHistory(
+    [{ id: "x", events: [{ slug: "e", name: "E" }], changes: [{ path: "NIE.MA", was: 9 }] }],
+    SCORING,
+  );
+
+  assert.deepEqual(wynik, [], "regulamin bez czytelnych wierszy nie jest sekcja");
+});
+
+test("brak historii to pusta lista, a nie wywrotka", async () => {
+  const { buildScoringHistory } = await import(MODUL);
+
+  for (const wejscie of [[], null, undefined]) {
+    assert.deepEqual(buildScoringHistory(wejscie, SCORING), []);
+  }
+
+  // Brak stawek biezacych tez nie moze wywrocic strony - "dzis" jest
+  // wtedy nieznane, ale "wtedy" nadal ma sens.
+  const [r] = buildScoringHistory(
+    [{ id: "x", events: [{ slug: "e", name: "E" }], changes: [{ path: "MATCH.WINNER", was: 4 }] }],
+    null,
+  );
+
+  assert.equal(r.changes[0].was, 4);
+  assert.equal(r.changes[0].now, null);
+});
+
+test("druga stawka tej samej pozycji przechodzi razem z opisem", async () => {
+  // W Cologne sam trafiony zwyciezca dawal co innego niz zwyciezca
+  // z dokladnym wynikiem - jedna liczba nie opisuje tamtej reguly.
+  const { buildScoringHistory } = await import(MODUL);
+
+  const [r] = buildScoringHistory(
+    [
+      {
+        id: "x",
+        events: [{ slug: "e", name: "E" }],
+        changes: [
+          {
+            path: "MATCH.WINNER",
+            was: 4,
+            alsoKey: "scoringHistory.cologne.seriesWinnerOnly",
+            alsoValue: 1,
+          },
+        ],
+      },
+    ],
+    SCORING,
+  );
+
+  assert.equal(r.changes[0].alsoValue, 1);
+  assert.equal(r.changes[0].alsoKey, "scoringHistory.cologne.seriesWinnerOnly");
+});
+
+test("kazdy klucz napisu z historii istnieje w slowniku", async () => {
+  // alsoKey trafia prosto do t(). Literowka pokazalaby graczowi goly klucz -
+  // dokladnie to, co wyszlo przy chart.empty.
+  const HISTORIA = require("../rules/scoringHistory");
+  const { SLOWNIKI } = await import("../web/src/i18n/index.js");
+
+  for (const regulamin of HISTORIA) {
+    for (const zmiana of regulamin.changes) {
+      if (!zmiana.alsoKey) continue;
+
+      assert.ok(
+        zmiana.alsoKey in SLOWNIKI.pl,
+        `brak napisu "${zmiana.alsoKey}" w slowniku`,
+      );
+    }
+  }
+});

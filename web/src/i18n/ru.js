@@ -327,7 +327,6 @@ const ru = {
   "scoring.page.error": "Не удалось загрузить правила начисления",
   "scoring.page.errorText": "Не удалось загрузить правила начисления.",
   "scoring.page.noRates": "Сервер не вернул значения очков. Попробуйте обновить страницу.",
-  "scoring.page.note": "Архивный турнир сохраняет очки на момент подсчёта. Правила начисления за карты изменились после IEM Cologne Major 2026 — раньше карта давала очки только за точный счёт, сегодня учитывается отклонение. Старые турниры мы не пересчитываем, потому что пересчёт переписал бы закрытый рейтинг.",
   "scoring.match.title": "Матчи",
   "scoring.match.lead": "Каждый матч турнира. Очки за серию и очки за карты складываются — это две разные вещи, а не альтернатива.",
   "scoring.matchWinner.label": "Угаданный победитель серии",
@@ -1846,6 +1845,25 @@ const ru = {
     many: "{count} матчей",
   },
   "bias.empty": "Пока ни одна команда не выделяется настолько, чтобы назвать это общей ошибкой.",
+
+  // --- Punktacja - regulaminy juz nieobowiazujace --------------------------
+  // Strona pokazywala JEDNA tabele i przypis o zmianie zasad
+  // punktowania MAP. Stawka za SERIE zmienila sie mocniej i nie bylo
+  // o niej ani slowa - a strona twierdzila wprost, ze „dokladny wynik
+  // serii nie daje nic ponad to".
+  //
+  // Zmierzone: w IEM Cologne Major 2026 trafiony zwyciezca z dokladnym
+  // wynikiem dawal 4 pkt, sam zwyciezca 1 pkt. Kolonia trzyma 12 812
+  // punktow za serie; wedlug dzisiejszych stawek byloby 7 988.
+  "scoringHistory.title": "Что действовало раньше",
+  "scoringHistory.lead": "Архивный турнир сохраняет очки на момент подсчёта — мы его не пересчитываем, потому что это переписало бы таблицу, которую игроки уже увидели как окончательную. Значит, таблица выше описывает лишь часть турниров.",
+  "scoringHistory.applied": "Действовало на: {events}",
+  "scoringHistory.was": "тогда",
+  "scoringHistory.now": "сегодня",
+  "scoringHistory.cologne.seriesWinnerOnly": "только угаданный победитель, без точного счёта",
+  // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
+  // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
+  "scoringHistory.reconstructed": "Эти ставки восстановлены из начисленных очков, а не переписаны из тогдашнего регламента — такой записи нет. Они сходятся до очка на 6378 из 6424 прогнозов на матчи и 6224 из 6274 прогнозов на карты; остальное — строки, пересчитанные позже уже по новому правилу.",
 };
 
 export default ru;

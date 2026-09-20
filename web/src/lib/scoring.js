@@ -187,3 +187,58 @@ export const SECTIONS = [
     ],
   },
 ];
+
+/**
+ * Regulaminy, które już nie obowiązują, złożone do pokazania.
+ *
+ * Serwer oddaje SAME RÓŻNICE wobec dzisiejszych stawek - patrz
+ * rules/scoringHistory.js. Tutaj dokleja się do nich to, czego serwer nie
+ * wie: jak nazwać wiersz i ile ta pozycja daje DZIŚ, żeby obie liczby stały
+ * obok siebie. Bez tej drugiej nikt nie zobaczy, na czym polegała zmiana.
+ *
+ * Ścieżka, której nie ma w SECTIONS, jest pomijana. Wiersz bez nazwy
+ * pokazałby dwie liczby i nic poza nimi.
+ */
+export function buildScoringHistory(history, scoring) {
+  const opisy = new Map();
+
+  for (const sekcja of SECTIONS) {
+    for (const zasada of sekcja.rows) {
+      opisy.set(zasada.path, { ...zasada, sectionKey: sekcja.titleKey });
+    }
+  }
+
+  return (history || [])
+    .map((regulamin) => ({
+      id: regulamin?.id ?? "",
+      events: [...(regulamin?.events ?? [])],
+
+      changes: (regulamin?.changes ?? [])
+        .map((zmiana) => {
+          const opis = opisy.get(zmiana?.path);
+
+          if (!opis) return null;
+
+          return {
+            path: zmiana.path,
+            labelKey: opis.labelKey,
+            sectionKey: opis.sectionKey,
+
+            was: typeof zmiana.was === "number" ? zmiana.was : null,
+            now: pointsAt(scoring, zmiana.path),
+
+            // Druga stawka tej samej pozycji - w Cologne sam trafiony
+            // zwycięzca dawał co innego niż zwycięzca z dokładnym wynikiem,
+            // więc jedna liczba nie opisuje tamtej reguły.
+            alsoKey: zmiana.alsoKey ?? null,
+            alsoValue:
+              typeof zmiana.alsoValue === "number" ? zmiana.alsoValue : null,
+          };
+        })
+        .filter(Boolean),
+    }))
+
+    // Regulamin, z którego nic nie zostało do pokazania, nie jest sekcją -
+    // byłby nagłówkiem nad pustym miejscem.
+    .filter((regulamin) => regulamin.changes.length > 0);
+}

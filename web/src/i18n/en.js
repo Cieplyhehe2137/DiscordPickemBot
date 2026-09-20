@@ -313,7 +313,6 @@ const en = {
   "scoring.page.error": "Could not load the scoring",
   "scoring.page.errorText": "Could not load the scoring.",
   "scoring.page.noRates": "The server returned no point values. Try refreshing the page.",
-  "scoring.page.note": "An archived tournament keeps the points it had at settlement. Map scoring changed after IEM Cologne Major 2026 — a map used to give points only for an exact score, today the deviation counts. We do not recompute old tournaments, because recomputing would rewrite a closed ranking.",
   "scoring.match.title": "Matches",
   "scoring.match.lead": "Every match in the tournament. Series points and map points add up - these are two separate things, not an either-or.",
   "scoring.matchWinner.label": "Correct series winner",
@@ -1763,6 +1762,25 @@ const en = {
     other: "{count} matches",
   },
   "bias.empty": "So far no team stands out enough to call it a crowd error.",
+
+  // --- Punktacja - regulaminy juz nieobowiazujace --------------------------
+  // Strona pokazywala JEDNA tabele i przypis o zmianie zasad
+  // punktowania MAP. Stawka za SERIE zmienila sie mocniej i nie bylo
+  // o niej ani slowa - a strona twierdzila wprost, ze „dokladny wynik
+  // serii nie daje nic ponad to".
+  //
+  // Zmierzone: w IEM Cologne Major 2026 trafiony zwyciezca z dokladnym
+  // wynikiem dawal 4 pkt, sam zwyciezca 1 pkt. Kolonia trzyma 12 812
+  // punktow za serie; wedlug dzisiejszych stawek byloby 7 988.
+  "scoringHistory.title": "What applied before",
+  "scoringHistory.lead": "An archived tournament keeps the points it was settled with — we do not recount it, because that would rewrite a ranking players already saw as final. So the table above describes only some of the tournaments.",
+  "scoringHistory.applied": "Applied at: {events}",
+  "scoringHistory.was": "then",
+  "scoringHistory.now": "today",
+  "scoringHistory.cologne.seriesWinnerOnly": "correct winner only, without the exact score",
+  // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
+  // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
+  "scoringHistory.reconstructed": "These rates are reconstructed from the points awarded, not copied from a rulebook of the time — no such record exists. They match to the point on 6378 of 6424 match picks and 6224 of 6274 map picks; the rest are rows later recounted under the new rule.",
 };
 
 export default en;
