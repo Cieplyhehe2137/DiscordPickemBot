@@ -42,6 +42,7 @@ function LeaderboardPage() {
   const { user } = useAuth();
   const [leaderboard, setLeaderboard] = useState([]);
   const [uczestnicy, setUczestnicy] = useState(0);
+  const [meczow, setMeczow] = useState(0);
   const [strony, setStrony] = useState(null);
 
   // Numer strony trzymamy razem z turniejem, dla którego go wybrano.
@@ -89,6 +90,7 @@ function LeaderboardPage() {
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
+        setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
 
         // Skok jest jednorazowy - inaczej każde kliknięcie "Następna"
@@ -125,6 +127,7 @@ function LeaderboardPage() {
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
+        setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
         setError(null);
       } catch (err) {
@@ -278,7 +281,7 @@ function LeaderboardPage() {
           )}
         </div>
       ) : (
-        <div className="ui-table">
+        <div className="ui-table leaderboard-table">
           <div className="ui-table__head" aria-hidden="true">
             <span>#</span>
             <span>{t("leaderboard.head.player")}</span>
@@ -329,8 +332,36 @@ function LeaderboardPage() {
                     </span>
                   )}
 
-                  <span className="ui-row-item__name">
-                    {player.displayname ?? player.user_id}
+                  <span className="ui-row-item__stack">
+                    <span className="ui-row-item__name">
+                      {player.displayname ?? player.user_id}
+                    </span>
+
+                    {/* Z ILU TYPOW wzial sie ten wynik.
+
+                        Bez tego dwa sasiednie miejsca wygladaja na
+                        wyrownana walke rownych graczy: #38 ma 187 pkt
+                        z 99 typow przy 54% trafien, #39 ma 181 pkt
+                        z 60 typow przy 67%.
+
+                        Znika tam, gdzie nie ma meczow - w turnieju
+                        zlozonym z samych faz (StarLadder Budapest 2025)
+                        kazdy mialby tu zero, a zero mowiloby nieprawde
+                        o kims, kto wytypowal wszystkie trzy etapy. */}
+                    {meczow > 0 && (
+                      <span className="ui-row-item__sub">
+                        {player.total_predictions > 0
+                          ? t("leaderboard.picksHit", {
+                            done: player.total_predictions,
+                            all: meczow,
+                            percent: player.accuracy,
+                          })
+                          : t("leaderboard.picks", {
+                            done: 0,
+                            all: meczow,
+                          })}
+                      </span>
+                    )}
                   </span>
                 </Link>
 
