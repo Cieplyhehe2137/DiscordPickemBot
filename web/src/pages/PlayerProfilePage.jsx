@@ -14,23 +14,8 @@ import BadgeShelf from "../components/BadgeShelf.jsx";
 import PlayerHistory from "../components/PlayerHistory.jsx";
 import PlayerPicker from "../components/PlayerPicker.jsx";
 import Rivals from "../components/Rivals.jsx";
+import { humanPhase } from "../lib/phaseLabels.js";
 import { useT } from "../i18n/useLanguage.js";
-
-// Nazwy faz i etapów szukane w słowniku. Podpisy składają się PO STRONIE
-// PRZEGLĄDARKI, bo serwer nie wie, w jakim języku ogląda się tę stronę.
-const NAZWA_FAZY = {
-  swiss: "phase.swiss",
-  playin: "phase.playin",
-  playoffs: "phase.playoffs",
-  doubleelim: "phase.doubleElim",
-  mvp: "profile.phase.mvp",
-};
-
-const NAZWA_ETAPU = {
-  stage1: "phase.swissStage1",
-  stage2: "phase.swissStage2",
-  stage3: "phase.swissStage3",
-};
 
 function PlayerProfilePage() {
   const t = useT();
@@ -189,7 +174,7 @@ function PlayerProfilePage() {
 
   const przebiegFaz = (fazy?.progress ?? []).map((p) => ({
     ...p,
-    label: t(NAZWA_ETAPU[p.stage] ?? NAZWA_FAZY[p.phase] ?? "phase.swiss"),
+    label: humanPhase(p.stage ?? p.phase, t),
   }));
 
   const przebiegMeczow = player.points_progress ?? [];
@@ -372,7 +357,7 @@ function PlayerProfilePage() {
 
             {fazy.groups.map((g) => (
               <div className="ui-stat" key={g.phase}>
-                <span>{t(NAZWA_FAZY[g.phase] ?? g.phase)}</span>
+                <span>{humanPhase(g.phase, t)}</span>
                 <strong>{g.points}</strong>
               </div>
             ))}

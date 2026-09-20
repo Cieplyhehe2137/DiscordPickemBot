@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import Ladowanie from "../Ladowanie.jsx";
 import { getAdminUserAudit, searchAdminUsers } from "../../lib/api.js";
+import { groupLabel, humanPhase } from "../../lib/phaseLabels.js";
 import { useT } from "../../i18n/useLanguage.js";
 
 // Wyszukiwarka graczy i audyt jednego gracza.
@@ -16,6 +17,12 @@ import { useT } from "../../i18n/useLanguage.js";
 //     meczów; czołowy gracz Kolonii ma ich 106, czyli widać 9% jego wyborów.
 //
 //  2. Znalezienie człowieka bez wiedzy, w którym turnieju grał.
+//
+//  3. TYPY NA FAZY. Klasyfikacja turnieju to suma sześciu składowych, a pięć
+//     z nich to fazy - kto pójdzie 3-0, kto awansuje, kto weźmie MVP.
+//     Zmierzone: 634 wpisy gracz-turniej (w tym CAŁY StarLadder Budapest,
+//     509 osób) nie mają ani jednego typu meczowego, więc audyt bez faz
+//     pokazywał im pustą stronę.
 //
 // Turniej wybiera się wyżej, w samym panelu - ten komponent dostaje gotowy
 // slug i nie robi drugiego wybieraka na to samo.
@@ -55,7 +62,7 @@ function WierszMeczu({ mecz, slug }) {
           </strong>
 
           <p className="ui-stat__hint">
-            #{mecz.match_no} · {mecz.phase} · BO{mecz.best_of} ·{" "}
+            #{mecz.match_no} · {humanPhase(mecz.phase, t)} · BO{mecz.best_of} ·{" "}
 
             {/* Odnośnik przy opisie, a nie osobnym przyciskiem pod
                 wierszem: przycisk na całą szerokość czytał się jak główna
@@ -111,6 +118,110 @@ function WierszMeczu({ mecz, slug }) {
         </div>
       )}
 
+    </div>
+  );
+}
+
+/** Jedna grupa typów w fazie: co wskazał gracz i co wyszło naprawdę. */
+function GrupaFazy({ grupa }) {
+  const t = useT();
+
+  const rozstrzygnieta = grupa.answer.length > 0;
+
+  return (
+    <div className="audit-phase__group">
+      <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+        <strong>{groupLabel(grupa.kind, t)}</strong>
+
+        {rozstrzygnieta && grupa.picked.length > 0 && (
+          <span className="ui-stat__hint">
+            {t("common.hits", {
+              hits: grupa.picked.filter((p) => p.hit === true).length,
+              total: grupa.picked.length,
+            })}
+          </span>
+        )}
+      </div>
+
+      <div className="ui-row ui-row--wrap">
+        {grupa.picked.length === 0 ? (
+          <span className="ui-stat__hint">{t("adminUsers.noPick")}</span>
+        ) : (
+          grupa.picked.map((p) => (
+            // Znak przed nazwą, nie sam kolor: wiersz czyta się tak samo
+            // bez rozróżniania barw. Typ bez odpowiedzi zostaje szary -
+            // „nie rozstrzygnięto" to nie jest pudło gracza.
+            <span
+              className={`ui-badge ui-team ${
+                p.hit === true
+                  ? "ui-badge--ok"
+                  : p.hit === false
+                    ? "ui-badge--danger"
+                    : ""
+              }`}
+              key={p.name}
+            >
+              {p.hit === true ? "✓ " : p.hit === false ? "✕ " : ""}
+              {p.name}
+            </span>
+          ))
+        )}
+      </div>
+
+      {rozstrzygnieta && (
+        <div className="ui-row ui-row--wrap audit-phase__answer">
+          <span className="ui-stat__hint">{t("phaseResults.official")}</span>
+
+          {grupa.answer.map((nazwa) => (
+            <span className="ui-badge ui-team ui-badge--accent" key={nazwa}>
+              {nazwa}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Jedna faza: etap Swiss, Play-In, drabinka, playoffy albo MVP. */
+function FazaGracza({ faza }) {
+  const t = useT();
+
+  return (
+    <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+      <div className="ui-row ui-row--between ui-row--wrap ui-row--full">
+        <strong>{humanPhase(faza.stage ?? faza.phase, t)}</strong>
+
+        <div className="ui-row ui-row--wrap">
+          {faza.settled_picks > 0 && (
+            <span className="ui-badge">
+              {t("common.hits", {
+                hits: faza.hits,
+                total: faza.settled_picks,
+              })}
+            </span>
+          )}
+
+          {/* Punkty z tabeli wyników, a NIE z przemnożenia trafień przez
+              stawkę. W playoffach Kolonii 31 graczy ma zapisane o 2 punkty
+              więcej, niż dałaby dzisiejsza reguła - audyt ma pokazywać to,
+              co widzi klasyfikacja. */}
+          {faza.points !== null && (
+            <span
+              className={`ui-badge ${faza.points > 0 ? "ui-badge--accent" : ""}`}
+            >
+              {t("common.points", { count: faza.points })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Faza bez ani jednego typu NIE dostaje osobnego zdania - każda
+          grupa mówi „bez typu" u siebie, a zdanie wyżej powtarzałoby to
+          samo cztery razy pod rząd. */}
+      {faza.groups.map((grupa) => (
+        <GrupaFazy grupa={grupa} key={grupa.kind} />
+      ))}
     </div>
   );
 }
@@ -204,6 +315,9 @@ function UsersAdminPanel({ slug }) {
   if (wybrany) {
     const s = audyt?.summary;
 
+    const fazy = audyt?.phase_summary?.points ?? null;
+    const fazyGracza = audyt?.phases ?? [];
+
     const wiersze = (audyt?.rows ?? []).filter(
       (w) => !tylkoTypowane || w.picked,
     );
@@ -248,10 +362,21 @@ function UsersAdminPanel({ slug }) {
 
         {s && (
           <>
-            <div className="ui-stats ui-stats--4">
+            <div className="ui-stats ui-stats--5">
               <Wynik
                 kto={t("adminUsers.sum.points")}
                 punkty={s.points}
+                opis={null}
+              />
+
+              {/* Punkty z faz obok meczowych, bo dopiero suma obu zgadza się
+                  z liczbą w klasyfikacji. Sprawdzone na losowej próbie:
+                  w Budapeszcie i Krakowie 25 z 25 graczy zgadza się co do
+                  punktu, w Kolonii 21 z 25 - reszta to znany rozjazd
+                  zamkniętej tabeli tego turnieju. */}
+              <Wynik
+                kto={t("adminUsers.sum.phasePoints")}
+                punkty={fazy === null ? "—" : fazy}
                 opis={null}
               />
 
@@ -274,8 +399,33 @@ function UsersAdminPanel({ slug }) {
               />
             </div>
 
+            {/* Fazy PRZED tabelą meczów: przy 106 wierszach typy na fazy
+                leżałyby pod całą stroną, a dla gracza bez meczów są jedyną
+                treścią audytu. */}
+            {fazyGracza.length > 0 && (
+              <>
+                <div className="ui-section-head">
+                  <div>
+                    <h3>{t("adminUsers.phases.title")}</h3>
+
+                    <p>{t("adminUsers.phases.lead")}</p>
+                  </div>
+                </div>
+
+                <div className="ui-stack ui-stack--tight">
+                  {fazyGracza.map((faza) => (
+                    <FazaGracza faza={faza} key={faza.key} />
+                  ))}
+                </div>
+              </>
+            )}
+
             {s.matches === 0 ? (
-              <p className="ui-note">{t("adminUsers.emptyEvent")}</p>
+              <p className="ui-note">
+                {fazyGracza.length > 0
+                  ? t("adminUsers.emptyEvent")
+                  : t("adminUsers.nothingAtAll")}
+              </p>
             ) : (
               <>
                 <div className="ui-section-head">

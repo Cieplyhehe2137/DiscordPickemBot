@@ -1,3 +1,4 @@
+import { buildPhasePicks } from "../lib/phasePicks.js";
 import { buildUserAudit } from "../lib/userAudit.js";
 
 // Wyszukiwarka graczy i audyt jednego gracza — dla panelu administratora.
@@ -61,6 +62,159 @@ const GID = "CAST(guild_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicod
 
 /** Serwer, do którego należy turniej z adresu. */
 const GUILD_Z_SLUGA = `(SELECT ${GID} FROM events WHERE slug = ? LIMIT 1)`;
+
+/** Turniej z adresu. Jeden znak zapytania na każde wystąpienie. */
+const ZDARZENIE = "(SELECT id FROM events WHERE slug = ? LIMIT 1)";
+
+/** Wspólna kolacja dla kolumn sklejanych przez UNION. */
+function wspolnaKolacja(wyrazenie) {
+  return `CAST(${wyrazenie} AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci`;
+}
+
+/**
+ * Z czego składa się każda faza PO STRONIE BAZY.
+ *
+ * Nazwy grup muszą zgadzać się z PHASE_GROUPS w server/lib/phasePicks.js -
+ * to one wiążą typ z oficjalną odpowiedzią i z podpisem na stronie. Kolumny
+ * wyników mają przedrostek `correct_` wszędzie POZA Double Elim, gdzie
+ * nazywają się tak samo jak w typach; stąd dwie osobne mapy, a nie jedna
+ * z doklejanym przedrostkiem.
+ */
+const FAZY = [
+  {
+    phase: "playin",
+    typy: { tabela: "playin_predictions", kolumny: { teams: "teams" } },
+    wyniki: { tabela: "playin_results", kolumny: { teams: "correct_teams" } },
+  },
+  {
+    phase: "swiss",
+
+    // Jedyna faza z etapami - pozostałe to jeden wiersz na gracza.
+    etap: true,
+
+    typy: {
+      tabela: "swiss_predictions",
+      kolumny: {
+        three_zero: "pick_3_0",
+        zero_three: "pick_0_3",
+        advancing: "advancing",
+      },
+    },
+    wyniki: {
+      tabela: "swiss_results",
+      kolumny: {
+        three_zero: "correct_3_0",
+        zero_three: "correct_0_3",
+        advancing: "correct_advancing",
+      },
+    },
+  },
+  {
+    phase: "doubleelim",
+    typy: {
+      tabela: "doubleelim_predictions",
+      kolumny: {
+        upper_final_a: "upper_final_a",
+        lower_final_a: "lower_final_a",
+        upper_final_b: "upper_final_b",
+        lower_final_b: "lower_final_b",
+      },
+    },
+    wyniki: {
+      tabela: "doubleelim_results",
+      kolumny: {
+        upper_final_a: "upper_final_a",
+        lower_final_a: "lower_final_a",
+        upper_final_b: "upper_final_b",
+        lower_final_b: "lower_final_b",
+      },
+    },
+  },
+  {
+    phase: "playoffs",
+    typy: {
+      tabela: "playoffs_predictions",
+      kolumny: {
+        semifinalists: "semifinalists",
+        finalists: "finalists",
+        winner: "winner",
+        third_place: "third_place_winner",
+      },
+    },
+    wyniki: {
+      tabela: "playoffs_results",
+      kolumny: {
+        semifinalists: "correct_semifinalists",
+        finalists: "correct_finalists",
+        winner: "correct_winner",
+        third_place: "correct_third_place_winner",
+      },
+    },
+  },
+];
+
+/**
+ * Jedno zapytanie po WSZYSTKIE typy fazowe albo po wszystkie oficjalne
+ * odpowiedzi - trzynaście gałęzi sklejonych w jeden wiersz na grupę.
+ *
+ * Osobne zapytanie na tabelę byłoby czytelniejsze, ale to dziesięć podróży
+ * do bazy zamiast jednej, a każda kosztuje na produkcji około 177 ms.
+ *
+ * BEZ FILTRA `active` NA TYPACH, z filtrem na wynikach - dokładnie tak liczy
+ * handlers/matches/calculateScores.js. Gdyby audyt filtrował inaczej niż on,
+ * pokazywałby typy, za które nie ma punktów, albo odwrotnie.
+ *
+ * @param ktore     "typy" albo "wyniki"
+ * @param slug      turniej z adresu
+ * @param userId    gracz - tylko dla typów, wyniki są wspólne dla turnieju
+ */
+function zapytanieFaz(ktore, slug, userId) {
+  const galezie = [];
+  const parametry = [];
+
+  for (const faza of FAZY) {
+    const zrodlo = faza[ktore];
+
+    for (const [grupa, kolumna] of Object.entries(zrodlo.kolumny)) {
+      galezie.push(`
+        SELECT '${faza.phase}' AS phase,
+               ${faza.etap ? wspolnaKolacja("stage") : "NULL"} AS stage,
+               '${grupa}' AS kind,
+               ${wspolnaKolacja(kolumna)} AS teams
+          FROM \`${zrodlo.tabela}\`
+         WHERE event_id = ${ZDARZENIE}
+           ${ktore === "wyniki" ? "AND active = 1" : `AND ${UID} = ?`}`);
+
+      parametry.push(slug);
+
+      if (ktore === "typy") parametry.push(userId);
+    }
+  }
+
+  // MVP osobno, bo jako jedyna faza trzyma typ jako identyfikator kandydata,
+  // a nie jako nazwę. Bez tego złączenia audyt pokazywałby liczbę.
+  const tabela = ktore === "typy" ? "mvp_predictions" : "mvp_results";
+
+  galezie.push(`
+    SELECT 'mvp' AS phase,
+           NULL AS stage,
+           'mvp' AS kind,
+           ${wspolnaKolacja("COALESCE(c.nickname, CONCAT('#', m.candidate_id))")} AS teams
+      FROM \`${tabela}\` m
+      LEFT JOIN mvp_candidates c ON c.id = m.candidate_id
+     WHERE m.event_id = ${ZDARZENIE}
+       ${
+         ktore === "wyniki"
+           ? "AND m.active = 1"
+           : `AND CAST(m.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci = ?`
+       }`);
+
+  parametry.push(slug);
+
+  if (ktore === "typy") parametry.push(userId);
+
+  return { sql: galezie.join("\n UNION ALL\n"), parametry };
+}
 
 function normalizuj(tekst) {
   return String(tekst ?? "").trim().toLowerCase();
@@ -191,7 +345,8 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
       try {
         const { slug, userId } = req.params;
 
-        const zdarzenie = "(SELECT id FROM events WHERE slug = ? LIMIT 1)";
+        const typyFaz = zapytanieFaz("typy", slug, String(userId));
+        const wynikiFaz = zapytanieFaz("wyniki", slug, null);
 
         const [
           [[event]],
@@ -201,6 +356,9 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
           [mapPicks],
           [mapResults],
           [points],
+          [phasePicks],
+          [phaseResults],
+          [phaseScores],
         ] = await Promise.all([
           pool.query(
             "SELECT id, name, slug FROM events WHERE slug = ? LIMIT 1",
@@ -210,7 +368,7 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
           pool.query(
             `SELECT id, match_no, phase, team_a, team_b, best_of
                FROM matches
-              WHERE event_id = ${zdarzenie}
+              WHERE event_id = ${ZDARZENIE}
               ORDER BY match_no, id`,
             [slug],
           ),
@@ -218,36 +376,87 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
           pool.query(
             `SELECT match_id, pred_a, pred_b
                FROM match_predictions
-              WHERE event_id = ${zdarzenie} AND ${UID} = ?`,
+              WHERE event_id = ${ZDARZENIE} AND ${UID} = ?`,
             [slug, String(userId)],
           ),
 
           pool.query(
             `SELECT match_id, res_a, res_b
                FROM match_results
-              WHERE event_id = ${zdarzenie}`,
+              WHERE event_id = ${ZDARZENIE}`,
             [slug],
           ),
 
           pool.query(
             `SELECT match_id, map_no, pred_exact_a, pred_exact_b
                FROM match_map_predictions
-              WHERE event_id = ${zdarzenie} AND ${UID} = ?`,
+              WHERE event_id = ${ZDARZENIE} AND ${UID} = ?`,
             [slug, String(userId)],
           ),
 
           pool.query(
             `SELECT match_id, map_no, exact_a, exact_b
                FROM match_map_results
-              WHERE event_id = ${zdarzenie}`,
+              WHERE event_id = ${ZDARZENIE}`,
             [slug],
           ),
 
           pool.query(
             `SELECT match_id, source, points
                FROM match_points
-              WHERE event_id = ${zdarzenie} AND ${UID} = ?`,
+              WHERE event_id = ${ZDARZENIE} AND ${UID} = ?`,
             [slug, String(userId)],
+          ),
+
+          pool.query(typyFaz.sql, typyFaz.parametry),
+
+          pool.query(wynikiFaz.sql, wynikiFaz.parametry),
+
+          /*
+           * Punkty faz - tym samym zapytaniem, co profil gracza, łącznie
+           * z BRAKIEM filtra `active`. Tak liczy klasyfikację
+           * services/rebuildEventLeaderboard.js; gdyby audyt filtrował,
+           * a tamten nie, sumy w dwóch miejscach na stronie nie zgadzałyby
+           * się i nie dałoby się powiedzieć, która kłamie.
+           */
+          pool.query(
+            `
+    SELECT 'swiss' AS phase, ${wspolnaKolacja("stage")} AS stage, COALESCE(points, 0) AS points
+      FROM swiss_scores
+     WHERE event_id = ${ZDARZENIE} AND ${UID} = ?
+
+    UNION ALL
+    SELECT 'playin', NULL, COALESCE(points, 0)
+      FROM playin_scores
+     WHERE event_id = ${ZDARZENIE} AND ${UID} = ?
+
+    UNION ALL
+    SELECT 'playoffs', NULL, COALESCE(points, 0)
+      FROM playoffs_scores
+     WHERE event_id = ${ZDARZENIE} AND ${UID} = ?
+
+    UNION ALL
+    SELECT 'doubleelim', NULL, COALESCE(points, 0)
+      FROM doubleelim_scores
+     WHERE event_id = ${ZDARZENIE} AND ${UID} = ?
+
+    UNION ALL
+    SELECT 'mvp', NULL, COALESCE(points, 0)
+      FROM mvp_scores
+     WHERE event_id = ${ZDARZENIE} AND ${UID} = ?
+    `,
+            [
+              slug,
+              String(userId),
+              slug,
+              String(userId),
+              slug,
+              String(userId),
+              slug,
+              String(userId),
+              slug,
+              String(userId),
+            ],
           ),
         ]);
 
@@ -267,10 +476,19 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
           points,
         });
 
+        const fazy = buildPhasePicks({
+          picks: phasePicks,
+          results: phaseResults,
+          scores: phaseScores,
+        });
+
         res.json({
           event: { id: event.id, name: event.name, slug: event.slug },
           user_id: String(userId),
           ...audyt,
+
+          phases: fazy.phases,
+          phase_summary: fazy.summary,
         });
       } catch (err) {
         console.error("ADMIN USER AUDIT ERROR:", err);

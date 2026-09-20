@@ -25,6 +25,11 @@ const KLUCZE = {
   playoffs: "phase.playoffs",
   playin: "phase.playin",
   doubleelim: "phase.doubleElim",
+
+  // MVP nie jest fazą rozgrywki i nie stoi w matches.phase - ale jest szóstą
+  // składową klasyfikacji i tak właśnie wymienia je profil gracza oraz audyt
+  // w panelu. Bez tego wiersza obie strony pisały po prostu „mvp".
+  mvp: "profile.phase.mvp",
 };
 
 // Sprowadza wariant zapisu do jednego klucza: małe litery, spacje i myślniki
@@ -62,4 +67,48 @@ export function phaseRouteLabel(routePhase, t) {
   const klucz = KLUCZE[String(routePhase || "").toLowerCase()];
 
   return klucz ? t(klucz) : routePhase;
+}
+
+/**
+ * Podpis GRUPY typów wewnątrz fazy.
+ *
+ * Grupy nazywa server/lib/phasePicks.js i to stamtąd biorą się te klucze.
+ * Podpisy są te same, których używa strona wyniku fazy - jedna nazwa na
+ * jedną rzecz, niezależnie od tego, czy patrzy na nią gracz, czy admin.
+ */
+const KLUCZE_GRUP = {
+  teams: "phaseResults.advancingTeams",
+
+  three_zero: "phaseResults.teams30",
+  zero_three: "phaseResults.teams03",
+  advancing: "phaseResults.advancing",
+
+  semifinalists: "phaseResults.semifinalists",
+  finalists: "phaseResults.finalists",
+  winner: "phaseResults.winner",
+  third_place: "phaseResults.thirdPlace",
+
+  mvp: "adminUsers.mvpPick",
+};
+
+/**
+ * Nazwy meczów drabinki zostają po angielsku we wszystkich językach.
+ *
+ * Tak stoją w formularzu typowania i w wyniku fazy (PhaseResults.jsx),
+ * i tak mówi o nich społeczność - „upper final" nie ma w tym serwisie
+ * polskiego odpowiednika, którego ktokolwiek by użył.
+ */
+const NAZWY_STALE = {
+  upper_final_a: "Upper Final A",
+  lower_final_a: "Lower Final A",
+  upper_final_b: "Upper Final B",
+  lower_final_b: "Lower Final B",
+};
+
+export function groupLabel(kind, t) {
+  if (NAZWY_STALE[kind]) return NAZWY_STALE[kind];
+
+  const klucz = KLUCZE_GRUP[kind];
+
+  return klucz ? t(klucz) : kind;
 }

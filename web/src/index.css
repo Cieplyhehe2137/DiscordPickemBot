@@ -2889,3 +2889,58 @@ main > .page-back {
 .leaderboard-table .ui-row-item__sub {
   white-space: normal;
 }
+
+/* =========================================================
+   AUDYT GRACZA W PANELU
+   ========================================================= */
+
+/* Pasek trafienia przy KRAWEDZI wiersza, a nie tlo calego kafelka: tlo
+   w kolorze wyniku klocilo sie z kolorowymi odznakami w srodku, a przy
+   stu wierszach pod rzad robilo z listy szachownice.
+
+   Sam pasek nie niesie tu zadnej tresci - stan stoi slowem w odznace
+   „typ" i „wynik" obok. To jest tylko sposob na przebiegniecie wzrokiem
+   stu wierszy, wiec przy daltonizmie i na wydruku nic nie ginie.
+
+   Klasy istnialy w komponencie od poczatku, ale bez tych regul nie robily
+   nic - wiersz trafiony i chybiony wygladaly identycznie. */
+.audit-row {
+  border-left: 3px solid transparent;
+}
+
+.audit-row--hit {
+  border-left-color: var(--ok-border);
+}
+
+.audit-row--miss {
+  border-left-color: var(--danger-border);
+}
+
+/* Typ, wynik i punkty trzymaja sie razem i schodza pod nazwy druzyn
+   w calosci, a nie po jednej odznace. */
+.audit-row__scores {
+  gap: var(--space-2);
+}
+
+.audit-maps {
+  gap: var(--space-2);
+}
+
+/* Grupa typow fazowych: nazwa grupy, typy gracza, pod spodem oficjalna
+   odpowiedz. Kreska po lewej wiaze te trzy linie w jedna calosc - bez niej
+   cztery grupy Double Elim czytaly sie jak dwanascie luznych wierszy. */
+.audit-phase__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
+/* Oficjalna odpowiedz wciecia nie ma, ale ma wlasny odstep od typow gracza -
+   inaczej dwa rzedy odznak zlewaly sie w jeden. */
+.audit-phase__answer {
+  gap: var(--space-2);
+  align-items: center;
+}
