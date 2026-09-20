@@ -619,9 +619,23 @@ p {
    MOBILE. Blok stoi osobno, bo tamta sekcja jest w pliku WCZESNIEJ niz
    regula bazowa .app-user. */
 @media (max-width: 768px) {
-  /* Na telefonie konto stoi w osobnym rzedzie i zaczyna sie od lewej,
-     wiec wciecie 24 px byloby widoczne jako przypadkowe przesuniecie. */
+  /* KONTO BIERZE CALY RZAD.
+
+     Bez tego `flex: 1 1 0` na nawigacji dziala az za dobrze: zamiast
+     zepchnac konto nizej, sciska zakladki do pionowej kolumny obok
+     niego. Zmierzone przy 445 px - nawigacja miala 37 px szerokosci
+     i 166 px wysokosci, a caly pasek 190 px. Nadmiaru nie bylo, wiec
+     pomiar szerokosci tego nie wylapal; widac to dopiero na ekranie.
+
+     Przy bazie 100% konto nie miesci sie juz w pierwszym wierszu i
+     schodzi pod spod - czyli uklad, ktory ten blok i tak zakladal,
+     zdejmujac margin-left i wciecie.
+
+     Wciecie znika, bo konto zaczyna sie teraz od lewej i 24 px byloby
+     widoczne jako przypadkowe przesuniecie. */
   .app-user {
+    flex: 1 0 100%;
+
     margin-left: 0;
     padding-left: 0;
 
@@ -2865,4 +2879,13 @@ main > .page-back {
   gap: var(--space-2);
 
   color: var(--text-faint);
+}
+
+/* Podpis pod nickiem w rankingu wraca do ZAWIJANIA - ta sama poprawka co
+   w tabeli rywali i w przecenianych druzynach, i z tego samego powodu:
+   .ui-row-item__sub ma nowrap bez ucinania, wiec dluzszy tekst nie skraca
+   sie, tylko wychodzi poza swoje pole. Tu stoi "60 z 106 typow - 67%
+   trafien", a na telefonie kolumna nicku ma niewiele ponad 100 px. */
+.leaderboard-table .ui-row-item__sub {
+  white-space: normal;
 }

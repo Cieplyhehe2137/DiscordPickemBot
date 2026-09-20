@@ -1885,6 +1885,22 @@ const pl = {
   // Uczciwosc wobec czytajacego: tych stawek nie ma w zadnym commicie
   // ani wpisie. Sa wyprowadzone z bazy, wiec strona ma to powiedziec.
   "scoringHistory.reconstructed": "Te stawki są odtworzone z naliczonych punktów, a nie spisane z ówczesnego regulaminu — takiego zapisu nie ma. Zgadzają się co do punktu na 6378 z 6424 typów na mecze i 6224 z 6274 typów na mapy; pozostałe to wiersze przeliczone później już nową regułą.",
+
+  // --- Ranking - ile typow za wynikiem -------------------------------------
+  // Tabela pokazywala, SKAD wziely sie punkty (Swiss 40, Playoffs 8,
+  // Mecze 268), ale nie z ILU typow. Te liczby przychodzily w odpowiedzi
+  // i byly wyrzucane.
+  //
+  // Zmierzone w IEM Cologne Major 2026: przy 109 okazjach mediana
+  // pokrycia to DWA procent, a 81% z 523 sklasyfikowanych oddalo mniej
+  // niz co dziesiaty typ. „Miejsce 200 z 523" czytalo sie wiec jak
+  // „za mna 323 rywali".
+  //
+  // Konkret z tabeli: #38 karwix ma 187 pkt z 99 typow przy 54%,
+  // a #39 Feran 181 pkt z 60 typow przy 67%. Szesc punktow roznicy,
+  // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
+  "leaderboard.picks": "{done} z {all} typów",
+  "leaderboard.picksHit": "{done} z {all} typów · {percent}% trafień",
 };
 
 export default pl;
