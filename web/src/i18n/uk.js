@@ -1880,6 +1880,45 @@ const uk = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} з {all} прогнозів",
   "leaderboard.picksHit": "{done} з {all} прогнозів · {percent}% влучних",
+
+  // --- Panel - wyszukiwarka graczy i audyt ---------------------------------
+  // Audyt gracza bez grzebania w bazie. Publiczny profil pokazuje
+  // prawie wszystko, ale historia meczow jest tam UCIETA DO DZIESIECIU
+  // ostatnich - czolowy gracz Kolonii ma 106 typow, czyli widac 9%
+  // jego wyborow. I nie da sie znalezc czlowieka, nie wiedzac,
+  // w ktorym turnieju gral.
+  "adminPage.tile.users": "Гравці",
+  "adminPage.tile.usersHint": "Знайдіть гравця та перегляньте всі його прогнози в цьому турнірі.",
+  "adminPage.section.users": "Гравці — {name}",
+  "adminUsers.search": "Нік, ім'я користувача або Discord ID…",
+  "adminUsers.searchLabel": "Пошук гравця",
+  // Szukanie obejmuje caly serwer, a nie turniej - ale NIE wychodzi
+  // poza serwer. Zmierzone: fraza „piek" widziana z Krakowa daje zero
+  // wynikow, bo pieka gra w Hyperlandzie.
+  "adminUsers.searchHint": "Шукає на всьому сервері, а не лише в цьому турнірі — за ніком, іменем користувача та ідентифікатором. Введіть щонайменше {count} символи.",
+  "adminUsers.found": {
+    one: "{count} гравець",
+    few: "{count} гравці",
+    many: "{count} гравців",
+  },
+  "adminUsers.nobody": "Ніхто з таким іменем не робив прогнозів на цьому сервері.",
+  "adminUsers.backToSearch": "← Назад до пошуку",
+  "adminUsers.profileLink": "Публічний профіль →",
+  "adminUsers.sum.points": "Бали за матчі",
+  "adminUsers.sum.picked": "Спрогнозовано матчів",
+  "adminUsers.sum.correct": "Вгадані переможці",
+  "adminUsers.sum.accuracy": "Влучність",
+  "adminUsers.sum.ofAll": "з {count} у турнірі",
+  "adminUsers.sum.ofSettled": "з {count} завершених",
+  "adminUsers.table.title": "Усі прогнози",
+  "adminUsers.table.lead": "Усі матчі турніру, зокрема ті, яких гравець не прогнозував. Публічний профіль показує лише десять останніх.",
+  "adminUsers.noPick": "без прогнозу",
+  "adminUsers.notSettled": "без результату",
+  "adminUsers.pick": "прогноз",
+  "adminUsers.result": "результат",
+  "adminUsers.map": "Карта {no}",
+  "adminUsers.onlyPicked": "Лише спрогнозовані",
+  "adminUsers.emptyEvent": "Щодо цього турніру немає жодного матчу — гравець міг прогнозувати лише етапи. Вони є в публічному профілі.",
 };
 
 export default uk;

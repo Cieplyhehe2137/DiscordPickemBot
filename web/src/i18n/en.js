@@ -1797,6 +1797,44 @@ const en = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} of {all} picks",
   "leaderboard.picksHit": "{done} of {all} picks · {percent}% right",
+
+  // --- Panel - wyszukiwarka graczy i audyt ---------------------------------
+  // Audyt gracza bez grzebania w bazie. Publiczny profil pokazuje
+  // prawie wszystko, ale historia meczow jest tam UCIETA DO DZIESIECIU
+  // ostatnich - czolowy gracz Kolonii ma 106 typow, czyli widac 9%
+  // jego wyborow. I nie da sie znalezc czlowieka, nie wiedzac,
+  // w ktorym turnieju gral.
+  "adminPage.tile.users": "Players",
+  "adminPage.tile.usersHint": "Find a player and review every pick they made in this tournament.",
+  "adminPage.section.users": "Players — {name}",
+  "adminUsers.search": "Nickname, username or Discord ID…",
+  "adminUsers.searchLabel": "Search for a player",
+  // Szukanie obejmuje caly serwer, a nie turniej - ale NIE wychodzi
+  // poza serwer. Zmierzone: fraza „piek" widziana z Krakowa daje zero
+  // wynikow, bo pieka gra w Hyperlandzie.
+  "adminUsers.searchHint": "Searches the whole server, not just this tournament — by nickname, username and ID. Type at least {count} characters.",
+  "adminUsers.found": {
+    one: "{count} player",
+    other: "{count} players",
+  },
+  "adminUsers.nobody": "Nobody by that name has made picks on this server.",
+  "adminUsers.backToSearch": "← Back to search",
+  "adminUsers.profileLink": "Public profile →",
+  "adminUsers.sum.points": "Points from matches",
+  "adminUsers.sum.picked": "Matches picked",
+  "adminUsers.sum.correct": "Correct winners",
+  "adminUsers.sum.accuracy": "Accuracy",
+  "adminUsers.sum.ofAll": "of {count} in the tournament",
+  "adminUsers.sum.ofSettled": "of {count} settled",
+  "adminUsers.table.title": "Every pick",
+  "adminUsers.table.lead": "Every match of the tournament, including the ones the player did not pick. The public profile shows only the last ten.",
+  "adminUsers.noPick": "no pick",
+  "adminUsers.notSettled": "not settled",
+  "adminUsers.pick": "pick",
+  "adminUsers.result": "result",
+  "adminUsers.map": "Map {no}",
+  "adminUsers.onlyPicked": "Picked only",
+  "adminUsers.emptyEvent": "This tournament has no match recorded — the player could only pick phases. Those are on the public profile.",
 };
 
 export default en;

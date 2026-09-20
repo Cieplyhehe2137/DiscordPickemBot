@@ -245,3 +245,60 @@ test("lista druzyn ma dokladnie jeden segment po /api/public/", async () => {
   assert.ok(tresc.includes('app.get("/api/public/teams"'));
   assert.ok(tresc.includes('app.get("/api/public/teams/:name"'));
 });
+
+test("trasy audytu gracza sa pod /api/events, a nie pod /api/public", async () => {
+  // Dwie rzeczy naraz.
+  //
+  // PO PIERWSZE przeslanianie: /api/public/:guildSlug lapie kazdy adres
+  // /api/public/<cos> z jednym segmentem. Audyt siedzi pod /api/events,
+  // wiec tamten wzorzec go nie dotyczy - ale gdyby ktos kiedys przeniosl
+  // te trasy pod /api/public, wrocilaby ta sama pulapka, co przy druzynach.
+  //
+  // PO DRUGIE uprawnienia: te trasy pokazuja KOMPLET typow dowolnego
+  // gracza, wiec nie moga wyladowac w przestrzeni publicznej przez
+  // przypadek przy przenoszeniu pliku.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "adminUsers.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    tresc.includes('"/api/events/:slug/admin/users"'),
+    "wyszukiwarka graczy musi stac pod /api/events/:slug/admin/users",
+  );
+
+  assert.ok(
+    tresc.includes('"/api/events/:slug/admin/users/:userId"'),
+    "audyt gracza musi stac pod /api/events/:slug/admin/users/:userId",
+  );
+
+  assert.ok(
+    !tresc.includes('"/api/public/'),
+    "audyt nie moze rejestrowac niczego w przestrzeni publicznej",
+  );
+});
+
+test("obie trasy audytu stoja za bramka uprawnien serwera", async () => {
+  // Serwis obsluguje dwie spolecznosci. Bez requireGuildAdmin
+  // administrator jednego serwera przegladalby typy graczy drugiego -
+  // a to sa komplety typow, nie podsumowania.
+  //
+  // Sprawdzone na produkcji: fraza "piek" widziana z turnieju Krakowa
+  // daje zero wynikow, bo pieka gra w Hyperlandzie.
+  const tresc = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "adminUsers.js"),
+    "utf8",
+  );
+
+  const trasy = [...tresc.matchAll(/app\.get\(\s*\n\s*"([^"]+)",\s*\n\s*([A-Za-z]+)\(/g)];
+
+  assert.equal(trasy.length, 2, "spodziewane dokladnie dwie trasy");
+
+  for (const [, adres, straznik] of trasy) {
+    assert.equal(
+      straznik,
+      "requireGuildAdmin",
+      `trasa ${adres} nie stoi za requireGuildAdmin`,
+    );
+  }
+});
