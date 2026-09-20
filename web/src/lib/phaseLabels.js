@@ -88,7 +88,7 @@ const KLUCZE_GRUP = {
   winner: "phaseResults.winner",
   third_place: "phaseResults.thirdPlace",
 
-  mvp: "adminUsers.mvpPick",
+  mvp: "phaseResults.mvpCandidate",
 };
 
 /**
