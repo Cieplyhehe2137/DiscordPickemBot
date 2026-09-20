@@ -455,9 +455,18 @@ test("zaden klucz nie wpadl do srodka obiektu liczby mnogiej", async () => {
   // poziomu - jesli nie jest, znaczy, ze lezy w srodku obiektu.
   const ZAPIS_KLUCZA = /^\s*"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)"\s*:/gm;
 
+  // OBA pliki na jezyk: napisy panelu leza od podzialu w <kod>.admin.js
+  // i ten sam blad moze sie zdarzyc tam. Pominiecie ich znaczyloby, ze
+  // strażnik przestal patrzec na 336 z 1294 kluczy.
   for (const kod of LANGUAGES) {
-    const plik = path.join(__dirname, "..", "web", "src", "i18n", `${kod}.js`);
-    const tekst = fs.readFileSync(plik, "utf8");
+    const tekst = [`${kod}.js`, `${kod}.admin.js`]
+      .map((nazwa) =>
+        fs.readFileSync(
+          path.join(__dirname, "..", "web", "src", "i18n", nazwa),
+          "utf8",
+        ),
+      )
+      .join("\n");
 
     const osiagalne = new Set(Object.keys(SLOWNIKI[kod]));
 

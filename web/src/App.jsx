@@ -1,4 +1,6 @@
 import { Suspense, lazy } from "react";
+
+import { zPanelem } from "./i18n/dictionaries.js";
 import { Routes, Route } from "react-router-dom";
 
 import AppLayout from "./components/layout/AppLayout.jsx";
@@ -43,10 +45,16 @@ import DoubleElimPickemPage from "./pages/DoubleElimPickemPage.jsx";
 // requireGuildAdmin po stronie serwera, a zakładka pokazuje się dopiero
 // wtedy, gdy /api/auth/me na to pozwoli. To jest wyłącznie kwestia tego,
 // czego NIE trzeba ściągać.
-const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
+//
+// Razem z kodem panelu idzie jego SŁOWNIK - zPanelem() dokłada do pobrania
+// napisy z <język>.admin.js. Zmierzone: to 336 kluczy, czyli 21-22% każdego
+// słownika, które do tej pory jechały do każdego odwiedzającego. Czekanie na
+// nie jest celowe: gdyby strona weszła wcześniej, przez moment stałyby na
+// niej gołe klucze, bo zapasowy polski też ich nie ma.
+const AdminPage = lazy(() => zPanelem(import("./pages/AdminPage.jsx")));
 
-const AdminMatchResultPage = lazy(
-  () => import("./pages/AdminMatchResultPage.jsx"),
+const AdminMatchResultPage = lazy(() =>
+  zPanelem(import("./pages/AdminMatchResultPage.jsx")),
 );
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 

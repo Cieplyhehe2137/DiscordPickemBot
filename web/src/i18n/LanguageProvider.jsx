@@ -7,7 +7,11 @@ import {
 } from "../lib/language.js";
 import { setApiTranslator } from "../lib/apiMessages.js";
 import { createTranslator } from "./translate.js";
-import { dostepneSlowniki, wczytajSlownik } from "./dictionaries.js";
+import {
+  dostepneSlowniki,
+  naNowySlownik,
+  wczytajSlownik,
+} from "./dictionaries.js";
 import { LanguageContext } from "./languageContext.js";
 
 // Język dla całej aplikacji.
@@ -31,6 +35,12 @@ export function LanguageProvider({ children }) {
   // a nie licznik dociągnięć: dzięki temu zależność tłumacza jest prawdziwa
   // i widoczna, zamiast chować się za wywołaniem funkcji.
   const [slowniki, setSlowniki] = useState(dostepneSlowniki);
+
+  // Słowniki dochodzą też POZA tym komponentem: napisy panelu dociąga
+  // zPanelem() przy wchodzeniu na /admin, a nie efekt niżej. Bez tego
+  // nasłuchu panel dostałby swoje napisy do pamięci i nikt by ich nie
+  // pokazał - tłumacz budowany jest z tego, co siedzi w stanie.
+  useEffect(() => naNowySlownik(() => setSlowniki(dostepneSlowniki())), []);
 
   useEffect(() => {
     // Sprawdzenie idzie po STANIE, a nie po pamięci dictionaries.js.
