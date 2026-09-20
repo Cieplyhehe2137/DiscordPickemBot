@@ -1535,6 +1535,30 @@ const ru = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} из {all} прогнозов",
   "leaderboard.picksHit": "{done} из {all} прогнозов · {percent}% верных",
+
+  // --- Tlum jako miara odniesienia -----------------------------------------
+  // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
+  // bezwzgledna - "69% trafien" nie mowi, czy to duzo. Zmierzone:
+  // w Kolonii chodzenie za wiekszoscia dalo by SZOSTE miejsce na 410
+  // typujacych, w Krakowie dopiero 28. z 252.
+  "crowd.kicker": "Планка",
+  "crowd.title": "Толпа против игроков",
+  "crowd.intro": "Представьте человека, который в каждом матче выбирал просто то, что выбрало большинство, без единой собственной мысли. Вот сколько бы он угадал.",
+  "crowd.stat.correct": "Толпа угадала",
+  "crowd.stat.place": "Место по угаданным",
+  "crowd.stat.beatenBy": "Игроков обошли её",
+  "crowd.stat.ofPlayers": "из {count} прогнозировавших",
+  "crowd.whoBeat": "Глаз острее, чем у всех вместе взятых:",
+  // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
+  // skad mial wiedziec przed terminem, co wybierze wiekszosc.
+  "crowd.disclaimer": "Большинство считается постфактум, по всем сделанным прогнозам, — до дедлайна его никто не мог знать. Это не стратегия, а мера того, добавило ли собственное суждение что-то к суждению группы.",
+  "crowd.player.title": "Вы против толпы",
+  "crowd.player.intro": "Всё выше говорит, сколько этот игрок угадал. Это говорит, добавило ли его собственное суждение что-то к суждению группы. Большинство считается без его голоса.",
+  "crowd.player.gap": "Против толпы",
+  "crowd.player.gapHint": "угаданных больше или меньше на {count} матчах",
+  "crowd.player.you": "Этот игрок угадал",
+  "crowd.player.crowd": "Толпа угадала бы",
+  "crowd.player.ofMatches": "из тех же {count} матчей",
 };
 
 export default ru;

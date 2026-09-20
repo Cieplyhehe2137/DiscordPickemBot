@@ -172,6 +172,8 @@ function PlayerProfilePage() {
 
   const fazy = profile?.phase_points ?? null;
 
+  const wobecTlumu = profile?.vs_crowd ?? null;
+
   const przebiegFaz = (fazy?.progress ?? []).map((p) => ({
     ...p,
     label: humanPhase(p.stage ?? p.phase, t),
@@ -409,6 +411,64 @@ function PlayerProfilePage() {
 
       {/* Serie liczy sie z ciagu rozliczonych meczow - bez meczow to
           trzy zera pod naglowkiem „Forma gracza". */}
+      {/* WOBEC TŁUMU.
+          Cała reszta profilu mówi, ile ten człowiek trafił. To jedyne
+          miejsce, które mówi, czy jego własny osąd cokolwiek dołożył do
+          osądu grupy - a zmierzone w Kolonii, u 75% graczy nie dołożył nic.
+
+          Sekcja pojawia się dopiero od dwudziestu meczów: niżej różnica
+          jednego trafienia to szum, a stałaby obok liczb z setki meczów. */}
+      {wobecTlumu?.enough && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("crowd.kicker")}</span>
+
+              <h2>{t("crowd.player.title")}</h2>
+
+              <p>{t("crowd.player.intro")}</p>
+            </div>
+          </div>
+
+          <div className="ui-stats ui-stats--4">
+            <div
+              className={`ui-stat ui-stat--featured crowd-gap crowd-gap--${
+                wobecTlumu.advantage > 0
+                  ? "over"
+                  : wobecTlumu.advantage < 0
+                    ? "under"
+                    : "even"
+              }`}
+            >
+              <span>{t("crowd.player.gap")}</span>
+
+              <strong>
+                {wobecTlumu.advantage > 0 ? "+" : ""}
+                {wobecTlumu.advantage}
+              </strong>
+
+              <small>
+                {t("crowd.player.gapHint", { count: wobecTlumu.matches })}
+              </small>
+            </div>
+
+            <div className="ui-stat">
+              <span>{t("crowd.player.you")}</span>
+              <strong>{wobecTlumu.correct}</strong>
+              <small>{t("crowd.player.ofMatches", { count: wobecTlumu.matches })}</small>
+            </div>
+
+            <div className="ui-stat">
+              <span>{t("crowd.player.crowd")}</span>
+              <strong>{wobecTlumu.crowd}</strong>
+              <small>{t("crowd.player.ofMatches", { count: wobecTlumu.matches })}</small>
+            </div>
+          </div>
+
+          <p className="ui-note">{t("crowd.disclaimer")}</p>
+        </section>
+      )}
+
       {maMecze && (
         <section className="ui-card ui-stack">
           <div className="ui-section-head">

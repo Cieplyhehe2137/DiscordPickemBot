@@ -2944,3 +2944,37 @@ main > .page-back {
   gap: var(--space-2);
   align-items: center;
 }
+
+/* =========================================================
+   TLUM JAKO MIARA ODNIESIENIA
+   ========================================================= */
+
+/* Sekcja stoi NAD tabela rankingu i ma sie od niej odciac - inaczej czyta
+   sie jak jeszcze jeden wiersz z liczbami, a jest poprzeczka dla wszystkich
+   pozostalych. Kreska u gory w kolorze akcentu, bo to jedyna liczba na tej
+   stronie, ktora nie dotyczy zadnego czlowieka. */
+.crowd-baseline {
+  border-top: 2px solid var(--accent-border);
+}
+
+/* Przewaga nad tlumem: znak niesie kierunek, kolor tylko go wzmacnia.
+   Wyrwana z kontekstu, na wydruku i przy daltonizmie "+5" i "-14" mowia
+   to samo co tutaj - ta sama zasada, co przy przecenianych druzynach. */
+.crowd-gap strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.crowd-gap--over strong {
+  color: var(--ok);
+}
+
+.crowd-gap--under strong {
+  color: var(--danger);
+}
+
+/* Zero jest wynikiem, a nie brakiem wyniku: tyle samo co tlum znaczy, ze
+   wlasny osad nie dolozyl nic. Zostaje w kolorze tekstu, bez barwy - ani
+   to sukces, ani porazka. */
+.crowd-gap--even strong {
+  color: var(--text);
+}

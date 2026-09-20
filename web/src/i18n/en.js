@@ -1458,6 +1458,30 @@ const en = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} of {all} picks",
   "leaderboard.picksHit": "{done} of {all} picks · {percent}% right",
+
+  // --- Tlum jako miara odniesienia -----------------------------------------
+  // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
+  // bezwzgledna - "69% trafien" nie mowi, czy to duzo. Zmierzone:
+  // w Kolonii chodzenie za wiekszoscia dalo by SZOSTE miejsce na 410
+  // typujacych, w Krakowie dopiero 28. z 252.
+  "crowd.kicker": "The yardstick",
+  "crowd.title": "The crowd versus the players",
+  "crowd.intro": "Imagine someone who picked whatever the majority picked in every match, with no thoughts of their own. This is how well they would have done.",
+  "crowd.stat.correct": "The crowd got right",
+  "crowd.stat.place": "Place by correct picks",
+  "crowd.stat.beatenBy": "People who beat it",
+  "crowd.stat.ofPlayers": "of {count} who picked",
+  "crowd.whoBeat": "Sharper eye than everyone put together:",
+  // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
+  // skad mial wiedziec przed terminem, co wybierze wiekszosc.
+  "crowd.disclaimer": "The majority is counted afterwards, from every pick that was made — nobody could have known it before the deadline. This is not a strategy but a measure of whether your own judgement added anything to the group's.",
+  "crowd.player.title": "You versus the crowd",
+  "crowd.player.intro": "Everything above says how much this player got right. This says whether their own judgement added anything to the group's. The majority is counted without their vote.",
+  "crowd.player.gap": "Against the crowd",
+  "crowd.player.gapHint": "correct picks more or fewer across {count} matches",
+  "crowd.player.you": "This player got right",
+  "crowd.player.crowd": "The crowd would have",
+  "crowd.player.ofMatches": "of the same {count} matches",
 };
 
 export default en;

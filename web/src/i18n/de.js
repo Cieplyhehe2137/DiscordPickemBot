@@ -1458,6 +1458,30 @@ const de = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} von {all} Tipps",
   "leaderboard.picksHit": "{done} von {all} Tipps · {percent}% richtig",
+
+  // --- Tlum jako miara odniesienia -----------------------------------------
+  // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
+  // bezwzgledna - "69% trafien" nie mowi, czy to duzo. Zmierzone:
+  // w Kolonii chodzenie za wiekszoscia dalo by SZOSTE miejsce na 410
+  // typujacych, w Krakowie dopiero 28. z 252.
+  "crowd.kicker": "Der Maßstab",
+  "crowd.title": "Die Menge gegen die Spieler",
+  "crowd.intro": "Stell dir jemanden vor, der in jedem Spiel einfach das getippt hat, was die Mehrheit tippte — ganz ohne eigenen Gedanken. So gut wäre er gewesen.",
+  "crowd.stat.correct": "Die Menge lag richtig",
+  "crowd.stat.place": "Platz nach Treffern",
+  "crowd.stat.beatenBy": "Spieler, die besser waren",
+  "crowd.stat.ofPlayers": "von {count} Tippenden",
+  "crowd.whoBeat": "Besseres Auge als alle zusammen:",
+  // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
+  // skad mial wiedziec przed terminem, co wybierze wiekszosc.
+  "crowd.disclaimer": "Die Mehrheit wird im Nachhinein aus allen abgegebenen Tipps berechnet — vor dem Stichtag konnte sie niemand kennen. Das ist keine Strategie, sondern ein Maß dafür, ob das eigene Urteil dem der Gruppe etwas hinzufügte.",
+  "crowd.player.title": "Du gegen die Menge",
+  "crowd.player.intro": "Alles oben sagt, wie viel dieser Spieler getroffen hat. Dies sagt, ob sein eigenes Urteil dem der Gruppe etwas hinzufügte. Die Mehrheit wird ohne seine Stimme gezählt.",
+  "crowd.player.gap": "Gegenüber der Menge",
+  "crowd.player.gapHint": "Treffer mehr oder weniger in {count} Spielen",
+  "crowd.player.you": "Dieser Spieler lag richtig",
+  "crowd.player.crowd": "Die Menge hätte getroffen",
+  "crowd.player.ofMatches": "von denselben {count} Spielen",
 };
 
 export default de;

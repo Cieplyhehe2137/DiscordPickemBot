@@ -1556,6 +1556,30 @@ const pl = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} z {all} typów",
   "leaderboard.picksHit": "{done} z {all} typów · {percent}% trafień",
+
+  // --- Tlum jako miara odniesienia -----------------------------------------
+  // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
+  // bezwzgledna - "69% trafien" nie mowi, czy to duzo. Zmierzone:
+  // w Kolonii chodzenie za wiekszoscia dalo by SZOSTE miejsce na 410
+  // typujacych, w Krakowie dopiero 28. z 252.
+  "crowd.kicker": "Poprzeczka",
+  "crowd.title": "Tłum kontra ludzie",
+  "crowd.intro": "Wyobraź sobie kogoś, kto w każdym meczu typował po prostu to, co większość — bez żadnej własnej myśli. Tyle by trafił i takie miejsce by zajął.",
+  "crowd.stat.correct": "Tłum trafił",
+  "crowd.stat.place": "Miejsce w trafieniach",
+  "crowd.stat.beatenBy": "Tylu ludzi go pobiło",
+  "crowd.stat.ofPlayers": "z {count} typujących",
+  "crowd.whoBeat": "Lepsze oko niż cała reszta razem:",
+  // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
+  // skad mial wiedziec przed terminem, co wybierze wiekszosc.
+  "crowd.disclaimer": "Większość liczy się po fakcie, ze wszystkich oddanych typów — przed terminem nikt nie mógł jej znać. To nie jest strategia, tylko miara tego, czy własny wybór dołożył coś do wyboru grupy.",
+  "crowd.player.title": "Ty kontra tłum",
+  "crowd.player.intro": "Wszystko wyżej mówi, ile ten gracz trafił. To mówi, czy jego własny osąd dołożył cokolwiek do osądu grupy. Większość liczona bez jego głosu.",
+  "crowd.player.gap": "Wobec tłumu",
+  "crowd.player.gapHint": "trafień więcej lub mniej na {count} meczów",
+  "crowd.player.you": "Ten gracz trafił",
+  "crowd.player.crowd": "Tłum trafiłby",
+  "crowd.player.ofMatches": "z {count} tych samych meczów",
 };
 
 export default pl;
