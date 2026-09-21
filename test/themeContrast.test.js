@@ -209,3 +209,88 @@ test("tło przycisku logowania nie wraca do color-mix", () => {
     );
   }
 });
+
+// --- przelacznik porzadku tabeli (.ui-switcher) -----------------------------
+//
+// USTERKA, KTORA TO ZAMRAZA: pudelko przelacznika stalo na --surface-2,
+// a wybrana opcja na --surface-4. W ciemnym motywie roznica jest widoczna
+// (#17171b wobec #26262c), ale w jasnym OBA tokeny to czysta biel - wybrany
+// stan nie mial wiec zadnego tla, ktore by go odroznialo, i cala roznica
+// wisiala na kolorze tekstu.
+//
+// Nazwy tokenow CZYTAMY Z ARKUSZA, a nie wpisujemy tutaj. Wpisane recznie
+// przestalyby opisywac strone przy pierwszej zmianie w CSS-ie i test
+// mierzylby cos, czego na ekranie nie ma - a przechodzilby dalej.
+
+const INDEX_CSS = fs.readFileSync(
+  path.join(__dirname, "..", "web", "src", "index.css"),
+  "utf8",
+);
+
+/** Wyciaga `var(--cos)` z jednej wlasciwosci jednej reguly. */
+function tokenZReguly(selektor, wlasciwosc) {
+  const start = INDEX_CSS.indexOf(`${selektor} {`);
+
+  assert.ok(start >= 0, `brak reguly ${selektor} w index.css`);
+
+  const tresc = INDEX_CSS.slice(start, INDEX_CSS.indexOf("}", start));
+
+  // Bez wyrazenia regularnego skladanego z napisu - przy budowaniu takiego
+  // wzorca znika kazdy ukosnik i wychodzi wzorzec, ktory nie pasuje do
+  // niczego. Skanowanie po liniach robi to samo i widac, co robi.
+  const linia = tresc
+    .split("\n")
+    .map((w) => w.trim())
+    .find((w) => w.startsWith(`${wlasciwosc}:`) && w.includes("var("));
+
+  assert.ok(
+    linia,
+    `${selektor} nie ustawia ${wlasciwosc} na zaden token motywu`,
+  );
+
+  const od = linia.indexOf("var(") + "var(".length;
+
+  return linia.slice(od, linia.indexOf(")", od)).trim();
+}
+
+const PRZELACZNIK = {
+  pudelko: tokenZReguly(".ui-switcher", "background"),
+  napis: tokenZReguly(".ui-switcher__opt", "color"),
+  wybraneTlo: tokenZReguly('.ui-switcher__opt[aria-pressed="true"]', "background"),
+  wybranyNapis: tokenZReguly('.ui-switcher__opt[aria-pressed="true"]', "color"),
+};
+
+for (const [motyw, paleta] of [["ciemny", CIEMNY], ["jasny", JASNY]]) {
+  test(`${motyw}: wybrana opcja przelacznika ma WLASNE tlo`, () => {
+    const pudelko = zloz(paleta, [PRZELACZNIK.pudelko]);
+    const wybrana = zloz(paleta, [PRZELACZNIK.wybraneTlo]);
+
+    assert.notDeepEqual(
+      { r: wybrana.r, g: wybrana.g, b: wybrana.b },
+      { r: pudelko.r, g: pudelko.g, b: pudelko.b },
+      `${PRZELACZNIK.wybraneTlo} zlewa sie z ${PRZELACZNIK.pudelko} - ` +
+        "po wybranym stanie zostaje sam kolor tekstu",
+    );
+  });
+
+  test(`${motyw}: oba stany przelacznika daja sie przeczytac`, () => {
+    const stany = [
+      ["niewybrany", PRZELACZNIK.napis, PRZELACZNIK.pudelko],
+      ["wybrany", PRZELACZNIK.wybranyNapis, PRZELACZNIK.wybraneTlo],
+    ];
+
+    for (const [nazwa, tekst, tlo] of stany) {
+      const wartosc = paleta.get(tekst);
+
+      assert.ok(wartosc, `brak tokenu ${tekst}`);
+
+      const k = kontrast(kolor(wartosc), zloz(paleta, [tlo]));
+
+      assert.ok(
+        k >= PROG,
+        `${nazwa}: ${tekst} (${wartosc}) na ${tlo} daje ${k.toFixed(2)}, ` +
+          `prog to ${PROG}`,
+      );
+    }
+  });
+}

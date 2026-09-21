@@ -10,22 +10,33 @@
 //
 //                             Kolonia        Kraków
 //   tłum trafił               71 ze 106      26 z 50
-//   miejsce w tabeli trafień  #6 z 410       #28 z 252
-//   graczy lepszych od tłumu  15%            65%
+//   miejsce w skuteczności    #14 z 48       #45 z 61
+//   graczy lepszych od tłumu  27%            72%
 //   ludzie vs tłum            62% vs 67%     57% vs 53%
 //
-// W Kolonii bezmyślne chodzenie za większością dałoby szóste miejsce na 410
-// typujących - pięć osób trafiło więcej. Najlepszy człowiek wygrał z tłumem
-// o trzy mecze na 103. W Krakowie jest odwrotnie: tłum był bliski rzutu
-// monetą i dwie trzecie ludzi go pobiło. Ta sama miara opowiada o dwóch
-// turniejach dwie różne historie.
+// W Kolonii tłum czyta mecze lepiej niż trzy czwarte ludzi, którzy przeszli
+// z nim turniej. W Krakowie jest odwrotnie: był bliski rzutu monetą i pobiły
+// go niemal trzy czwarte stawki. Ta sama miara opowiada o dwóch turniejach
+// dwie różne historie.
+//
+// DLACZEGO STAWKA JEST MAŁA, I DLACZEGO TAK MA BYĆ. Stało tu wcześniej
+// „#6 z 410" - miejsce w tabeli TRAFIEŃ wśród wszystkich, którzy oddali
+// choć jeden typ. Obie liczby były prawdziwe i obie wprowadzały w błąd.
+// Tłum typuje KAŻDY mecz, a 163 z tych 410 osób oddało dokładnie jeden typ:
+// „wyprzedził czterysta cztery osoby" mówiło głównie o tym, że był obecny.
+// Porównanie ma sens dopiero z ludźmi, którzy też przeszli turniej - stąd
+// ten sam próg, na którym stoi tabela skuteczności (połowa meczów).
 //
 // CZEGO TA LICZBA NIE MÓWI. Większość liczy się PO FAKCIE, ze wszystkich
 // oddanych typów - nie dało się jej znać przed terminem, więc to nie jest
 // strategia, którą ktoś mógł zastosować. To miara tego, czy własny wybór
 // dołożył coś do wyboru grupy, i tak jest podpisana na stronie.
 //
-// CZYSTY, BEZ IMPORTÓW - regułę da się sprawdzić bez bazy.
+// BEZ ZAPYTAŃ - regułę da się sprawdzić bez bazy. Jedyny import to próg
+// stawki, wzięty stamtąd, gdzie jest definiowany, żeby tabela skuteczności
+// i to porównanie nigdy nie mówiły o dwóch różnych grupach ludzi.
+
+import { progTypow } from "./accuracyRanking.js";
 
 /**
  * Poniżej tylu typów porównanie z tłumem nic nie znaczy.
@@ -52,12 +63,18 @@ function prawda(wartosc) {
 /**
  * Tłum w skali całego turnieju.
  *
- * @param matches wiersze { match_id, on_a, on_b, winner_a } - po jednym na
- *                ROZSTRZYGNIĘTY mecz, z liczbą typów na każdą ze stron
- * @param players wiersze { user_id, displayname, correct_winners } - to samo,
- *                co już stoi w rankingu
+ * @param matches   wiersze { match_id, on_a, on_b, winner_a } - po jednym na
+ *                  ROZSTRZYGNIĘTY mecz, z liczbą typów na każdą ze stron
+ * @param players   wiersze { user_id, displayname, correct_winners,
+ *                  total_predictions } - to samo, co już stoi w rankingu
+ * @param threshold ile typów wpuszcza do stawki; domyślnie próg tabeli
+ *                  skuteczności, czyli połowa rozstrzygniętych meczów
  */
-export function buildCrowdBaseline({ matches = [], players = [] } = {}) {
+export function buildCrowdBaseline({
+  matches = [],
+  players = [],
+  threshold = null,
+} = {}) {
   const rozstrzygniete = (matches || []).filter((m) => m);
 
   let trafil = 0;
@@ -76,22 +93,39 @@ export function buildCrowdBaseline({ matches = [], players = [] } = {}) {
     if (wiekszoscNaA === prawda(m.winner_a)) trafil += 1;
   }
 
-  // STAWKĄ SĄ CI, KTÓRZY TYPOWALI MECZE - nie wszyscy sklasyfikowani.
+  // STAWKĄ SĄ CI, KTÓRZY PRZESZLI TURNIEJ RAZEM Z TŁUMEM.
   //
-  // Do klasyfikacji wchodzi się też za same typy na fazy: w Kolonii 114
-  // z 523 osób nie oddało ANI JEDNEGO typu meczowego. Liczenie ich do
-  // stawki dawało „szóste miejsce z 524" i sugerowało, że tłum wyprzedził
-  // pięciuset ludzi - podczas gdy stu czternastu w tej konkurencji
-  // w ogóle nie startowało.
+  // Dwa powody, oba zmierzone w Kolonii. Do klasyfikacji wchodzi się też za
+  // same typy na fazy - 114 z 523 osób nie oddało ANI JEDNEGO typu meczowego
+  // i w tej konkurencji w ogóle nie startowało. A z pozostałych 409 aż 163
+  // oddało dokładnie jeden typ; stawianie tłumu, który wytypował 106 meczów,
+  // obok kogoś z jednym trafieniem nie jest porównaniem.
+  const prog =
+    threshold === null || threshold === undefined
+      ? progTypow(rozstrzygniete.length)
+      : Math.max(1, liczba(threshold));
+
   const stawka = (players || []).filter(
-    (p) => liczba(p?.total_predictions) > 0,
+    (p) => liczba(p?.total_predictions) >= prog,
   );
 
-  // Kto trafił WIĘCEJ. Równo liczy się jako nie-lepiej: tłum ma być
-  // poprzeczką, a nie kimś, kogo wystarczy dogonić.
+  const skutecznoscTlumu =
+    rozstrzygniete.length > 0 ? trafil / rozstrzygniete.length : 0;
+
+  /** Odsetek trafień gracza, jako ułamek - na zaokrąglonym remisowałoby pół tabeli. */
+  const skutecznosc = (p) => {
+    const typow = liczba(p?.total_predictions);
+
+    return typow > 0 ? liczba(p?.correct_winners) / typow : 0;
+  };
+
+  // Kto CZYTA MECZE LEPIEJ. Porównujemy odsetkiem, nie liczbą trafień:
+  // trafień tłum ma z definicji dużo, bo typuje każdy mecz, a to jest
+  // zasługa obecności, nie oka. Równo liczy się jako nie-lepiej - tłum ma
+  // być poprzeczką, a nie kimś, kogo wystarczy dogonić.
   const lepsi = stawka
-    .filter((p) => liczba(p?.correct_winners) > trafil)
-    .sort((a, b) => liczba(b.correct_winners) - liczba(a.correct_winners));
+    .filter((p) => skutecznosc(p) > skutecznoscTlumu)
+    .sort((a, b) => skutecznosc(b) - skutecznosc(a));
 
   return {
     matches: rozstrzygniete.length,
@@ -105,15 +139,21 @@ export function buildCrowdBaseline({ matches = [], players = [] } = {}) {
 
     players: stawka.length,
 
-    // Miejsce, które tłum zająłby w tabeli TRAFIEŃ - nie w rankingu punktów.
-    // To rozróżnienie jest istotne: ranking liczy też dokładne wyniki map
-    // i typy na fazy, których ta miara w ogóle nie dotyczy.
+    // Ile typów wpuszcza do stawki. Idzie na front, bo „#14 z 48" bez
+    // powiedzenia, kim jest tych czterdziestu ośmiu, jest zagadką.
+    threshold: prog,
+
+    // Miejsce w tabeli SKUTECZNOŚCI - tej samej, którą ranking pokazuje
+    // po przełączeniu osi. Nie w rankingu punktów: tamten liczy też
+    // dokładne wyniki map i typy na fazy, których ta miara nie dotyczy.
     rank: lepsi.length + 1,
 
     beatenBy: lepsi.map((p) => ({
       user_id: String(p.user_id),
       displayname: p.displayname ?? null,
       correct_winners: liczba(p.correct_winners),
+      total_predictions: liczba(p.total_predictions),
+      accuracy: Math.round(100 * skutecznosc(p)),
     })),
   };
 }

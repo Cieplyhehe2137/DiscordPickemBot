@@ -4,8 +4,9 @@
 // duzo. Ta miara daje poprzeczke - co dalby najprostszy mozliwy sposob
 // typowania, czyli chodzenie za wiekszoscia.
 //
-// Zmierzone na produkcji: w Kolonii tlum trafil 71 ze 106 i zajalby SZOSTE
-// miejsce na 410 typujacych; w Krakowie 26 z 50 i miejsce 28 z 252.
+// Zmierzone na produkcji: w Kolonii tlum trafil 71 ze 106, co jest
+// CZTERNASTYM wynikiem wsrod 48 osob, ktore wytypowaly co najmniej polowe
+// meczow; w Krakowie 26 z 50 i miejsce 45 z 61.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -15,6 +16,15 @@ const MODUL = "../server/lib/crowdBaseline.js";
 function mecz(on_a, on_b, winner_a) {
   return { match_id: on_a * 1000 + on_b, on_a, on_b, winner_a: winner_a ? 1 : 0 };
 }
+
+// Cztery mecze, tlum trafia trzy - czyli 75%. Poprzeczka nizsza niz komplet,
+// zeby bylo czym ja przeskoczyc.
+const CZTERY_MECZE = [
+  mecz(9, 1, true),
+  mecz(9, 1, true),
+  mecz(9, 1, true),
+  mecz(1, 9, true),
+];
 
 test("tlum trafia tam, gdzie wiekszosc miala racje", async () => {
   const { buildCrowdBaseline } = await import(MODUL);
@@ -32,65 +42,90 @@ test("tlum trafia tam, gdzie wiekszosc miala racje", async () => {
   assert.equal(w.accuracy, 67);
 });
 
-test("miejsce tlumu liczy sie w TRAFIENIACH, nie w punktach", async () => {
-  // Rozroznienie jest istotne: ranking liczy tez dokladne wyniki map i typy
-  // na fazy, ktorych ta miara w ogole nie dotyczy. Gdyby wstawic tlum do
-  // rankingu punktowego, porownywalby sie z czyms, czego nie robi.
+test("miejsce tlumu liczy sie w SKUTECZNOSCI, nie w liczbie trafien", async () => {
+  // To jest rozroznienie, na ktorym stoi cala ta miara. Trafien tlum ma
+  // z definicji duzo, bo typuje KAZDY mecz - i to jest zasluga obecnosci,
+  // nie oka. Ktos, kto wytypowal polowe turnieju bezblednie, czyta mecze
+  // lepiej od tlumu, mimo ze trafien ma mniej.
   const { buildCrowdBaseline } = await import(MODUL);
 
   const w = buildCrowdBaseline({
-    matches: [mecz(9, 1, true), mecz(9, 1, true)],
+    matches: CZTERY_MECZE, // tlum: 3/4 = 75%
     players: [
-      { user_id: "1", displayname: "lepszy", correct_winners: 3, total_predictions: 3 },
-      { user_id: "2", displayname: "rowny", correct_winners: 2, total_predictions: 3 },
-      { user_id: "3", displayname: "gorszy", correct_winners: 1, total_predictions: 3 },
+      // Mniej trafien niz tlum, ale wyzsza skutecznosc - to jest pobicie.
+      { user_id: "1", displayname: "krotko a celnie", correct_winners: 2, total_predictions: 2 },
+      // Tyle samo trafien i ten sam odsetek - remis to nie jest pobicie.
+      { user_id: "2", displayname: "rowny", correct_winners: 3, total_predictions: 4 },
+      // Wiecej typow, gorsze oko.
+      { user_id: "3", displayname: "obecny", correct_winners: 2, total_predictions: 4 },
     ],
   });
 
-  assert.equal(w.correct, 2);
   assert.equal(w.rank, 2, "jedna osoba przed tlumem");
   assert.deepEqual(
     w.beatenBy.map((p) => p.displayname),
-    ["lepszy"],
-    "rowny wynik to nie jest pobicie tlumu",
+    ["krotko a celnie"],
   );
 });
 
-test("stawka to ci, ktorzy typowali MECZE - nie wszyscy sklasyfikowani", async () => {
-  // Do klasyfikacji wchodzi sie tez za same typy na fazy: w Kolonii 114
-  // z 523 osob nie oddalo ani jednego typu meczowego. Liczenie ich dawalo
-  // "szoste miejsce z 524" i sugerowalo, ze tlum wyprzedzil pieciuset
-  // ludzi - podczas gdy stu czternastu w tej konkurencji nie startowalo.
+test("stawka to ci, ktorzy PRZESZLI TURNIEJ razem z tlumem", async () => {
+  // Dwa powody, oba zmierzone w Kolonii. Za same typy na fazy tez wchodzi
+  // sie do klasyfikacji: 114 z 523 osob nie oddalo ani jednego typu
+  // meczowego. A z pozostalych 409 az 163 oddalo DOKLADNIE JEDEN - i to
+  // przy nich "szoste miejsce z 410" znaczylo glownie tyle, ze tlum byl
+  // obecny.
   const { buildCrowdBaseline } = await import(MODUL);
 
   const w = buildCrowdBaseline({
-    matches: [mecz(9, 1, true)],
+    matches: CZTERY_MECZE, // prog to polowa, czyli 2 typy
     players: [
-      { user_id: "1", correct_winners: 1, total_predictions: 1 },
-      { user_id: "2", correct_winners: 0, total_predictions: 1 },
-      { user_id: "3", correct_winners: 0, total_predictions: 0 },
-      { user_id: "4", correct_winners: 0, total_predictions: 0 },
+      { user_id: "1", correct_winners: 3, total_predictions: 4 },
+      { user_id: "2", correct_winners: 1, total_predictions: 2 },
+      { user_id: "3", correct_winners: 1, total_predictions: 1 }, // 100%, ale z jednego meczu
+      { user_id: "4", correct_winners: 0, total_predictions: 0 }, // same fazy
     ],
   });
 
-  assert.equal(w.players, 2, "dwoje typowalo mecze, dwoje tylko fazy");
+  assert.equal(w.players, 2, "dwoje w stawce, dwoje ponizej progu");
+  assert.equal(w.threshold, 2, "prog idzie na front, zeby dalo sie go wyjasnic");
+  assert.equal(
+    w.rank,
+    1,
+    "stuprocentowy z jednego meczu nie wyprzedza tlumu, bo go w stawce nie ma",
+  );
+});
+
+test("prog da sie podac z zewnatrz - jedno pojecie stawki na caly serwis", async () => {
+  const { buildCrowdBaseline } = await import(MODUL);
+
+  const w = buildCrowdBaseline({
+    matches: CZTERY_MECZE,
+    threshold: 4,
+    players: [
+      { user_id: "1", correct_winners: 4, total_predictions: 4 },
+      { user_id: "2", correct_winners: 2, total_predictions: 2 },
+    ],
+  });
+
+  assert.equal(w.threshold, 4);
+  assert.equal(w.players, 1, "przy progu czterech typow zostaje jedna osoba");
 });
 
 test("pobici sortuja sie od najlepszego", async () => {
   const { buildCrowdBaseline } = await import(MODUL);
 
   const w = buildCrowdBaseline({
-    matches: [mecz(9, 1, true)],
+    matches: CZTERY_MECZE, // tlum 75%
     players: [
-      { user_id: "1", correct_winners: 2, total_predictions: 9 },
-      { user_id: "2", correct_winners: 9, total_predictions: 9 },
-      { user_id: "3", correct_winners: 5, total_predictions: 9 },
+      { user_id: "1", correct_winners: 8, total_predictions: 10 },
+      { user_id: "2", correct_winners: 2, total_predictions: 2 },
+      { user_id: "3", correct_winners: 9, total_predictions: 10 },
     ],
   });
 
   assert.deepEqual(
-    w.beatenBy.map((p) => p.correct_winners),
-    [9, 5, 2],
+    w.beatenBy.map((p) => p.accuracy),
+    [100, 90, 80],
   );
 });
 

@@ -1468,9 +1468,9 @@ const en = {
   "crowd.title": "The crowd versus the players",
   "crowd.intro": "Imagine someone who picked whatever the majority picked in every match, with no thoughts of their own. This is how well they would have done.",
   "crowd.stat.correct": "The crowd got right",
-  "crowd.stat.place": "Place by correct picks",
+  "crowd.stat.place": "Place by accuracy",
   "crowd.stat.beatenBy": "People who beat it",
-  "crowd.stat.ofPlayers": "of {count} who picked",
+  "crowd.stat.ofPlayers": "of {count} in the field",
   "crowd.whoBeat": "Sharper eye than everyone put together:",
   // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
   // skad mial wiedziec przed terminem, co wybierze wiekszosc.
@@ -1482,6 +1482,28 @@ const en = {
   "crowd.player.you": "This player got right",
   "crowd.player.crowd": "The crowd would have",
   "crowd.player.ofMatches": "of the same {count} matches",
+
+  // --- Ranking ze skutecznosci ---------------------------------------------
+  "leaderboard.order.label": "How to sort the table",
+  "leaderboard.order.points": "Points",
+  "leaderboard.order.accuracy": "Accuracy",
+  "leaderboard.head.accuracy": "Accuracy",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, a 163 osoby z 409 oddaly dokladnie jeden typ. Suma punktow
+  // mierzy wiec w duzej mierze obecnosc - i dlatego ta tabela istnieje.
+  "leaderboard.accuracy.intro": "The same people, ordered by the share of winners they called right. Points grow with every pick submitted, so the points table largely measures attendance — this one measures judgement.",
+  "leaderboard.accuracy.field": {
+    one: "{count} player qualifies: everyone who picked at least {threshold} of {all} matches.",
+    other: "{count} players qualify: everyone who picked at least {threshold} of {all} matches.",
+  },
+  "leaderboard.accuracy.empty": "Not enough settled matches to compare accuracy.",
+  "leaderboard.accuracy.outside": "You are not in this table — you are short of the pick threshold. Switch to points to see your place.",
+  "leaderboard.pointsRank": "#{rank} on points",
+  // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
+  // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace
+  // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
+  // sama obecnosc.
+  "crowd.field": "The field is everyone who picked at least {threshold} of {all} matches. The crowd picked every single one, so comparing it with someone who made one pick would compare nothing.",
 };
 
 export default en;

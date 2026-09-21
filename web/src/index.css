@@ -2978,3 +2978,78 @@ main > .page-back {
 .crowd-gap--even strong {
   color: var(--text);
 }
+
+/* =========================================================
+   DRUGA OS RANKINGU: PRZELACZNIK PORZADKU
+   ========================================================= */
+
+/* Dwa stany jednej tabeli, nie dwa osobne guziki - stad wspolna ramka
+   i brak odstepu miedzy nimi. Wybrany stan niesie TRZY sygnaly naraz
+   (tlo, kolor tekstu, ramka), bo sam kolor tekstu gubi sie przy
+   daltonizmie, a samo tlo - na wydruku. */
+.ui-switcher {
+  display: inline-flex;
+
+  /* .ui-page jest kolumna flex, wiec samo inline-flex i tak rozciaga sie na
+     cala szerokosc - zmierzone: 1160 px pudelka na 185 px guzikow w srodku.
+     align-self przycina je do tresci. */
+  align-self: flex-start;
+  max-width: 100%;
+
+  padding: 3px;
+  gap: 3px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+
+  /* Pudelko na surface-3, wybrany na surface-4 - w OBU motywach wybrany
+     wychodzi jasniejszy od tla. Na surface-2 jasny motyw sie sypal:
+     surface-2 i surface-4 to tam obie biel, wiec wybrany stan nie mial
+     zadnego tla, ktore by go odroznialo. */
+  background: var(--surface-3);
+}
+
+.ui-switcher__opt {
+  padding: 6px 14px;
+
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--text-muted);
+
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  cursor: pointer;
+
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+/* Sam kolor tekstu. Tlo pod kursorem musialoby byc inne w kazdym motywie,
+   a w jasnym nie ma go z czego wziac - bielsze od bieli nie istnieje. */
+.ui-switcher__opt:hover {
+  color: var(--text);
+}
+
+.ui-switcher__opt[aria-pressed="true"] {
+  background: var(--surface-4);
+  border-color: var(--accent-border);
+  color: var(--accent-bright);
+  cursor: default;
+}
+
+/* Wyjasnienie stoi MIEDZY przelacznikiem a tabela, wiec musi byc wyraznie
+   czescia drugiego widoku, a nie kolejnym akapitem strony. */
+.accuracy-note {
+  gap: var(--space-2);
+
+  padding: var(--space-3) var(--space-4);
+
+  border-left: 2px solid var(--accent-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}

@@ -1545,9 +1545,9 @@ const uk = {
   "crowd.title": "Натовп проти гравців",
   "crowd.intro": "Уявіть людину, яка в кожному матчі обирала просто те, що обрала більшість, без жодної власної думки. Ось скільки б вона вгадала.",
   "crowd.stat.correct": "Натовп вгадав",
-  "crowd.stat.place": "Місце за вгаданими",
+  "crowd.stat.place": "Місце за влучністю",
   "crowd.stat.beatenBy": "Гравців обійшли його",
-  "crowd.stat.ofPlayers": "з {count} тих, хто прогнозував",
+  "crowd.stat.ofPlayers": "з {count} у заліку",
   "crowd.whoBeat": "Око гостріше, ніж у всіх разом узятих:",
   // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
   // skad mial wiedziec przed terminem, co wybierze wiekszosc.
@@ -1559,6 +1559,29 @@ const uk = {
   "crowd.player.you": "Цей гравець вгадав",
   "crowd.player.crowd": "Натовп вгадав би",
   "crowd.player.ofMatches": "з тих самих {count} матчів",
+
+  // --- Ranking ze skutecznosci ---------------------------------------------
+  "leaderboard.order.label": "Як упорядкувати таблицю",
+  "leaderboard.order.points": "Очки",
+  "leaderboard.order.accuracy": "Влучність",
+  "leaderboard.head.accuracy": "Влучність",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, a 163 osoby z 409 oddaly dokladnie jeden typ. Suma punktow
+  // mierzy wiec w duzej mierze obecnosc - i dlatego ta tabela istnieje.
+  "leaderboard.accuracy.intro": "Ті самі люди, але за часткою вгаданих переможців. Очки зростають з кожним зробленим прогнозом, тож таблиця очок здебільшого вимірює присутність — ця вимірює чуття.",
+  "leaderboard.accuracy.field": {
+    one: "У заліку {count} людина — ті, хто дав прогноз щонайменше на {threshold} з {all} матчів.",
+    few: "У заліку {count} людини — ті, хто дав прогноз щонайменше на {threshold} з {all} матчів.",
+    many: "У заліку {count} людей — ті, хто дав прогноз щонайменше на {threshold} з {all} матчів.",
+  },
+  "leaderboard.accuracy.empty": "Замало зіграних матчів, щоб порівнювати влучність.",
+  "leaderboard.accuracy.outside": "Вас немає в цій таблиці — не вистачає прогнозів до порога. Перемкніться на очки, щоб побачити своє місце.",
+  "leaderboard.pointsRank": "#{rank} за очками",
+  // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
+  // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace
+  // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
+  // sama obecnosc.
+  "crowd.field": "До заліку входять ті, хто дав прогноз щонайменше на {threshold} з {all} матчів. Натовп прогнозував кожен, тож порівняння з тим, хто зробив один прогноз, нічого не означало б.",
 };
 
 export default uk;

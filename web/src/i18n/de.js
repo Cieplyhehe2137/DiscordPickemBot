@@ -1468,9 +1468,9 @@ const de = {
   "crowd.title": "Die Menge gegen die Spieler",
   "crowd.intro": "Stell dir jemanden vor, der in jedem Spiel einfach das getippt hat, was die Mehrheit tippte — ganz ohne eigenen Gedanken. So gut wäre er gewesen.",
   "crowd.stat.correct": "Die Menge lag richtig",
-  "crowd.stat.place": "Platz nach Treffern",
+  "crowd.stat.place": "Platz nach Trefferquote",
   "crowd.stat.beatenBy": "Spieler, die besser waren",
-  "crowd.stat.ofPlayers": "von {count} Tippenden",
+  "crowd.stat.ofPlayers": "von {count} im Feld",
   "crowd.whoBeat": "Besseres Auge als alle zusammen:",
   // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
   // skad mial wiedziec przed terminem, co wybierze wiekszosc.
@@ -1482,6 +1482,28 @@ const de = {
   "crowd.player.you": "Dieser Spieler lag richtig",
   "crowd.player.crowd": "Die Menge hätte getroffen",
   "crowd.player.ofMatches": "von denselben {count} Spielen",
+
+  // --- Ranking ze skutecznosci ---------------------------------------------
+  "leaderboard.order.label": "Tabelle sortieren nach",
+  "leaderboard.order.points": "Punkte",
+  "leaderboard.order.accuracy": "Trefferquote",
+  "leaderboard.head.accuracy": "Treffer",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, a 163 osoby z 409 oddaly dokladnie jeden typ. Suma punktow
+  // mierzy wiec w duzej mierze obecnosc - i dlatego ta tabela istnieje.
+  "leaderboard.accuracy.intro": "Dieselben Leute, sortiert nach dem Anteil richtig getippter Sieger. Punkte wachsen mit jedem abgegebenen Tipp, die Punktetabelle misst also vor allem Anwesenheit — diese hier misst das Auge.",
+  "leaderboard.accuracy.field": {
+    one: "{count} Person ist dabei: alle, die mindestens {threshold} von {all} Spielen getippt haben.",
+    other: "{count} Personen sind dabei: alle, die mindestens {threshold} von {all} Spielen getippt haben.",
+  },
+  "leaderboard.accuracy.empty": "Zu wenige entschiedene Spiele, um Trefferquoten zu vergleichen.",
+  "leaderboard.accuracy.outside": "Du stehst nicht in dieser Tabelle — dir fehlen Tipps bis zur Schwelle. Wechsle zu Punkten, um deinen Platz zu sehen.",
+  "leaderboard.pointsRank": "#{rank} nach Punkten",
+  // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
+  // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace
+  // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
+  // sama obecnosc.
+  "crowd.field": "Zum Feld gehören alle, die mindestens {threshold} von {all} Spielen getippt haben. Die Menge hat jedes einzelne getippt — ein Vergleich mit jemandem, der einen Tipp abgab, wäre keiner.",
 };
 
 export default de;
