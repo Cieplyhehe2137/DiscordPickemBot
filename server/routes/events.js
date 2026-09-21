@@ -6,6 +6,7 @@
 // ma wiersz tylko dla osob logujacych sie na stronie. Kto typowal wylacznie
 // z Discorda, ma tam nick tylko dzieki temu zlaczeniu.
 
+import { buildAccuracyRanking, progTypow } from "../lib/accuracyRanking.js";
 import { buildCrowdBaseline } from "../lib/crowdBaseline.js";
 import { createLeaderboardCache } from "../lib/leaderboardCache.js";
 
@@ -1113,8 +1114,22 @@ export function registerEventRoutes(
             rank: index + 1,
           }));
 
+          const meczowRozstrzygnietych = Number(rozstrzygniete?.ile || 0);
+
+          // DRUGA OŚ TEJ SAMEJ TABELI: kto trafia, a nie kto był obecny.
+          //
+          // Liczone tutaj, w pamięci podręcznej, a nie na froncie - front
+          // dostaje stronę pięćdziesięciu wierszy, więc przesortowanie
+          // u niego ułożyłoby tylko tę stronę. Zero nowych zapytań: pola,
+          // na których to stoi, są już w `wszystkie`.
+          const skutecznosc = buildAccuracyRanking({
+            players: wszystkie,
+            matches: meczowRozstrzygnietych,
+          });
+
       return {
         wszystkie,
+        skutecznosc,
         uczestnicy,
 
         // MIANOWNIK DO LICZBY TYPOW.
@@ -1124,7 +1139,7 @@ export function registerEventRoutes(
         // pokrycia to DWA PROCENT okazji, a 81% z 523 sklasyfikowanych
         // oddało mniej niż co dziesiąty typ. Bez mianownika „miejsce 200
         // z 523" czyta się jak „za mną 323 rywali".
-        meczow: Number(rozstrzygniete?.ile || 0),
+        meczow: meczowRozstrzygnietych,
 
         // TŁUM: poprzeczka dla wszystkich liczb wyżej.
         //
@@ -1134,10 +1149,12 @@ export function registerEventRoutes(
         //
         // Liczone z `wszystkie`, a nie ze strony: miejsce tłumu ma być
         // liczone wobec CAŁEJ stawki, nie wobec pięćdziesięciu widocznych
-        // wierszy.
+        // wierszy. Próg ten sam, co w tabeli skuteczności - jedno pojęcie
+        // stawki w całym serwisie, a nie dwa podobne o różnych rozmiarach.
         tlum: buildCrowdBaseline({
           matches: glosowanieRows,
           players: wszystkie,
+          threshold: progTypow(meczowRozstrzygnietych),
         }),
       };
     },
@@ -1155,7 +1172,22 @@ export function registerEventRoutes(
         });
       }
 
-      const { wszystkie, uczestnicy, meczow, tlum } = dane;
+      const { wszystkie, skutecznosc, uczestnicy, meczow, tlum } = dane;
+
+      // PORZĄDEK TABELI. Punkty rosną z każdym oddanym typem, więc ranking
+      // punktowy w dużej mierze mierzy obecność - patrz komentarz
+      // w server/lib/accuracyRanking.js. Druga oś układa tych samych ludzi
+      // po odsetku trafień.
+      //
+      // Sortowanie i strony muszą dziać się w jednym miejscu: gdyby front
+      // przesortował to, co dostał, ułożyłby tylko pięćdziesiąt widocznych
+      // wierszy i „pierwszy w skuteczności" znaczyłoby „pierwszy na tej
+      // stronie".
+      const poSkutecznosci =
+        String(req.query.porzadek || "") === "skutecznosc" &&
+        skutecznosc?.rows?.length > 0;
+
+      const lista = poSkutecznosci ? skutecznosc.rows : wszystkie;
 
 
       const NA_STRONIE_DOMYSLNIE = 50;
@@ -1173,12 +1205,12 @@ export function registerEventRoutes(
       const szukaj = String(req.query.szukaj || "").trim().toLowerCase();
 
       const znalezione = szukaj
-        ? wszystkie.filter(
+        ? lista.filter(
           (gracz) =>
             String(gracz.displayname || "").toLowerCase().includes(szukaj) ||
             String(gracz.user_id).includes(szukaj),
         )
-        : wszystkie;
+        : lista;
 
       const stron = Math.max(1, Math.ceil(znalezione.length / naStronie));
 
@@ -1189,12 +1221,18 @@ export function registerEventRoutes(
 
       let numer = Math.min(stron, Math.max(1, Number(req.query.strona) || 1));
 
+      // Kogo szukano, a nie ma go w tej tabeli. Zdarza się tylko przy
+      // skuteczności: kto nie dobił do progu, tego w niej nie ma, a
+      // „Znajdź mnie" bez słowa wyjaśnienia wyglądałoby na zepsuty guzik.
+      let pozaStawka = false;
+
       if (znajdz) {
         const pozycja = znalezione.findIndex(
           (gracz) => String(gracz.user_id) === znajdz,
         );
 
         if (pozycja >= 0) numer = Math.floor(pozycja / naStronie) + 1;
+        else pozaStawka = true;
       }
 
       const leaderboard = znalezione.slice(
@@ -1217,15 +1255,27 @@ export function registerEventRoutes(
         // a nie widocznego wycinka.
         tlum,
 
+        // Jak ulozona jest ta tabela i czym jest stawka drugiej osi.
+        // Same wiersze NIE ida - front dostaje je w `leaderboard`, juz
+        // posortowane i pociete na strony; podwojenie listy tylko po to,
+        // zeby dalo sie przelaczyc, byloby najciezsza rzecza w odpowiedzi.
+        porzadek: poSkutecznosci ? "skutecznosc" : "punkty",
+
+        skutecznosc: {
+          threshold: skutecznosc?.threshold ?? 0,
+          players: skutecznosc?.players ?? 0,
+        },
+
         strony: {
           numer,
           naStronie,
-          // `wszystkich` to wynik bieżącego filtra, `wRankingu` cały ranking -
+          // `wszystkich` to wynik bieżącego filtra, `wRankingu` cała tabela -
           // front pokazuje "znaleziono X z Y", więc potrzebuje obu.
           wszystkich: znalezione.length,
-          wRankingu: wszystkie.length,
+          wRankingu: lista.length,
           ile: stron,
           szukano: szukaj || null,
+          pozaStawka,
         },
       });
     } catch (err) {

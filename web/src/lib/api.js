@@ -126,7 +126,7 @@ export function getPublicMatch(matchId) {
 // endpoint ucinał go twardo na setce. Bez argumentów zwraca pierwszą stronę.
 export function getEventLeaderboard(
   slug,
-  { strona, naStronie, szukaj, znajdz } = {},
+  { strona, naStronie, szukaj, znajdz, porzadek } = {},
 ) {
   const parametry = new URLSearchParams();
 
@@ -134,6 +134,11 @@ export function getEventLeaderboard(
   if (naStronie) parametry.set("naStronie", String(naStronie));
   if (szukaj) parametry.set("szukaj", String(szukaj));
   if (znajdz) parametry.set("znajdz", String(znajdz));
+
+  // Druga oś tabeli. Sortuje serwer, nie front: front dostaje jedną stronę
+  // pięćdziesięciu wierszy, więc przestawienie ich u siebie ułożyłoby tylko
+  // tę stronę.
+  if (porzadek) parametry.set("porzadek", String(porzadek));
 
   const zapytanie = parametry.toString();
 

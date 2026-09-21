@@ -282,3 +282,217 @@ test("odpowiedz ma ksztalt strony rankingu", async () => {
   assert.equal(zapis.tresc.leaderboard.length, 0);
   assert.equal(zapis.tresc.uczestnicy, 0);
 });
+
+// --- druga os tabeli: skutecznosc -------------------------------------------
+//
+// Punkty rosna z kazdym oddanym typem, wiec ranking punktowy w duzej mierze
+// mierzy OBECNOSC. Zmierzone w IEM Cologne na 106 rozstrzygnietych meczach:
+// mediana typujacego pominela 103 z nich, a 163 osoby oddaly dokladnie jeden
+// typ. Przelacznik uklada tych samych ludzi po odsetku trafien.
+
+// Ranking z trzema osobami: obecny (duzo typow, srednie oko), celny (polowa
+// typow, najlepsze oko) i przypadkowy (jeden typ, komplet trafien).
+function POLE(sql) {
+  if (toOdczytTurnieju(sql)) return [{ id: 7 }];
+
+  if (sql.includes("COUNT(*) AS ile")) return [{ ile: 10 }];
+
+  if (sql.includes("FROM leaderboard lb")) {
+    return [
+      {
+        user_id: "obecny",
+        total_points: 300,
+        total_predictions: 10,
+        correct_winners: 6,
+      },
+      {
+        user_id: "celny",
+        total_points: 120,
+        total_predictions: 5,
+        correct_winners: 4,
+      },
+      {
+        user_id: "przypadkowy",
+        total_points: 30,
+        total_predictions: 1,
+        correct_winners: 1,
+      },
+    ];
+  }
+
+  return [];
+}
+
+test("bez parametru tabela zostaje punktowa", async () => {
+  const zapis = await wywolaj({ pool: fakePool(POLE) });
+
+  assert.equal(zapis.tresc.porzadek, "punkty");
+  assert.deepEqual(
+    zapis.tresc.leaderboard.map((w) => w.user_id),
+    ["obecny", "celny", "przypadkowy"],
+  );
+});
+
+test("porzadek=skutecznosc uklada po odsetku trafien, nie po punktach", async () => {
+  const zapis = await wywolaj({
+    pool: fakePool(POLE),
+    query: { porzadek: "skutecznosc" },
+  });
+
+  assert.equal(zapis.tresc.porzadek, "skutecznosc");
+
+  assert.deepEqual(
+    zapis.tresc.leaderboard.map((w) => w.user_id),
+    ["celny", "obecny"],
+    "80% nad 60%, a jednorazowy nie dobil do progu",
+  );
+
+  assert.equal(zapis.tresc.leaderboard[0].rank, 1, "miejsce nadane od nowa");
+  assert.equal(
+    zapis.tresc.leaderboard[0].points_rank,
+    2,
+    "i zapamietane punktowe - po to sie tu przychodzi",
+  );
+});
+
+test("SORTUJE SERWER, bo front dostaje tylko jedna strone", async () => {
+  // To jest cala przyczyna, dla ktorej ten porzadek jest parametrem trasy,
+  // a nie przelacznikiem w przegladarce. Przy 523 sklasyfikowanych front
+  // widzi piecdziesiat wierszy; przestawienie ich u siebie uloziloby
+  // WYLACZNIE te piecdziesiat i "pierwszy w skutecznosci" znaczyloby
+  // "pierwszy na tej stronie".
+  const zapis = await wywolaj({
+    pool: fakePool(POLE),
+    query: { porzadek: "skutecznosc", naStronie: "1", strona: "1" },
+  });
+
+  assert.equal(zapis.tresc.leaderboard.length, 1, "jeden wiersz na stronie");
+  assert.equal(
+    zapis.tresc.leaderboard[0].user_id,
+    "celny",
+    "na pierwszej stronie stoi najlepszy z CALEJ stawki",
+  );
+  assert.equal(zapis.tresc.strony.wRankingu, 2, "strony liczy sie ze stawki");
+  assert.equal(zapis.tresc.strony.ile, 2);
+});
+
+test("stawka i prog ida w odpowiedzi, zeby dalo sie je wyjasnic", async () => {
+  const zapis = await wywolaj({ pool: fakePool(POLE) });
+
+  assert.equal(zapis.tresc.skutecznosc.threshold, 5, "polowa z dziesieciu meczow");
+  assert.equal(zapis.tresc.skutecznosc.players, 2, "jednorazowy odpada");
+});
+
+test("szukanie w widoku skutecznosci przeszukuje TE tabele", async () => {
+  // Inaczej wyszukiwarka znajdowalaby ludzi, ktorych na ekranie nie ma -
+  // i odsylala na strone, ktora ich nie zawiera.
+  const zapis = await wywolaj({
+    pool: fakePool(POLE),
+    query: { porzadek: "skutecznosc", szukaj: "przypadkowy" },
+  });
+
+  assert.equal(zapis.tresc.leaderboard.length, 0);
+  assert.equal(zapis.tresc.strony.wszystkich, 0);
+});
+
+test("\"Znajdz mnie\" kogos spoza stawki mowi o tym wprost", async () => {
+  // Bez tej flagi guzik wyglada na zepsuty: nic sie nie dzieje, bo gracza
+  // w tej tabeli po prostu nie ma.
+  const pozaStawka = await wywolaj({
+    pool: fakePool(POLE),
+    query: { porzadek: "skutecznosc", znajdz: "przypadkowy" },
+  });
+
+  assert.equal(pozaStawka.tresc.strony.pozaStawka, true);
+
+  const wStawce = await wywolaj({
+    pool: fakePool(POLE),
+    query: { porzadek: "skutecznosc", znajdz: "celny" },
+  });
+
+  assert.equal(wStawce.tresc.strony.pozaStawka, false);
+});
+
+test("turniej bez rozstrzygnietych meczow nie daje sie przelaczyc", async () => {
+  // StarLadder Budapest 2025: 509 graczy, zero meczow. Prosba o skutecznosc
+  // ma wrocic tabela punktowa, a nie pustka.
+  const bezMeczow = (sql) => {
+    if (toOdczytTurnieju(sql)) return [{ id: 7 }];
+
+    if (sql.includes("COUNT(*) AS ile")) return [{ ile: 0 }];
+
+    if (sql.includes("FROM leaderboard lb")) {
+      return [{ user_id: "ktos", total_points: 47, total_predictions: 0 }];
+    }
+
+    return [];
+  };
+
+  const zapis = await wywolaj({
+    pool: fakePool(bezMeczow),
+    query: { porzadek: "skutecznosc" },
+  });
+
+  assert.equal(zapis.tresc.porzadek, "punkty", "nie ma czego przelaczyc");
+  assert.equal(zapis.tresc.skutecznosc.players, 0);
+  assert.equal(zapis.tresc.leaderboard.length, 1, "tabela punktowa stoi");
+});
+
+test("przelaczenie osi NIE psuje tabeli punktowej", async () => {
+  // Wiersze rankingu punktowego siedza w pamieci podrecznej i sa tymi samymi
+  // obiektami. Gdyby uklad skutecznosci nadpisal im `rank`, pierwsze wejscie
+  // na druga os rozwalaloby pierwsza - i to do nastepnego odswiezenia cache'u,
+  // czyli dla wszystkich odwiedzajacych.
+  const { registerEventRoutes } = await import(MODUL);
+  const { createParticipantQueries } = await import(UCZESTNICY);
+
+  const pool = fakePool(POLE);
+  const app = fakeApp();
+
+  registerEventRoutes(app, {
+    pool,
+    countParticipants: (we) => createParticipantQueries(pool).countParticipants(we),
+    VALID_PHASES: [],
+    assertPredictionsAllowed: async () => ({ allowed: true }),
+    emitDashboardRefresh: nic,
+    findPanelForDeadline: nicAsync,
+    findPanelForMatchDeadline: nicAsync,
+    getEventPickemConfig: nicAsync,
+    getOpenEventId: nicAsync,
+    guildIdFromEventSlug: nicAsync,
+    guildRegistry: {},
+    hasAdminPermission: () => true,
+    io: { emit: nic },
+    normalizePhase: (p) => p,
+    parseDeadlineInput: nic,
+    checkPickemGate: async () => ({ allowed: true }),
+    registerGuildRoutes: nic,
+    requireGuildAdmin: () => nic,
+    buildMatchesWithPickSql: () => "",
+  });
+
+  const handler = app.trasy.get("GET /api/events/:slug/leaderboard");
+
+  // Ta sama pamiec podreczna obsluguje oba wywolania - drugie nie idzie
+  // juz do bazy.
+  const poSkutecznosci = fakeRes();
+
+  await handler(
+    { params: { slug: "iem" }, query: { porzadek: "skutecznosc" } },
+    poSkutecznosci,
+  );
+
+  const poPunktach = fakeRes();
+
+  await handler({ params: { slug: "iem" }, query: {} }, poPunktach);
+
+  assert.deepEqual(
+    poPunktach.zapis.tresc.leaderboard.map((w) => [w.user_id, w.rank]),
+    [
+      ["obecny", 1],
+      ["celny", 2],
+      ["przypadkowy", 3],
+    ],
+    "tabela punktowa ma te same miejsca co przed przelaczeniem",
+  );
+});

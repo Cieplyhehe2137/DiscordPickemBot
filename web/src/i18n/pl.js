@@ -1566,9 +1566,9 @@ const pl = {
   "crowd.title": "Tłum kontra ludzie",
   "crowd.intro": "Wyobraź sobie kogoś, kto w każdym meczu typował po prostu to, co większość — bez żadnej własnej myśli. Tyle by trafił i takie miejsce by zajął.",
   "crowd.stat.correct": "Tłum trafił",
-  "crowd.stat.place": "Miejsce w trafieniach",
+  "crowd.stat.place": "Miejsce w skuteczności",
   "crowd.stat.beatenBy": "Tylu ludzi go pobiło",
-  "crowd.stat.ofPlayers": "z {count} typujących",
+  "crowd.stat.ofPlayers": "z {count} w stawce",
   "crowd.whoBeat": "Lepsze oko niż cała reszta razem:",
   // To zdanie musi stac na stronie, bo inaczej ktos slusznie zapyta,
   // skad mial wiedziec przed terminem, co wybierze wiekszosc.
@@ -1580,6 +1580,29 @@ const pl = {
   "crowd.player.you": "Ten gracz trafił",
   "crowd.player.crowd": "Tłum trafiłby",
   "crowd.player.ofMatches": "z {count} tych samych meczów",
+
+  // --- Ranking ze skutecznosci ---------------------------------------------
+  "leaderboard.order.label": "Jak ułożyć tabelę",
+  "leaderboard.order.points": "Punkty",
+  "leaderboard.order.accuracy": "Skuteczność",
+  "leaderboard.head.accuracy": "Trafienia",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, a 163 osoby z 409 oddaly dokladnie jeden typ. Suma punktow
+  // mierzy wiec w duzej mierze obecnosc - i dlatego ta tabela istnieje.
+  "leaderboard.accuracy.intro": "Ci sami ludzie, ułożeni według odsetka trafionych zwycięzców. Punkty rosną z każdym oddanym typem, więc tabela punktowa w dużej mierze mierzy obecność — ta mierzy oko.",
+  "leaderboard.accuracy.field": {
+    one: "W stawce jest {count} osoba — ta, która wytypowała co najmniej {threshold} z {all} meczów.",
+    few: "W stawce są {count} osoby — te, które wytypowały co najmniej {threshold} z {all} meczów.",
+    many: "W stawce jest {count} osób — te, które wytypowały co najmniej {threshold} z {all} meczów.",
+  },
+  "leaderboard.accuracy.empty": "Za mało rozstrzygniętych meczów, żeby porównywać skuteczność.",
+  "leaderboard.accuracy.outside": "Nie ma Cię w tej tabeli — do progu brakuje typów. Przełącz na punkty, żeby zobaczyć swoje miejsce.",
+  "leaderboard.pointsRank": "punktowo #{rank}",
+  // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
+  // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace
+  // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
+  // sama obecnosc.
+  "crowd.field": "Stawką są ci, którzy wytypowali co najmniej {threshold} z {all} meczów. Tłum typował każdy, więc porównanie z kimś, kto oddał jeden typ, nie byłoby porównaniem.",
 };
 
 export default pl;

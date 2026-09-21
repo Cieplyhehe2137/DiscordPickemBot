@@ -34,15 +34,26 @@ const PODIUM = {
   3: " ui-row-item--3",
 };
 
+// Dwie osie tej samej tabeli. Nazwy jadą do serwera jako ?porzadek=, więc
+// literówka nie wywraca niczego - po cichu wraca układ punktowy. Stała
+// zamiast napisu w trzech miejscach.
+const PO_PUNKTACH = "punkty";
+const PO_SKUTECZNOSCI = "skutecznosc";
+
 /**
  * Tłum: co dałoby typowanie zawsze tego, co większość.
  *
  * Jedyna liczba na tej stronie, która daje pozostałym skalę. Zmierzone
- * w IEM Cologne: taki gracz-widmo trafiłby 71 zwycięzców ze 106 i stanąłby
- * na SZÓSTYM miejscu wśród 410 typujących - pięć osób z czterystu dziewięciu
- * miało lepsze oko niż sam środek ciężkości ich wszystkich. W IEM Kraków
- * jest odwrotnie: tłum trafił 26 z 50, czyli niewiele ponad rzut monetą,
- * i pobiło go dwadzieścia siedem osób.
+ * w IEM Cologne: taki gracz-widmo trafiłby 71 zwycięzców ze 106, czyli 67%,
+ * i byłby CZTERNASTY wśród 48 osób, które przeszły z nim turniej - trzynaścioro
+ * czyta mecze lepiej niż sam środek ciężkości ich wszystkich. W IEM Kraków
+ * jest odwrotnie: tłum trafił 26 z 50, niewiele ponad rzut monetą, i pobiły
+ * go czterdzieści cztery osoby z sześćdziesięciu jeden.
+ *
+ * Stawka jest mała celowo. Stało tu wcześniej „#6 z 410" - miejsce w liczbie
+ * TRAFIEŃ wśród wszystkich, którzy oddali choć jeden typ. Obie liczby były
+ * prawdziwe i obie mówiły za dużo: tłum typuje każdy mecz, a 163 z tych 410
+ * osób oddało dokładnie jeden typ.
  */
 function TlumKontraLudzie({ tlum, slug }) {
   const t = useT();
@@ -77,7 +88,12 @@ function TlumKontraLudzie({ tlum, slug }) {
         <div className="ui-stat">
           <span>{t("crowd.stat.place")}</span>
           <strong>#{tlum.rank}</strong>
-          <small>{t("crowd.stat.ofPlayers", { count: tlum.players + 1 })}</small>
+
+          {/* Bez „+1". Stawka to te same czterdzieści osiem osób, co w kafelku
+              obok - dwie sąsiadujące liczby („z 49" i „z 48") czytały się jak
+              pomyłka, a nie jak rozróżnienie. Trzynaścioro lepszych i miejsce
+              czternaste w stawce czterdziestu ośmiu zgadza się ze sobą. */}
+          <small>{t("crowd.stat.ofPlayers", { count: tlum.players })}</small>
         </div>
 
         <div className="ui-stat">
@@ -97,10 +113,22 @@ function TlumKontraLudzie({ tlum, slug }) {
               key={gracz.user_id}
               to={`/events/${slug}/player/${gracz.user_id}`}
             >
-              {gracz.displayname || gracz.user_id} · {gracz.correct_winners}
+              {gracz.displayname || gracz.user_id} ·{" "}
+              {t("common.percentValue", { percent: gracz.accuracy })}
             </Link>
           ))}
         </div>
+      )}
+
+      {/* KIM JEST TYCH CZTERDZIEŚCI OSIEM OSÓB. Bez tego zdania "#14 z 48"
+          przy turnieju, który ma 523 sklasyfikowanych, wygląda na pomyłkę. */}
+      {tlum.threshold > 0 && (
+        <p className="ui-note">
+          {t("crowd.field", {
+            threshold: tlum.threshold,
+            all: tlum.matches,
+          })}
+        </p>
       )}
 
       {/* TO NIE JEST STRATEGIA, KTÓRĄ KTOŚ MÓGŁ ZASTOSOWAĆ - i strona ma to
@@ -122,6 +150,19 @@ function LeaderboardPage() {
   const [meczow, setMeczow] = useState(0);
   const [strony, setStrony] = useState(null);
   const [tlum, setTlum] = useState(null);
+  const [stawka, setStawka] = useState(null);
+
+  // Którą osią ułożona jest tabela. Trzymane razem z turniejem, tak samo
+  // jak numer strony - inaczej wejście na turniej bez rozstrzygniętych
+  // meczów zostawiłoby wybraną skuteczność, której tam nie ma.
+  const [wybranyPorzadek, setWybranyPorzadek] = useState({
+    slug,
+    czym: PO_PUNKTACH,
+  });
+
+  const porzadek = wybranyPorzadek.slug === slug ? wybranyPorzadek.czym : PO_PUNKTACH;
+
+  const poSkutecznosci = porzadek === PO_SKUTECZNOSCI;
 
   // Numer strony trzymamy razem z turniejem, dla którego go wybrano.
   // Dzięki temu wejście na inny turniej wraca na stronę 1 samo, bez
@@ -164,6 +205,11 @@ function LeaderboardPage() {
           strona,
           szukaj,
           znajdz,
+
+          // Punkty to układ domyślny, więc nie doklejamy go do adresu -
+          // inaczej każde wejście na ranking ma w URL-u parametr, który
+          // niczego nie zmienia.
+          porzadek: porzadek === PO_SKUTECZNOSCI ? porzadek : undefined,
         });
 
         setLeaderboard(data.leaderboard ?? []);
@@ -171,6 +217,7 @@ function LeaderboardPage() {
         setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
         setTlum(data.tlum ?? null);
+        setStawka(data.skutecznosc ?? null);
 
         // Skok jest jednorazowy - inaczej każde kliknięcie "Następna"
         // wracałoby na stronę z naszym miejscem.
@@ -187,7 +234,7 @@ function LeaderboardPage() {
     }
 
     loadLeaderboard();
-  }, [slug, strona, szukaj, znajdz]);
+  }, [slug, strona, szukaj, znajdz, porzadek]);
 
   useEffect(() => {
     if (!realtimeRefresh?.version) {
@@ -202,13 +249,18 @@ function LeaderboardPage() {
 
     async function refreshLeaderboard() {
       try {
-        const data = await getEventLeaderboard(slug, { strona, szukaj });
+        const data = await getEventLeaderboard(slug, {
+          strona,
+          szukaj,
+          porzadek: porzadek === PO_SKUTECZNOSCI ? porzadek : undefined,
+        });
 
         setLeaderboard(data.leaderboard ?? []);
         setUczestnicy(Number(data.uczestnicy) || 0);
         setMeczow(Number(data.meczow) || 0);
         setStrony(data.strony ?? null);
         setTlum(data.tlum ?? null);
+        setStawka(data.skutecznosc ?? null);
         setError(null);
       } catch (err) {
         console.error("LEADERBOARD REALTIME REFRESH ERROR:", err);
@@ -216,7 +268,7 @@ function LeaderboardPage() {
     }
 
     refreshLeaderboard();
-  }, [realtimeRefresh, slug, strona, szukaj]);
+  }, [realtimeRefresh, slug, strona, szukaj, porzadek]);
 
   // Szkielet zamiast spinnera: lista od razu pokazuje, ile wierszy będzie,
   // więc układ nie skacze w chwili, gdy dane dojdą.
@@ -267,7 +319,12 @@ function LeaderboardPage() {
 
           <h2>{t("leaderboard.title")}</h2>
 
-          {strony?.wRankingu > 0 && (
+          {/* Tylko przy punktach. W widoku skuteczności ta sama liczba
+              znaczyłaby co innego - "48 graczy w klasyfikacji" przy 523
+              sklasyfikowanych jest po prostu nieprawdą, bo czterdziestu
+              ośmiu to STAWKA tej tabeli, a nie klasyfikacja turnieju.
+              Kto jest w stawce, mówi wprost notatka pod przełącznikiem. */}
+          {!poSkutecznosci && strony?.wRankingu > 0 && (
             <p>{t("leaderboard.ranked", { count: strony.wRankingu })}</p>
           )}
         </div>
@@ -339,6 +396,65 @@ function LeaderboardPage() {
           lepszy od najprostszego możliwego sposobu typowania. */}
       {tlum?.matches > 0 && <TlumKontraLudzie tlum={tlum} slug={slug} />}
 
+      {/* DRUGA OŚ TEJ SAMEJ TABELI.
+          Punkty rosną z każdym oddanym typem, więc ranking punktowy w dużej
+          mierze mierzy obecność - zmierzone w Kolonii: mediana typującego
+          pominęła 103 ze 106 meczów. Przełącznik pokazuje tych samych ludzi
+          ułożonych po odsetku trafień, gdzie piąty wynik turnieju należy do
+          kogoś, kto punktowo stoi czterdziesty piąty.
+
+          Pokazuje się tylko tam, gdzie jest co przełączać: w turnieju
+          z samych faz (StarLadder Budapest 2025) stawka jest pusta. */}
+      {stawka?.players > 0 && (
+        <div
+          className="ui-switcher"
+          role="group"
+          aria-label={t("leaderboard.order.label")}
+        >
+          {[
+            [PO_PUNKTACH, "leaderboard.order.points"],
+            [PO_SKUTECZNOSCI, "leaderboard.order.accuracy"],
+          ].map(([czym, klucz]) => (
+            <button
+              type="button"
+              key={czym}
+              className="ui-switcher__opt"
+              aria-pressed={porzadek === czym}
+              onClick={() => {
+                if (porzadek === czym) return;
+
+                setWybranyPorzadek({ slug, czym });
+                setWybranaStrona({ slug, numer: 1 });
+              }}
+            >
+              {t(klucz)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {poSkutecznosci && (
+        <div className="ui-stack accuracy-note">
+          <p>{t("leaderboard.accuracy.intro")}</p>
+
+          <p className="ui-note">
+            {t("leaderboard.accuracy.field", {
+              count: stawka?.players ?? 0,
+              threshold: stawka?.threshold ?? 0,
+              all: meczow,
+            })}
+          </p>
+
+          {/* „Znajdź mnie" u kogoś spoza stawki nie ma dokąd skoczyć.
+              Bez tego zdania wygląda to na zepsuty guzik. */}
+          {strony?.pozaStawka && (
+            <p className="ui-note ui-note--danger">
+              {t("leaderboard.accuracy.outside")}
+            </p>
+          )}
+        </div>
+      )}
+
       {leaderboard.length === 0 ? (
         <div className="ui-empty">
           <span className="ui-empty__icon" aria-hidden="true">
@@ -371,7 +487,11 @@ function LeaderboardPage() {
             <span>#</span>
             <span>{t("leaderboard.head.player")}</span>
             <span>{t("leaderboard.head.breakdown")}</span>
-            <span>{t("leaderboard.head.points")}</span>
+            <span>
+              {poSkutecznosci
+                ? t("leaderboard.head.accuracy")
+                : t("leaderboard.head.points")}
+            </span>
           </div>
 
           {leaderboard.map((player) => {
@@ -438,16 +558,37 @@ function LeaderboardPage() {
                         o kims, kto wytypowal wszystkie trzy etapy. */}
                     {meczow > 0 && (
                       <span className="ui-row-item__sub">
-                        {player.total_predictions > 0
-                          ? t("leaderboard.picksHit", {
+                        {/* W widoku skuteczności odsetek stoi już w kolumnie
+                            obok, więc powtarzanie go tutaj byłoby stratą
+                            miejsca. Idzie za to MIEJSCE PUNKTOWE - bez niego
+                            nie widać, że piąta skuteczność turnieju należy
+                            do kogoś z czterdziestego piątego miejsca, a to
+                            jest cała informacja, po którą się tu przychodzi. */}
+                        {poSkutecznosci ? (
+                          <>
+                            {t("leaderboard.picks", {
+                              done: player.total_predictions,
+                              all: meczow,
+                            })}
+
+                            {player.points_rank ? (
+                              <>
+                                {" · "}
+                                {t("leaderboard.pointsRank", {
+                                  rank: player.points_rank,
+                                })}
+                              </>
+                            ) : null}
+                          </>
+                        ) : player.total_predictions > 0 ? (
+                          t("leaderboard.picksHit", {
                             done: player.total_predictions,
                             all: meczow,
                             percent: player.accuracy,
                           })
-                          : t("leaderboard.picks", {
-                            done: 0,
-                            all: meczow,
-                          })}
+                        ) : (
+                          t("leaderboard.picks", { done: 0, all: meczow })
+                        )}
                       </span>
                     )}
                   </span>
@@ -465,8 +606,13 @@ function LeaderboardPage() {
                   )}
                 </div>
 
+                {/* W widoku skuteczności liczbą wiersza jest odsetek
+                    trafień - punkty stoją wtedy pod nazwą, jako miejsce
+                    w tamtej tabeli. */}
                 <strong className="ui-row-item__score">
-                  {Number(player.total_points ?? 0)}
+                  {poSkutecznosci
+                    ? t("common.percentValue", { percent: player.accuracy })
+                    : Number(player.total_points ?? 0)}
                 </strong>
               </div>
             );
