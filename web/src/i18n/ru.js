@@ -1600,6 +1600,28 @@ const ru = {
   // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
   "decisions.alone": "больше никто из {count}",
   "decisions.note": "Поддержка считается без собственного голоса и только в матчах, которые прогнозировали хотя бы {count} других — при трёх прогнозах «я был один» не значит ничего.",
+
+  // --- Pewnosc typu: 2:0 kontra 2:1 ----------------------------------------
+  "confidence.kicker": "Уверенность",
+  "confidence.title": "Когда был уверен",
+  // Zmierzone na wszystkich turniejach: typy 2:0 trafiaja zwyciezce
+  // w 67.2% (3450 typow), typy 2:1 w 52.3% (3509). Kolumna, ktora nie
+  // daje ani jednego punktu, niesie najmocniejszy sygnal w tabeli.
+  "confidence.intro": "Счёт серии не даёт здесь ни одного очка — считается только победитель. И всё же он о чём-то говорит: «2:0» — уверенный прогноз, «2:1» — с сомнением. Вот как вышло у этого игрока.",
+  "confidence.sure": "Прогноз 2:0",
+  "confidence.close": "Прогноз 2:1",
+  "confidence.gap": "Разница",
+  "confidence.ofPicks": {
+    one: "победитель угадан в {count} таком прогнозе",
+    few: "победитель угадан в {count} таких прогнозах",
+    many: "победитель угадан в {count} таких прогнозах",
+  },
+  "confidence.gapHint": "процентных пункта в пользу уверенных прогнозов",
+  "confidence.inverted": "У этого игрока уверенность работает наоборот: прогнозы с сомнением выходят лучше тех, в которых он был убеждён. Таких четырнадцать человек из ста двух.",
+  // TO JEST ZASTRZEZENIE, KTORE MUSI STAC NA EKRANIE. Bez niego
+  // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
+  // czyli jak przyczynowosc, ktorej w tych danych nie ma.
+  "confidence.note": "Это не значит, что уверенность помогает угадывать. «2:1» пишут в матчах, которые действительно равные, поэтому низкая точность отчасти принадлежит матчу, а не человеку. Это значит, что самооценка оказывается точной. Считается по BO3, от {count} прогнозов каждого вида.",
 };
 
 export default ru;

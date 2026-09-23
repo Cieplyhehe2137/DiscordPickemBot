@@ -1600,6 +1600,28 @@ const uk = {
   // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
   "decisions.alone": "більше ніхто з {count}",
   "decisions.note": "Підтримку рахуємо без власного голосу й лише в матчах, які прогнозували щонайменше {count} інших — при трьох прогнозах «я був сам» не означає нічого.",
+
+  // --- Pewnosc typu: 2:0 kontra 2:1 ----------------------------------------
+  "confidence.kicker": "Упевненість",
+  "confidence.title": "Коли був упевнений",
+  // Zmierzone na wszystkich turniejach: typy 2:0 trafiaja zwyciezce
+  // w 67.2% (3450 typow), typy 2:1 w 52.3% (3509). Kolumna, ktora nie
+  // daje ani jednego punktu, niesie najmocniejszy sygnal w tabeli.
+  "confidence.intro": "Рахунок серії не дає тут жодного очка — рахується лише переможець. І все ж він щось означає: «2:0» — упевнений прогноз, «2:1» — з ваганням. Ось як вийшло в цього гравця.",
+  "confidence.sure": "Прогноз 2:0",
+  "confidence.close": "Прогноз 2:1",
+  "confidence.gap": "Різниця",
+  "confidence.ofPicks": {
+    one: "переможця вгадано в {count} такому прогнозі",
+    few: "переможця вгадано в {count} таких прогнозах",
+    many: "переможця вгадано в {count} таких прогнозах",
+  },
+  "confidence.gapHint": "відсоткових пунктів на користь упевнених прогнозів",
+  "confidence.inverted": "У цього гравця впевненість працює навпаки: прогнози з ваганням виходять краще за ті, в яких він був переконаний. Таких чотирнадцять осіб зі ста двох.",
+  // TO JEST ZASTRZEZENIE, KTORE MUSI STAC NA EKRANIE. Bez niego
+  // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
+  // czyli jak przyczynowosc, ktorej w tych danych nie ma.
+  "confidence.note": "Це не означає, що впевненість допомагає вгадувати. «2:1» пишуть у матчах, які справді рівні, тож нижча точність частково належить матчу, а не людині. Це означає, що самооцінка виявляється точною. Рахується за BO3, від {count} прогнозів кожного виду.",
 };
 
 export default uk;
