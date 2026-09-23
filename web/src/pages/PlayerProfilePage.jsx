@@ -264,6 +264,10 @@ function PlayerProfilePage() {
   // od reszty. Te same wiersze, co `vs_crowd` - jedno zapytanie na oba.
   const decyzje = profile?.decisions ?? null;
 
+  // Jak ten gracz typuje, a nie ile trafil: 2:0 to typ pewny, 2:1 to typ
+  // z wahaniem. Wynik serii nie daje w tym turnieju ani jednego punktu.
+  const pewnosc = profile?.confidence ?? null;
+
   const przebiegFaz = (fazy?.progress ?? []).map((p) => ({
     ...p,
     label: humanPhase(p.stage ?? p.phase, t),
@@ -564,6 +568,78 @@ function PlayerProfilePage() {
           <Decyzje decyzje={decyzje} slug={slug} />
 
           <p className="ui-note">{t("crowd.disclaimer")}</p>
+        </section>
+      )}
+
+      {/* KOLUMNA, KTÓRA NIE DAJE ANI JEDNEGO PUNKTU.
+          Wynik serii jest w tym turnieju nieoceniany - płaci się wyłącznie
+          za zwycięzcę - a niesie najmocniejszy sygnał w całej tabeli:
+          zmierzone na wszystkich turniejach, typy 2:0 trafiają zwycięzcę
+          w 67%, a 2:1 w 52%. Osobna sekcja, bo to jest pytanie o SPOSÓB
+          typowania, a nie o wynik. */}
+      {pewnosc?.enough && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("confidence.kicker")}</span>
+
+              <h2>{t("confidence.title")}</h2>
+
+              <p>{t("confidence.intro")}</p>
+            </div>
+          </div>
+
+          <div className="ui-stats ui-stats--4">
+            <div className="ui-stat">
+              <span>{t("confidence.sure")}</span>
+
+              <strong>
+                {t("common.percentValue", { percent: pewnosc.sure.accuracy })}
+              </strong>
+
+              <small>{t("confidence.ofPicks", { count: pewnosc.sure.picks })}</small>
+            </div>
+
+            <div className="ui-stat">
+              <span>{t("confidence.close")}</span>
+
+              <strong>
+                {t("common.percentValue", { percent: pewnosc.close.accuracy })}
+              </strong>
+
+              <small>{t("confidence.ofPicks", { count: pewnosc.close.picks })}</small>
+            </div>
+
+            {/* Znak niesie kierunek, kolor tylko go wzmacnia - ta sama
+                zasada, co przy przewadze nad tłumem. */}
+            <div
+              className={`ui-stat ui-stat--featured crowd-gap crowd-gap--${
+                pewnosc.gap > 0 ? "over" : pewnosc.gap < 0 ? "under" : "even"
+              }`}
+            >
+              <span>{t("confidence.gap")}</span>
+
+              <strong>
+                {pewnosc.gap > 0 ? "+" : ""}
+                {pewnosc.gap}
+              </strong>
+
+              <small>{t("confidence.gapHint")}</small>
+            </div>
+          </div>
+
+          {/* Jedyny przypadek, w którym ta sekcja mówi komuś coś, czego
+              nie wie. Reszta dostaje potwierdzenie własnego wyczucia. */}
+          {pewnosc.inverted && (
+            <p className="ui-note ui-note--danger">{t("confidence.inverted")}</p>
+          )}
+
+          {/* BEZ TEGO ZDANIA sekcja czyta się jak „bądź pewny siebie,
+              a będziesz trafiał", czyli jak przyczynowość, której w tych
+              danych nie ma. */}
+          <p className="ui-note">
+            {t("confidence.note", { count: pewnosc.threshold })}
+          </p>
         </section>
       )}
 

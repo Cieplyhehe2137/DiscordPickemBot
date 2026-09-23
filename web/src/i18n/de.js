@@ -1522,6 +1522,27 @@ const de = {
   // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
   "decisions.alone": "sonst niemand von {count}",
   "decisions.note": "Die Zustimmung zählt ohne die eigene Stimme und nur in Spielen, die mindestens {count} andere getippt haben — bei drei Tippenden heißt „ich war allein“ gar nichts.",
+
+  // --- Pewnosc typu: 2:0 kontra 2:1 ----------------------------------------
+  "confidence.kicker": "Sicherheit",
+  "confidence.title": "Wenn er sicher war",
+  // Zmierzone na wszystkich turniejach: typy 2:0 trafiaja zwyciezce
+  // w 67.2% (3450 typow), typy 2:1 w 52.3% (3509). Kolumna, ktora nie
+  // daje ani jednego punktu, niesie najmocniejszy sygnal w tabeli.
+  "confidence.intro": "Das Serienergebnis bringt hier keinen einzigen Punkt — es zählt nur der Sieger. Trotzdem sagt es etwas: „2:0“ ist ein sicherer Tipp, „2:1“ ein zögernder. So fielen die beiden aus.",
+  "confidence.sure": "Tippte 2:0",
+  "confidence.close": "Tippte 2:1",
+  "confidence.gap": "Unterschied",
+  "confidence.ofPicks": {
+    one: "Sieger richtig bei {count} solchen Tipp",
+    other: "Sieger richtig bei {count} solchen Tipps",
+  },
+  "confidence.gapHint": "Prozentpunkte zugunsten der sicheren Tipps",
+  "confidence.inverted": "Bei dieser Person läuft die Sicherheit verkehrt herum: die zögernden Tipps gehen besser auf als die überzeugten. Vierzehn von hundertzwei sind so.",
+  // TO JEST ZASTRZEZENIE, KTORE MUSI STAC NA EKRANIE. Bez niego
+  // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
+  // czyli jak przyczynowosc, ktorej w tych danych nie ma.
+  "confidence.note": "Das heißt nicht, dass Selbstsicherheit beim Treffen hilft. „2:1“ schreibt man bei Spielen, die wirklich eng sind, also gehört die niedrigere Quote teils dem Spiel, nicht der Person. Es heißt: die Selbsteinschätzung stimmt. Gezählt bei BO3, ab {count} Tipps je Art.",
 };
 
 export default de;

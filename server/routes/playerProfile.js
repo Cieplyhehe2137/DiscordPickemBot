@@ -3,6 +3,7 @@ import { buildProgress } from "../lib/pointsProgress.js";
 import { buildPlayerHistory } from "../lib/playerHistory.js";
 import { buildPlayerVsCrowd } from "../lib/crowdBaseline.js";
 import { buildKeyDecisions } from "../lib/keyDecisions.js";
+import { buildConfidence } from "../lib/confidence.js";
 import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
@@ -174,13 +175,77 @@ export function registerPlayerProfileRoutes(
                   THEN 1
                   ELSE 0
                 END
-              ) AS exact_series
+              ) AS exact_series,
+
+              /*
+               * PEWNOŚĆ TYPU: 2:0 kontra 2:1.
+               *
+               * Wynik serii nie daje ani jednego punktu (patrz
+               * utils/matchScoring.js), a niesie najmocniejszy sygnał
+               * w tej tabeli: zmierzone na wszystkich turniejach, typy
+               * 2:0 trafiają zwycięzcę w 67%, a 2:1 w 52%.
+               *
+               * Tylko BO3. W BO1 wynik serii to zawsze 1:0, więc nie ma
+               * czego dzielić, a BO5 ma w bazie dwa mecze - własne progi
+               * dla takiej próbki byłyby udawaniem dokładności.
+               */
+              SUM(
+                CASE
+                  WHEN mr.match_id IS NOT NULL
+                   AND m.best_of = 3
+                   AND ABS(mp.pred_a - mp.pred_b) = 2
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS sure_picks,
+
+              SUM(
+                CASE
+                  WHEN mr.match_id IS NOT NULL
+                   AND m.best_of = 3
+                   AND ABS(mp.pred_a - mp.pred_b) = 2
+                   AND (mp.pred_a > mp.pred_b) = (mr.res_a > mr.res_b)
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS sure_hits,
+
+              SUM(
+                CASE
+                  WHEN mr.match_id IS NOT NULL
+                   AND m.best_of = 3
+                   AND ABS(mp.pred_a - mp.pred_b) = 1
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS close_picks,
+
+              SUM(
+                CASE
+                  WHEN mr.match_id IS NOT NULL
+                   AND m.best_of = 3
+                   AND ABS(mp.pred_a - mp.pred_b) = 1
+                   AND (mp.pred_a > mp.pred_b) = (mr.res_a > mr.res_b)
+                  THEN 1
+                  ELSE 0
+                END
+              ) AS close_hits
 
             FROM match_predictions mp
 
             LEFT JOIN match_results mr
               ON mr.event_id = mp.event_id
              AND mr.match_id = mp.match_id
+
+            /*
+             * LEWE złączenie, mimo że mecz zawsze istnieje. Złączenie
+             * wewnętrzne wycięłoby typ osierocony po skasowanym meczu
+             * i po cichu zmieniło total_predictions - liczbę, na której
+             * stoi pół tej strony.
+             */
+            LEFT JOIN matches m
+              ON m.id = mp.match_id
+             AND m.event_id = mp.event_id
 
             WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
               AND mp.user_id = ?
@@ -953,6 +1018,18 @@ export function registerPlayerProfileRoutes(
         // szesciu. Zmierzone w Kolonii: tylko 8% typow (504 z 6405) oddano
         // wbrew trzem czwartym stawki.
         decisions: buildKeyDecisions(glosowanieRows),
+
+        // PEWNOSC TYPU. Wynik serii nie daje ani jednego punktu,
+        // a zmierzony na wszystkich turniejach niesie 15 punktow
+        // procentowych roznicy w trafieniu zwyciezcy: 2:0 -> 67%,
+        // 2:1 -> 52%. Liczone z tego samego zapytania, co reszta
+        // statystyk serii - bez dodatkowej podrozy do bazy.
+        confidence: buildConfidence({
+          sure: predictionStats?.sure_picks,
+          sureHits: predictionStats?.sure_hits,
+          close: predictionStats?.close_picks,
+          closeHits: predictionStats?.close_hits,
+        }),
 
         // Starty w pozostalych turniejach. Pusta lista dla 85% graczy,
         // ktorzy zagrali w dokladnie jednym - widok jej wtedy nie

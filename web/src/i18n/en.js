@@ -1522,6 +1522,27 @@ const en = {
   // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
   "decisions.alone": "nobody else out of {count}",
   "decisions.note": "Support is counted without this player's own vote and only in matches picked by at least {count} other people — with three voters, “I was alone” means nothing.",
+
+  // --- Pewnosc typu: 2:0 kontra 2:1 ----------------------------------------
+  "confidence.kicker": "Confidence",
+  "confidence.title": "When they were sure",
+  // Zmierzone na wszystkich turniejach: typy 2:0 trafiaja zwyciezce
+  // w 67.2% (3450 typow), typy 2:1 w 52.3% (3509). Kolumna, ktora nie
+  // daje ani jednego punktu, niesie najmocniejszy sygnal w tabeli.
+  "confidence.intro": "The series scoreline earns no points here — only the winner counts. It still says something: “2–0” is a confident call, “2–1” a hesitant one. Here is how the two turned out.",
+  "confidence.sure": "Called 2–0",
+  "confidence.close": "Called 2–1",
+  "confidence.gap": "Difference",
+  "confidence.ofPicks": {
+    one: "winner called right in {count} such pick",
+    other: "winner called right in {count} such picks",
+  },
+  "confidence.gapHint": "percentage points in favour of the confident calls",
+  "confidence.inverted": "For this player confidence runs backwards: the hesitant calls work out better than the ones they were sure about. Fourteen people out of a hundred and two are like this.",
+  // TO JEST ZASTRZEZENIE, KTORE MUSI STAC NA EKRANIE. Bez niego
+  // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
+  // czyli jak przyczynowosc, ktorej w tych danych nie ma.
+  "confidence.note": "This does not mean confidence helps you win. “2–1” gets written for matches that really are close, so the lower hit rate belongs partly to the match, not the person. It means the self-assessment turns out to be accurate. Counted on BO3 matches, from {count} picks of each kind.",
 };
 
 export default en;

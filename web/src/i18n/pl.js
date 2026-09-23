@@ -1621,6 +1621,28 @@ const pl = {
   // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
   "decisions.alone": "nikt więcej z {count}",
   "decisions.note": "Poparcie liczone bez własnego głosu i tylko w meczach, które wytypowało co najmniej {count} innych osób — przy trzech typujących „byłem sam” nic nie znaczy.",
+
+  // --- Pewnosc typu: 2:0 kontra 2:1 ----------------------------------------
+  "confidence.kicker": "Pewność",
+  "confidence.title": "Kiedy był pewien",
+  // Zmierzone na wszystkich turniejach: typy 2:0 trafiaja zwyciezce
+  // w 67.2% (3450 typow), typy 2:1 w 52.3% (3509). Kolumna, ktora nie
+  // daje ani jednego punktu, niesie najmocniejszy sygnal w tabeli.
+  "confidence.intro": "Wynik serii nie daje w tym turnieju ani jednego punktu — liczy się tylko zwycięzca. A jednak coś mówi: „2:0” to typ pewny, „2:1” to typ z wahaniem. Tak te dwa wychodzą u tego gracza.",
+  "confidence.sure": "Typował 2:0",
+  "confidence.close": "Typował 2:1",
+  "confidence.gap": "Różnica",
+  "confidence.ofPicks": {
+    one: "trafiony zwycięzca w {count} takim typie",
+    few: "trafiony zwycięzca w {count} takich typach",
+    many: "trafiony zwycięzca w {count} takich typach",
+  },
+  "confidence.gapHint": "punktów procentowych na korzyść pewnych typów",
+  "confidence.inverted": "U tego gracza pewność działa na odwrót: typy z wahaniem wychodzą mu lepiej niż te, przy których był przekonany. W całej bazie ma tak czternaście osób na sto dwie.",
+  // TO JEST ZASTRZEZENIE, KTORE MUSI STAC NA EKRANIE. Bez niego
+  // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
+  // czyli jak przyczynowosc, ktorej w tych danych nie ma.
+  "confidence.note": "To nie znaczy, że pewność siebie pomaga trafiać. „2:1” wpisuje się w meczach, które naprawdę są wyrównane, więc niższa skuteczność jest po części własnością meczu, nie człowieka. Znaczy tyle, że ta samoocena okazuje się trafna. Liczone z meczów BO3, od {count} typów każdego rodzaju.",
 };
 
 export default pl;
