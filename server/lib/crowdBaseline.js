@@ -159,11 +159,32 @@ export function buildCrowdBaseline({
 }
 
 /**
+ * Rozkład głosów w jednym meczu BEZ GŁOSU SAMEGO GRACZA.
+ *
+ * Bez tego odjęcia każdy startowałby z przewagą jednego głosu po swojej
+ * stronie, i tym większą, im mniej osób typowało dany mecz.
+ *
+ * Eksportowane, bo tej samej reguły używa server/lib/keyDecisions.js -
+ * a dwie kopie odjęcia własnego głosu to dwie okazje, żeby jedna z nich
+ * po cichu przestała odejmować.
+ *
+ * @param wiersz { mine_a, winner_a, on_a, on_b }
+ */
+export function bezTwojegoGlosu(wiersz) {
+  const mojeNaA = prawda(wiersz?.mine_a);
+
+  return {
+    mojeNaA,
+    wygralA: prawda(wiersz?.winner_a),
+    naA: liczba(wiersz?.on_a) - (mojeNaA ? 1 : 0),
+    naB: liczba(wiersz?.on_b) - (mojeNaA ? 0 : 1),
+  };
+}
+
+/**
  * Jeden gracz wobec tłumu.
  *
- * Większość liczona BEZ JEGO GŁOSU - inaczej każdy startowałby z przewagą
- * jednego głosu po swojej stronie, i tym większą, im mniej osób typowało
- * dany mecz.
+ * Większość liczona BEZ JEGO GŁOSU - patrz bezTwojegoGlosu wyżej.
  *
  * @param rows wiersze { mine_a, winner_a, on_a, on_b } - po jednym na mecz,
  *             który ten gracz wytypował i który się rozstrzygnął
@@ -177,11 +198,7 @@ export function buildPlayerVsCrowd(rows = []) {
   for (const w of rows || []) {
     if (!w) continue;
 
-    const mojeNaA = prawda(w.mine_a);
-    const wygralA = prawda(w.winner_a);
-
-    const naA = liczba(w.on_a) - (mojeNaA ? 1 : 0);
-    const naB = liczba(w.on_b) - (mojeNaA ? 0 : 1);
+    const { mojeNaA, wygralA, naA, naB } = bezTwojegoGlosu(w);
 
     // Bez własnego głosu potrafi zostać remis - i wtedy nie ma czego
     // naśladować. Mecz wypada z porównania po OBU stronach, żeby nie

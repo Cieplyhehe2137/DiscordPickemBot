@@ -2,6 +2,7 @@ import { loadTeamPicks, loadTeamLogos } from "../lib/teamPicks.js";
 import { buildProgress } from "../lib/pointsProgress.js";
 import { buildPlayerHistory } from "../lib/playerHistory.js";
 import { buildPlayerVsCrowd } from "../lib/crowdBaseline.js";
+import { buildKeyDecisions } from "../lib/keyDecisions.js";
 import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
@@ -757,6 +758,15 @@ export function registerPlayerProfileRoutes(
           `
     SELECT
       p.match_id,
+
+      -- Nazwy drużyn i faza są TYLKO dla sekcji „Twoje decyzje": suma
+      -- „+2 wobec tłumu" ich nie potrzebuje, ale mecz, który tę sumę
+      -- zrobił, trzeba umieć nazwać. Tabela matches jest tu złączona
+      -- od początku, więc to trzy kolumny, a nie kolejna podróż do bazy.
+      m.team_a,
+      m.team_b,
+      m.phase,
+
       (p.pred_a > p.pred_b) AS mine_a,
       (r.res_a > r.res_b) AS winner_a,
       SUM(CASE WHEN q.pred_a > q.pred_b THEN 1 ELSE 0 END) AS on_a,
@@ -779,7 +789,10 @@ export function registerPlayerProfileRoutes(
     WHERE p.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
       AND p.user_id = ?
 
-    GROUP BY p.match_id, mine_a, winner_a
+    -- Nazwy i faza w GROUP BY wprost. Zależą od p.match_id, ale klucz
+    -- główny w grupowaniu to m.id, a nie p.match_id, więc ONLY_FULL_GROUP_BY
+    -- tej zależności nie uzna i zapytanie padłoby na produkcji.
+    GROUP BY p.match_id, m.team_a, m.team_b, m.phase, mine_a, winner_a
     `,
           [slug, userId],
         ),
@@ -934,6 +947,12 @@ export function registerPlayerProfileRoutes(
         // wypadlo gorzej, niz gdyby szli za wiekszoscia. To jest ta
         // informacja, ktorej profil dotad nie mial.
         vs_crowd: buildPlayerVsCrowd(glosowanieRows),
+
+        // SKAD wziela sie ta liczba. Suma wyzej jest prawdziwa, ale nie da
+        // sie jej zobaczyc - a bierze sie z kilku decyzji, nie ze stu
+        // szesciu. Zmierzone w Kolonii: tylko 8% typow (504 z 6405) oddano
+        // wbrew trzem czwartym stawki.
+        decisions: buildKeyDecisions(glosowanieRows),
 
         // Starty w pozostalych turniejach. Pusta lista dla 85% graczy,
         // ktorzy zagrali w dokladnie jednym - widok jej wtedy nie

@@ -109,3 +109,46 @@ test("odnosnik w tekscie ma podkreslenie, a nie sam kolor", () => {
   assert.ok(blok.includes("text-decoration: underline"), "brak podkreslenia");
   assert.ok(blok.includes("color:"), "brak koloru");
 });
+
+test("wiersz decyzji ma odnosnik na WLASCIWYM poziomie", () => {
+  // USTERKA, KTORA TO ZAMRAZA. Rozciagniecie stoi na `> a:only-of-type`,
+  // czyli na BEZPOSREDNIM dziecku wiersza. Pierwsza wersja sekcji "Mecze,
+  // ktore zrobily roznice" chowala odnosnik o poziom glebiej, w <span>
+  // z opisem - regula wiec nie trafiala, klikalna zostawala sama nazwa
+  // meczu, a caly wiersz i tak podswietlal sie pod kursorem. Dokladnie ten
+  // blad, ktory ten plik mial lapac, tylko popelniony od nowa.
+  //
+  // Sprawdzone w przegladarce: po poprawce wszystkie trzy punkty wiersza
+  // (nazwa, pusty srodek, prawa krawedz z poparciem) trafiaja w odnosnik.
+  const css = czytaj("web/src/index.css");
+  const jsx = czytaj("web/src/pages/PlayerProfilePage.jsx");
+
+  const selektor = ".decision > a:only-of-type::after";
+
+  assert.ok(
+    css.includes(selektor),
+    "wiersz decyzji stracil rozciagniecie albo zmienil selektor",
+  );
+
+  // Odnosnik musi byc dzieckiem <li className="decision">, a nie wnukiem.
+  const wiersz = jsx.slice(
+    jsx.indexOf('<li className="decision">'),
+    jsx.indexOf("</li>", jsx.indexOf('<li className="decision">')),
+  );
+
+  assert.ok(wiersz.length > 0, "nie znaleziono wiersza decyzji w JSX");
+
+  const przedOdnosnikiem = wiersz.slice(0, wiersz.indexOf("<Link"));
+
+  assert.ok(
+    !przedOdnosnikiem.includes("<span"),
+    "odnosnik siedzi w <span> - rozciagniecie `> a` go nie obejmie",
+  );
+
+  // I dokladnie jeden - inaczej `:only-of-type` wylaczy rozciagniecie.
+  assert.equal(
+    (wiersz.match(/<Link/g) || []).length,
+    1,
+    "wiersz decyzji ma miec jeden cel",
+  );
+});

@@ -3053,3 +3053,107 @@ main > .page-back {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
+
+/* =========================================================
+   DECYZJE, KTORE ZROBILY ROZNICE
+   ========================================================= */
+
+/* Siedzi W SRODKU sekcji "Ty kontra tlum", bo jest odpowiedzia na pytanie,
+   ktore tamta liczba zostawia otwarte: skad ona sie wziela. Osobna karta
+   pod spodem czytalaby sie jak nowy temat. */
+.decisions__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+/* Kierunek niesie NAGLOWEK ("Mial racje bedac niemal sam" kontra "Byl sam
+   i sie mylil"), kolor tylko go wzmacnia - ta sama zasada, co przy przewadze
+   nad tlumem wyzej i przy przecenianych druzynach. */
+.decisions__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
+.decisions__col--best {
+  border-left-color: var(--ok);
+}
+
+.decisions__col--worst {
+  border-left-color: var(--danger);
+}
+
+.decisions__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.decision {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+
+  /* Kotwica dla rozciagnietego odnosnika nizej. */
+  position: relative;
+}
+
+/* To jest odnosnik: caly opis decyzji prowadzi do meczu. */
+.decision__what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Klikalny jest CALY wiersz, nie same dwie nazwy - ten sam chwyt, co
+   w .ui-row-item--link (components.css) i z tym samym zabezpieczeniem:
+   :only-of-type sam sie wylacza, gdyby w wierszu stanal kiedys drugi
+   odnosnik i po cichu przykryl pierwszy. */
+.decision__match {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.decision > a:only-of-type::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--space-1) * -1) calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
+}
+
+.decision:hover .decision__match {
+  color: var(--accent-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.decision__pick {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Liczba, a nie zdanie - stad tabular-nums i wlasny kolor. Zero procent
+   dostaje w JSX inny napis ("nikt wiecej z 53"), bo "0% z 53" czyta sie
+   jak usterka zaokraglenia. */
+.decision__support {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

@@ -1504,6 +1504,24 @@ const de = {
   // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
   // sama obecnosc.
   "crowd.field": "Zum Feld gehören alle, die mindestens {threshold} von {all} Spielen getippt haben. Die Menge hat jedes einzelne getippt — ein Vergleich mit jemandem, der einen Tipp abgab, wäre keiner.",
+
+  // --- Decyzje, ktore zrobily roznice --------------------------------------
+  "decisions.title": "Die Spiele, die den Unterschied machten",
+  "decisions.intro": "Die Zahl oben ist eine Summe. Sie entsteht aus wenigen Entscheidungen, nicht aus allen Spielen — bei den meisten Tipps ging diese Person mit der Menge und bekam, was alle bekamen.",
+  "decisions.best": "Recht gehabt, als fast niemand es hatte",
+  // NIE „pomylil sie, choc wiekszosc wiedziala” - ta definicja
+  // daje wszystkim TE SAME trzy mecze (w Kolonii: Vitality-9z,
+  // MIBR-THUNDER, B8-M80), czyli strone Niespodzianki powtorzona
+  // na profilu. Fakt o czlowieku zaczyna sie tam, gdzie czlowiek
+  // odszedl od reszty.
+  "decisions.worst": "Allein und falsch",
+  "decisions.pick": "tippte auf {team}",
+  "decisions.support": "{percent}% von {count} sahen es genauso",
+  // Osobny napis na zero procent. „razem z nim 0% z 53” brzmi jak
+  // usterka zaokraglenia, a to jest najmocniejszy wynik w tej
+  // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
+  "decisions.alone": "sonst niemand von {count}",
+  "decisions.note": "Die Zustimmung zählt ohne die eigene Stimme und nur in Spielen, die mindestens {count} andere getippt haben — bei drei Tippenden heißt „ich war allein“ gar nichts.",
 };
 
 export default de;
