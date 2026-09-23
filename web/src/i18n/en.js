@@ -1504,6 +1504,24 @@ const en = {
   // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
   // sama obecnosc.
   "crowd.field": "The field is everyone who picked at least {threshold} of {all} matches. The crowd picked every single one, so comparing it with someone who made one pick would compare nothing.",
+
+  // --- Decyzje, ktore zrobily roznice --------------------------------------
+  "decisions.title": "The matches that made the difference",
+  "decisions.intro": "The number above is a total. It comes from a handful of calls, not from every match — on most picks this player went where everyone went, and got what everyone got.",
+  "decisions.best": "Right when almost nobody was",
+  // NIE „pomylil sie, choc wiekszosc wiedziala” - ta definicja
+  // daje wszystkim TE SAME trzy mecze (w Kolonii: Vitality-9z,
+  // MIBR-THUNDER, B8-M80), czyli strone Niespodzianki powtorzona
+  // na profilu. Fakt o czlowieku zaczyna sie tam, gdzie czlowiek
+  // odszedl od reszty.
+  "decisions.worst": "Alone and wrong",
+  "decisions.pick": "backed {team}",
+  "decisions.support": "{percent}% of {count} agreed",
+  // Osobny napis na zero procent. „razem z nim 0% z 53” brzmi jak
+  // usterka zaokraglenia, a to jest najmocniejszy wynik w tej
+  // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
+  "decisions.alone": "nobody else out of {count}",
+  "decisions.note": "Support is counted without this player's own vote and only in matches picked by at least {count} other people — with three voters, “I was alone” means nothing.",
 };
 
 export default en;

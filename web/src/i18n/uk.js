@@ -1582,6 +1582,24 @@ const uk = {
   // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
   // sama obecnosc.
   "crowd.field": "До заліку входять ті, хто дав прогноз щонайменше на {threshold} з {all} матчів. Натовп прогнозував кожен, тож порівняння з тим, хто зробив один прогноз, нічого не означало б.",
+
+  // --- Decyzje, ktore zrobily roznice --------------------------------------
+  "decisions.title": "Матчі, які вирішили справу",
+  "decisions.intro": "Число вище — це сума. Вона складається з кількох рішень, а не з усіх матчів: у більшості прогнозів цей гравець ішов туди ж, куди й усі, і отримував те саме, що й усі.",
+  "decisions.best": "Мав рацію майже на самоті",
+  // NIE „pomylil sie, choc wiekszosc wiedziala” - ta definicja
+  // daje wszystkim TE SAME trzy mecze (w Kolonii: Vitality-9z,
+  // MIBR-THUNDER, B8-M80), czyli strone Niespodzianki powtorzona
+  // na profilu. Fakt o czlowieku zaczyna sie tam, gdzie czlowiek
+  // odszedl od reszty.
+  "decisions.worst": "Був сам і помилився",
+  "decisions.pick": "поставив на {team}",
+  "decisions.support": "так само вважали {percent}% з {count}",
+  // Osobny napis na zero procent. „razem z nim 0% z 53” brzmi jak
+  // usterka zaokraglenia, a to jest najmocniejszy wynik w tej
+  // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
+  "decisions.alone": "більше ніхто з {count}",
+  "decisions.note": "Підтримку рахуємо без власного голосу й лише в матчах, які прогнозували щонайменше {count} інших — при трьох прогнозах «я був сам» не означає нічого.",
 };
 
 export default uk;

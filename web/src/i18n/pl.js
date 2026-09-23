@@ -1603,6 +1603,24 @@ const pl = {
   // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
   // sama obecnosc.
   "crowd.field": "Stawką są ci, którzy wytypowali co najmniej {threshold} z {all} meczów. Tłum typował każdy, więc porównanie z kimś, kto oddał jeden typ, nie byłoby porównaniem.",
+
+  // --- Decyzje, ktore zrobily roznice --------------------------------------
+  "decisions.title": "Mecze, które zrobiły różnicę",
+  "decisions.intro": "Liczba wyżej jest sumą. Bierze się z kilku decyzji, nie ze wszystkich meczów — w większości typów ten gracz szedł tam, gdzie reszta, i dostawał to samo co reszta.",
+  "decisions.best": "Miał rację będąc niemal sam",
+  // NIE „pomylil sie, choc wiekszosc wiedziala” - ta definicja
+  // daje wszystkim TE SAME trzy mecze (w Kolonii: Vitality-9z,
+  // MIBR-THUNDER, B8-M80), czyli strone Niespodzianki powtorzona
+  // na profilu. Fakt o czlowieku zaczyna sie tam, gdzie czlowiek
+  // odszedl od reszty.
+  "decisions.worst": "Był sam i się mylił",
+  "decisions.pick": "postawił na {team}",
+  "decisions.support": "razem z nim {percent}% z {count}",
+  // Osobny napis na zero procent. „razem z nim 0% z 53” brzmi jak
+  // usterka zaokraglenia, a to jest najmocniejszy wynik w tej
+  // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
+  "decisions.alone": "nikt więcej z {count}",
+  "decisions.note": "Poparcie liczone bez własnego głosu i tylko w meczach, które wytypowało co najmniej {count} innych osób — przy trzech typujących „byłem sam” nic nie znaczy.",
 };
 
 export default pl;

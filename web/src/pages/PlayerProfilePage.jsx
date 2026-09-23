@@ -17,6 +17,92 @@ import Rivals from "../components/Rivals.jsx";
 import { humanPhase } from "../lib/phaseLabels.js";
 import { useT } from "../i18n/useLanguage.js";
 
+/**
+ * Jedna decyzja: mecz, drużyna i to, ilu jeszcze tak myślało.
+ *
+ * Nazwa drużyny, a nie strona - „postawił na A" nie znaczy nic dla kogoś,
+ * kto ogląda profil pół roku po turnieju.
+ */
+function Decyzja({ mecz, slug, t }) {
+  return (
+    <li className="decision">
+      {/* Odnośnik jest BEZPOŚREDNIM dzieckiem wiersza, i to nie jest
+          kosmetyka: rozciągnięcie niżej stoi na `> a:only-of-type`, więc
+          przy odnośniku schowanym o poziom głębiej reguła po prostu nie
+          trafiała - klikalna zostawała sama nazwa meczu, a reszta wiersza
+          wyglądała na klikalną i nie była. Zmierzone w przeglądarce. */}
+      <Link
+        className="decision__what"
+        to={`/events/${slug}/matches/${mecz.match_id}`}
+      >
+        <span className="decision__match">
+          {mecz.team_a} – {mecz.team_b}
+        </span>
+
+        <span className="decision__pick">
+          {t("decisions.pick", { team: mecz.picked })}
+          {mecz.phase ? ` · ${humanPhase(mecz.phase, t)}` : ""}
+        </span>
+      </Link>
+
+      {/* Zero procent dostaje własne zdanie. „Razem z nim 0% z 53" brzmi
+          jak usterka zaokrąglenia, a jest najmocniejszym wynikiem w tej
+          sekcji: był jedyną osobą na pięćdziesiąt trzy. */}
+      <span className="decision__support">
+        {mecz.support > 0
+          ? t("decisions.support", { percent: mecz.support, count: mecz.voters })
+          : t("decisions.alone", { count: mecz.voters })}
+      </span>
+    </li>
+  );
+}
+
+/** Dwie kolumny decyzji: trafione wbrew wszystkim i przegrane w samotności. */
+function Decyzje({ decyzje, slug }) {
+  const t = useT();
+
+  const najlepsze = decyzje?.best ?? [];
+  const najgorsze = decyzje?.worst ?? [];
+
+  // Komplet nowicjusza potrafi nie mieć ani jednej samotnej decyzji -
+  // wtedy nie ma o czym pisać i sekcja znika w całości, zamiast stać
+  // pusta pod nagłówkiem.
+  if (najlepsze.length === 0 && najgorsze.length === 0) return null;
+
+  return (
+    <div className="ui-card ui-card--flat ui-card--tight ui-stack decisions">
+      <div>
+        <strong>{t("decisions.title")}</strong>
+
+        <p className="ui-stat__hint">{t("decisions.intro")}</p>
+      </div>
+
+      <div className="decisions__cols">
+        {[
+          ["best", najlepsze, "decisions.best"],
+          ["worst", najgorsze, "decisions.worst"],
+        ]
+          .filter(([, lista]) => lista.length > 0)
+          .map(([klucz, lista, naglowek]) => (
+            <div className={`decisions__col decisions__col--${klucz}`} key={klucz}>
+              <span className="ui-kicker">{t(naglowek)}</span>
+
+              <ul className="decisions__list">
+                {lista.map((mecz) => (
+                  <Decyzja key={mecz.match_id} mecz={mecz} slug={slug} t={t} />
+                ))}
+              </ul>
+            </div>
+          ))}
+      </div>
+
+      <p className="ui-note">
+        {t("decisions.note", { count: decyzje?.voters ?? 0 })}
+      </p>
+    </div>
+  );
+}
+
 function PlayerProfilePage() {
   const t = useT();
 
@@ -173,6 +259,10 @@ function PlayerProfilePage() {
   const fazy = profile?.phase_points ?? null;
 
   const wobecTlumu = profile?.vs_crowd ?? null;
+
+  // Skąd wzięła się liczba wyżej: mecze, w których ten gracz odszedł
+  // od reszty. Te same wiersze, co `vs_crowd` - jedno zapytanie na oba.
+  const decyzje = profile?.decisions ?? null;
 
   const przebiegFaz = (fazy?.progress ?? []).map((p) => ({
     ...p,
@@ -464,6 +554,14 @@ function PlayerProfilePage() {
               <small>{t("crowd.player.ofMatches", { count: wobecTlumu.matches })}</small>
             </div>
           </div>
+
+          {/* SKĄD WZIĘŁA SIĘ TA LICZBA.
+              Suma wyżej jest prawdziwa, ale niewidoczna - bierze się
+              z kilku decyzji, nie ze stu sześciu. Zmierzone w Kolonii:
+              tylko 8% typów (504 z 6405) oddano wbrew trzem czwartym
+              stawki; reszta to chodzenie z tłumem, gdzie wszyscy
+              dostają to samo. */}
+          <Decyzje decyzje={decyzje} slug={slug} />
 
           <p className="ui-note">{t("crowd.disclaimer")}</p>
         </section>

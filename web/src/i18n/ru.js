@@ -1582,6 +1582,24 @@ const ru = {
   // naraz: tlum typuje kazdy mecz, wiec duza czesc tej przewagi to byla
   // sama obecnosc.
   "crowd.field": "В зачёт входят те, кто дал прогноз хотя бы на {threshold} из {all} матчей. Толпа прогнозировала каждый, поэтому сравнение с тем, кто сделал один прогноз, ничего не значило бы.",
+
+  // --- Decyzje, ktore zrobily roznice --------------------------------------
+  "decisions.title": "Матчи, которые решили дело",
+  "decisions.intro": "Число выше — это сумма. Она складывается из нескольких решений, а не из всех матчей: в большинстве прогнозов этот игрок шёл туда же, куда и все, и получал то же, что и все.",
+  "decisions.best": "Оказался прав почти в одиночку",
+  // NIE „pomylil sie, choc wiekszosc wiedziala” - ta definicja
+  // daje wszystkim TE SAME trzy mecze (w Kolonii: Vitality-9z,
+  // MIBR-THUNDER, B8-M80), czyli strone Niespodzianki powtorzona
+  // na profilu. Fakt o czlowieku zaczyna sie tam, gdzie czlowiek
+  // odszedl od reszty.
+  "decisions.worst": "Был один и ошибся",
+  "decisions.pick": "поставил на {team}",
+  "decisions.support": "так же считали {percent}% из {count}",
+  // Osobny napis na zero procent. „razem z nim 0% z 53” brzmi jak
+  // usterka zaokraglenia, a to jest najmocniejszy wynik w tej
+  // sekcji: karwix przy Spirit - MIBR byl jedyna osoba na 53.
+  "decisions.alone": "больше никто из {count}",
+  "decisions.note": "Поддержка считается без собственного голоса и только в матчах, которые прогнозировали хотя бы {count} других — при трёх прогнозах «я был один» не значит ничего.",
 };
 
 export default ru;
