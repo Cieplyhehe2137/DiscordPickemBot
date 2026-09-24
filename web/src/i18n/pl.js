@@ -1643,6 +1643,30 @@ const pl = {
   // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
   // czyli jak przyczynowosc, ktorej w tych danych nie ma.
   "confidence.note": "To nie znaczy, że pewność siebie pomaga trafiać. „2:1” wpisuje się w meczach, które naprawdę są wyrównane, więc niższa skuteczność jest po części własnością meczu, nie człowieka. Znaczy tyle, że ta samoocena okazuje się trafna. Liczone z meczów BO3, od {count} typów każdego rodzaju.",
+
+  // --- Cena nieobecnosci: mecze bez typu -----------------------------------
+  "absence.kicker": "Co przeszło obok",
+  "absence.title": "Mecze bez typu",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, komplet wytypowaly CZTERY osoby, a lacznie pominiec bylo
+  // 36 930. Rekordzista zyskalby +142 pkt i skoczyl o 47 miejsc.
+  "absence.intro": "Cały serwis liczy to, co ktoś wytypował. To jest druga strona: mecze, które rozstrzygnęły się bez jego typu. Na każdym z nich stawiamy to, co postawiła większość — najprostszy możliwy zastępnik decyzji.",
+  "absence.skipped": "Bez typu",
+  "absence.ofSettled": "z {count} rozstrzygniętych",
+  "absence.points": "Leżało tam",
+  "absence.pointsHint": "punktów, gdyby na każdym pójść za większością",
+  "absence.coverage": "Pokrycie turnieju",
+  "absence.coverageHint": "meczów z własnym typem",
+  "absence.crowdHit": {
+    one: "większość trafiła {count} z nich",
+    few: "większość trafiła {count} z nich",
+    many: "większość trafiła {count} z nich",
+  },
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego liczba czyta sie
+  // jak krzywda - a wiekszosci nie dalo sie znac przed terminem, wiec
+  // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
+  // zdanie stoi pod sekcja tlumu.
+  "absence.note": "To nie jest punktacja alternatywna ani „tyle mu się należało”. Większość liczy się po fakcie, ze wszystkich oddanych typów — przed terminem nikt jej nie znał. To wycena tego, ile turnieju przeszło obok, w jedynej walucie, jaką ten serwis ma.",
 };
 
 export default pl;

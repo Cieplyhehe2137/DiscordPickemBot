@@ -1622,6 +1622,30 @@ const ru = {
   // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
   // czyli jak przyczynowosc, ktorej w tych danych nie ma.
   "confidence.note": "Это не значит, что уверенность помогает угадывать. «2:1» пишут в матчах, которые действительно равные, поэтому низкая точность отчасти принадлежит матчу, а не человеку. Это значит, что самооценка оказывается точной. Считается по BO3, от {count} прогнозов каждого вида.",
+
+  // --- Cena nieobecnosci: mecze bez typu -----------------------------------
+  "absence.kicker": "Что прошло мимо",
+  "absence.title": "Матчи без прогноза",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, komplet wytypowaly CZTERY osoby, a lacznie pominiec bylo
+  // 36 930. Rekordzista zyskalby +142 pkt i skoczyl o 47 miejsc.
+  "absence.intro": "Весь сайт считает то, что человек спрогнозировал. Это обратная сторона: матчи, которые завершились без его прогноза. На каждый из них мы ставим то, что поставило большинство, — простейшая замена решения.",
+  "absence.skipped": "Без прогноза",
+  "absence.ofSettled": "из {count} сыгранных",
+  "absence.points": "Там лежало",
+  "absence.pointsHint": "очков, если бы на каждом идти за большинством",
+  "absence.coverage": "Охват турнира",
+  "absence.coverageHint": "матчей со своим прогнозом",
+  "absence.crowdHit": {
+    one: "большинство угадало {count} из них",
+    few: "большинство угадало {count} из них",
+    many: "большинство угадало {count} из них",
+  },
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego liczba czyta sie
+  // jak krzywda - a wiekszosci nie dalo sie znac przed terminem, wiec
+  // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
+  // zdanie stoi pod sekcja tlumu.
+  "absence.note": "Это не альтернативный подсчёт и не «столько ему причиталось». Большинство считается постфактум, из всех сделанных прогнозов, — до дедлайна его никто не знал. Это оценка того, сколько турнира прошло мимо, в единственной валюте этого сайта.",
 };
 
 export default ru;

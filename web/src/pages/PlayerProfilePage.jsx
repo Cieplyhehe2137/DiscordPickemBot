@@ -268,6 +268,10 @@ function PlayerProfilePage() {
   // z wahaniem. Wynik serii nie daje w tym turnieju ani jednego punktu.
   const pewnosc = profile?.confidence ?? null;
 
+  // Druga strona tego samego turnieju: mecze, ktore rozstrzygnely sie
+  // bez jego typu. Caly serwis liczy to, co ktos zrobil.
+  const nieobecnosc = profile?.absence ?? null;
+
   const przebiegFaz = (fazy?.progress ?? []).map((p) => ({
     ...p,
     label: humanPhase(p.stage ?? p.phase, t),
@@ -640,6 +644,64 @@ function PlayerProfilePage() {
           <p className="ui-note">
             {t("confidence.note", { count: pewnosc.threshold })}
           </p>
+        </section>
+      )}
+
+      {/* CO PRZESZLO OBOK.
+          Sekcja wyzej mowi, jak ten czlowiek wypadl na meczach, ktore
+          wytypowal. Ta mowi o tych, ktorych nie - a to w tych danych nie
+          jest margines: zmierzone w Kolonii, mediana typujacego pominela
+          103 ze 106 meczow, a komplet wytypowaly cztery osoby. */}
+      {nieobecnosc?.enough && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("absence.kicker")}</span>
+
+              <h2>{t("absence.title")}</h2>
+
+              <p>{t("absence.intro")}</p>
+            </div>
+          </div>
+
+          <div className="ui-stats ui-stats--4">
+            <div className="ui-stat">
+              <span>{t("absence.skipped")}</span>
+
+              <strong>{nieobecnosc.skipped}</strong>
+
+              <small>
+                {t("absence.ofSettled", { count: nieobecnosc.settled })}
+              </small>
+            </div>
+
+            <div className="ui-stat ui-stat--featured">
+              <span>{t("absence.points")}</span>
+
+              <strong>{nieobecnosc.points}</strong>
+
+              <small>{t("absence.pointsHint")}</small>
+            </div>
+
+            <div className="ui-stat">
+              <span>{t("absence.coverage")}</span>
+
+              <strong>
+                {t("common.percentValue", { percent: nieobecnosc.coverage })}
+              </strong>
+
+              <small>{t("absence.coverageHint")}</small>
+            </div>
+          </div>
+
+          <p className="ui-stat__hint">
+            {t("absence.crowdHit", { count: nieobecnosc.crowdHits })}
+          </p>
+
+          {/* BEZ TEGO ZDANIA liczba czyta sie jak krzywda. Wiekszosci nie
+              dalo sie znac przed terminem, wiec nie byla to strategia,
+              ktora ktokolwiek mogl zastosowac. */}
+          <p className="ui-note">{t("absence.note")}</p>
         </section>
       )}
 

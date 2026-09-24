@@ -4,6 +4,7 @@ import { buildPlayerHistory } from "../lib/playerHistory.js";
 import { buildPlayerVsCrowd } from "../lib/crowdBaseline.js";
 import { buildKeyDecisions } from "../lib/keyDecisions.js";
 import { buildConfidence } from "../lib/confidence.js";
+import { buildAbsence } from "../lib/absence.js";
 import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
@@ -15,7 +16,7 @@ import { buildPhasePoints } from "../lib/phasePoints.js";
 
 export function registerPlayerProfileRoutes(
   app,
-  { findNameFromPicks, pool },
+  { findNameFromPicks, pool, scoring },
 ) {
   app.get("/api/public/events/:slug/players/:userId", async (req, res) => {
     try {
@@ -822,7 +823,7 @@ export function registerPlayerProfileRoutes(
         pool.query(
           `
     SELECT
-      p.match_id,
+      m.id AS match_id,
 
       -- Nazwy drużyn i faza są TYLKO dla sekcji „Twoje decyzje": suma
       -- „+2 wobec tłumu" ich nie potrzebuje, ale mecz, który tę sumę
@@ -832,16 +833,26 @@ export function registerPlayerProfileRoutes(
       m.team_b,
       m.phase,
 
-      (p.pred_a > p.pred_b) AS mine_a,
+      /*
+       * WSZYSTKIE rozstrzygnięte mecze turnieju, nie tylko wytypowane.
+       *
+       * Zapytanie szło wcześniej OD typów tego gracza, więc mecz, którego
+       * nie obstawił, nie miał tu wiersza - a to jest dokładnie ten mecz,
+       * o którym mówi sekcja „Co przeszło obok". Teraz idzie od meczów,
+       * a typ gracza dokleja się LEWYM złączeniem; kolumna mine odróżnia jedno
+       * od drugiego.
+       *
+       * To nadal JEDNA podróż do bazy: ta sama fala, to samo złączenie
+       * match_predictions z samą sobą, tylko szersze o mecze bez typu.
+       */
+      MAX(p.match_id IS NOT NULL) AS mine,
+      MAX(p.pred_a > p.pred_b) AS mine_a,
+
       (r.res_a > r.res_b) AS winner_a,
       SUM(CASE WHEN q.pred_a > q.pred_b THEN 1 ELSE 0 END) AS on_a,
       SUM(CASE WHEN q.pred_b > q.pred_a THEN 1 ELSE 0 END) AS on_b
 
-    FROM match_predictions p
-
-    JOIN matches m
-      ON m.id = p.match_id
-     AND m.event_id = p.event_id
+    FROM matches m
 
     JOIN match_results r
       ON r.match_id = m.id
@@ -851,15 +862,21 @@ export function registerPlayerProfileRoutes(
       ON q.match_id = m.id
      AND q.event_id = m.event_id
 
-    WHERE p.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
-      AND p.user_id = ?
+    LEFT JOIN match_predictions p
+      ON p.match_id = m.id
+     AND p.event_id = m.event_id
+     AND p.user_id = ?
 
-    -- Nazwy i faza w GROUP BY wprost. Zależą od p.match_id, ale klucz
-    -- główny w grupowaniu to m.id, a nie p.match_id, więc ONLY_FULL_GROUP_BY
-    -- tej zależności nie uzna i zapytanie padłoby na produkcji.
-    GROUP BY p.match_id, m.team_a, m.team_b, m.phase, mine_a, winner_a
+    WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+    -- Nazwy i faza w GROUP BY wprost: kluczem głównym grupowania jest
+    -- m.id, więc ONLY_FULL_GROUP_BY nie uzna ich za zależne.
+    GROUP BY m.id, m.team_a, m.team_b, m.phase, winner_a
     `,
-          [slug, userId],
+          // userId idzie PIERWSZY: stoi teraz w LEWYM złączeniu, a slug
+          // dopiero w WHERE. Odwrotna kolejność nie daje błędu, tylko
+          // pustą sekcję.
+          [userId, slug],
         ),
       ]);
 
@@ -993,6 +1010,9 @@ export function registerPlayerProfileRoutes(
       // wprost: 12 -> 28 -> 40 -> 47 u pierwszego miejsca.
       const phasePoints = buildPhasePoints(phaseScoreRows);
 
+      // Wiersze meczow, ktore ten gracz FAKTYCZNIE wytypowal.
+      const mojeMecze = glosowanieRows.filter((w) => Number(w?.mine) === 1);
+
       res.json({
         event: {
           id: event.id,
@@ -1011,19 +1031,37 @@ export function registerPlayerProfileRoutes(
         // Zmierzone w Kolonii: 75% graczy ma te liczbe UJEMNA, czyli
         // wypadlo gorzej, niz gdyby szli za wiekszoscia. To jest ta
         // informacja, ktorej profil dotad nie mial.
-        vs_crowd: buildPlayerVsCrowd(glosowanieRows),
+        // MECZE TEGO GRACZA, nie wszystkie w turnieju.
+        //
+        // Zapytanie wyzej oddaje teraz KAZDY rozstrzygniety mecz, bo sekcja
+        // "Co przeszlo obok" liczy wlasnie te bez typu. Obie starsze sekcje
+        // musza dostac dokladnie to, co dostawaly przedtem - stad ten filtr,
+        // a nie zmiana regul w ich bibliotekach.
+        vs_crowd: buildPlayerVsCrowd(mojeMecze),
 
         // SKAD wziela sie ta liczba. Suma wyzej jest prawdziwa, ale nie da
         // sie jej zobaczyc - a bierze sie z kilku decyzji, nie ze stu
         // szesciu. Zmierzone w Kolonii: tylko 8% typow (504 z 6405) oddano
         // wbrew trzem czwartym stawki.
-        decisions: buildKeyDecisions(glosowanieRows),
+        decisions: buildKeyDecisions(mojeMecze),
 
         // PEWNOSC TYPU. Wynik serii nie daje ani jednego punktu,
         // a zmierzony na wszystkich turniejach niesie 15 punktow
         // procentowych roznicy w trafieniu zwyciezcy: 2:0 -> 67%,
         // 2:1 -> 52%. Liczone z tego samego zapytania, co reszta
         // statystyk serii - bez dodatkowej podrozy do bazy.
+        // CO PRZESZLO OBOK. Caly serwis liczy to, co ktos zrobil.
+        // Zmierzone w Kolonii: mediana typujacego pominela 103 ze 106
+        // meczow, a rekordzista zyskalby +142 pkt i 47 miejsc, gdyby
+        // na pominietych szedl za wiekszoscia.
+        //
+        // Stawka z rules/scoring.js, a nie wpisana tutaj - to jest
+        // jedyne zrodlo stalych punktowych w tym projekcie.
+        absence: buildAbsence({
+          rows: glosowanieRows,
+          pointsPerWinner: scoring?.MATCH?.WINNER,
+        }),
+
         confidence: buildConfidence({
           sure: predictionStats?.sure_picks,
           sureHits: predictionStats?.sure_hits,

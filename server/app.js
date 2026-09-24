@@ -648,7 +648,7 @@ registerMatchOpsRoutes(app, {
 
 // Przeniesione do server/routes/playerProfile.js. Wywolanie stoi tam, gdzie byly trasy -
 // kolejnosc rejestracji jest zachowaniem, bo Express bierze pierwsza.
-registerPlayerProfileRoutes(app, { findNameFromPicks, pool });
+registerPlayerProfileRoutes(app, { findNameFromPicks, pool, scoring: SCORING });
 
 // Wyszukiwarka graczy i audyt jednego gracza (server/routes/adminUsers.js).
 // Obie trasy maja WIECEJ segmentow niz /api/events/:slug/leaderboard,
