@@ -1543,6 +1543,29 @@ const de = {
   // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
   // czyli jak przyczynowosc, ktorej w tych danych nie ma.
   "confidence.note": "Das heißt nicht, dass Selbstsicherheit beim Treffen hilft. „2:1“ schreibt man bei Spielen, die wirklich eng sind, also gehört die niedrigere Quote teils dem Spiel, nicht der Person. Es heißt: die Selbsteinschätzung stimmt. Gezählt bei BO3, ab {count} Tipps je Art.",
+
+  // --- Cena nieobecnosci: mecze bez typu -----------------------------------
+  "absence.kicker": "Was vorbeiging",
+  "absence.title": "Spiele ohne Tipp",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, komplet wytypowaly CZTERY osoby, a lacznie pominiec bylo
+  // 36 930. Rekordzista zyskalby +142 pkt i skoczyl o 47 miejsc.
+  "absence.intro": "Die ganze Seite zählt, was jemand getippt hat. Das ist die andere Seite: Spiele, die ohne seinen Tipp entschieden wurden. Auf jedes davon setzen wir das, was die Mehrheit setzte — der einfachste mögliche Ersatz für eine Entscheidung.",
+  "absence.skipped": "Ohne Tipp",
+  "absence.ofSettled": "von {count} entschiedenen",
+  "absence.points": "Dort lagen",
+  "absence.pointsHint": "Punkte, wäre man jedem der Mehrheit gefolgt",
+  "absence.coverage": "Turnier abgedeckt",
+  "absence.coverageHint": "der Spiele getippt",
+  "absence.crowdHit": {
+    one: "die Mehrheit lag bei {count} davon richtig",
+    other: "die Mehrheit lag bei {count} davon richtig",
+  },
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego liczba czyta sie
+  // jak krzywda - a wiekszosci nie dalo sie znac przed terminem, wiec
+  // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
+  // zdanie stoi pod sekcja tlumu.
+  "absence.note": "Das ist keine alternative Wertung und auch nicht, was ihm zugestanden hätte. Die Mehrheit wird im Nachhinein gezählt, aus allen abgegebenen Tipps — vor Abgabeschluss kannte sie niemand. Es ist eine Bewertung dessen, wie viel Turnier vorbeiging, in der einzigen Währung dieser Seite.",
 };
 
 export default de;

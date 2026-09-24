@@ -288,3 +288,39 @@ test("kazdy klucz napisu z historii istnieje w slowniku", async () => {
     }
   }
 });
+
+test("cena nieobecnosci bierze stawke z rules, a nie z wlasnej kopii", () => {
+  // server/lib/absence.js mnozy trafienia tlumu przez stawke za zwyciezce
+  // serii. Wpisanie jej tam na sztywno dawaloby DRUGIE miejsce, w ktorym
+  // trzeba pamietac o zmianie regulaminu - a rozjazd stawek nie daje bledu
+  // ani wpisu w logach, tylko ekran z inna liczba punktow niz ranking.
+  const modul = fs.readFileSync(
+    path.join(__dirname, "..", "server", "lib", "absence.js"),
+    "utf8",
+  );
+
+  // Stawka wchodzi wylacznie parametrem.
+  assert.ok(
+    modul.includes("pointsPerWinner"),
+    "absence.js nie przyjmuje juz stawki z zewnatrz",
+  );
+
+  // I nie ma w nim zadnej liczby mnozacej trafienia.
+  const podejrzane = modul.match(/tlumTrafil\s*\*\s*\d/);
+
+  assert.equal(
+    podejrzane,
+    null,
+    `absence.js mnozy przez liczbe wpisana wprost: ${podejrzane && podejrzane[0]}`,
+  );
+
+  const trasa = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "playerProfile.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    trasa.includes("scoring?.MATCH?.WINNER"),
+    "trasa profilu nie podaje juz stawki z rules/scoring.js",
+  );
+});

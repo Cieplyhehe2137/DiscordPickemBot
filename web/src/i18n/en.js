@@ -1543,6 +1543,29 @@ const en = {
   // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
   // czyli jak przyczynowosc, ktorej w tych danych nie ma.
   "confidence.note": "This does not mean confidence helps you win. “2–1” gets written for matches that really are close, so the lower hit rate belongs partly to the match, not the person. It means the self-assessment turns out to be accurate. Counted on BO3 matches, from {count} picks of each kind.",
+
+  // --- Cena nieobecnosci: mecze bez typu -----------------------------------
+  "absence.kicker": "What passed by",
+  "absence.title": "Matches with no pick",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, komplet wytypowaly CZTERY osoby, a lacznie pominiec bylo
+  // 36 930. Rekordzista zyskalby +142 pkt i skoczyl o 47 miejsc.
+  "absence.intro": "The whole site counts what someone picked. This is the other side: matches that were settled without their pick. On each of them we place whatever the majority placed — the simplest possible stand-in for a decision.",
+  "absence.skipped": "No pick",
+  "absence.ofSettled": "of {count} settled",
+  "absence.points": "Sitting there",
+  "absence.pointsHint": "points, had the majority been followed on each",
+  "absence.coverage": "Tournament covered",
+  "absence.coverageHint": "of matches picked",
+  "absence.crowdHit": {
+    one: "the majority called {count} of them right",
+    other: "the majority called {count} of them right",
+  },
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego liczba czyta sie
+  // jak krzywda - a wiekszosci nie dalo sie znac przed terminem, wiec
+  // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
+  // zdanie stoi pod sekcja tlumu.
+  "absence.note": "This is not an alternative score, nor what they were owed. The majority is counted after the fact, from all the picks submitted — nobody knew it before the deadline. It is a valuation of how much of the tournament passed by, in the only currency this site has.",
 };
 
 export default en;

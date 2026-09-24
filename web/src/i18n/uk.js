@@ -1622,6 +1622,30 @@ const uk = {
   // sekcja czyta sie jak „badz pewny siebie, a bedziesz trafial”,
   // czyli jak przyczynowosc, ktorej w tych danych nie ma.
   "confidence.note": "Це не означає, що впевненість допомагає вгадувати. «2:1» пишуть у матчах, які справді рівні, тож нижча точність частково належить матчу, а не людині. Це означає, що самооцінка виявляється точною. Рахується за BO3, від {count} прогнозів кожного виду.",
+
+  // --- Cena nieobecnosci: mecze bez typu -----------------------------------
+  "absence.kicker": "Що пройшло повз",
+  "absence.title": "Матчі без прогнозу",
+  // Zmierzone w IEM Cologne: mediana typujacego pominela 103 ze 106
+  // meczow, komplet wytypowaly CZTERY osoby, a lacznie pominiec bylo
+  // 36 930. Rekordzista zyskalby +142 pkt i skoczyl o 47 miejsc.
+  "absence.intro": "Увесь сайт рахує те, що людина спрогнозувала. Це зворотний бік: матчі, які завершилися без її прогнозу. На кожен із них ми ставимо те, що поставила більшість, — найпростіша заміна рішення.",
+  "absence.skipped": "Без прогнозу",
+  "absence.ofSettled": "з {count} зіграних",
+  "absence.points": "Там лежало",
+  "absence.pointsHint": "очок, якби на кожному йти за більшістю",
+  "absence.coverage": "Охоплення турніру",
+  "absence.coverageHint": "матчів із власним прогнозом",
+  "absence.crowdHit": {
+    one: "більшість вгадала {count} з них",
+    few: "більшість вгадала {count} з них",
+    many: "більшість вгадала {count} з них",
+  },
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego liczba czyta sie
+  // jak krzywda - a wiekszosci nie dalo sie znac przed terminem, wiec
+  // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
+  // zdanie stoi pod sekcja tlumu.
+  "absence.note": "Це не альтернативний підрахунок і не «стільки йому належало». Більшість рахується постфактум, з усіх зроблених прогнозів — до дедлайну її ніхто не знав. Це оцінка того, скільки турніру пройшло повз, у єдиній валюті цього сайту.",
 };
 
 export default uk;
