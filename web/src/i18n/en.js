@@ -1566,6 +1566,39 @@ const en = {
   // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
   // zdanie stoi pod sekcja tlumu.
   "absence.note": "This is not an alternative score, nor what they were owed. The majority is counted after the fact, from all the picks submitted — nobody knew it before the deadline. It is a valuation of how much of the tournament passed by, in the only currency this site has.",
+
+  // --- Trudnosc trafien: oczywiste kontra zarobione ------------------------
+  "difficulty.kicker": "Was being right hard",
+  "difficulty.title": "Obvious hits and earned ones",
+  // Zmierzone: 53 ze 155 meczow w bazie (34%) trafilo ponad 85% pola,
+  // dwadziescia trzy z nich ponad 95%. W Kolonii dwa mecze trafili
+  // WSZYSCY - Vitality-MOUZ i G2-Monte.
+  "difficulty.intro": {
+    one: "A correct winner is worth the same whether the whole field called it or almost nobody. In this tournament {count} of {matches} settled matches were called right by at least {threshold}% of entrants — there the point went to anyone who simply submitted a pick.",
+    other: "A correct winner is worth the same whether the whole field called it or almost nobody. In this tournament {count} of {matches} settled matches were called right by at least {threshold}% of entrants — there the point went to anyone who simply submitted a pick.",
+  },
+  "difficulty.obvious": "Obvious",
+  "difficulty.ofHits": {
+    one: "of {count} winner called right",
+    other: "of {count} winners called right",
+  },
+  "difficulty.earned": "Earned",
+  "difficulty.earnedHint": {
+    one: "{count} pt from outside the matches nearly everyone got",
+    other: "{count} pts from outside the matches nearly everyone got",
+  },
+  // Bez progu uczestnictwa, bo to LICZBA, a nie odsetek: kto oddal piec
+  // typow, ma najwyzej piec zarobionych trafien i sam nie wejdzie wysoko.
+  "difficulty.rank": "Place by earned hits",
+  "difficulty.rankHint": {
+    one: "of {count} person who picked matches",
+    other: "of {count} people who picked matches",
+  },
+  "difficulty.compare": "Obvious matches are {mine}% of their hits. For the whole field it is {field}%.",
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego sekcja czyta sie
+  // jak druga punktacja, ktora odbiera komus punkty. To samo zdanie
+  // stoi pod tlumem i pod nieobecnoscia.
+  "difficulty.note": "An obvious match is obvious only after the fact: the field's agreement is counted from all the picks submitted, and nobody knew it before the deadline. This is not a second score — in the ranking every one of these matches pays the same.",
 };
 
 export default en;

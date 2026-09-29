@@ -1667,6 +1667,43 @@ const pl = {
   // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
   // zdanie stoi pod sekcja tlumu.
   "absence.note": "To nie jest punktacja alternatywna ani „tyle mu się należało”. Większość liczy się po fakcie, ze wszystkich oddanych typów — przed terminem nikt jej nie znał. To wycena tego, ile turnieju przeszło obok, w jedynej walucie, jaką ten serwis ma.",
+
+  // --- Trudnosc trafien: oczywiste kontra zarobione ------------------------
+  "difficulty.kicker": "Czy trzeba było mieć rację",
+  "difficulty.title": "Trafienia oczywiste i zarobione",
+  // Zmierzone: 53 ze 155 meczow w bazie (34%) trafilo ponad 85% pola,
+  // dwadziescia trzy z nich ponad 95%. W Kolonii dwa mecze trafili
+  // WSZYSCY - Vitality-MOUZ i G2-Monte.
+  "difficulty.intro": {
+    one: "Trafiony zwycięzca to tyle samo punktów, czy wskazało go całe pole, czy garstka. W tym turnieju {count} z {matches} rozstrzygniętych meczów trafiło co najmniej {threshold}% typujących — tam punkt brał każdy, kto w ogóle oddał typ.",
+    few: "Trafiony zwycięzca to tyle samo punktów, czy wskazało go całe pole, czy garstka. W tym turnieju {count} z {matches} rozstrzygniętych meczów trafiło co najmniej {threshold}% typujących — tam punkt brał każdy, kto w ogóle oddał typ.",
+    many: "Trafiony zwycięzca to tyle samo punktów, czy wskazało go całe pole, czy garstka. W tym turnieju {count} z {matches} rozstrzygniętych meczów trafiło co najmniej {threshold}% typujących — tam punkt brał każdy, kto w ogóle oddał typ.",
+  },
+  "difficulty.obvious": "Oczywiste",
+  "difficulty.ofHits": {
+    one: "z {count} trafionego zwycięzcy",
+    few: "z {count} trafionych zwycięzców",
+    many: "z {count} trafionych zwycięzców",
+  },
+  "difficulty.earned": "Zarobione",
+  "difficulty.earnedHint": {
+    one: "{count} pkt spoza meczów, które trafili prawie wszyscy",
+    few: "{count} pkt spoza meczów, które trafili prawie wszyscy",
+    many: "{count} pkt spoza meczów, które trafili prawie wszyscy",
+  },
+  // Bez progu uczestnictwa, bo to LICZBA, a nie odsetek: kto oddal piec
+  // typow, ma najwyzej piec zarobionych trafien i sam nie wejdzie wysoko.
+  "difficulty.rank": "Miejsce wg zarobionych",
+  "difficulty.rankHint": {
+    one: "z {count} osoby, która typowała mecze",
+    few: "z {count} osób, które typowały mecze",
+    many: "z {count} osób, które typowały mecze",
+  },
+  "difficulty.compare": "Mecze oczywiste to {mine}% jego trafień. U całego pola {field}%.",
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego sekcja czyta sie
+  // jak druga punktacja, ktora odbiera komus punkty. To samo zdanie
+  // stoi pod tlumem i pod nieobecnoscia.
+  "difficulty.note": "„Oczywisty” jest oczywisty dopiero po fakcie: zgodę pola liczymy ze wszystkich oddanych typów, a przed terminem nikt jej nie znał. To nie jest druga punktacja — punkty w rankingu są za każdy z tych meczów takie same.",
 };
 
 export default pl;

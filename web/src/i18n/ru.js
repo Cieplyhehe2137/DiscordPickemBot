@@ -1646,6 +1646,43 @@ const ru = {
   // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
   // zdanie stoi pod sekcja tlumu.
   "absence.note": "Это не альтернативный подсчёт и не «столько ему причиталось». Большинство считается постфактум, из всех сделанных прогнозов, — до дедлайна его никто не знал. Это оценка того, сколько турнира прошло мимо, в единственной валюте этого сайта.",
+
+  // --- Trudnosc trafien: oczywiste kontra zarobione ------------------------
+  "difficulty.kicker": "Трудно ли было угадать",
+  "difficulty.title": "Очевидные попадания и заработанные",
+  // Zmierzone: 53 ze 155 meczow w bazie (34%) trafilo ponad 85% pola,
+  // dwadziescia trzy z nich ponad 95%. W Kolonii dwa mecze trafili
+  // WSZYSCY - Vitality-MOUZ i G2-Monte.
+  "difficulty.intro": {
+    one: "Угаданный победитель стоит одинаково, указало его всё поле или единицы. На этом турнире {count} из {matches} сыгранных матчей угадали не менее {threshold}% участников — там очко получал каждый, кто вообще сделал прогноз.",
+    few: "Угаданный победитель стоит одинаково, указало его всё поле или единицы. На этом турнире {count} из {matches} сыгранных матчей угадали не менее {threshold}% участников — там очко получал каждый, кто вообще сделал прогноз.",
+    many: "Угаданный победитель стоит одинаково, указало его всё поле или единицы. На этом турнире {count} из {matches} сыгранных матчей угадали не менее {threshold}% участников — там очко получал каждый, кто вообще сделал прогноз.",
+  },
+  "difficulty.obvious": "Очевидные",
+  "difficulty.ofHits": {
+    one: "из {count} угаданного победителя",
+    few: "из {count} угаданных победителей",
+    many: "из {count} угаданных победителей",
+  },
+  "difficulty.earned": "Заработанные",
+  "difficulty.earnedHint": {
+    one: "{count} очко вне матчей, которые угадали почти все",
+    few: "{count} очка вне матчей, которые угадали почти все",
+    many: "{count} очков вне матчей, которые угадали почти все",
+  },
+  // Bez progu uczestnictwa, bo to LICZBA, a nie odsetek: kto oddal piec
+  // typow, ma najwyzej piec zarobionych trafien i sam nie wejdzie wysoko.
+  "difficulty.rank": "Место по заработанным",
+  "difficulty.rankHint": {
+    one: "из {count} человека, прогнозировавшего матчи",
+    few: "из {count} человек, прогнозировавших матчи",
+    many: "из {count} человек, прогнозировавших матчи",
+  },
+  "difficulty.compare": "Очевидные матчи — это {mine}% его попаданий. По всему полю — {field}%.",
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego sekcja czyta sie
+  // jak druga punktacja, ktora odbiera komus punkty. To samo zdanie
+  // stoi pod tlumem i pod nieobecnoscia.
+  "difficulty.note": "«Очевидный» становится очевидным только постфактум: согласие поля считается из всех сделанных прогнозов, и до дедлайна его никто не знал. Это не второй подсчёт — в рейтинге каждый из этих матчей стоит одинаково.",
 };
 
 export default ru;

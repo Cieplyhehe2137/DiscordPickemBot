@@ -1646,6 +1646,43 @@ const uk = {
   // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
   // zdanie stoi pod sekcja tlumu.
   "absence.note": "Це не альтернативний підрахунок і не «стільки йому належало». Більшість рахується постфактум, з усіх зроблених прогнозів — до дедлайну її ніхто не знав. Це оцінка того, скільки турніру пройшло повз, у єдиній валюті цього сайту.",
+
+  // --- Trudnosc trafien: oczywiste kontra zarobione ------------------------
+  "difficulty.kicker": "Чи важко було вгадати",
+  "difficulty.title": "Очевидні влучання та зароблені",
+  // Zmierzone: 53 ze 155 meczow w bazie (34%) trafilo ponad 85% pola,
+  // dwadziescia trzy z nich ponad 95%. W Kolonii dwa mecze trafili
+  // WSZYSCY - Vitality-MOUZ i G2-Monte.
+  "difficulty.intro": {
+    one: "Вгаданий переможець вартий однаково, чи вказало його все поле, чи одиниці. На цьому турнірі {count} з {matches} зіграних матчів вгадали щонайменше {threshold}% учасників — там очко брав кожен, хто взагалі зробив прогноз.",
+    few: "Вгаданий переможець вартий однаково, чи вказало його все поле, чи одиниці. На цьому турнірі {count} з {matches} зіграних матчів вгадали щонайменше {threshold}% учасників — там очко брав кожен, хто взагалі зробив прогноз.",
+    many: "Вгаданий переможець вартий однаково, чи вказало його все поле, чи одиниці. На цьому турнірі {count} з {matches} зіграних матчів вгадали щонайменше {threshold}% учасників — там очко брав кожен, хто взагалі зробив прогноз.",
+  },
+  "difficulty.obvious": "Очевидні",
+  "difficulty.ofHits": {
+    one: "з {count} вгаданого переможця",
+    few: "з {count} вгаданих переможців",
+    many: "з {count} вгаданих переможців",
+  },
+  "difficulty.earned": "Зароблені",
+  "difficulty.earnedHint": {
+    one: "{count} очко поза матчами, які вгадали майже всі",
+    few: "{count} очки поза матчами, які вгадали майже всі",
+    many: "{count} очок поза матчами, які вгадали майже всі",
+  },
+  // Bez progu uczestnictwa, bo to LICZBA, a nie odsetek: kto oddal piec
+  // typow, ma najwyzej piec zarobionych trafien i sam nie wejdzie wysoko.
+  "difficulty.rank": "Місце за заробленими",
+  "difficulty.rankHint": {
+    one: "з {count} людини, яка прогнозувала матчі",
+    few: "з {count} людей, які прогнозували матчі",
+    many: "з {count} людей, які прогнозували матчі",
+  },
+  "difficulty.compare": "Очевидні матчі — це {mine}% його влучань. По всьому полю — {field}%.",
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego sekcja czyta sie
+  // jak druga punktacja, ktora odbiera komus punkty. To samo zdanie
+  // stoi pod tlumem i pod nieobecnoscia.
+  "difficulty.note": "«Очевидний» стає очевидним лише постфактум: згоду поля рахуємо з усіх зроблених прогнозів, і до дедлайну її ніхто не знав. Це не другий підрахунок — у рейтингу кожен із цих матчів вартий однаково.",
 };
 
 export default uk;
