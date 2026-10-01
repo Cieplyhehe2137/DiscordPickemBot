@@ -5,6 +5,11 @@ import { buildPlayerVsCrowd } from "../lib/crowdBaseline.js";
 import { buildKeyDecisions } from "../lib/keyDecisions.js";
 import { buildConfidence } from "../lib/confidence.js";
 import { buildAbsence } from "../lib/absence.js";
+import {
+  buildMatchDifficulty,
+  MIN_GLOSUJACYCH,
+  PROG_OCZYWISTEGO,
+} from "../lib/matchDifficulty.js";
 import { buildPhasePoints } from "../lib/phasePoints.js";
 
 // Profil gracza w evencie: punkty, skutecznosc, serie, rekordy, porownanie
@@ -71,6 +76,7 @@ export function registerPlayerProfileRoutes(
         [historyRows],
         [phaseScoreRows],
         [glosowanieRows],
+        [trudnoscPolaRows],
       ] = await Promise.all([
         pool.query(
           `
@@ -878,6 +884,75 @@ export function registerPlayerProfileRoutes(
           // pustą sekcję.
           [userId, slug],
         ),
+
+        /*
+         * TRAFIENIA CAŁEGO POLA, z podziałem na mecze oczywiste.
+         *
+         * Potrzebne wyłącznie po to, żeby powiedzieć „#27 z 409 wg trafień
+         * zarobionych" - sam podział trafień TEGO gracza liczy się z wierszy
+         * wyżej, bez żadnej podróży do bazy.
+         *
+         * Zmierzone na produkcji, mediana z pięciu przebiegów po rozgrzewce:
+         * 199 ms przy podłodze 175 ms, czyli 24 ms pracy i 409 wierszy.
+         * Idzie tą samą falą, co reszta, więc nie kosztuje ani jednej
+         * podróży więcej.
+         *
+         * OBA PROGI IDĄ PARAMETREM z lib/matchDifficulty.js. Wpisanie ich
+         * tutaj dałoby drugie miejsce, w którym trzeba pamiętać o zmianie
+         * reguły - a wtedy miejsce w polu liczyłoby się inaczej niż
+         * kafelek obok.
+         */
+        pool.query(
+          `
+    SELECT
+      -- user_id w match_predictions ma inne porównywanie niż w pozostałych
+      -- tabelach; porównanie idzie i tak w JS, po tekście.
+      CAST(q.user_id AS CHAR CHARACTER SET utf8mb4)
+        COLLATE utf8mb4_unicode_ci AS user_id,
+
+      SUM(CASE
+            WHEN (q.pred_a > q.pred_b) = mecz.winner_a
+             AND mecz.obvious = 0 THEN 1 ELSE 0
+          END) AS earned
+
+    FROM match_predictions q
+
+    -- Zgoda pola na każdym meczu: dziesięć tysięcy wierszy zwijanych do 106,
+    -- a dopiero potem złączonych z typami.
+    JOIN (
+      SELECT
+        m.id,
+        (r.res_a > r.res_b) AS winner_a,
+        (
+          COUNT(*) >= ?
+          AND (100 * SUM(CASE
+                           WHEN (p.pred_a > p.pred_b) = (r.res_a > r.res_b)
+                           THEN 1 ELSE 0
+                         END)) / COUNT(*) >= ?
+        ) AS obvious
+
+      FROM matches m
+
+      JOIN match_results r
+        ON r.match_id = m.id
+       AND r.event_id = m.event_id
+
+      JOIN match_predictions p
+        ON p.match_id = m.id
+       AND p.event_id = m.event_id
+
+      WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+      GROUP BY m.id, winner_a
+    ) AS mecz
+      ON mecz.id = q.match_id
+
+    WHERE q.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+    GROUP BY user_id
+    `,
+          [MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug],
+        ),
       ]);
 
       if (!event) {
@@ -1045,11 +1120,6 @@ export function registerPlayerProfileRoutes(
         // wbrew trzem czwartym stawki.
         decisions: buildKeyDecisions(mojeMecze),
 
-        // PEWNOSC TYPU. Wynik serii nie daje ani jednego punktu,
-        // a zmierzony na wszystkich turniejach niesie 15 punktow
-        // procentowych roznicy w trafieniu zwyciezcy: 2:0 -> 67%,
-        // 2:1 -> 52%. Liczone z tego samego zapytania, co reszta
-        // statystyk serii - bez dodatkowej podrozy do bazy.
         // CO PRZESZLO OBOK. Caly serwis liczy to, co ktos zrobil.
         // Zmierzone w Kolonii: mediana typujacego pominela 103 ze 106
         // meczow, a rekordzista zyskalby +142 pkt i 47 miejsc, gdyby
@@ -1062,6 +1132,25 @@ export function registerPlayerProfileRoutes(
           pointsPerWinner: scoring?.MATCH?.WINNER,
         }),
 
+        // CZY TRZEBA BYLO MIEC RACJE. Trafiony zwyciezca to 2 punkty
+        // niezaleznie od tego, czy wytypowalo go cale pole, czy cztery
+        // procent. Zmierzone w Kolonii: 39 ze 106 meczow trafilo ponad
+        // 85% pola i leży na nich 55% wszystkich trafien stawki.
+        //
+        // Podzial trafien TEGO gracza liczy sie z glosowanieRows, czyli
+        // bez zapytania; osobne zapytanie daje wylacznie miejsce w polu.
+        difficulty: buildMatchDifficulty({
+          rows: glosowanieRows,
+          fieldRows: trudnoscPolaRows,
+          userId,
+          pointsPerWinner: scoring?.MATCH?.WINNER,
+        }),
+
+        // PEWNOSC TYPU. Wynik serii nie daje ani jednego punktu,
+        // a zmierzony na wszystkich turniejach niesie 15 punktow
+        // procentowych roznicy w trafieniu zwyciezcy: 2:0 -> 67%,
+        // 2:1 -> 52%. Liczone z tego samego zapytania, co reszta
+        // statystyk serii - bez dodatkowej podrozy do bazy.
         confidence: buildConfidence({
           sure: predictionStats?.sure_picks,
           sureHits: predictionStats?.sure_hits,

@@ -268,6 +268,11 @@ function PlayerProfilePage() {
   // z wahaniem. Wynik serii nie daje w tym turnieju ani jednego punktu.
   const pewnosc = profile?.confidence ?? null;
 
+  // Czy trafienie bylo trudne. Zwyciezca to tyle samo punktow, czy wskazalo
+  // go cale pole, czy cztery procent - serwis mowil dotad tylko KTO mial
+  // racje, nigdy czy trzeba bylo ja miec.
+  const trudnosc = profile?.difficulty ?? null;
+
   // Druga strona tego samego turnieju: mecze, ktore rozstrzygnely sie
   // bez jego typu. Caly serwis liczy to, co ktos zrobil.
   const nieobecnosc = profile?.absence ?? null;
@@ -644,6 +649,77 @@ function PlayerProfilePage() {
           <p className="ui-note">
             {t("confidence.note", { count: pewnosc.threshold })}
           </p>
+        </section>
+      )}
+
+      {/* CZY TRZEBA BYLO MIEC RACJE.
+          Sekcje wyzej mowia, ILE ten czlowiek trafil. Ta mowi, ile te
+          trafienia byly warte: zmierzone w Kolonii, 39 ze 106 meczow
+          trafilo ponad 85% pola i lezy na nich 55% wszystkich trafien
+          stawki. Czolowa dwudziestka dzieli 34-39 identycznych trafien,
+          a rozni sie o jedenascie. */}
+      {trudnosc?.enough && (
+        <section className="ui-card ui-stack">
+          <div className="ui-section-head">
+            <div>
+              <span className="ui-kicker">{t("difficulty.kicker")}</span>
+
+              <h2>{t("difficulty.title")}</h2>
+
+              <p>
+                {t("difficulty.intro", {
+                  count: trudnosc.obvious,
+                  matches: trudnosc.matches,
+                  threshold: trudnosc.threshold,
+                })}
+              </p>
+            </div>
+          </div>
+
+          <div className="ui-stats ui-stats--4">
+            <div className="ui-stat">
+              <span>{t("difficulty.obvious")}</span>
+
+              <strong>{trudnosc.obviousHits}</strong>
+
+              <small>{t("difficulty.ofHits", { count: trudnosc.hits })}</small>
+            </div>
+
+            <div className="ui-stat ui-stat--featured">
+              <span>{t("difficulty.earned")}</span>
+
+              <strong>{trudnosc.earnedHits}</strong>
+
+              <small>
+                {t("difficulty.earnedHint", { count: trudnosc.earnedPoints })}
+              </small>
+            </div>
+
+            {/* Miejsce znika, gdy nie udalo sie go policzyc - zamiast
+                pokazywac "#null z null". Reszta sekcji stoi dalej. */}
+            {trudnosc.rank !== null && (
+              <div className="ui-stat">
+                <span>{t("difficulty.rank")}</span>
+
+                <strong>#{trudnosc.rank}</strong>
+
+                <small>
+                  {t("difficulty.rankHint", { count: trudnosc.players })}
+                </small>
+              </div>
+            )}
+          </div>
+
+          <p className="ui-stat__hint">
+            {t("difficulty.compare", {
+              mine: trudnosc.share,
+              field: trudnosc.fieldShare,
+            })}
+          </p>
+
+          {/* BEZ TEGO ZDANIA sekcja czyta sie jak druga punktacja, ktora
+              komus punkty odbiera. Zgoda pola jest znana dopiero po fakcie. */}
+          <p className="ui-note">{t("difficulty.note")}</p>
         </section>
       )}
 

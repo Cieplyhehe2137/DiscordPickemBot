@@ -324,3 +324,62 @@ test("cena nieobecnosci bierze stawke z rules, a nie z wlasnej kopii", () => {
     "trasa profilu nie podaje juz stawki z rules/scoring.js",
   );
 });
+
+test("trudnosc trafien bierze stawke z rules, a nie z wlasnej kopii", () => {
+  // To samo, co przy cenie nieobecnosci: server/lib/matchDifficulty.js
+  // wycenia trafienia zarobione stawka za zwyciezce serii.
+  const modul = fs.readFileSync(
+    path.join(__dirname, "..", "server", "lib", "matchDifficulty.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    modul.includes("pointsPerWinner"),
+    "matchDifficulty.js nie przyjmuje juz stawki z zewnatrz",
+  );
+
+  const podejrzane = modul.match(/zarobione\s*\*\s*\d/);
+
+  assert.equal(
+    podejrzane,
+    null,
+    `matchDifficulty.js mnozy przez liczbe wpisana wprost: ${
+      podejrzane && podejrzane[0]
+    }`,
+  );
+});
+
+test("prog oczywistego ma JEDNO zrodlo - modul, nie zapytanie", () => {
+  // Trasa profilu liczy miejsce w polu osobnym zapytaniem, ktore musi
+  // klasyfikowac mecze DOKLADNIE tak samo, co kafelek obok. Wpisanie progow
+  // do SQL-a dawaloby dwie reguly, ktore rozjada sie bez zadnego bledu:
+  // ekran pokazywalby "39 oczywistych" i miejsce policzone wedlug innych
+  // trzydziestu dziewieciu.
+  const trasa = fs.readFileSync(
+    path.join(__dirname, "..", "server", "routes", "playerProfile.js"),
+    "utf8",
+  );
+
+  assert.ok(
+    trasa.includes("[MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug]"),
+    "zapytanie o pole nie bierze juz progow z lib/matchDifficulty.js",
+  );
+
+  // Zadnej z tych liczb nie ma w SQL-u wprost. Koniec szukamy OD poczatku
+  // tego zapytania, bo "GROUP BY user_id" stoi w tej trasie takze wyzej.
+  const poczatek = trasa.indexOf("TRAFIENIA CAŁEGO POLA");
+  const zapytanie = trasa.slice(
+    poczatek,
+    trasa.indexOf("GROUP BY user_id", poczatek),
+  );
+
+  assert.ok(zapytanie.length > 0, "nie znalazlem zapytania o trafienia pola");
+
+  for (const liczba of ["20", "85"]) {
+    assert.equal(
+      zapytanie.includes(`>= ${liczba}`),
+      false,
+      `prog ${liczba} wpisany wprost w zapytaniu`,
+    );
+  }
+});

@@ -1566,6 +1566,39 @@ const de = {
   // nie byla to strategia, ktora ktokolwiek mogl zastosowac. To samo
   // zdanie stoi pod sekcja tlumu.
   "absence.note": "Das ist keine alternative Wertung und auch nicht, was ihm zugestanden hätte. Die Mehrheit wird im Nachhinein gezählt, aus allen abgegebenen Tipps — vor Abgabeschluss kannte sie niemand. Es ist eine Bewertung dessen, wie viel Turnier vorbeiging, in der einzigen Währung dieser Seite.",
+
+  // --- Trudnosc trafien: oczywiste kontra zarobione ------------------------
+  "difficulty.kicker": "War Rechthaben schwer",
+  "difficulty.title": "Offensichtliche und verdiente Treffer",
+  // Zmierzone: 53 ze 155 meczow w bazie (34%) trafilo ponad 85% pola,
+  // dwadziescia trzy z nich ponad 95%. W Kolonii dwa mecze trafili
+  // WSZYSCY - Vitality-MOUZ i G2-Monte.
+  "difficulty.intro": {
+    one: "Ein richtiger Sieger zählt gleich viel, ob ihn das ganze Feld tippte oder fast niemand. In diesem Turnier trafen bei {count} von {matches} entschiedenen Spielen mindestens {threshold}% der Teilnehmer — dort bekam den Punkt jeder, der überhaupt tippte.",
+    other: "Ein richtiger Sieger zählt gleich viel, ob ihn das ganze Feld tippte oder fast niemand. In diesem Turnier trafen bei {count} von {matches} entschiedenen Spielen mindestens {threshold}% der Teilnehmer — dort bekam den Punkt jeder, der überhaupt tippte.",
+  },
+  "difficulty.obvious": "Offensichtlich",
+  "difficulty.ofHits": {
+    one: "von {count} richtigen Sieger",
+    other: "von {count} richtigen Siegern",
+  },
+  "difficulty.earned": "Verdient",
+  "difficulty.earnedHint": {
+    one: "{count} Pkt außerhalb der Spiele, die fast alle trafen",
+    other: "{count} Pkt außerhalb der Spiele, die fast alle trafen",
+  },
+  // Bez progu uczestnictwa, bo to LICZBA, a nie odsetek: kto oddal piec
+  // typow, ma najwyzej piec zarobionych trafien i sam nie wejdzie wysoko.
+  "difficulty.rank": "Platz nach verdienten Treffern",
+  "difficulty.rankHint": {
+    one: "von {count} Person, die Spiele tippte",
+    other: "von {count} Personen, die Spiele tippten",
+  },
+  "difficulty.compare": "Offensichtliche Spiele sind {mine}% seiner Treffer. Im ganzen Feld sind es {field}%.",
+  // TO ZASTRZEZENIE MUSI STAC NA EKRANIE. Bez niego sekcja czyta sie
+  // jak druga punktacja, ktora odbiera komus punkty. To samo zdanie
+  // stoi pod tlumem i pod nieobecnoscia.
+  "difficulty.note": "Offensichtlich ist ein Spiel erst im Nachhinein: die Übereinstimmung des Feldes wird aus allen abgegebenen Tipps gezählt, vor Abgabeschluss kannte sie niemand. Das ist keine zweite Wertung — in der Tabelle zählt jedes dieser Spiele gleich.",
 };
 
 export default de;
