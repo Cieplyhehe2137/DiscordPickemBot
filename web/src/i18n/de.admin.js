@@ -400,6 +400,44 @@ const deAdmin = {
   "adminUsers.phases.title": "Phasen-Tipps",
   "adminUsers.phases.lead": "Teams, die außerhalb der Spiele getippt wurden: wer 3-0 geht, wer weiterkommt, wer MVP wird. Unter jeder Gruppe steht das offizielle Ergebnis, und die Punkte neben einer Phase stammen aus der Wertung, nicht aus einer Neuberechnung.",
   "adminUsers.nothingAtAll": "Dieser Spieler hat in diesem Turnier keinen einzigen Tipp abgegeben — weder auf ein Spiel noch auf eine Phase.",
+
+  // --- Panel - format calej fazy -------------------------------------------
+  "admin.ops.bo.title": "Format einer ganzen Phase",
+  // Rozliczonych nie ruszamy, bo zmiana BO przestawia liczenie punktow
+  // za mapy: przy BO1 ida z pred_exact w typie, przy BO3 i BO5 z osobnych
+  // typow na kazda mape. Ta sama regula stoi w edycji meczu z Discorda.
+  "admin.ops.bo.hint": "Ändert das BO aller Spiele der gewählten Phase auf einmal. Spiele mit eingetragenem Ergebnis bleiben unberührt — mach das Ergebnis zuerst rückgängig.",
+  "admin.ops.bo.check": "Prüfen, was sich ändert",
+  "admin.ops.bo.summary": {
+    one: "Zu ändern: {count} Spiel auf BO{bo}.",
+    other: "Zu ändern: {count} Spiele auf BO{bo}.",
+  },
+  // Punkty za serie porownuja TYLKO zwyciezce, wiec typ 1:0 oddany na BO1
+  // liczy sie dalej po zmianie na BO3. To nie jest pocieszenie, tylko
+  // powod, dla ktorego ta operacja nie wymaga kasowania typow.
+  "admin.ops.bo.predictionsHint": {
+    one: "Betrifft {count} abgegebenen Tipp. Tipps bleiben, der Sieger zählt weiter — Kartenpunkte entfallen, weil sie bei einem anderen Format anderswo herkommen.",
+    other: "Betrifft {count} abgegebene Tipps. Tipps bleiben, der Sieger zählt weiter — Kartenpunkte entfallen, weil sie bei einem anderen Format anderswo herkommen.",
+  },
+  "admin.ops.bo.already": {
+    one: "{count} Spiel hat dieses Format bereits.",
+    other: "{count} Spiele haben dieses Format bereits.",
+  },
+  "admin.ops.bo.settled": {
+    one: "{count} Spiel bleibt unverändert, es hat bereits ein Ergebnis:",
+    other: "{count} Spiele bleiben unverändert, sie haben bereits Ergebnisse:",
+  },
+  "admin.ops.bo.button": "Format ändern",
+  "admin.ops.bo.confirmTitle": "Format der Phase {phase} auf BO{bo} ändern?",
+  "admin.ops.bo.confirmText": "Tipps bleiben — bitte die Spieler danach, erneut zu tippen. Wer das nicht tut, behält trotzdem den Punkt für den Sieger.",
+  "admin.ops.bo.matches": "Spiele",
+  "admin.ops.bo.predictions": "Spielertipps",
+  "admin.ops.bo.done": {
+    one: "{count} Spiel auf BO{bo} geändert.",
+    other: "{count} Spiele auf BO{bo} geändert.",
+  },
+  "admin.ops.bo.previewError": "Vorschau konnte nicht geladen werden.",
+  "admin.ops.bo.error": "Format der Spiele konnte nicht geändert werden.",
 };
 
 export default deAdmin;

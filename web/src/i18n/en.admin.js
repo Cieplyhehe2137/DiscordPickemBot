@@ -400,6 +400,44 @@ const enAdmin = {
   "adminUsers.phases.title": "Phase picks",
   "adminUsers.phases.lead": "Teams picked outside matches: who goes 3-0, who advances, who takes MVP. Each group shows the official answer below it, and the points next to a phase come from the ranking, not from counting hits.",
   "adminUsers.nothingAtAll": "This player has not made a single pick in this tournament — neither on a match nor on a phase.",
+
+  // --- Panel - format calej fazy -------------------------------------------
+  "admin.ops.bo.title": "Format of a whole phase",
+  // Rozliczonych nie ruszamy, bo zmiana BO przestawia liczenie punktow
+  // za mapy: przy BO1 ida z pred_exact w typie, przy BO3 i BO5 z osobnych
+  // typow na kazda mape. Ta sama regula stoi w edycji meczu z Discorda.
+  "admin.ops.bo.hint": "Changes the BO of every match in the chosen phase at once. Matches that already have a result are left alone — undo the result first.",
+  "admin.ops.bo.check": "Check what will change",
+  "admin.ops.bo.summary": {
+    one: "To change: {count} match to BO{bo}.",
+    other: "To change: {count} matches to BO{bo}.",
+  },
+  // Punkty za serie porownuja TYLKO zwyciezce, wiec typ 1:0 oddany na BO1
+  // liczy sie dalej po zmianie na BO3. To nie jest pocieszenie, tylko
+  // powod, dla ktorego ta operacja nie wymaga kasowania typow.
+  "admin.ops.bo.predictionsHint": {
+    one: "Affects {count} submitted pick. Picks stay and the winner still counts — map points are lost, because another format reads them from somewhere else.",
+    other: "Affects {count} submitted picks. Picks stay and the winner still counts — map points are lost, because another format reads them from somewhere else.",
+  },
+  "admin.ops.bo.already": {
+    one: "{count} match is already in this format.",
+    other: "{count} matches are already in this format.",
+  },
+  "admin.ops.bo.settled": {
+    one: "{count} match is left unchanged, it already has a result:",
+    other: "{count} matches are left unchanged, they already have results:",
+  },
+  "admin.ops.bo.button": "Change the format",
+  "admin.ops.bo.confirmTitle": "Change the format of phase {phase} to BO{bo}?",
+  "admin.ops.bo.confirmText": "Picks stay — after the change, ask the players to pick these matches again. Whoever does not will still keep the point for the winner.",
+  "admin.ops.bo.matches": "Matches",
+  "admin.ops.bo.predictions": "Player picks",
+  "admin.ops.bo.done": {
+    one: "Changed {count} match to BO{bo}.",
+    other: "Changed {count} matches to BO{bo}.",
+  },
+  "admin.ops.bo.previewError": "Could not load the preview.",
+  "admin.ops.bo.error": "Could not change the match format.",
 };
 
 export default enAdmin;

@@ -658,6 +658,15 @@ export function createMatchesBulk(guildId, slug, payload) {
   );
 }
 
+// Hurtowa zmiana formatu calej fazy. dryRun oddaje podglad: ile meczow,
+// ilu typow to dotknie i ktore mecze zostana pominiete, bo maja juz wynik.
+export function changeMatchesBestOf(guildId, slug, payload) {
+  return apiRequest(
+    `/guilds/${encodeURIComponent(guildId)}/events/${encodeURIComponent(slug)}/matches/best-of`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
 export function getClearPhasePreview(slug, phase) {
   return apiRequest(
     `/events/${encodeURIComponent(slug)}/phases/${encodeURIComponent(phase)}/clear-preview`,

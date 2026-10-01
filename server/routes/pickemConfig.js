@@ -23,6 +23,7 @@ export function registerPickemConfigRoutes(
     parseMatchList,
     pool,
     nextMatchNumber,
+    recalculateMatchPoints,
     registerGuildEventRoutes,
     registerPublicOverviewRoutes,
     requireGuildAdmin,
@@ -216,6 +217,7 @@ export function registerPickemConfigRoutes(
     normalizePhase,
     parseMatchList,
     pool,
+    recalculateMatchPoints,
     requireGuildAdmin,
     runInTransaction,
   });

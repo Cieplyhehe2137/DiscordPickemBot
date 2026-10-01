@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   createMatchesBulk,
+  changeMatchesBestOf,
   getClearPhasePreview,
   clearPhase,
   getResultProposals,
@@ -151,6 +152,173 @@ function HurtoweMecze({ guildId, slug }) {
           <strong>{t("admin.ops.bulk.preview")}</strong>
 
           <pre>{JSON.stringify(podglad, null, 2).slice(0, 1500)}</pre>
+        </div>
+      )}
+
+      <Komunikaty ok={ok} blad={blad} />
+    </div>
+  );
+}
+
+/* ---------------- Format calej fazy ---------------- */
+
+// Format wpisuje sie przy zakladaniu meczow, czyli zanim ktokolwiek zobaczy
+// drabinke - i wtedy najlatwiej go pomylic. Poprawka pojedynczego meczu
+// jest w kafelku Mecze od dawna, ale jeden mecz na raz: osiem klikniec na
+// Swiss Stage 1, trzydziesci trzy na pelnym Majorze.
+function FormatFazy({ guildId, slug }) {
+  const t = useT();
+
+  const confirm = useConfirm();
+
+  const [faza, setFaza] = useState("swiss_stage1");
+  const [bo, setBo] = useState(3);
+  const [podglad, setPodglad] = useState(null);
+  const [pracuje, setPracuje] = useState(false);
+  const [ok, setOk] = useState("");
+  const [blad, setBlad] = useState("");
+
+  // Podglad przestaje pasowac, gdy zmieni sie faza albo docelowy format.
+  function przestaw(ustaw) {
+    return (wartosc) => {
+      ustaw(wartosc);
+      setPodglad(null);
+      setOk("");
+    };
+  }
+
+  async function pobierzPodglad() {
+    setPracuje(true);
+    setOk("");
+    setBlad("");
+
+    try {
+      setPodglad(
+        await changeMatchesBestOf(guildId, slug, {
+          phase: faza,
+          bestOf: Number(bo),
+          dryRun: true,
+        }),
+      );
+    } catch (err) {
+      setBlad(err.message || t("admin.ops.bo.previewError"));
+    } finally {
+      setPracuje(false);
+    }
+  }
+
+  async function zmien() {
+    // Typy zostaja, ale punkty za mapy licza sie po zmianie z innego
+    // miejsca - wiec admin ma to zobaczyc w liczbach, zanim kliknie.
+    const potwierdzone = await confirm({
+      title: t("admin.ops.bo.confirmTitle", { phase: faza, bo }),
+      description: t("admin.ops.bo.confirmText"),
+      details: [
+        { label: t("admin.ops.bo.matches"), value: podglad?.doZmiany ?? "?" },
+        { label: t("admin.ops.bo.predictions"), value: podglad?.typow ?? "?" },
+      ],
+      confirmLabel: t("admin.ops.bo.button"),
+    });
+
+    if (!potwierdzone) {
+      return;
+    }
+
+    setPracuje(true);
+    setOk("");
+    setBlad("");
+
+    try {
+      const dane = await changeMatchesBestOf(guildId, slug, {
+        phase: faza,
+        bestOf: Number(bo),
+      });
+
+      setPodglad(null);
+      setOk(t("admin.ops.bo.done", { count: dane.zmienione, bo }));
+    } catch (err) {
+      setBlad(err.message || t("admin.ops.bo.error"));
+    } finally {
+      setPracuje(false);
+    }
+  }
+
+  return (
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
+      <h4>{t("admin.ops.bo.title")}</h4>
+
+      <p className="ui-hint">{t("admin.ops.bo.hint")}</p>
+
+      <div className="ui-row ui-row--wrap">
+        <select
+          className="ui-input"
+          value={faza}
+          onChange={(e) => przestaw(setFaza)(e.target.value)}
+        >
+          {FAZY_MECZOWE.map((f) => (
+            <option key={f.klucz} value={f.klucz}>
+              {f.etykieta}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="ui-input"
+          value={bo}
+          onChange={(e) => przestaw(setBo)(e.target.value)}
+        >
+          <option value={1}>BO1</option>
+          <option value={3}>BO3</option>
+          <option value={5}>BO5</option>
+        </select>
+
+        <button type="button" onClick={pobierzPodglad} disabled={pracuje}>
+          {t("admin.ops.bo.check")}
+        </button>
+      </div>
+
+      {podglad && (
+        <div className="ui-card ui-card--flat ui-card--tight ui-stack ui-stack--tight">
+          <p>
+            {t("admin.ops.bo.summary", {
+              count: podglad.doZmiany,
+              bo: podglad.bestOf,
+            })}
+          </p>
+
+          {podglad.typow > 0 && (
+            <p className="ui-hint">
+              {t("admin.ops.bo.predictionsHint", { count: podglad.typow })}
+            </p>
+          )}
+
+          {podglad.juzWFormacie > 0 && (
+            <p className="ui-hint">
+              {t("admin.ops.bo.already", { count: podglad.juzWFormacie })}
+            </p>
+          )}
+
+          {/* Rozliczonych nie ruszamy - zmiana formatu przestawilaby
+              liczenie punktow za mapy pod ludzmi, ktorzy je juz dostali. */}
+          {podglad.rozliczonych > 0 && (
+            <>
+              <p className="ui-note ui-note--warn">
+                {t("admin.ops.bo.settled", { count: podglad.rozliczonych })}
+              </p>
+
+              <ul className="ui-hint">
+                {podglad.pominieteRozliczone.map((opis) => (
+                  <li key={opis}>{opis}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {podglad.doZmiany > 0 && (
+            <button type="button" onClick={zmien} disabled={pracuje}>
+              {pracuje ? t("admin.ops.working") : t("admin.ops.bo.button")}
+            </button>
+          )}
         </div>
       )}
 
@@ -592,6 +760,7 @@ function TournamentOpsPanel({ guildId, slug }) {
   return (
     <div className="ui-stack">
       <HurtoweMecze guildId={guildId} slug={slug} />
+      <FormatFazy guildId={guildId} slug={slug} />
       <PropozycjeWynikow slug={slug} />
       <Backupy guildId={guildId} />
       <CzyszczenieFazy slug={slug} />

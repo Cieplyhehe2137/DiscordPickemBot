@@ -46,6 +46,7 @@ export function registerGuildEventRoutes(
     normalizePhase,
     parseMatchList,
     pool,
+    recalculateMatchPoints,
     requireGuildAdmin,
     runInTransaction,
   },
@@ -311,6 +312,206 @@ export function registerGuildEventRoutes(
         res.status(500).json({
           error: "Nie udało się utworzyć meczów.",
           code: "server.matchesCreateFailed",
+        });
+      }
+    },
+  );
+
+  /*
+   * HURTOWA ZMIANA FORMATU CAŁEJ FAZY.
+   *
+   * Format wpisuje się przy zakładaniu meczów, czyli zanim ktokolwiek
+   * zobaczy drabinkę - i wtedy najłatwiej się pomylić. Poprawka po meczu
+   * istniała od dawna (PATCH /api/matches/:matchId), ale jeden mecz na raz:
+   * ośmioma kliknięciami na Swiss Stage 1, trzydziestoma trzema na pełnym
+   * Majorze.
+   *
+   * ROZLICZONE MECZE ZOSTAJĄ NIETKNIĘTE. Zmiana BO meczowi, który ma już
+   * wynik, przestawia sposób liczenia punktów za mapy pod ludźmi, którzy
+   * dostali je wcześniej: przy BO1 mapy liczą się z pred_exact w typie,
+   * przy BO3 i BO5 z osobnych typów na każdą mapę. Ta sama reguła stoi
+   * w edycji meczu z Discorda, która mówi wprost „najpierw cofnij wynik".
+   * Hurt tego nie łagodzi - wypisuje takie mecze i je omija.
+   *
+   * TYPY ZOSTAJĄ. Punkty za serię porównują tylko zwycięzcę, więc typ
+   * 1:0 oddany na BO1 dalej liczy się po zmianie na BO3. Przepadają
+   * punkty za mapy, bo przy BO3 biorą się z innego miejsca - i to jest
+   * powód, dla którego podgląd pokazuje, ilu typów to dotknie, ZANIM
+   * cokolwiek zapisze.
+   */
+  app.post(
+    "/api/guilds/:guildId/events/:slug/matches/best-of",
+    requireGuildAdmin((req) => req.params.guildId),
+    async (req, res) => {
+      try {
+        const { guildId, slug } = req.params;
+        const { phase, bestOf, dryRun = false } = req.body || {};
+
+        const fazaDoZmiany = fazaMeczu(phase);
+
+        if (!fazaDoZmiany) return zlaFaza(res, phase);
+
+        const noweBo = Number(bestOf);
+
+        if (![1, 3, 5].includes(noweBo)) {
+          return res.status(400).json({
+            error: "BO musi wynosić 1, 3 albo 5.",
+            code: "server.badBo",
+          });
+        }
+
+        const [[event]] = await pool.query(
+          "SELECT id, name FROM events WHERE guild_id = ? AND slug = ? LIMIT 1",
+          [guildId, slug],
+        );
+
+        if (!event) {
+          return res.status(404).json({
+            error: "Nie znaleziono turnieju.",
+            code: "server.eventNotFound",
+          });
+        }
+
+        // Jedno zapytanie na wszystko, czego potrzebuje i podglad, i zapis:
+        // ktore mecze, ile typow kazdy ma, czy jest rozliczony i czy wisza
+        // przy nim punkty.
+        const [mecze] = await pool.query(
+          `
+          SELECT
+            m.id,
+            m.match_no,
+            m.team_a,
+            m.team_b,
+            m.best_of,
+
+            (SELECT COUNT(*) FROM match_predictions p
+              WHERE p.match_id = m.id) AS typow,
+
+            (SELECT COUNT(*) FROM match_results r
+              WHERE r.match_id = m.id) AS wynikow,
+
+            (SELECT COUNT(*) FROM match_points mp
+              WHERE mp.match_id = m.id) AS punktow
+
+          FROM matches m
+
+          WHERE m.guild_id = ?
+            AND m.event_id = ?
+            AND m.phase = ?
+
+          ORDER BY COALESCE(m.match_no, 999999), m.id
+          `,
+          [guildId, event.id, fazaDoZmiany],
+        );
+
+        const rozliczone = mecze.filter((m) => Number(m.wynikow) > 0);
+        const juzWFormacie = mecze.filter(
+          (m) => Number(m.wynikow) === 0 && Number(m.best_of) === noweBo,
+        );
+        const doZmiany = mecze.filter(
+          (m) => Number(m.wynikow) === 0 && Number(m.best_of) !== noweBo,
+        );
+
+        const opis = (m) =>
+          `#${m.match_no ?? m.id} ${m.team_a} vs ${m.team_b} (BO${m.best_of})`;
+
+        const podsumowanie = {
+          phase: fazaDoZmiany,
+          bestOf: noweBo,
+
+          wszystkich: mecze.length,
+          doZmiany: doZmiany.length,
+          juzWFormacie: juzWFormacie.length,
+          rozliczonych: rozliczone.length,
+
+          // Ile typow przestawi sie na inne liczenie map. To jest liczba,
+          // ktora admin ma zobaczyc przed zapisem.
+          typow: doZmiany.reduce((suma, m) => suma + Number(m.typow), 0),
+
+          podglad: doZmiany.map(opis),
+          pominieteRozliczone: rozliczone.map(opis),
+        };
+
+        if (dryRun) {
+          return res.json({ ok: true, dryRun: true, ...podsumowanie });
+        }
+
+        if (!doZmiany.length) {
+          return res.status(400).json({
+            error:
+              rozliczone.length > 0
+                ? "Nie ma czego zmienić - wszystkie mecze tej fazy są już w tym formacie albo rozliczone."
+                : "Nie ma czego zmienić - wszystkie mecze tej fazy są już w tym formacie.",
+            code: "server.nothingToChange",
+            ...podsumowanie,
+          });
+        }
+
+        const identyfikatory = doZmiany.map((m) => m.id);
+
+        await runInTransaction(pool, async (conn) => {
+          await conn.query(
+            `
+            UPDATE matches
+               SET best_of = ?
+             WHERE guild_id = ?
+               AND event_id = ?
+               AND phase = ?
+               AND id IN (?)
+            `,
+            [noweBo, guildId, event.id, fazaDoZmiany, identyfikatory],
+          );
+        });
+
+        /*
+         * Przeliczamy TYLKO te mecze, przy ktorych wisza punkty.
+         *
+         * Rozliczone omijamy, wiec w normalnym biegu rzeczy punktow tu nie
+         * ma i petla nie wykonuje ani jednego obrotu. Zostaja przypadki po
+         * cofnietym wyniku: wtedy recalculateMatchPoints kasuje wiersze
+         * policzone dla poprzedniego formatu. Kazde takie wywolanie
+         * przebudowuje klasyfikacje eventu, wiec wolanie go dla wszystkich
+         * meczow kosztowaloby tyle przebudow, ile meczow w fazie.
+         */
+        const doPrzeliczenia = doZmiany.filter((m) => Number(m.punktow) > 0);
+
+        for (const mecz of doPrzeliczenia) {
+          await recalculateMatchPoints(
+            pool,
+            guildId,
+            event.id,
+            mecz.id,
+            noweBo,
+          );
+        }
+
+        logInfo("matches", "Bulk best-of change", {
+          guildId,
+          eventId: event.id,
+          slug,
+          phase: fazaDoZmiany,
+          bestOf: noweBo,
+          zmienionych: doZmiany.length,
+          pominietychRozliczonych: rozliczone.length,
+          przeliczonych: doPrzeliczenia.length,
+          typow: podsumowanie.typow,
+          by: req.session?.user?.id,
+        });
+
+        io.emit("dashboard:refresh", { slug });
+
+        res.json({
+          ok: true,
+          zmienione: doZmiany.length,
+          przeliczone: doPrzeliczenia.length,
+          ...podsumowanie,
+        });
+      } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+          error: "Nie udało się zmienić formatu meczów.",
+          code: "server.bestOfChangeFailed",
         });
       }
     },

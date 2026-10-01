@@ -539,6 +539,9 @@ registerPickemConfigRoutes(app, {
   normalizePhase,
   parseMatchList,
   pool,
+  // Idzie dalej do registerGuildEventRoutes: hurtowa zmiana BO musi
+  // przeliczyc punkty tak samo, jak robi to edycja pojedynczego meczu.
+  recalculateMatchPoints,
   registerGuildEventRoutes,
   registerPublicOverviewRoutes,
   requireGuildAdmin,

@@ -407,6 +407,49 @@ const plAdmin = {
   "adminUsers.phases.title": "Typy na fazy",
   "adminUsers.phases.lead": "Drużyny wskazane poza meczami: kto pójdzie 3-0, kto awansuje, kto weźmie MVP. Pod każdą grupą stoi oficjalny wynik, a punkty przy fazie pochodzą z klasyfikacji, nie z przeliczenia trafień.",
   "adminUsers.nothingAtAll": "Ten gracz nie ma w tym turnieju ani jednego typu — ani na mecz, ani na fazę.",
+
+  // --- Panel - format calej fazy -------------------------------------------
+  "admin.ops.bo.title": "Format całej fazy",
+  // Rozliczonych nie ruszamy, bo zmiana BO przestawia liczenie punktow
+  // za mapy: przy BO1 ida z pred_exact w typie, przy BO3 i BO5 z osobnych
+  // typow na kazda mape. Ta sama regula stoi w edycji meczu z Discorda.
+  "admin.ops.bo.hint": "Zmienia BO wszystkim meczom wybranej fazy naraz. Mecze z wpisanym wynikiem zostają nietknięte — żeby je przestawić, najpierw cofnij wynik.",
+  "admin.ops.bo.check": "Sprawdź, co się zmieni",
+  "admin.ops.bo.summary": {
+    one: "Do zmiany: {count} mecz na BO{bo}.",
+    few: "Do zmiany: {count} mecze na BO{bo}.",
+    many: "Do zmiany: {count} meczów na BO{bo}.",
+  },
+  // Punkty za serie porownuja TYLKO zwyciezce, wiec typ 1:0 oddany na BO1
+  // liczy sie dalej po zmianie na BO3. To nie jest pocieszenie, tylko
+  // powod, dla ktorego ta operacja nie wymaga kasowania typow.
+  "admin.ops.bo.predictionsHint": {
+    one: "Dotyczy {count} oddanego typu. Typy zostają, zwycięzca liczy się dalej — przepadają punkty za mapy, bo przy innym formacie biorą się z innego miejsca.",
+    few: "Dotyczy {count} oddanych typów. Typy zostają, zwycięzca liczy się dalej — przepadają punkty za mapy, bo przy innym formacie biorą się z innego miejsca.",
+    many: "Dotyczy {count} oddanych typów. Typy zostają, zwycięzca liczy się dalej — przepadają punkty za mapy, bo przy innym formacie biorą się z innego miejsca.",
+  },
+  "admin.ops.bo.already": {
+    one: "{count} mecz jest już w tym formacie.",
+    few: "{count} mecze są już w tym formacie.",
+    many: "{count} meczów jest już w tym formacie.",
+  },
+  "admin.ops.bo.settled": {
+    one: "{count} mecz zostaje bez zmian, bo ma już wynik:",
+    few: "{count} mecze zostają bez zmian, bo mają już wynik:",
+    many: "{count} meczów zostaje bez zmian, bo mają już wynik:",
+  },
+  "admin.ops.bo.button": "Zmień format",
+  "admin.ops.bo.confirmTitle": "Zmienić format fazy {phase} na BO{bo}?",
+  "admin.ops.bo.confirmText": "Typy zostają — po zmianie trzeba poprosić graczy, żeby wytypowali mecze jeszcze raz. Kto tego nie zrobi, zachowa punkt za zwycięzcę.",
+  "admin.ops.bo.matches": "Meczów",
+  "admin.ops.bo.predictions": "Typów graczy",
+  "admin.ops.bo.done": {
+    one: "Zmieniono {count} mecz na BO{bo}.",
+    few: "Zmieniono {count} mecze na BO{bo}.",
+    many: "Zmieniono {count} meczów na BO{bo}.",
+  },
+  "admin.ops.bo.previewError": "Nie udało się pobrać podglądu.",
+  "admin.ops.bo.error": "Nie udało się zmienić formatu meczów.",
 };
 
 export default plAdmin;
