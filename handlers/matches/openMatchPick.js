@@ -2,6 +2,7 @@ const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const { isMatchLocked } = require("../../utils/matchLock");
+const { getActiveEventId } = require("../../utils/getOpenEventId");
 
 const PAGE_SIZE = 23; // 23 meczów + PREV + NEXT = max 25
 
@@ -45,6 +46,23 @@ async function sendMatchList({
   return withGuild(interaction, async ({ pool, guildId }) => {
     const userId = interaction.user.id;
 
+    // MECZE TEGO TURNIEJU, a nie tej fazy w calej historii serwera.
+    //
+    // Zapytania nizej szukaly po guild_id i phase. Dopoki serwer mial jeden
+    // turniej z meczami, para serwer+faza byla przypadkiem unikalna. Przy
+    // drugim turnieju na tym samym serwerze panel pokazywal graczowi mecze
+    // POPRZEDNIEGO: zmierzone na produkcji, guild 1161..., faza SWISS_STAGE1
+    // oddawala 33 mecze IEM Cologne i ani jednego z nowego turnieju.
+    const eventId = await getActiveEventId(pool, guildId);
+
+    if (!eventId) {
+      return respond(
+        interaction,
+        { content: "❌ Brak aktywnego eventu.", components: [] },
+        isUpdate,
+      );
+    }
+
     const [rows] = await pool.query(
       `
   SELECT
@@ -86,29 +104,33 @@ async function sendMatchList({
 
   LEFT JOIN match_predictions mp
     ON mp.guild_id = m.guild_id
+    AND mp.event_id = m.event_id
     AND mp.match_id = m.id
     AND mp.user_id = ?
 
   LEFT JOIN (
     SELECT
       guild_id,
+      event_id,
       match_id,
       user_id,
       COUNT(*) AS saved_maps
     FROM match_map_predictions
-    GROUP BY guild_id, match_id, user_id
+    GROUP BY guild_id, event_id, match_id, user_id
   ) mmp
     ON mmp.guild_id = m.guild_id
+    AND mmp.event_id = m.event_id
     AND mmp.match_id = m.id
     AND mmp.user_id = ?
 
   WHERE m.guild_id = ?
+    AND m.event_id = ?
     AND m.phase = ?
 
   ORDER BY COALESCE(m.match_no, 999999), m.id
   LIMIT ? OFFSET ?
   `,
-      [userId, userId, guildId, phaseKey, PAGE_SIZE + 1, offset],
+      [userId, userId, guildId, eventId, phaseKey, PAGE_SIZE + 1, offset],
     );
 
     const [[progress]] = await pool.query(
@@ -151,27 +173,31 @@ async function sendMatchList({
 
     LEFT JOIN match_predictions mp
       ON mp.guild_id = m.guild_id
+      AND mp.event_id = m.event_id
       AND mp.match_id = m.id
       AND mp.user_id = ?
 
     LEFT JOIN (
       SELECT
         guild_id,
+        event_id,
         match_id,
         user_id,
         COUNT(*) AS saved_maps
       FROM match_map_predictions
-      GROUP BY guild_id, match_id, user_id
+      GROUP BY guild_id, event_id, match_id, user_id
     ) mmp
       ON mmp.guild_id = m.guild_id
+      AND mmp.event_id = m.event_id
       AND mmp.match_id = m.id
       AND mmp.user_id = ?
 
     WHERE m.guild_id = ?
+      AND m.event_id = ?
       AND m.phase = ?
   ) x
   `,
-      [userId, userId, guildId, phaseKey],
+      [userId, userId, guildId, eventId, phaseKey],
     );
 
     const totalMatches = Number(progress?.total_matches || 0);

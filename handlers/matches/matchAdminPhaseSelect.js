@@ -8,6 +8,7 @@ const {
 
 const { withGuild } = require("../../utils/guildContext");
 const { logError } = require("../../utils/logger");
+const { getActiveEventId } = require("../../utils/getOpenEventId");
 
 const PAGE_SIZE = 23;
 
@@ -115,6 +116,18 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
+      // Mecze AKTYWNEGO turnieju. Bez event_id lista fazy sklejala wszystkie
+      // turnieje serwera w jedno - zmierzone na produkcji: SWISS_STAGE1
+      // oddawalo 33 mecze poprzedniego turnieju i ani jednego z nowego.
+      const eventId = await getActiveEventId(pool, guildId);
+
+      if (!eventId) {
+        return interaction.update({
+          content: "❌ Brak aktywnego eventu.",
+          components: [],
+        });
+      }
+
       const [rows] = await pool.query(
         `
         SELECT
@@ -130,11 +143,13 @@ module.exports = async function matchAdminPhaseSelect(interaction) {
         LEFT JOIN match_results r
           ON r.match_id = m.id
          AND r.guild_id = m.guild_id
+         AND r.event_id = m.event_id
         WHERE m.guild_id = ?
+          AND m.event_id = ?
           AND m.phase = ?
         ORDER BY COALESCE(m.match_no, 999999) ASC, m.id ASC
         `,
-        [guildId, phase],
+        [guildId, eventId, phase],
       );
 
       if (!rows.length) {
