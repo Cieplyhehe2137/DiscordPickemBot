@@ -209,6 +209,7 @@ function PickemConfigPanel({ slug }) {
                   <span>{etykietaGrupy(t, grupa)}</span>
 
                   <input
+                    className="ui-input"
                     type="number"
                     min="0"
                     max="64"

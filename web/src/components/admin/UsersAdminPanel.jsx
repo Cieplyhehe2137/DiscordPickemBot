@@ -466,6 +466,7 @@ function UsersAdminPanel({ slug }) {
     <div className="ui-stack">
       <div>
         <input
+          className="ui-input"
           type="search"
           value={wpisane}
           onChange={(e) => setWpisane(e.target.value)}

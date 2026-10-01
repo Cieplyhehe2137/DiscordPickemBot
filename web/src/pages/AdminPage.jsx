@@ -1163,6 +1163,7 @@ export default function AdminPage() {
                 {t("adminPage.event.phaseLabel")}
               </label>{" "}
               <select
+                className="ui-input"
                 id="event-phase"
                 value={selectedEvent.phase ?? "NOT_STARTED"}
                 disabled={changingPhase}
@@ -1216,6 +1217,7 @@ export default function AdminPage() {
           <form className="ui-card ui-stack" onSubmit={handleCreateMatch}>
             {" "}
             <select
+              className="ui-input"
               value={newMatchPhase}
               onChange={(event) => setNewMatchPhase(event.target.value)}
               disabled={creatingMatch}
@@ -1232,6 +1234,7 @@ export default function AdminPage() {
             )}{" "}
             {teamsError && <p>{teamsError}</p>}{" "}
             <select
+              className="ui-input"
               value={newMatchTeamA}
               onChange={(event) => setNewMatchTeamA(event.target.value)}
               disabled={creatingMatch || loadingTeams}
@@ -1247,6 +1250,7 @@ export default function AdminPage() {
               ))}{" "}
             </select>{" "}
             <select
+              className="ui-input"
               value={newMatchTeamB}
               onChange={(event) => setNewMatchTeamB(event.target.value)}
               disabled={creatingMatch || loadingTeams}
@@ -1266,6 +1270,7 @@ export default function AdminPage() {
               ))}{" "}
             </select>{" "}
             <select
+              className="ui-input"
               value={newMatchBestOf}
               onChange={(event) => setNewMatchBestOf(event.target.value)}
               disabled={creatingMatch}
@@ -1275,6 +1280,7 @@ export default function AdminPage() {
               <option value="5">BO5</option>{" "}
             </select>{" "}
             <input
+              className="ui-input"
               type="datetime-local"
               value={newMatchStartTime}
               onChange={(event) => setNewMatchStartTime(event.target.value)}
@@ -1673,6 +1679,7 @@ export default function AdminPage() {
             onSubmit={handleSaveDeadline}
           >
             <select
+              className="ui-input"
               value={deadlinePhase}
               onChange={(event) => setDeadlinePhase(event.target.value)}
               disabled={savingDeadline}
@@ -1685,6 +1692,7 @@ export default function AdminPage() {
 
             {deadlinePhase === "swiss" && (
               <select
+                className="ui-input"
                 value={deadlineStage}
                 onChange={(event) => setDeadlineStage(event.target.value)}
                 disabled={savingDeadline}
@@ -1696,6 +1704,7 @@ export default function AdminPage() {
             )}
 
             <input
+              className="ui-input"
               type="datetime-local"
               value={deadlineValue}
               onChange={(event) => setDeadlineValue(event.target.value)}
@@ -1891,6 +1900,7 @@ export default function AdminPage() {
 
           <form className="ui-card ui-stack" onSubmit={handleCreateTeam}>
             <input
+              className="ui-input"
               type="text"
               placeholder={t("adminPage.teams.name")}
               value={newTeamName}
@@ -1947,6 +1957,7 @@ export default function AdminPage() {
                 {editingTeamId === team.id ? (
                   <div className="ui-row ui-row--wrap ui-row--full">
                     <input
+                      className="ui-input"
                       type="text"
                       value={editingTeamName}
                       onChange={(event) =>
@@ -2116,6 +2127,7 @@ export default function AdminPage() {
 
         <div className="ui-row ui-row--wrap ui-row--full">
           <input
+            className="ui-input"
             type="text"
             placeholder={t("adminPage.newEvent.name")}
             value={newEventName}
@@ -2125,6 +2137,7 @@ export default function AdminPage() {
           />
 
           <input
+            className="ui-input"
             type="text"
             placeholder={t("adminPage.newEvent.slug")}
             value={newEventSlug}

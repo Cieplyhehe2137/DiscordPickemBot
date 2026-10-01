@@ -87,7 +87,11 @@ function StartPickemPanel({ slug }) {
       </p>
 
       <div className="ui-row ui-row--wrap">
-        <select value={faza} onChange={(e) => setFaza(e.target.value)}>
+        <select
+          className="ui-input"
+          value={faza}
+          onChange={(e) => setFaza(e.target.value)}
+        >
           {FAZY.map((f) => (
             <option key={f.klucz} value={f.klucz}>
               {f.etykieta}
@@ -96,6 +100,7 @@ function StartPickemPanel({ slug }) {
         </select>
 
         <input
+          className="ui-input"
           type="text"
           value={kanal}
           onChange={(e) => setKanal(e.target.value)}
