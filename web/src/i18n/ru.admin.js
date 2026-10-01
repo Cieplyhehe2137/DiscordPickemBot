@@ -407,6 +407,49 @@ const ruAdmin = {
   "adminUsers.phases.title": "Прогнозы на этапы",
   "adminUsers.phases.lead": "Команды, выбранные вне матчей: кто пройдёт 3-0, кто выйдет дальше, кто станет MVP. Под каждой группой стоит официальный результат, а очки рядом с этапом взяты из таблицы, а не пересчитаны.",
   "adminUsers.nothingAtAll": "У этого игрока в этом турнире нет ни одного прогноза — ни на матч, ни на этап.",
+
+  // --- Panel - format calej fazy -------------------------------------------
+  "admin.ops.bo.title": "Формат всей фазы",
+  // Rozliczonych nie ruszamy, bo zmiana BO przestawia liczenie punktow
+  // za mapy: przy BO1 ida z pred_exact w typie, przy BO3 i BO5 z osobnych
+  // typow na kazda mape. Ta sama regula stoi w edycji meczu z Discorda.
+  "admin.ops.bo.hint": "Меняет BO сразу всем матчам выбранной фазы. Матчи с внесённым результатом не трогаются — сначала отмени результат.",
+  "admin.ops.bo.check": "Проверить, что изменится",
+  "admin.ops.bo.summary": {
+    one: "К изменению: {count} матч на BO{bo}.",
+    few: "К изменению: {count} матча на BO{bo}.",
+    many: "К изменению: {count} матчей на BO{bo}.",
+  },
+  // Punkty za serie porownuja TYLKO zwyciezce, wiec typ 1:0 oddany na BO1
+  // liczy sie dalej po zmianie na BO3. To nie jest pocieszenie, tylko
+  // powod, dla ktorego ta operacja nie wymaga kasowania typow.
+  "admin.ops.bo.predictionsHint": {
+    one: "Затронет {count} сделанный прогноз. Прогнозы остаются, победитель считается дальше — пропадают очки за карты, потому что при другом формате они берутся из другого места.",
+    few: "Затронет {count} сделанных прогноза. Прогнозы остаются, победитель считается дальше — пропадают очки за карты, потому что при другом формате они берутся из другого места.",
+    many: "Затронет {count} сделанных прогнозов. Прогнозы остаются, победитель считается дальше — пропадают очки за карты, потому что при другом формате они берутся из другого места.",
+  },
+  "admin.ops.bo.already": {
+    one: "{count} матч уже в этом формате.",
+    few: "{count} матча уже в этом формате.",
+    many: "{count} матчей уже в этом формате.",
+  },
+  "admin.ops.bo.settled": {
+    one: "{count} матч остаётся без изменений — у него уже есть результат:",
+    few: "{count} матча остаются без изменений — у них уже есть результат:",
+    many: "{count} матчей остаются без изменений — у них уже есть результат:",
+  },
+  "admin.ops.bo.button": "Изменить формат",
+  "admin.ops.bo.confirmTitle": "Изменить формат фазы {phase} на BO{bo}?",
+  "admin.ops.bo.confirmText": "Прогнозы остаются — после изменения попроси игроков сделать прогнозы заново. Кто не сделает, всё равно сохранит очко за победителя.",
+  "admin.ops.bo.matches": "Матчей",
+  "admin.ops.bo.predictions": "Прогнозов игроков",
+  "admin.ops.bo.done": {
+    one: "Изменён {count} матч на BO{bo}.",
+    few: "Изменено {count} матча на BO{bo}.",
+    many: "Изменено {count} матчей на BO{bo}.",
+  },
+  "admin.ops.bo.previewError": "Не удалось загрузить предпросмотр.",
+  "admin.ops.bo.error": "Не удалось изменить формат матчей.",
 };
 
 export default ruAdmin;
