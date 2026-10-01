@@ -98,7 +98,11 @@ function HurtoweMecze({ guildId, slug }) {
       </p>
 
       <div className="ui-row ui-row--wrap">
-        <select value={faza} onChange={(e) => setFaza(e.target.value)}>
+        <select
+          className="ui-input"
+          value={faza}
+          onChange={(e) => setFaza(e.target.value)}
+        >
           {FAZY_MECZOWE.map((f) => (
             <option key={f.klucz} value={f.klucz}>
               {f.etykieta}
@@ -106,7 +110,11 @@ function HurtoweMecze({ guildId, slug }) {
           ))}
         </select>
 
-        <select value={bo} onChange={(e) => setBo(e.target.value)}>
+        <select
+          className="ui-input"
+          value={bo}
+          onChange={(e) => setBo(e.target.value)}
+        >
           <option value={1}>{t("admin.ops.bulk.defaultBo", { bo: 1 })}</option>
           <option value={3}>{t("admin.ops.bulk.defaultBo", { bo: 3 })}</option>
           <option value={5}>{t("admin.ops.bulk.defaultBo", { bo: 5 })}</option>
@@ -114,6 +122,7 @@ function HurtoweMecze({ guildId, slug }) {
       </div>
 
       <textarea
+        className="ui-input"
         rows={6}
         value={tekst}
         onChange={(e) => setTekst(e.target.value)}
@@ -221,7 +230,11 @@ function CzyszczenieFazy({ slug }) {
       <p className="ui-hint">{t("admin.ops.clear.hint")}</p>
 
       <div className="ui-row ui-row--wrap">
-        <select value={faza} onChange={(e) => setFaza(e.target.value)}>
+        <select
+          className="ui-input"
+          value={faza}
+          onChange={(e) => setFaza(e.target.value)}
+        >
           {FAZY_MECZOWE.map((f) => (
             <option key={f.klucz} value={f.klucz}>
               {f.etykieta}
@@ -538,6 +551,7 @@ function ZamknijTurniej({ slug }) {
 
       <div className="ui-row ui-row--wrap">
         <input
+          className="ui-input"
           type="text"
           value={nazwa}
           onChange={(e) => setNazwa(e.target.value)}
