@@ -496,3 +496,125 @@ test("przelaczenie osi NIE psuje tabeli punktowej", async () => {
     "tabela punktowa ma te same miejsca co przed przelaczeniem",
   );
 });
+
+// --- obecni bez punktow ------------------------------------------------------
+//
+// Tabela `leaderboard` powstaje WYLACZNIE z szesciu tabel punktowych
+// (services/rebuildEventLeaderboard.js), wiec kto jeszcze nic nie ugral, nie
+// ma tam wiersza. A skoro lista szla FROM leaderboard, nie bylo go tez na
+// stronie: zmierzone na produkcji, trwajacy epl-season24 mial 33 typujacych
+// i ZERO wierszy klasyfikacji, czyli pusty ranking mimo pelnej frekwencji.
+
+/** Czy to zapytanie o typujacych bez wiersza w klasyfikacji. */
+function toObecniBezPunktow(sql) {
+  return sql.includes("WHERE NOT EXISTS");
+}
+
+function POLE_Z_OBECNYMI(sql) {
+  if (toOdczytTurnieju(sql)) return [{ id: 7 }];
+
+  if (sql.includes("COUNT(*) AS ile")) return [{ ile: 4 }];
+
+  if (toObecniBezPunktow(sql)) {
+    return [
+      {
+        user_id: "swiezy",
+        profile_name: null,
+        avatar: null,
+        total_predictions: 3,
+        correct_winners: 0,
+      },
+      {
+        user_id: "tylko-fazy",
+        profile_name: "Fazowiec",
+        avatar: null,
+        total_predictions: 0,
+        correct_winners: 0,
+      },
+    ];
+  }
+
+  if (sql.includes("FROM leaderboard lb")) {
+    return [{ user_id: "punktujacy", total_points: 12, total_predictions: 4 }];
+  }
+
+  return [];
+}
+
+test("typujacy bez ani jednego punktu TEZ jest w rankingu", async () => {
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_OBECNYMI) });
+
+  assert.deepEqual(
+    zapis.tresc.leaderboard.map((w) => [w.user_id, w.total_points, w.rank]),
+    [
+      ["punktujacy", 12, 1],
+      ["swiezy", 0, 2],
+      ["tylko-fazy", 0, 3],
+    ],
+  );
+});
+
+test("dolaczony wiersz niesie PRAWDZIWA liczbe typow", async () => {
+  // Bez tego wiersz mowilby "0 typow" komus, kto wlasnie wytypowal trzy
+  // mecze - czyli dokladnie odwrotnie niz to, po co ta lista istnieje.
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_OBECNYMI) });
+
+  const swiezy = zapis.tresc.leaderboard.find((w) => w.user_id === "swiezy");
+
+  assert.equal(swiezy.total_predictions, 3);
+  assert.equal(swiezy.correct_winners, 0);
+  assert.equal(swiezy.accuracy, 0);
+});
+
+test("nazwa dolaczonego idzie tym samym lancuchem zapasow", async () => {
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_OBECNYMI) });
+
+  const wg = (id) => zapis.tresc.leaderboard.find((w) => w.user_id === id);
+
+  assert.equal(wg("tylko-fazy").displayname, "Fazowiec", "profil wygrywa");
+  assert.equal(
+    wg("swiezy").displayname,
+    "swiezy",
+    "bez profilu i bez nazwy z typow zostaje identyfikator",
+  );
+});
+
+test("NIKT nie wchodzi do rankingu dwa razy", async () => {
+  // Zapytanie o obecnych siega do tej samej tabeli, co glowne. Gdyby
+  // przestalo ich odsiewac, kazdy punktujacy mialby dwa wiersze - i nikt by
+  // tego nie zauwazyl poza licznikiem miejsc.
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_OBECNYMI) });
+
+  const identyfikatory = zapis.tresc.leaderboard.map((w) => String(w.user_id));
+
+  assert.equal(
+    new Set(identyfikatory).size,
+    identyfikatory.length,
+    `powtorzone wiersze: ${identyfikatory.join(", ")}`,
+  );
+});
+
+test("zapytanie o obecnych idzie TA SAMA fala", async () => {
+  // Gdyby czekalo na wynik glownego, kosztowaloby cale okrazenie do bazy -
+  // zmierzone na serwerze 174 ms, przy 5-10 ms wlasnej pracy.
+  const pool = fakePool(POLE_Z_OBECNYMI);
+
+  await wywolaj({ pool });
+
+  const obecni = pool.wywolania.find((w) => toObecniBezPunktow(w.sql));
+
+  assert.ok(obecni, "brak zapytania o typujacych bez punktow");
+  assert.equal(obecni.fala, 1, "zapytanie o obecnych to osobne okrazenie");
+});
+
+test("turniej, w ktorym wszyscy maja wiersz, wyglada jak przedtem", async () => {
+  // Zakonczone turnieje: rozstrzygniety mecz zapisuje punkty KAZDEMU, kto go
+  // typowal, takze zero - wiec nie ma kogo dokladac. Zmierzone: zero
+  // dodanych wierszy w Cologne, Krakowie i StarLadderze.
+  const zapis = await wywolaj({ pool: fakePool(POLE) });
+
+  assert.deepEqual(
+    zapis.tresc.leaderboard.map((w) => w.user_id),
+    ["obecny", "celny", "przypadkowy"],
+  );
+});

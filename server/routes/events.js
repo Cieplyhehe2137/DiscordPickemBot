@@ -652,6 +652,7 @@ export function registerEventRoutes(
             [mapStatsRows],
             [[rozstrzygniete]],
             [glosowanieRows],
+            [bezWierszaRows],
           ] = await Promise.all([
             pool.query(
               `
@@ -984,6 +985,120 @@ export function registerEventRoutes(
           `,
               [slug],
             ),
+
+            /*
+             * KTO TYPOWAŁ, A NIE MA JESZCZE WIERSZA W KLASYFIKACJI.
+             *
+             * `leaderboard` powstaje WYŁĄCZNIE z sześciu tabel punktowych
+             * (services/rebuildEventLeaderboard.js), więc kto jeszcze nic nie
+             * ugrał, nie ma tam wiersza - a skoro lista rankingu szła FROM
+             * leaderboard, nie było go też na stronie. W trwającym turnieju
+             * przed pierwszym wynikiem znaczy to PUSTĄ tabelę: zmierzone na
+             * produkcji, epl-season24 miał 33 typujących i zero wierszy
+             * klasyfikacji.
+             *
+             * Dlaczego osobnym zapytaniem, a nie poszerzeniem głównego:
+             * zmierzone na produkcji, mediana z pięciu przebiegów po
+             * rozgrzewce, przy podłodze 174 ms
+             *
+             *   turniej       główne   główne poszerzone   to zapytanie
+             *   Cologne       271 ms        489 ms            184 ms
+             *   StarLadder    190 ms        568 ms            179 ms
+             *   Kraków        241 ms        285 ms            180 ms
+             *
+             * Poszerzenie kazałoby wielkiemu złączeniu jechać od tabeli
+             * pochodnej i kosztowało dwieście milisekund na każdym wejściu,
+             * bo bufor rankingu żyje trzydzieści sekund i przy siedmiu
+             * wejściach na dobę prawie nigdy nie trafia. To zapytanie kosztuje
+             * 5-10 ms PRACY, idzie tą samą falą i jest szybsze od głównego,
+             * więc nie wydłuża jej ani o milisekundę.
+             *
+             * Zakończonych turniejów to nie dotyka - tam każdy typujący ma już
+             * wiersz, bo rozstrzygnięty mecz zapisuje punkty KAŻDEMU, kto go
+             * typował, także zero. Zmierzone: zero dodanych wierszy w Cologne,
+             * Krakowie i StarLadderze.
+             */
+            pool.query(
+              `
+          SELECT
+            u.user_id,
+
+            -- Nazwa i awatar z profilu, tak samo jak w głównym zapytaniu.
+            -- Dalsze zapasy (nazwa z tabel faz, potem samo id) dokleja JS.
+            COALESCE(up.displayname, up.username) AS profile_name,
+            up.avatar,
+
+            COALESCE(s.total_predictions, 0) AS total_predictions,
+            COALESCE(s.correct_winners, 0) AS correct_winners
+
+          FROM (
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id
+              FROM match_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM swiss_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM playoffs_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM playin_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM doubleelim_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+          ) u
+
+          LEFT JOIN user_profiles up
+            ON CAST(up.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+             = u.user_id
+
+          -- Te same statystyki meczowe, co w glownym zapytaniu: wiersz bez
+          -- nich mowilby "0 typow" komus, kto wlasnie wytypowal osiem meczow.
+          LEFT JOIN (
+            SELECT
+              CAST(mp.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id,
+
+              COUNT(DISTINCT mp.match_id) AS total_predictions,
+
+              COUNT(
+                DISTINCT CASE
+                  WHEN mr.match_id IS NOT NULL
+                   AND (
+                     (mp.pred_a > mp.pred_b AND mr.res_a > mr.res_b)
+                     OR
+                     (mp.pred_b > mp.pred_a AND mr.res_b > mr.res_a)
+                   )
+                  THEN mp.match_id
+                  ELSE NULL
+                END
+              ) AS correct_winners
+
+            FROM match_predictions mp
+
+            LEFT JOIN match_results mr
+              ON mr.event_id = mp.event_id
+             AND mr.match_id = mp.match_id
+
+            WHERE mp.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+            GROUP BY mp.user_id
+          ) s
+            ON s.user_id = u.user_id
+
+          -- Alias MUSI byc inny niz w zapytaniu glownym. Testy trasy
+          -- rozpoznaja zapytania po fragmencie tekstu SQL - ten sam alias
+          -- tutaj kazalby atrapie puli oddac temu zapytaniu wiersze
+          -- klasyfikacji, a wtedy kazdy gracz wszedlby do rankingu dwa razy.
+          WHERE NOT EXISTS (
+            SELECT 1
+              FROM leaderboard klasyfikacja
+             WHERE klasyfikacja.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+               AND CAST(klasyfikacja.user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+                 = u.user_id
+          )
+          `,
+              [slug, slug, slug, slug, slug, slug, slug],
+            ),
           ]);
 
           // Brak turnieju to też wynik i też wart zapamiętania: inaczej błędny
@@ -1033,7 +1148,21 @@ export function registerEventRoutes(
             nameRows.map((row) => [String(row.user_id), row.nazwa]),
           );
 
-          const leaderboardData = rows.map((row) => {
+          /*
+           * Typujący bez wiersza w klasyfikacji dołączają do TEJ SAMEJ listy.
+           *
+           * Wiersze z zapytania obok mają te same nazwy kolumn, których czyta
+           * mapowanie niżej - brakujące (punkty, rozbicie na fazy) czytają się
+           * jako undefined i lądują zerami przez Number(x || 0). Nie ma więc
+           * drugiej ścieżki budowania wiersza, która mogłaby się rozjechać
+           * z pierwszą.
+           *
+           * Kolejność i miejsce ustala sortowanie w JS tuż niżej, nie ORDER BY
+           * z zapytania - komentarz przy nim mówi o tym wprost. Doklejenie
+           * przed sortowaniem znaczy więc, że te wiersze są układane tą samą
+           * regułą, co wszystkie pozostałe.
+           */
+          const leaderboardData = [...rows, ...bezWierszaRows].map((row) => {
             const totalPredictions = Number(row.total_predictions || 0);
             const correctWinners = Number(row.correct_winners || 0);
             const pointBreakdown = pointBreakdownByUser.get(String(row.user_id)) || {
