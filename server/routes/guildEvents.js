@@ -27,6 +27,8 @@
  * Wartości po normalizePhase(), bo to ona jest w tym projekcie jedynym
  * źródłem prawdy o zapisie nazw faz (utils/phaseNames.js).
  */
+import { parseStartTimeInput } from "../lib/startTime.js";
+
 const FAZY_MECZOW = new Set([
   "SWISS_STAGE1",
   "SWISS_STAGE2",
@@ -536,6 +538,18 @@ export function registerGuildEventRoutes(
 
         if (!fazaDoZapisu) return zlaFaza(res, phase);
 
+        // Godzina startu idzie przez jedna regule dla calego API -
+        // patrz lib/startTime.js. Formularz "dodaj mecz" wysylal tu sciane
+        // zegara z przegladarki i mecz blokowal sie dwie godziny za pozno.
+        const start = parseStartTimeInput(startTimeUtc);
+
+        if (!start.ok) {
+          return res.status(400).json({
+            error: start.reason,
+            code: start.code,
+          });
+        }
+
         if (teamA === teamB) {
           return res.status(400).json({
             error: "Drużyny muszą być różne.",
@@ -585,7 +599,7 @@ export function registerGuildEventRoutes(
             teamA,
             teamB,
             Number(bestOf),
-            startTimeUtc || null,
+            start.utc,
           ],
         );
 
@@ -604,7 +618,7 @@ export function registerGuildEventRoutes(
             team_a: teamA,
             team_b: teamB,
             best_of: Number(bestOf),
-            start_time_utc: startTimeUtc || null,
+            start_time_utc: start.utc,
             is_locked: 0,
           },
         });

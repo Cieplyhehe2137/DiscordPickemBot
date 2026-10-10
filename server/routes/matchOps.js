@@ -4,6 +4,8 @@
 // Trasy /api/dev/* rejestruja sie tylko poza produkcja - to one odpowiadaja
 // za roznice miedzy tablica tras w trybie dev i prod.
 
+import { parseStartTimeInput } from "../lib/startTime.js";
+
 export function registerMatchOpsRoutes(
   app,
   {
@@ -406,13 +408,20 @@ export function registerMatchOpsRoutes(
           });
         }
 
-        const startDate = startTimeUtc ? new Date(startTimeUtc) : null;
+        // Ta sama regula, co przy tworzeniu i edycji meczu - patrz
+        // lib/startTime.js. Wczesniej szlo tu samo new Date(), ktore sciane
+        // zegara bez strefy czyta w strefie PROCESU - czyli po cichu
+        // nadawalo jej znaczenie zalezne od hosta.
+        const start = parseStartTimeInput(startTimeUtc);
 
-        if (startDate && Number.isNaN(startDate.getTime())) {
+        if (!start.ok) {
           return res.status(400).json({
-            error: "Invalid start time",
+            error: start.reason,
+            code: start.code,
           });
         }
+
+        const startDate = start.utc ? new Date(start.utc + "Z") : null;
 
         const lockBeforeSec = getLockBeforeSec();
 
@@ -428,14 +437,14 @@ export function registerMatchOpsRoutes(
       is_locked = ?
     WHERE id = ?
     `,
-          [startDate, shouldLock ? 1 : 0, matchId],
+          [start.utc, shouldLock ? 1 : 0, matchId],
         );
 
         res.json({
           ok: true,
           match: {
             id: match.id,
-            start_time_utc: startTimeUtc || null,
+            start_time_utc: start.utc,
           },
         });
       } catch (err) {

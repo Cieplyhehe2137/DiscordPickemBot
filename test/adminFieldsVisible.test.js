@@ -49,13 +49,28 @@ function plikiPanelu() {
 }
 
 /**
+ * Wycina komentarze, zostawiajac znaki nowej linii.
+ *
+ * Bez tego straznik czyta wlasne uzasadnienia: komentarz tlumaczacy, co
+ * oddaje <input type="datetime-local">, zostal zgloszony jako pole bez
+ * klasy. Numery linii musza przezyc, bo komunikat ma wskazac miejsce,
+ * dlatego kazdy wyciety znak zamienia sie w spacje, a nowe linie zostaja.
+ */
+function bezKomentarzy(tresc) {
+  return tresc
+    .replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (c) => c.replace(/[^\n]/g, " "));
+}
+
+/**
  * Znajduje otwierajace tagi pol formularza razem z numerem linii.
  *
  * Czytamy po tekscie, a nie po drzewie JSX - tak samo jak pozostali
  * straznicy w tym katalogu. Wystarcza, bo pytanie jest proste: czy w tym
  * tagu stoi ui-input.
  */
-function polaFormularza(tresc) {
+function polaFormularza(wejscie) {
+  const tresc = bezKomentarzy(wejscie);
   const znalezione = [];
   const wzor = /<(input|select|textarea)\b/g;
 
