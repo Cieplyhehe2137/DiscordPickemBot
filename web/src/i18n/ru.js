@@ -1535,6 +1535,11 @@ const ru = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} из {all} прогнозов",
   "leaderboard.picksHit": "{done} из {all} прогнозов · {percent}% верных",
+  "leaderboard.phasePicks": {
+    one: "{count} прогноз фазы",
+    few: "{count} прогноза фаз",
+    many: "{count} прогнозов фаз",
+  },
 
   // --- Tlum jako miara odniesienia -----------------------------------------
   // Tlum jako miara odniesienia. Kazda liczba w serwisie jest

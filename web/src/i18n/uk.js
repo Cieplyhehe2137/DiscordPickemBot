@@ -1535,6 +1535,11 @@ const uk = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} з {all} прогнозів",
   "leaderboard.picksHit": "{done} з {all} прогнозів · {percent}% влучних",
+  "leaderboard.phasePicks": {
+    one: "{count} прогноз фази",
+    few: "{count} прогнози фаз",
+    many: "{count} прогнозів фаз",
+  },
 
   // --- Tlum jako miara odniesienia -----------------------------------------
   // Tlum jako miara odniesienia. Kazda liczba w serwisie jest

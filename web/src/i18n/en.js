@@ -1458,6 +1458,10 @@ const en = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} of {all} picks",
   "leaderboard.picksHit": "{done} of {all} picks · {percent}% right",
+  "leaderboard.phasePicks": {
+    one: "{count} phase pick",
+    other: "{count} phase picks",
+  },
 
   // --- Tlum jako miara odniesienia -----------------------------------------
   // Tlum jako miara odniesienia. Kazda liczba w serwisie jest
