@@ -5,6 +5,8 @@
 // Router, zeby ksztalt tablicy tras sie nie zmienil; zaleznosci argumentem
 // pod nazwami z app.js, wiec przeniesiony kod jest niezmieniony poza wcieciem.
 
+import { parseStartTimeInput } from "../lib/startTime.js";
+
 export function registerMatchRoutes(
   app,
   {
@@ -148,6 +150,16 @@ export function registerMatchRoutes(
         const noweB = teamB ?? match.team_b;
         const noweBo = bestOf === undefined ? match.best_of : Number(bestOf);
 
+        // Ta sama regula, co przy tworzeniu meczu - patrz lib/startTime.js.
+        const start = parseStartTimeInput(startTimeUtc);
+
+        if (!start.ok) {
+          return res.status(400).json({
+            error: start.reason,
+            code: start.code,
+          });
+        }
+
         if (noweA === noweB) {
           return res.status(400).json({
             error: "Drużyny muszą być różne.",
@@ -188,9 +200,8 @@ export function registerMatchRoutes(
             noweA,
             noweB,
             noweBo,
-            startTimeUtc === undefined
-              ? match.start_time_utc
-              : startTimeUtc || null,
+            // Pominiete pole znaczy "nie ruszaj", a nie "wyczysc".
+            startTimeUtc === undefined ? match.start_time_utc : start.utc,
             match.id,
             guildId,
           ],

@@ -686,7 +686,22 @@ export default function AdminPage() {
         teamA: newMatchTeamA,
         teamB: newMatchTeamB,
         bestOf: Number(newMatchBestOf),
-        startTimeUtc: newMatchStartTime || null,
+
+        /* GODZINA MUSI WYJECHAC ZE STREFA.
+         *
+         * <input type="datetime-local"> oddaje sciane zegara bez strefy -
+         * "2026-10-05T16:00". Szlo to tu doslownie i ladowalo w kolumnie
+         * DATETIME, ktora wszyscy czytelnicy biora za UTC: mecz z 16:00
+         * polskiego czasu blokowal sie o 18:00 polskiego czasu, dwie
+         * godziny PO rozpoczeciu. Zmierzone na EPL Season 24 - BO3
+         * zakonczone 2:1 mialo wpisany wynik 40 minut po "starcie".
+         *
+         * new Date(...) czyta ta sciane w strefie PRZEGLADARKI, czyli tam,
+         * gdzie siedzi admin - i tylko przegladarka te strefe zna. Dokladnie
+         * to samo robi handleSaveMatchStart przy przycisku z zegarem. */
+        startTimeUtc: newMatchStartTime
+          ? new Date(newMatchStartTime).toISOString()
+          : null,
       });
 
       const matchesData = await getAdminMatches(selectedEvent.slug);
