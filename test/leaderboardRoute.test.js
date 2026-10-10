@@ -618,3 +618,178 @@ test("turniej, w ktorym wszyscy maja wiersz, wyglada jak przedtem", async () => 
     ["obecny", "celny", "przypadkowy"],
   );
 });
+
+// --- typy faz w wierszu rankingu ---------------------------------------------
+//
+// Wiersz pokazywal WYLACZNIE typy meczowe, a klasyfikacja sklada sie z
+// szesciu skladowych, z czego piec to fazy. Zmierzone na produkcji: w
+// epl-season24 osmioro z dziewieciu graczy dopisanych do klasyfikacji ma zero
+// typow meczowych i jedna wytypowana faze - czyli wiersz mowil im "0 z 37
+// typow". W StarLadderze Budapest, zlozonym z samych faz, podpis znikal
+// calkiem: 509 graczy i 1055 oddanych typow bez ani jednej liczby na ekranie.
+
+/** Czy to zapytanie o liczbe wytypowanych faz. */
+function toTypyFaz(sql) {
+  return sql.includes("AS phase_predictions");
+}
+
+function POLE_Z_FAZAMI(sql) {
+  if (toOdczytTurnieju(sql)) return [{ id: 7 }];
+
+  if (sql.includes("COUNT(*) AS ile")) return [{ ile: 20 }];
+
+  if (toTypyFaz(sql)) {
+    return [
+      { user_id: "punktujacy", phase_predictions: 2 },
+      { user_id: "tylko-fazy", phase_predictions: 3 },
+    ];
+  }
+
+  if (toObecniBezPunktow(sql)) {
+    return [
+      {
+        user_id: "tylko-fazy",
+        profile_name: "Fazowiec",
+        avatar: null,
+        total_predictions: 0,
+        correct_winners: 0,
+      },
+      {
+        user_id: "bez-niczego",
+        profile_name: null,
+        avatar: null,
+        total_predictions: 1,
+        correct_winners: 0,
+      },
+    ];
+  }
+
+  if (sql.includes("FROM leaderboard lb")) {
+    return [
+      {
+        user_id: "punktujacy",
+        total_points: 40,
+        total_predictions: 10,
+        correct_winners: 5,
+      },
+    ];
+  }
+
+  return [];
+}
+
+test("wiersz z klasyfikacji niesie liczbe wytypowanych faz", async () => {
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_FAZAMI) });
+
+  const wg = (id) => zapis.tresc.leaderboard.find((w) => w.user_id === id);
+
+  assert.equal(wg("punktujacy").phase_predictions, 2);
+});
+
+test("wiersz DOLACZONY tez niesie liczbe faz", async () => {
+  // To jest ten gracz z produkcji: zero typow meczowych, wiersz dopisany
+  // przez NOT EXISTS, i wylacznie fazy w dorobku. Bez tego czyta o sobie,
+  // ze nie typowal niczego.
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_FAZAMI) });
+
+  const wg = (id) => zapis.tresc.leaderboard.find((w) => w.user_id === id);
+
+  assert.equal(wg("tylko-fazy").phase_predictions, 3);
+  assert.equal(wg("tylko-fazy").total_predictions, 0);
+});
+
+test("brak faz to ZERO, a nie undefined", async () => {
+  // Front liczy na liczbe - undefined przeszedlby przez Number() na NaN
+  // i wyszedlby na ekran jako "NaN".
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_FAZAMI) });
+
+  const wg = (id) => zapis.tresc.leaderboard.find((w) => w.user_id === id);
+
+  assert.equal(wg("bez-niczego").phase_predictions, 0);
+
+  for (const wiersz of zapis.tresc.leaderboard) {
+    assert.equal(
+      typeof wiersz.phase_predictions,
+      "number",
+      `${wiersz.user_id}: phase_predictions musi byc liczba`,
+    );
+  }
+});
+
+test("FAZY NIE RUSZAJA skutecznosci ani liczby typow meczowych", async () => {
+  // Najwazniejszy test tej zmiany. total_predictions jest mianownikiem
+  // `accuracy`, bramka progu w lib/accuracyRanking.js (polowa
+  // ROZSTRZYGNIETYCH MECZOW) i bramka stawki w lib/crowdBaseline.js.
+  // Gdyby ktos kiedys dolal fazy do tego pola, skutecznosc spadlaby
+  // kazdemu, kto typowal fazy, a do stawki dalo by sie wejsc bez
+  // typowania meczow.
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_FAZAMI) });
+
+  const punktujacy = zapis.tresc.leaderboard.find(
+    (w) => w.user_id === "punktujacy",
+  );
+
+  assert.equal(punktujacy.total_predictions, 10, "10 typow meczowych, nie 12");
+  assert.equal(punktujacy.correct_winners, 5);
+  assert.equal(punktujacy.accuracy, 50, "5 z 10, a nie 5 z 12");
+});
+
+test("zapytanie o fazy idzie TA SAMA fala", async () => {
+  // Zmierzone na produkcji, mediana z pieciu przebiegow przy podlodze
+  // 171 ms: Cologne 174, StarLadder 176, Krakow 173, EPL 172 - czyli
+  // 1-5 ms pracy. Osobne okrazenie kosztowaloby cale 174 ms.
+  const pool = fakePool(POLE_Z_FAZAMI);
+
+  await wywolaj({ pool });
+
+  const fazy = pool.wywolania.find((w) => toTypyFaz(w.sql));
+
+  assert.ok(fazy, "brak zapytania o typy faz");
+  assert.equal(fazy.fala, 1, "zapytanie o fazy to osobne okrazenie");
+});
+
+test("zapytanie o fazy liczy WSZYSTKIE cztery tabele faz", async () => {
+  // Pominieta tabela nie wywraca niczego - po prostu czyjes typy nie licza
+  // sie do niczego i nikt tego nie zglosi.
+  const pool = fakePool(POLE_Z_FAZAMI);
+
+  await wywolaj({ pool });
+
+  const fazy = pool.wywolania.find((w) => toTypyFaz(w.sql));
+
+  for (const tabela of [
+    "swiss_predictions",
+    "playoffs_predictions",
+    "playin_predictions",
+    "doubleelim_predictions",
+  ]) {
+    assert.ok(
+      fazy.sql.includes(tabela),
+      `zapytanie o fazy pomija ${tabela}`,
+    );
+  }
+
+  // UNION ALL, nie UNION: swiss_predictions ma wiersz na kazdy etap, wiec
+  // ktos z trzema etapami oddal trzy typy. UNION zlaczylby je w jeden.
+  assert.ok(
+    fazy.sql.includes("UNION ALL"),
+    "UNION zamiast UNION ALL policzylby osoby, a nie typy",
+  );
+});
+
+test("typy faz NIE przestawiaja kolejnosci rankingu", async () => {
+  // Kolejnosc rozstrzygaja punkty, potem trafieni zwyciezcy i mapy.
+  // Fazy sa w wierszu informacja, a nie kryterium - gdyby weszly do
+  // sortowania, przestawilyby zarchiwizowane rankingi.
+  const zapis = await wywolaj({ pool: fakePool(POLE_Z_FAZAMI) });
+
+  assert.deepEqual(
+    zapis.tresc.leaderboard.map((w) => [w.user_id, w.total_points]),
+    [
+      ["punktujacy", 40],
+      ["bez-niczego", 0],
+      ["tylko-fazy", 0],
+    ],
+    "trzy fazy nie moga wyprzedzic nikogo w tabeli punktowej",
+  );
+});

@@ -653,6 +653,7 @@ export function registerEventRoutes(
             [[rozstrzygniete]],
             [glosowanieRows],
             [bezWierszaRows],
+            [typyFazRows],
           ] = await Promise.all([
             pool.query(
               `
@@ -1099,6 +1100,68 @@ export function registerEventRoutes(
           `,
               [slug, slug, slug, slug, slug, slug, slug],
             ),
+
+            /*
+             * ILE FAZ WYTYPOWAŁ KAŻDY GRACZ.
+             *
+             * Wiersz rankingu pokazywał dotąd WYŁĄCZNIE typy meczowe, więc
+             * ktoś, kto wytypował całą drabinkę playoffs, czytał o sobie
+             * „0 z 37 typów". Zmierzone na produkcji: w epl-season24 ośmioro
+             * z dziewięciu dopisanych do klasyfikacji ma dokładnie taki
+             * wiersz - zero typów meczowych i jedną wytypowaną fazę.
+             *
+             * Najmocniej widać to w turnieju bez meczów: StarLadder Budapest
+             * to same fazy, 509 graczy i 1055 oddanych typów, a podpis znikał
+             * tam w całości, bo front chowa go przy zerze meczów.
+             *
+             * NAZWA. Strona mówi o nich "fazy" (phase.swiss, phase.playoffs,
+             * phase.playin, phase.doubleElim), nie "drabinki" - Swiss
+             * drabinką nie jest, a wpada w ten sam licznik.
+             *
+             * UNION ALL, nie UNION: liczymy ODDANE typy, a nie osoby.
+             * swiss_predictions ma wiersz na każdy etap (unikat po
+             * guild_id, event_id, user_id, stage), więc ktoś z trzema
+             * etapami oddał trzy typy. Najwięcej u jednej osoby: 4.
+             *
+             * Koszt zmierzony na produkcji, mediana z pięciu przebiegów po
+             * rozgrzewce, przy podłodze 171 ms:
+             *
+             *   Cologne 174 ms | StarLadder 176 ms | Kraków 173 ms | EPL 172 ms
+             *
+             * Czyli 1-5 ms PRACY. Jedzie tą samą falą i jest szybsze od
+             * zapytania głównego (271 ms w Kolonii), więc nie wydłuża jej.
+             *
+             * `active` nie filtrujemy - tak samo jak nie filtruje go żadne
+             * inne zapytanie o te tabele (server/lib/participants.js,
+             * server/lib/frozenPhases.js, liczba uczestnikow wyżej).
+             * Liczba typów musi zgadzać się z liczbą typujących z tego
+             * samego wiersza, a tamta też ich nie filtruje.
+             */
+            pool.query(
+              `
+          SELECT
+            typy.user_id,
+            COUNT(*) AS phase_predictions
+
+          FROM (
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS user_id
+              FROM swiss_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION ALL
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM playoffs_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION ALL
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM playin_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+            UNION ALL
+            SELECT CAST(user_id AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci
+              FROM doubleelim_predictions WHERE event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+          ) typy
+
+          WHERE typy.user_id IS NOT NULL
+          GROUP BY typy.user_id
+          `,
+              [slug, slug, slug, slug],
+            ),
           ]);
 
           // Brak turnieju to też wynik i też wart zapamiętania: inaczej błędny
@@ -1138,6 +1201,17 @@ export function registerEventRoutes(
                 correct_maps: Number(row.correct_maps || 0),
                 exact_maps: Number(row.exact_maps || 0),
               },
+            ]),
+          );
+
+          // Drabinki wchodzą tą samą drogą, co statystyki map: mapą po
+          // identyfikatorze, a nie złączeniem w zapytaniu. Dzięki temu
+          // obejmują zarówno wiersze z klasyfikacji, jak i typujących
+          // dopisanych niżej - jedno i drugie czyta tę samą mapę.
+          const typyFazByUser = new Map(
+            typyFazRows.map((row) => [
+              String(row.user_id),
+              Number(row.phase_predictions || 0),
             ]),
           );
 
@@ -1201,6 +1275,27 @@ export function registerEventRoutes(
 
               total_predictions: totalPredictions,
               correct_winners: correctWinners,
+
+              /*
+               * Drabinki stoją OSOBNO, a nie w total_predictions.
+               *
+               * total_predictions jest mianownikiem `accuracy` tuż niżej,
+               * bramką progu w server/lib/accuracyRanking.js (połowa
+               * ROZSTRZYGNIĘTYCH MECZÓW) i bramką stawki w
+               * server/lib/crowdBaseline.js. Dolanie tam drabinek
+               * zepsułoby wszystkie trzy naraz:
+               *
+               *   - skuteczność spadłaby każdemu, kto typował fazy, bo
+               *     typ fazy wszedłby do mianownika, a trafiony zwycięzca
+               *     meczu nigdy nie wejdzie do licznika za niego;
+               *   - do stawki „połowa meczów" dałoby się wejść
+               *     samymi fazami, czyli bez typowania meczów.
+               *
+               * Front składa z tych dwóch liczb jeden podpis, więc dla
+               * czytającego one się dodają - ale w danych zostają
+               * rozdzielone, bo mierzą dwie różne rzeczy.
+               */
+              phase_predictions: typyFazByUser.get(String(row.user_id)) || 0,
 
               predicted_maps: mapStats.predicted_maps,
               correct_maps: mapStats.correct_maps,

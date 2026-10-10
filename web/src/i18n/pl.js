@@ -1556,6 +1556,11 @@ const pl = {
   // dwie zupelnie rozne historie - i nic tego nie pokazywalo.
   "leaderboard.picks": "{done} z {all} typów",
   "leaderboard.picksHit": "{done} z {all} typów · {percent}% trafień",
+  "leaderboard.phasePicks": {
+    one: "{count} typ fazy",
+    few: "{count} typy faz",
+    many: "{count} typów faz",
+  },
 
   // --- Tlum jako miara odniesienia -----------------------------------------
   // Tlum jako miara odniesienia. Kazda liczba w serwisie jest

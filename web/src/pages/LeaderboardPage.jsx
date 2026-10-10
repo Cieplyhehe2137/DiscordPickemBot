@@ -4,6 +4,7 @@ import { T } from "../i18n/T.jsx";
 import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getEventLeaderboard } from "../lib/api.js";
+import { buildPickSummary } from "../lib/pickSummary.js";
 import { useAuth } from "../auth/useAuth.js";
 import { useT } from "../i18n/useLanguage.js";
 
@@ -507,6 +508,13 @@ function LeaderboardPage() {
 
             const fazy = rozbicieNaFazy(player, t);
 
+            const podpis = buildPickSummary({
+              player,
+              matches: meczow,
+              byAccuracy: poSkutecznosci,
+              t,
+            });
+
             return (
               <div
                 className={`ui-row-item ui-row-item--link${podium}${ja}`}
@@ -545,50 +553,23 @@ function LeaderboardPage() {
                       {player.displayname ?? player.user_id}
                     </span>
 
-                    {/* Z ILU TYPOW wzial sie ten wynik.
+                    {/* Z CZEGO wzial sie ten wynik.
 
                         Bez tego dwa sasiednie miejsca wygladaja na
                         wyrownana walke rownych graczy: #38 ma 187 pkt
                         z 99 typow przy 54% trafien, #39 ma 181 pkt
                         z 60 typow przy 67%.
 
-                        Znika tam, gdzie nie ma meczow - w turnieju
-                        zlozonym z samych faz (StarLadder Budapest 2025)
-                        kazdy mialby tu zero, a zero mowiloby nieprawde
-                        o kims, kto wytypowal wszystkie trzy etapy. */}
-                    {meczow > 0 && (
+                        Cala regula - ktore czlony sie pokazuja, w jakiej
+                        kolejnosci i kiedy podpisu nie ma wcale - stoi
+                        w lib/pickSummary.js i ma tam swoje testy.
+                        Tutaj zostaje samo rysowanie. Wczesniej trzy
+                        zagniezdzone warunki w tym miejscu decydowaly
+                        takze o tym, CO podpis znaczy - i to w nich
+                        zginely typy faz. */}
+                    {podpis.length > 0 && (
                       <span className="ui-row-item__sub">
-                        {/* W widoku skuteczności odsetek stoi już w kolumnie
-                            obok, więc powtarzanie go tutaj byłoby stratą
-                            miejsca. Idzie za to MIEJSCE PUNKTOWE - bez niego
-                            nie widać, że piąta skuteczność turnieju należy
-                            do kogoś z czterdziestego piątego miejsca, a to
-                            jest cała informacja, po którą się tu przychodzi. */}
-                        {poSkutecznosci ? (
-                          <>
-                            {t("leaderboard.picks", {
-                              done: player.total_predictions,
-                              all: meczow,
-                            })}
-
-                            {player.points_rank ? (
-                              <>
-                                {" · "}
-                                {t("leaderboard.pointsRank", {
-                                  rank: player.points_rank,
-                                })}
-                              </>
-                            ) : null}
-                          </>
-                        ) : player.total_predictions > 0 ? (
-                          t("leaderboard.picksHit", {
-                            done: player.total_predictions,
-                            all: meczow,
-                            percent: player.accuracy,
-                          })
-                        ) : (
-                          t("leaderboard.picks", { done: 0, all: meczow })
-                        )}
+                        {podpis.join(" \u00b7 ")}
                       </span>
                     )}
                   </span>
