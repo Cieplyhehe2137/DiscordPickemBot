@@ -166,9 +166,18 @@ export function registerMatchOpsRoutes(
             (wynik.unknown.length ? ` (nieznane: ${wynik.unknown.join(", ")})` : ""),
         );
 
-        // Strona meczu odswieza sie u wszystkich - mapy pojawiaja sie
-        // w trakcie trwania serii, wiec ktos na niej wtedy patrzy.
-        io.emit("matchMapsUpdated", { matchId: match.id, maps: wynik.rows });
+        // NIE WYSYLAMY TU ZDARZENIA PO SOCKETACH i to jest swiadome.
+        //
+        // Pierwsza wersja wysylala "matchMapsUpdated" - zdarzenia, ktorego
+        // NIKT NIE SLUCHA. Jedynym klientem socketow jest front
+        // (web/src/lib/socket.js), a on nasluchuje wylacznie
+        // "dashboard:refresh". Napisane tak, zeby wygladalo na odswiezanie
+        // na zywo, a nie robilo nic.
+        //
+        // Mapy i tak pojawiaja sie przy nastepnym wejsciu na strone meczu,
+        // bo trasa publiczna czyta je prosto z bazy, bez bufora. Veto
+        // konczy sie przy starcie serii, wiec kto wtedy patrzy na strone,
+        // odswieza ja i tak - po wynik.
 
         return res.json({
           ok: true,
