@@ -5,6 +5,7 @@
 // za roznice miedzy tablica tras w trybie dev i prod.
 
 import { parseStartTimeInput } from "../lib/startTime.js";
+import { buildMatchMaps } from "../lib/matchMaps.js";
 
 export function registerMatchOpsRoutes(
   app,
@@ -82,6 +83,112 @@ export function registerMatchOpsRoutes(
     validateSeriesMapOrder,
   },
 ) {
+  /*
+   * MAPY ROZEGRANE W SERII - to, co zostalo po veto.
+   *
+   * Tabela `match_maps` stala pusta od poczatku: ma wlasciwy ksztalt, ale
+   * nic do niej nie pisalo, wiec serwis nie mowil ani slowa o tym, ze mapa
+   * druga to Nuke. Ta trasa jest pierwsza droga, ktora ja wypelnia.
+   *
+   * PELNA PODMIANA, nie dopisywanie. Panel pokazuje komplet map serii
+   * i wysyla komplet, wiec to, czego administrator nie podal, ma zniknac -
+   * inaczej skasowanie pomylki wymagaloby osobnego przycisku, a lista
+   * w bazie rozjezdzalaby sie z ta na ekranie. Formularz jest wypelniony
+   * tym, co juz stoi w bazie (takze wierszami od dostawcy), wiec zwykle
+   * wyslanie go niczego nie gubi.
+   *
+   * Walidacja NIE stoi tutaj, tylko w lib/matchMaps.js - tedy ida obie
+   * drogi, ta i skrypt dociagajacy dane. Osobna sciezka obok wspolnej
+   * reguly wpuscila juz raz blad na pol roku (patrz lib/startTime.js).
+   */
+  app.put(
+    "/api/matches/:matchId/maps",
+    requireGuildAdmin(guildIdFromMatchId),
+    async (req, res) => {
+      try {
+        const { matchId } = req.params;
+        const { maps } = req.body || {};
+
+        const [[match]] = await pool.query(
+          `
+          SELECT id, guild_id, event_id, best_of
+          FROM matches
+          WHERE id = ?
+          LIMIT 1
+          `,
+          [matchId],
+        );
+
+        if (!match) {
+          return res.status(404).json({
+            error: "Nie znaleziono meczu.",
+            code: "server.matchNotFound",
+          });
+        }
+
+        const wynik = buildMatchMaps({
+          bestOf: match.best_of,
+          names: maps,
+          source: "manual",
+        });
+
+        if (!wynik.ok) {
+          return res.status(400).json({ error: wynik.reason, code: wynik.code });
+        }
+
+        await runInTransaction(pool, async (polaczenie) => {
+          await polaczenie.query(`DELETE FROM match_maps WHERE match_id = ?`, [
+            match.id,
+          ]);
+
+          for (const wiersz of wynik.rows) {
+            await polaczenie.query(
+              `
+              INSERT INTO match_maps
+                (guild_id, event_id, match_id, map_no, map_name, picked_by, source)
+              VALUES (?, ?, ?, ?, ?, ?, ?)
+              `,
+              [
+                match.guild_id,
+                match.event_id,
+                match.id,
+                wiersz.map_no,
+                wiersz.map_name,
+                wiersz.picked_by,
+                wiersz.source,
+              ],
+            );
+          }
+        });
+
+        logInfo(
+          `MAPY MECZU ${match.id}: ${wynik.rows.length} map` +
+            (wynik.unknown.length ? ` (nieznane: ${wynik.unknown.join(", ")})` : ""),
+        );
+
+        // Strona meczu odswieza sie u wszystkich - mapy pojawiaja sie
+        // w trakcie trwania serii, wiec ktos na niej wtedy patrzy.
+        io.emit("matchMapsUpdated", { matchId: match.id, maps: wynik.rows });
+
+        return res.json({
+          ok: true,
+          maps: wynik.rows,
+
+          // Nazwy spoza znanej puli przechodza, ale panel ma o nich
+          // powiedziec - zwykle to literowka, czasem nowa mapa Valve.
+          unknown: wynik.unknown,
+        });
+      } catch (err) {
+        logError("MATCH MAPS ERROR:", err);
+
+        return res.status(500).json({
+          error: "Nie udalo sie zapisac map.",
+          code: "server.mapsSaveFailed",
+        });
+      }
+    },
+  );
+
   app.get(
     "/api/matches/:matchId",
     requireGuildAdmin(guildIdFromMatchId),

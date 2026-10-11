@@ -72,10 +72,43 @@ export function registerPublicMatchRoutes(
         });
       }
 
-      const [[event]] = await pool.query(
-        "SELECT id, name, slug, guild_id FROM events WHERE id = ? LIMIT 1",
-        [match.event_id],
-      );
+      /*
+       * Turniej i MAPY jedna fala.
+       *
+       * Zapytanie o mapy nie potrzebuje wyniku zapytania o turniej, wiec
+       * stanie za nim kosztowaloby cale okrazenie do bazy - zmierzone na
+       * tym serwerze 174 ms, przy pracy liczonej w milisekundach.
+       */
+      const [[[event]], [mapy]] = await Promise.all([
+        pool.query(
+          "SELECT id, name, slug, guild_id FROM events WHERE id = ? LIMIT 1",
+          [match.event_id],
+        ),
+
+        /*
+         * Mapy NIE MOGA wywrocic strony meczu.
+         *
+         * Ten odczyt siega po kolumne `source`, ktora dodaje migracja
+         * 0012. Gdyby kod pojechal na serwer przed migracja - a wdrozenie
+         * to trzy osobne reczne kroki - kazda strona meczu oddawalaby 500
+         * za cos, co jest tylko dodatkiem do widoku. Brak map jest
+         * normalnym stanem (veto odbywa sie tuz przed seria), wiec blad
+         * tego jednego zapytania znaczy po prostu "nie ma map".
+         */
+        pool.query(
+          `
+          SELECT map_no, map_name, picked_by, source
+          FROM match_maps
+          WHERE match_id = ?
+          ORDER BY map_no
+          `,
+          [matchId],
+        ).catch((err) => {
+          logWarn?.(`MATCH MAPS READ: ${err.code || err.message}`);
+
+          return [[]];
+        }),
+      ]);
 
       if (!event) {
         return res.status(404).json({
@@ -103,6 +136,10 @@ export function registerPublicMatchRoutes(
           slug: event.slug,
         },
         match: wzbogacony,
+
+        // Mapy po veto. Pusta tablica znaczy "jeszcze nie wiadomo",
+        // a nie "nie bedzie map" - front rysuje je tylko wtedy, gdy sa.
+        maps: mapy,
       });
     } catch (err) {
       console.error("PUBLIC MATCH ERROR:", err);

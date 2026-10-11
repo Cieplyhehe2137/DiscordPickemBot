@@ -37,3 +37,35 @@ export function maxMapsFromBo(bestOf) {
   if (bo === 3) return 3;
   return 5;
 }
+
+/**
+ * Nazwa mapy po veto, albo null gdy jeszcze nieznana.
+ *
+ * Etykieta ("Pick NAVI", "Decider") wynika z FORMATU serii i jest znana
+ * od razu. Nazwa mapy wynika z VETO i pojawia sie dopiero tuz przed
+ * meczem - albo nie pojawia wcale, jesli nikt jej nie wpisal i dostawca
+ * jej nie zna. Dlatego to dwie osobne rzeczy, a nie jeden napis: brak
+ * nazwy nie moze zabrac etykiety.
+ */
+export function mapNameFor(maps, mapNo) {
+  if (!Array.isArray(maps)) return null;
+
+  const wiersz = maps.find((m) => Number(m?.map_no) === Number(mapNo));
+
+  const nazwa = wiersz?.map_name;
+
+  return typeof nazwa === "string" && nazwa.trim() ? nazwa : null;
+}
+
+/**
+ * Czy ktorakolwiek mapa przyszla od dostawcy.
+ *
+ * Dane Liquipedii sa na CC-BY-SA 3.0, co wymaga wskazania zrodla. Atrybucja
+ * ma stac przy danych, ktore STAMTAD przyszly - nie przy mapach wpisanych
+ * recznie przez administratora.
+ */
+export function mapsAttribution(maps) {
+  if (!Array.isArray(maps)) return null;
+
+  return maps.some((m) => m?.source === "liquipedia") ? "liquipedia" : null;
+}

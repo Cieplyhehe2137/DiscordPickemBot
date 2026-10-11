@@ -438,6 +438,16 @@ const deAdmin = {
   },
   "admin.ops.bo.previewError": "Vorschau konnte nicht geladen werden.",
   "admin.ops.bo.error": "Format der Spiele konnte nicht geändert werden.",
+  "admin.maps.title": "Karten nach dem Veto",
+  "admin.maps.hint": "Karten in der Reihenfolge des Spiels eintragen. Ein leeres Feld bedeutet „noch nicht bekannt“ — der Decider ist oft später bekannt. Namen wie de_mirage oder dust2 werden vereinheitlicht.",
+  "admin.maps.map": "Karte {no}",
+  "admin.maps.save": "Karten speichern",
+  "admin.maps.saving": "Speichern...",
+  "admin.maps.saved": "Karten gespeichert.",
+  "admin.maps.error": "Karten konnten nicht gespeichert werden.",
+  "admin.maps.unknown": "Unbekannte Kartennamen: {names}. Gespeichert — auf Tippfehler prüfen.",
+  "admin.maps.pick": "Pick {team}",
+  "admin.maps.decider": "Decider",
 };
 
 export default deAdmin;

@@ -450,6 +450,16 @@ const ruAdmin = {
   },
   "admin.ops.bo.previewError": "Не удалось загрузить предпросмотр.",
   "admin.ops.bo.error": "Не удалось изменить формат матчей.",
+  "admin.maps.title": "Карты после вето",
+  "admin.maps.hint": "Укажите карты в порядке игры. Пустое поле — ещё неизвестно. Названия вроде de_mirage будут приведены к единому виду.",
+  "admin.maps.map": "Карта {no}",
+  "admin.maps.save": "Сохранить карты",
+  "admin.maps.saving": "Сохранение...",
+  "admin.maps.saved": "Карты сохранены.",
+  "admin.maps.error": "Не удалось сохранить карты.",
+  "admin.maps.unknown": "Неизвестные названия: {names}. Сохранено — проверьте опечатку.",
+  "admin.maps.pick": "Пик {team}",
+  "admin.maps.decider": "Решающая",
 };
 
 export default ruAdmin;

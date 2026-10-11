@@ -796,6 +796,7 @@ const en = {
   "match.loading": "Loading the match",
   "match.error": "Could not load the match",
   "match.notFound": "Match not found.",
+  "match.mapsSource.liquipedia": "Maps: Liquipedia (CC BY-SA 3.0)",
   "match.picksCount": {
     one: "{count} pick",
     other: "{count} picks",

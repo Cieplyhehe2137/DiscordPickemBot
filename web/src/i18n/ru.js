@@ -839,6 +839,7 @@ const ru = {
   "match.loading": "Загрузка матча",
   "match.error": "Не удалось загрузить матч",
   "match.notFound": "Матч не найден.",
+  "match.mapsSource.liquipedia": "Карты: Liquipedia (CC BY-SA 3.0)",
   "match.picksCount": {
     one: "{count} прогноз",
     few: "{count} прогноза",

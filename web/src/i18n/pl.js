@@ -860,6 +860,7 @@ const pl = {
   "match.loading": "Ładowanie meczu",
   "match.error": "Nie udało się wczytać meczu",
   "match.notFound": "Nie znaleziono meczu.",
+  "match.mapsSource.liquipedia": "Mapy: Liquipedia (CC BY-SA 3.0)",
   "match.picksCount": {
     one: "{count} typ",
     few: "{count} typy",

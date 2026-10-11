@@ -438,6 +438,16 @@ const enAdmin = {
   },
   "admin.ops.bo.previewError": "Could not load the preview.",
   "admin.ops.bo.error": "Could not change the match format.",
+  "admin.maps.title": "Maps after veto",
+  "admin.maps.hint": "Enter maps in the order they are played. An empty field means “not known yet” — the decider is often known later. Names like de_mirage or dust2 are normalised.",
+  "admin.maps.map": "Map {no}",
+  "admin.maps.save": "Save maps",
+  "admin.maps.saving": "Saving...",
+  "admin.maps.saved": "Maps saved.",
+  "admin.maps.error": "Could not save the maps.",
+  "admin.maps.unknown": "Unknown map names: {names}. Saved — check for a typo.",
+  "admin.maps.pick": "Pick {team}",
+  "admin.maps.decider": "Decider",
 };
 
 export default enAdmin;
