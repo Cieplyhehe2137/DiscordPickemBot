@@ -33,6 +33,7 @@ import UsersAdminPanel from "../components/admin/UsersAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
+import MatchMapsPanel from "../components/admin/MatchMapsPanel.jsx";
 import Ladowanie from "../components/Ladowanie.jsx";
 import LoginRequired from "../components/LoginRequired.jsx";
 // Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
@@ -1477,6 +1478,10 @@ export default function AdminPage() {
                     🗑️ {t("adminPage.matches.delete")}
                   </button>
                 </div>
+
+                {/* Mapy po veto. Pod kreska razem z reszta operacji na
+                    meczu, bo to jest operacja, a nie opis stanu. */}
+                <MatchMapsPanel match={match} />
 
                 {deletingMatchId === match.id && matchDeletePreview && (
                   <div className="ui-card ui-card--flat ui-card--danger ui-card--tight ui-stack ui-stack--tight">

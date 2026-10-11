@@ -839,6 +839,7 @@ const uk = {
   "match.loading": "Завантаження матчу",
   "match.error": "Не вдалося завантажити матч",
   "match.notFound": "Матч не знайдено.",
+  "match.mapsSource.liquipedia": "Карти: Liquipedia (CC BY-SA 3.0)",
   "match.picksCount": {
     one: "{count} прогноз",
     few: "{count} прогнози",

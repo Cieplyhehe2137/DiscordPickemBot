@@ -84,6 +84,12 @@ const TAKIE_SAME_NAPRAWDE = new Set([
   "myStats.mapExact",
   "myStats.eventAverage",
 
+  // "Pick" to slowo, ktorego scena CS-a uzywa tak samo po polsku, angielsku
+  // i niemiecku - a etykiety map w web/src/lib/mapLabels.js i utils/mapLabels.js
+  // sa po angielsku we WSZYSTKICH jezykach, bo tak stoi na drabince, ktora
+  // gracz ma przed oczami. Rosyjski i ukrainski maja tu wlasne slowa.
+  "admin.maps.pick",
+
   // Sam skrot MVP plus nazwa turnieju - nie ma tu czego tlumaczyc.
   "adminPage.section.mvp",
 

@@ -11,7 +11,11 @@ import {
   getMatchPickStats,
   getMyMatchPoints,
 } from "../lib/api.js";
-import { getMapLabel } from "../lib/mapLabels.js";
+import {
+  getMapLabel,
+  mapNameFor,
+  mapsAttribution,
+} from "../lib/mapLabels.js";
 import { translateApiMessage } from "../lib/apiMessages.js";
 import { useT } from "../i18n/useLanguage.js";
 import BackLink from "../components/BackLink.jsx";
@@ -194,7 +198,30 @@ function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
   );
 }
 
-function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
+/*
+ * Skad wziely sie nazwy map.
+ *
+ * Dane Liquipedii sa na CC-BY-SA 3.0, co wymaga wskazania zrodla. Stoi to
+ * przy danych, ktore STAMTAD przyszly - mapy wpisane recznie przez
+ * administratora nie dostaja cudzej atrybucji, bo nie sa cudze.
+ */
+function MapsSource({ maps }) {
+  const t = useT();
+
+  if (mapsAttribution(maps) !== "liquipedia") return null;
+
+  return (
+    <p className="ui-note ui-note--muted">{t("match.mapsSource.liquipedia")}</p>
+  );
+}
+
+function SeriesMapScores({
+  match,
+  seriesScore,
+  mapScores,
+  setMapScores,
+  mapyVeto,
+}) {
   const t = useT();
 
   return (
@@ -207,13 +234,27 @@ function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
           <div className="ui-row ui-row--between">
             <strong>{t("common.mapNo", { no: index + 1 })}</strong>
 
-            <span className="ui-badge">
-              {getMapLabel(
-                index + 1,
-                match.best_of,
-                match.team_a,
-                match.team_b,
-              )}
+            <span className="ui-row ui-row--tight">
+              {/* NAZWA MAPY obok etykiety, a nie zamiast niej.
+
+                  Etykieta ("Pick NAVI", "Decider") wynika z FORMATU serii
+                  i jest znana od razu. Nazwa wynika z VETO i pojawia sie
+                  dopiero tuz przed meczem - albo nie pojawia wcale. Gdyby
+                  byly jednym napisem, brak nazwy zabralby takze etykiete. */}
+              {mapNameFor(mapyVeto, index + 1) ? (
+                <span className="ui-badge">
+                  {mapNameFor(mapyVeto, index + 1)}
+                </span>
+              ) : null}
+
+              <span className="ui-badge">
+                {getMapLabel(
+                  index + 1,
+                  match.best_of,
+                  match.team_a,
+                  match.team_b,
+                )}
+              </span>
             </span>
           </div>
 
@@ -265,6 +306,8 @@ function SeriesMapScores({ match, seriesScore, mapScores, setMapScores }) {
           </div>
         </div>
       ))}
+
+      <MapsSource maps={mapyVeto} />
     </div>
   );
 }
@@ -298,6 +341,10 @@ function SeriesPick({
   currentUser,
   validationError,
   onSave,
+
+  // Mapy po veto ida tedy w dol, do formularza wynikow map. Stan trzyma
+  // glowny komponent strony - to on je pobiera z API.
+  mapyVeto,
 }) {
   const t = useT();
 
@@ -327,6 +374,7 @@ function SeriesPick({
           seriesScore={seriesScore}
           mapScores={mapScores}
           setMapScores={setMapScores}
+          mapyVeto={mapyVeto}
         />
       )}
 
@@ -637,7 +685,7 @@ function resolveSingleMapScore(result) {
   };
 }
 
-function MapBreakdown({ teamA, teamB, maps }) {
+function MapBreakdown({ teamA, teamB, maps, mapyVeto }) {
   const t = useT();
 
   if (maps.length === 0) {
@@ -649,7 +697,9 @@ function MapBreakdown({ teamA, teamB, maps }) {
       {maps.map((map) => (
         <div className="ui-map-row" key={map.no}>
           <span className="ui-map-row__label">
-            {t("common.mapNo", { no: map.no })}
+            {/* Po meczu nazwa mapy jest wazniejsza niz jej numer - "Nuke"
+                mowi cos komus, kto oglada powtorke, a "Mapa 2" nie. */}
+            {mapNameFor(mapyVeto, map.no) ?? t("common.mapNo", { no: map.no })}
           </span>
 
           <ScoreLine
@@ -733,6 +783,11 @@ function MatchPage() {
   const [myPointsStan, setMyPoints] = useState(null);
   const [pickStats, setPickStats] = useState(null);
 
+  // Mapy po veto. Pusta tablica znaczy "jeszcze nie wiadomo" - veto
+  // odbywa sie tuz przed seria, wiec przez wiekszosc zycia strony tych
+  // danych po prostu nie ma.
+  const [mapyMeczu, setMapyMeczu] = useState([]);
+
   // Te trzy rzeczy maja sens tylko dla rozstrzygnietego meczu (a punkty
   // dodatkowo tylko dla zalogowanego). Wyliczamy je przy renderze zamiast
   // zerowac stan w ciele efektu - takie setState powoduje dodatkowy przebieg.
@@ -780,6 +835,10 @@ function MatchPage() {
         }
 
         setMatch(foundMatch);
+
+        // Veto konczy sie tuz przed seria, wiec mapy potrafia pojawic
+        // sie u kogos, kto juz ma te strone otwarta.
+        setMapyMeczu(Array.isArray(data.maps) ? data.maps : []);
 
         const stats = await getMatchPickStats(slug, matchId);
 
@@ -837,6 +896,7 @@ function MatchPage() {
         setValidationError(null);
 
         setMatch(foundMatch);
+        setMapyMeczu(Array.isArray(data.maps) ? data.maps : []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -1100,6 +1160,7 @@ function MatchPage() {
                   />
 
                   <MapBreakdown
+                    mapyVeto={mapyMeczu}
                     teamA={match.team_a}
                     teamB={match.team_b}
                     maps={matchResult.maps
@@ -1333,6 +1394,7 @@ function MatchPage() {
                     />
 
                     <MapBreakdown
+                      mapyVeto={mapyMeczu}
                       teamA={match.team_a}
                       teamB={match.team_b}
                       maps={mapScores
@@ -1352,6 +1414,7 @@ function MatchPage() {
 
           {match.ui_status !== "FINAL" && isSeriesMatch(match.best_of) && (
             <SeriesPick
+              mapyVeto={mapyMeczu}
               match={match}
               seriesScore={seriesScore}
               setSeriesScore={setSeriesScore}

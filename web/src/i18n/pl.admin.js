@@ -450,6 +450,16 @@ const plAdmin = {
   },
   "admin.ops.bo.previewError": "Nie udało się pobrać podglądu.",
   "admin.ops.bo.error": "Nie udało się zmienić formatu meczów.",
+  "admin.maps.title": "Mapy po veto",
+  "admin.maps.hint": "Wpisz mapy w kolejności rozgrywania. Puste pole znaczy „jeszcze nie wiadomo” — decider często jest znany później. Nazwy takie jak de_mirage czy dust2 zostaną ujednolicone.",
+  "admin.maps.map": "Mapa {no}",
+  "admin.maps.save": "Zapisz mapy",
+  "admin.maps.saving": "Zapisywanie...",
+  "admin.maps.saved": "Mapy zapisane.",
+  "admin.maps.error": "Nie udało się zapisać map.",
+  "admin.maps.unknown": "Nieznane nazwy map: {names}. Zapisane — sprawdź, czy to nie literówka.",
+  "admin.maps.pick": "Pick {team}",
+  "admin.maps.decider": "Decider",
 };
 
 export default plAdmin;

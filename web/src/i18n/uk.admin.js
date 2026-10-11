@@ -450,6 +450,16 @@ const ukAdmin = {
   },
   "admin.ops.bo.previewError": "Не вдалося завантажити попередній перегляд.",
   "admin.ops.bo.error": "Не вдалося змінити формат матчів.",
+  "admin.maps.title": "Карти після вето",
+  "admin.maps.hint": "Вкажіть карти в порядку гри. Порожнє поле — ще невідомо. Назви на штиб de_mirage будуть уніфіковані.",
+  "admin.maps.map": "Карта {no}",
+  "admin.maps.save": "Зберегти карти",
+  "admin.maps.saving": "Зберігання...",
+  "admin.maps.saved": "Карти збережено.",
+  "admin.maps.error": "Не вдалося зберегти карти.",
+  "admin.maps.unknown": "Невідомі назви: {names}. Збережено — перевірте опечатку.",
+  "admin.maps.pick": "Пік {team}",
+  "admin.maps.decider": "Десайдер",
 };
 
 export default ukAdmin;

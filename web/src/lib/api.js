@@ -167,6 +167,20 @@ export function logout() {
   });
 }
 
+/**
+ * Mapy rozegrane w serii - to, co zostalo po veto.
+ *
+ * Pelna podmiana: panel wysyla komplet map serii, wiec to, czego nie podal,
+ * znika. Puste miejsce w tablicy znaczy "jeszcze nie wiadomo" i nie tworzy
+ * wiersza - decider bywa znany dopiero po dwoch mapach.
+ */
+export function saveMatchMaps(matchId, maps) {
+  return apiRequest(`/matches/${matchId}/maps`, {
+    method: "PUT",
+    body: JSON.stringify({ maps }),
+  });
+}
+
 export function getMatch(matchId) {
   return apiRequest(`/matches/${matchId}`);
 }
