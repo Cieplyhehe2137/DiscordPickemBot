@@ -158,3 +158,85 @@ test("przyblizenie zostaje zgodne z etykietami bota", async () => {
     }
   }
 });
+
+test("ATRYBUCJA JEDZIE Z DANYMI, a nie z formularzem", () => {
+  // CO SIE STALO. Pierwsza wersja rysowala atrybucje tylko w komponencie
+  // formularza typowania. Ten nie renderuje sie na meczu rozstrzygnietym
+  // ani dla niezalogowanego - a nazwy map od dostawcy stoja tam dalej.
+  // Skutek: na stronie zakonczonego meczu byly ich dane BEZ wskazania
+  // zrodla, czego wymaga ich regulamin ("You may display data obtained
+  // from our API in your applications with proper attribution").
+  //
+  // Straznik: kazdy komponent, ktory pokazuje dane z match_maps, musi
+  // rysowac takze <MapsSource>.
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  const plik = path.join(
+    __dirname,
+    "..",
+    "web",
+    "src",
+    "pages",
+    "MatchPage.jsx",
+  );
+
+  const tresc = fs.readFileSync(plik, "utf8").replace(/\r\n/g, "\n");
+
+  // Granice komponentow: deklaracje funkcji na poziomie pliku.
+  const granice = [...tresc.matchAll(/^function (\w+)\(/gm)].map((m) => ({
+    nazwa: m[1],
+    od: m.index,
+  }));
+
+  assert.ok(granice.length > 3, "nie rozpoznalem komponentow w MatchPage");
+
+  const winni = [];
+
+  for (let i = 0; i < granice.length; i += 1) {
+    const { nazwa, od } = granice[i];
+    const do_ = i + 1 < granice.length ? granice[i + 1].od : tresc.length;
+
+    const cialo = tresc.slice(od, do_);
+
+    // Sam komponent atrybucji siega po dane, zeby zdecydowac, czy sie
+    // pokazac - i oczywiscie nie rysuje sam siebie.
+    if (nazwa === "MapsSource") continue;
+
+    const pokazujeDane =
+      /\bmapNameFor\(/.test(cialo) || /\bpickLabelFor\(/.test(cialo);
+
+    if (!pokazujeDane) continue;
+
+    if (!/<MapsSource\b/.test(cialo)) winni.push(nazwa);
+  }
+
+  assert.deepEqual(
+    winni,
+    [],
+    "te komponenty pokazuja dane dostawcy bez wskazania zrodla: " +
+      winni.join(", "),
+  );
+});
+
+test("atrybucja nie pojawia sie przy samych wpisach recznych", () => {
+  // Druga strona tej samej zasady: mapy wpisane przez administratora nie
+  // sa cudze, wiec nie nosza cudzego nazwiska. Pilnuje tego mapsAttribution,
+  // a ten test trzyma oba warunki razem, zeby nikt nie "naprawil" jednego
+  // kosztem drugiego.
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  const tresc = fs
+    .readFileSync(
+      path.join(__dirname, "..", "web", "src", "pages", "MatchPage.jsx"),
+      "utf8",
+    )
+    .replace(/\r\n/g, "\n");
+
+  assert.match(
+    tresc,
+    /mapsAttribution\(/,
+    "MapsSource musi pytac mapsAttribution, a nie rysowac sie zawsze",
+  );
+});
