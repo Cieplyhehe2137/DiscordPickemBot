@@ -165,3 +165,58 @@ test("preflight Tailwinda jest wciagany - to on zdejmuje style pol", () => {
     "zniknal import preflightu - sprawdz, czy pola nadal potrzebuja ui-input",
   );
 });
+
+test("rozwijanych sekcji w panelu nie robi sie na <details>", () => {
+  // CO SIE STALO. Panel "Mapy po veto" nie byl widoczny dla administratora.
+  // Nie dlatego, ze go nie wdrozono - paczka produkcyjna zawierala i kod,
+  // i napisy - tylko dlatego, ze zrobilem go na <details>/<summary>.
+  //
+  // DLACZEGO TO NIEWIDOCZNE. Byl to JEDYNY <details> w calym projekcie,
+  // a arkusz nie ma ani jednej reguly dla <summary>. Preflight Tailwinda
+  // (wciagany swiadomie - patrz test nizej) zdejmuje elementom wyglad
+  // domyslny, wiec <summary> wyrenderowal sie jako zwykly szary tekst
+  // posrod innych etykiet: bez obrysu, bez strzalki, bez niczego, co mowi
+  // "kliknij mnie". Dokladnie ta sama pulapka, co pola bez .ui-input.
+  //
+  // Panel ma na to wlasny wzorzec: przycisk `ui-btn` z aria-expanded, tak
+  // jak przelacznik kandydatow poza lista w MvpAdminPanel.
+  //
+  // Ten straznik przestanie blokowac sam z siebie w dniu, w ktorym ktos
+  // doda regule dla <summary> do arkusza - bo wtedy element bedzie widoczny
+  // i zakaz straci powod.
+  const css = fs.readFileSync(
+    path.join(KORZEN, "web", "src", "styles", "components.css"),
+    "utf8",
+  );
+
+  // Regula dla ELEMENTU, nie nazwa klasy w rodzaju .ui-dialog__details.
+  const stylizowany = /(^|[\s,>+~])summary\s*(\{|,)/m.test(css);
+
+  if (stylizowany) return;
+
+  const winni = [];
+
+  for (const plik of plikiPanelu()) {
+    const tresc = bezKomentarzy(
+      fs.readFileSync(plik, "utf8").replace(/\r\n/g, "\n"),
+    );
+
+    const wzor = /<(details|summary)\b/g;
+
+    let trafienie = wzor.exec(tresc);
+
+    for (; trafienie !== null; trafienie = wzor.exec(tresc)) {
+      winni.push(
+        `${path.basename(plik)}:${tresc.slice(0, trafienie.index).split("\n").length} <${trafienie[1]}>`,
+      );
+    }
+  }
+
+  assert.deepEqual(
+    winni,
+    [],
+    "arkusz nie stylizuje <summary>, wiec taka sekcja jest w panelu\n" +
+      "NIEWIDOCZNA - uzyj przycisku ui-btn z aria-expanded:\n  " +
+      winni.join("\n  "),
+  );
+});

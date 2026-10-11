@@ -12,12 +12,24 @@ import { getMapLabel, mapNameFor, maxMapsFromBo } from "../../lib/mapLabels.js";
  * to Nuke. To jest pierwsza droga, ktora ja wypelnia - druga jest skrypt
  * dociagajacy dane od dostawcy.
  *
- * DLACZEGO <details>, A NIE OTWARTY FORMULARZ. Veto dotyczy jednego meczu
+ * DLACZEGO PRZYCISK, A NIE OTWARTY FORMULARZ. Veto dotyczy jednego meczu
  * naraz i trwa minute, a lista w panelu miewa czterdziesci wierszy. Gdyby
- * kazdy z nich mial od razu trzy pola i przycisk, karta meczu urosloby
- * dwukrotnie dla rzeczy, ktorej zwykle sie nie robi. Mapy doczytuja sie
- * DOPIERO po rozwinieciu - inaczej kazde wejscie na liste meczow kosztowaloby
- * czterdziesci zapytan o dane, ktorych nikt nie oglada.
+ * kazdy z nich mial od razu trzy pola i przycisk zapisu, karta meczu
+ * urosloby dwukrotnie dla rzeczy, ktorej zwykle sie nie robi. Mapy doczytuja
+ * sie DOPIERO po rozwinieciu - inaczej kazde wejscie na liste meczow
+ * kosztowaloby czterdziesci zapytan o dane, ktorych nikt nie oglada.
+ *
+ * DLACZEGO NIE <details>. Pierwsza wersja uzywala <details>/<summary>
+ * i administrator NIE ZOBACZYL jej w panelu. Powod: byl to jedyny <details>
+ * w calym projekcie, a design system nie ma ani jednej reguly dla
+ * <summary>. Preflight Tailwinda (wciagany swiadomie w index.css) zdejmuje
+ * elementom wyglad domyslny, wiec <summary> wyrenderowal sie jako zwykly
+ * szary tekst posrod innych etykiet - bez obrysu, bez strzalki, bez niczego,
+ * co mowi "kliknij mnie". Dokladnie ta sama pulapka, co pola formularzy bez
+ * klasy .ui-input.
+ *
+ * Teraz jest to przycisk `ui-btn`, czyli ten sam wzorzec, co przelacznik
+ * "pokaż kandydatów poza listą" w MvpAdminPanel.
  */
 export default function MatchMapsPanel({ match }) {
   const t = useT();
@@ -47,8 +59,8 @@ export default function MatchMapsPanel({ match }) {
     }
   }
 
-  function rozwin(event) {
-    const teraz = event.currentTarget.open;
+  function przelacz() {
+    const teraz = !otwarty;
 
     setOtwarty(teraz);
 
@@ -85,8 +97,15 @@ export default function MatchMapsPanel({ match }) {
   if (!ile) return null;
 
   return (
-    <details className="ui-stack ui-stack--tight" onToggle={rozwin}>
-      <summary>{t("admin.maps.title")}</summary>
+    <div className="ui-stack ui-stack--tight">
+      <button
+        type="button"
+        className="ui-btn ui-btn--sm ui-btn--ghost"
+        aria-expanded={otwarty}
+        onClick={przelacz}
+      >
+        {otwarty ? "\u25be" : "\u25b8"} {t("admin.maps.title")}
+      </button>
 
       {otwarty && (
         <div className="ui-stack ui-stack--tight">
@@ -140,6 +159,6 @@ export default function MatchMapsPanel({ match }) {
           )}
         </div>
       )}
-    </details>
+    </div>
   );
 }
