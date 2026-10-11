@@ -117,17 +117,29 @@ export function maxMapsFromBo(bestOf) {
 }
 
 /**
- * Czyj byl pick tej mapy.
- *
- * TA SAMA KOLEJNOSC, co etykiety w utils/mapLabels.js i
- * web/src/lib/mapLabels.js:
+ * PRZYBLIZENIE: czyj BYLBY pick tej mapy, gdyby veto szlo po kolei.
  *
  *   BO3 -> A, B, decider
  *   BO5 -> A, B, A, B, decider
  *
- * Kolumna `picked_by` w bazie jest wiec wyliczana, a nie zgadywana - i gdyby
- * ktos kiedys zmienil kolejnosc pickow w jednym z tych trzech miejsc, test
- * porownujacy je ze soba o tym powie.
+ * TO NIE JEST PRAWDA O VETO i nie wolno tego zapisywac do bazy jako fakt.
+ * Zmierzone na produkcji, 37 meczow ESL Pro League Season 24, 113 map
+ * porownanych z prawdziwym przebiegiem veto:
+ *
+ *   zgodne    :  65
+ *   NIEZGODNE :  48
+ *   trafnosc  :  58%
+ *
+ * Decidery zgadzaja sie zawsze - ostatnia mapa jest deciderem niezaleznie
+ * od wszystkiego. Cala pomylka siedzi w pickach: o tym, kto wybiera
+ * pierwszy, decyduje procedura veto, a nie to, ktora druzyne wpisano jako
+ * pierwsza.
+ *
+ *   #1 Falcons vs TYLOO  mapa 1 Mirage: wyliczenie mowi Falcons, pickowal TYLOO
+ *   #3 Vitality vs 1win  mapa 1 Dust2:  wyliczenie mowi Vitality, pickowal 1win
+ *
+ * Zostaje WYLACZNIE jako etykieta na ekranie tam, gdzie prawdy nie mamy -
+ * ta sama regula co w utils/mapLabels.js i web/src/lib/mapLabels.js.
  */
 export function pickedByForMap(mapNo, bestOf) {
   const bo = Number(bestOf);
@@ -147,17 +159,30 @@ export function pickedByForMap(mapNo, bestOf) {
 /**
  * Sklada komplet wierszy do zapisania w `match_maps`.
  *
- * @param bestOf format serii
- * @param names  nazwy map w kolejnosci rozgrywania; krotsza lista jest
- *               dozwolona (veto bywa znane tylko czesciowo), dluzsza nie
- * @param source 'manual' albo nazwa dostawcy
+ * @param bestOf  format serii
+ * @param names   nazwy map w kolejnosci rozgrywania; krotsza lista jest
+ *                dozwolona (veto bywa znane tylko czesciowo), dluzsza nie
+ * @param pickers KTO wypickowal kazda mape - 'TEAM_A' | 'TEAM_B' |
+ *                'DECIDER' | null, ta sama dlugosc co `names`. Pominiete
+ *                znaczy NIE WIEMY i wtedy do bazy idzie NULL.
+ * @param source  'manual' albo nazwa dostawcy
  *
  * Zwraca { ok: true, rows, unknown } albo { ok: false, reason, code }.
  *
  * Puste miejsce w srodku listy (null, "") jest DOZWOLONE i pomijane - przy
  * czesciowo znanym veto lepiej zapisac mape trzecia niz nie zapisac nic.
+ *
+ * PICKEROW NIE ZGADUJEMY. Wpis reczny podaje nazwy map, a nie przebieg
+ * veto, wiec jego wiersze maja picked_by = NULL. Wyliczenie z formatu ma
+ * 58% trafnosci (patrz pickedByForMap) i zostaje etykieta na ekranie,
+ * zamiast udawac fakt w bazie.
  */
-export function buildMatchMaps({ bestOf, names, source = "manual" } = {}) {
+export function buildMatchMaps({
+  bestOf,
+  names,
+  pickers = [],
+  source = "manual",
+} = {}) {
   const ile = maxMapsFromBo(bestOf);
 
   if (!ile) {
@@ -207,10 +232,18 @@ export function buildMatchMaps({ bestOf, names, source = "manual" } = {}) {
 
     if (!znormalizowana.known) unknown.push(znormalizowana.name);
 
+    // Tylko trzy wartosci sa sensowne; cokolwiek innego znaczy "nie wiem".
+    const picker = Array.isArray(pickers) ? pickers[i] : null;
+
+    const znany =
+      picker === "TEAM_A" || picker === "TEAM_B" || picker === "DECIDER"
+        ? picker
+        : null;
+
     rows.push({
       map_no: i + 1,
       map_name: znormalizowana.name,
-      picked_by: pickedByForMap(i + 1, bestOf),
+      picked_by: znany,
       source,
     });
   }

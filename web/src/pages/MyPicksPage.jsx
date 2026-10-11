@@ -3,7 +3,7 @@ import { Link, useOutletContext, useParams } from "react-router-dom";
 
 import { getMyEventPredictions } from "../lib/api.js";
 import BackLink from "../components/BackLink.jsx";
-import { getMapLabel } from "../lib/mapLabels.js";
+import { mapNameFor, pickLabelFor } from "../lib/mapLabels.js";
 import LoginRequired from "../components/LoginRequired.jsx";
 import ScoreLine from "../components/ScoreLine.jsx";
 import { useT } from "../i18n/useLanguage.js";
@@ -238,7 +238,15 @@ function MyPicksPage() {
                         match.maps.map((map) => (
                           <div className="ui-map-row" key={map.map_no}>
                             <span className="ui-map-row__label">
-                              {getMapLabel(
+                              {/* Nazwa mapy, gdy ja znamy - "Nuke" mowi
+                                  wiecej niz "Mapa 2" komus, kto oglada
+                                  wlasne typy po meczu. */}
+                              {mapNameFor(match.maps, map.map_no)
+                                ? `${mapNameFor(match.maps, map.map_no)} \u00b7 `
+                                : ""}
+
+                              {pickLabelFor(
+                                match.maps,
                                 map.map_no,
                                 match.best_of,
                                 match.team_a,

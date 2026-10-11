@@ -12,9 +12,9 @@ import {
   getMyMatchPoints,
 } from "../lib/api.js";
 import {
-  getMapLabel,
   mapNameFor,
   mapsAttribution,
+  pickLabelFor,
 } from "../lib/mapLabels.js";
 import { translateApiMessage } from "../lib/apiMessages.js";
 import { useT } from "../i18n/useLanguage.js";
@@ -208,10 +208,10 @@ function SeriesOptions({ bestOf, teamA, teamB, seriesScore, onSelect }) {
 function MapsSource({ maps }) {
   const t = useT();
 
-  if (mapsAttribution(maps) !== "liquipedia") return null;
+  if (mapsAttribution(maps) !== "cito") return null;
 
   return (
-    <p className="ui-note ui-note--muted">{t("match.mapsSource.liquipedia")}</p>
+    <p className="ui-note ui-note--muted">{t("match.mapsSource.cito")}</p>
   );
 }
 
@@ -247,8 +247,11 @@ function SeriesMapScores({
                 </span>
               ) : null}
 
+              {/* KTO WYBRAL te mape. Prawda z veto, gdy ja mamy;
+                  przyblizenie z formatu, gdy nie - patrz pickLabelFor. */}
               <span className="ui-badge">
-                {getMapLabel(
+                {pickLabelFor(
+                  mapyVeto,
                   index + 1,
                   match.best_of,
                   match.team_a,

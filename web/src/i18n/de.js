@@ -796,7 +796,7 @@ const de = {
   "match.loading": "Spiel wird geladen",
   "match.error": "Das Spiel konnte nicht geladen werden",
   "match.notFound": "Spiel nicht gefunden.",
-  "match.mapsSource.liquipedia": "Karten: Liquipedia (CC BY-SA 3.0)",
+  "match.mapsSource.cito": "Kartendaten: CitoAPI",
   "match.picksCount": {
     one: "{count} Tipp",
     other: "{count} Tipps",
