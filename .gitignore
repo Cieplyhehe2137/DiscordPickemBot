@@ -42,7 +42,6 @@ config/*.env
 .env
 config/hyperland.env config/luffastream.env
 
-# Surowa odpowiedz LPDB, ktora scripts/fetchMatchMaps.mjs odklada do
-# potwierdzenia ksztaltu. To cudze dane i zrzut diagnostyczny -
-# nie nalezy do repozytorium.
-scripts/liquipedia-probka.json
+# Zrzuty diagnostyczne z API dostawcy map. To cudze dane, a ich
+# regulamin zabrania redystrybucji - nie naleza do repozytorium.
+scripts/cito-probka.json

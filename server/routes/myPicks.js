@@ -178,7 +178,14 @@ export function registerMyPicksRoutes(
               p.pred_exact_b,
 
               r.exact_a AS res_exact_a,
-              r.exact_b AS res_exact_b
+              r.exact_b AS res_exact_b,
+
+              -- Nazwa mapy i to, KTO ja wybral. Bez tego strona "Moje typy"
+              -- pokazuje etykiete wyliczona z formatu serii, ktora myli sie
+              -- w 42% przypadkow (zmierzone na 113 mapach - patrz
+              -- web/src/lib/mapLabels.js).
+              mm.map_name,
+              mm.picked_by
 
             FROM match_map_predictions p
 
@@ -187,6 +194,13 @@ export function registerMyPicksRoutes(
              AND r.event_id = p.event_id
              AND r.match_id = p.match_id
              AND r.map_no = p.map_no
+
+            -- Zlaczenie PO LICZBACH, nie po guild_id: match_maps ma inna
+            -- kolacje (utf8mb4_0900_ai_ci) niz tabele typow
+            -- (utf8mb4_unicode_ci), a match_id i tak jest unikalny.
+            LEFT JOIN match_maps mm
+              ON mm.match_id = p.match_id
+             AND mm.map_no = p.map_no
 
             WHERE p.guild_id = ?
               AND p.event_id = ?
@@ -224,6 +238,11 @@ export function registerMyPicksRoutes(
           res_exact_a: map.res_exact_a !== null ? Number(map.res_exact_a) : null,
 
           res_exact_b: map.res_exact_b !== null ? Number(map.res_exact_b) : null,
+
+          // Puste znaczy "nie wiemy" - front pokazuje wtedy przyblizenie
+          // z formatu serii, tak jak dotad.
+          map_name: map.map_name || null,
+          picked_by: map.picked_by || null,
         });
       }
 

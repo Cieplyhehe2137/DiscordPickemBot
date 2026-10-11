@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 //
-// Dociąga MAPY ROZEGRANE PO VETO z Liquipedii i uzupełnia `match_maps`.
+// Dociąga MAPY ROZEGRANE PO VETO z CitoAPI i uzupełnia `match_maps`.
 //
 //   node scripts/fetchMatchMaps.mjs --event epl-season24            # podgląd
 //   node scripts/fetchMatchMaps.mjs --event epl-season24 --apply    # zapis
@@ -8,31 +8,19 @@
 // DOMYŚLNIE NIC NIE ZAPISUJE. Pokazuje, co by zrobił, i kończy - tak samo
 // jak scripts/fetchTeamLogos.mjs.
 //
-// ===========================================================================
-// PIERWSZE URUCHOMIENIE JEST SPRAWDZENIEM, NIE ROBOTĄ.
-//
-// Kształt odpowiedzi LPDB nie został zweryfikowany: Liquipedia udostępnia
-// szczegółową dokumentację dopiero po przyznaniu klucza, a czytania ich
-// stron HTML zabrania regulamin (i serwer odrzuca - sprawdzone, HTTP 403).
-// Ścieżki, pod którymi szukamy nazw map, są więc PRAWDOPODOBNE, nie pewne.
-//
-// Dlatego skrypt odkłada surową odpowiedź do pliku i wypisuje, która ścieżka
-// zadziałała. Po pierwszym przebiegu trzeba zajrzeć do tego pliku, dopisać
-// prawdziwy kształt jako fiksturę w test/liquipediaMaps.test.js i zwęzić
-// ścieżki w server/lib/mapProviders/liquipedia.js do tej jednej, która
-// naprawdę występuje.
-// ===========================================================================
-//
-// WARUNKI REGULAMINU, których ten skrypt przestrzega:
-//   - klucz idzie nagłówkiem, nigdy w adresie;
-//   - własny User-Agent;
-//   - najwyżej 60 zapytań na godzinę (trzymamy się 50);
-//   - wyniki buforujemy - jedno zapytanie na turniej, nie na mecz;
-//   - dane są na CC-BY-SA 3.0, więc źródło widać na stronie meczu.
+// JEDNO ZAPYTANIE NA TURNIEJ. Mapy przychodzą w liście meczów eventu, więc
+// synchronizacja 42 meczów kosztuje jedno zapytanie z limitu 500 na miesiąc,
+// a nie czterdzieści dwa. Drugie zapytanie idzie tylko wtedy, gdy trzeba
+// odnaleźć turniej u dostawcy - można to pominąć, podając --cito-event.
 //
 // RĘKA WYGRYWA. Wierszy `source = 'manual'` skrypt NIE RUSZA - administrator
 // wpisuje mapy z transmisji, często szybciej, niż trafiają gdziekolwiek
-// indziej.
+// indziej. Pilnuje tego zarówno filtr przy wyborze meczów, jak i warunek
+// w samym zapytaniu zapisującym.
+//
+// PICKERÓW NIE ZGADUJEMY. To jest cały powód, dla którego ten skrypt
+// istnieje: wyliczenie "mapa 1 to pick drużyny A" ma 58% trafności
+// (zmierzone na 113 mapach), a dostawca podaje prawdę.
 
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -41,11 +29,12 @@ import path from "node:path";
 
 import {
   ZRODLO,
-  LIMIT_NA_GODZINE,
-  buildLpdbRequest,
-  extractMapsFromMatch,
-  matchesOurMatch,
-} from "../server/lib/mapProviders/liquipedia.js";
+  LIMIT_NA_MIESIAC,
+  buildEventMatchesRequest,
+  extractMatches,
+  findRecordForMatch,
+  mapsForOurMatch,
+} from "../server/lib/mapProviders/cito.js";
 
 import { buildMatchMaps } from "../server/lib/matchMaps.js";
 
@@ -60,7 +49,6 @@ require("dotenv").config({ path: path.join(ROOT, ".env") });
 const mysql = require("mysql2/promise");
 
 const ARG = process.argv.slice(2);
-
 const ZAPIS = ARG.includes("--apply");
 
 function opcja(nazwa) {
@@ -70,67 +58,61 @@ function opcja(nazwa) {
 }
 
 const SLUG = opcja("--event");
+const CITO_EVENT = opcja("--cito-event");
 
-// Jak nazywa się ten turniej po stronie Liquipedii. Bez tego nie ma czego
-// pytać - ich baza nie zna naszych slugów.
-const STRONA = opcja("--page");
+const API = "https://api.citoapi.com/api/v1";
 
-const PLIK_PROBKI = path.join(ROOT, "scripts", "liquipedia-probka.json");
+let zuzyte = 0;
 
 function naglowek(tekst) {
   console.log(`\n=== ${tekst} ===`);
 }
 
-async function pobierzZDostawcy(key, conditions) {
-  const zadanie = buildLpdbRequest({
-    key,
-    datapoint: "match",
-    wiki: "counterstrike",
-    conditions,
-    limit: 200,
-  });
+async function wolaj(url, headers) {
+  zuzyte += 1;
 
-  if (!zadanie.ok) throw new Error(zadanie.reason);
-
-  const res = await fetch(zadanie.url, { headers: zadanie.headers });
+  const res = await fetch(url, { headers });
 
   if (!res.ok) {
     const tresc = await res.text().catch(() => "");
 
     // Treść błędu bywa echem zapytania - przycinamy, żeby nie wypisać
     // przypadkiem niczego z nagłówków.
-    throw new Error(`liquipedia: HTTP ${res.status} ${tresc.slice(0, 160)}`);
+    throw new Error(`cito: HTTP ${res.status} ${tresc.slice(0, 160)}`);
   }
 
   return res.json();
 }
 
+/** Odnajduje turniej u dostawcy po nazwie. Jedno dodatkowe zapytanie. */
+async function znajdzTurniej(key, nazwa) {
+  const url = new URL(`${API}/cs2/search`);
+
+  url.searchParams.set("q", nazwa);
+
+  const dane = await wolaj(url.toString(), {
+    "x-api-key": key,
+    Accept: "application/json",
+  });
+
+  return dane?.data?.events || [];
+}
+
 const main = async () => {
-  const key = process.env.LIQUIPEDIA_API_KEY;
+  const key = process.env.CITO_API_KEY;
 
   if (!key) {
     console.error(
-      "Brak LIQUIPEDIA_API_KEY.\n\n" +
-        "Klucz do LPDB przyznaje Liquipedia na wniosek (liquipedia.net/api).\n" +
-        "Darmowy dostęp jest zastrzeżony dla niekomercyjnych serwisów\n" +
-        "społecznościowych - pickembot.pl takim jest. Po otrzymaniu klucza\n" +
-        "dopisz go do server/.env jako LIQUIPEDIA_API_KEY=...",
+      "Brak CITO_API_KEY.\n\n" +
+        "Darmowy klucz: https://citoapi.com/signup/?game=cs2\n" +
+        "Plan Free: 500 zapytań na miesiąc, bez karty.\n" +
+        "Wpisz go do server/.env jako CITO_API_KEY=...",
     );
     process.exit(1);
   }
 
   if (!SLUG) {
     console.error("Podaj turniej: --event <slug>");
-    process.exit(1);
-  }
-
-  if (!STRONA) {
-    console.error(
-      "Podaj nazwę turnieju u Liquipedii: --page <nazwa>\n" +
-        'Na przykład: --page "ESL/Pro League/Season 24"\n\n' +
-        "Ich baza nie zna naszych slugów, więc trzeba powiedzieć wprost,\n" +
-        "o który turniej pytamy.",
-    );
     process.exit(1);
   }
 
@@ -155,6 +137,8 @@ const main = async () => {
       process.exit(1);
     }
 
+    naglowek(`TURNIEJ ${event.name} (${event.slug})`);
+
     // Mecze, które jeszcze nie mają kompletu map. Wiersze `manual` liczą się
     // jako gotowe - ręka wygrywa.
     const [mecze] = await pula.query(
@@ -173,14 +157,11 @@ const main = async () => {
       [event.id],
     );
 
-    naglowek(`TURNIEJ ${event.name} (${event.slug})`);
-
-    console.log("meczów z godziną:", mecze.length);
-
     const doZrobienia = mecze.filter(
       (m) => Number(m.manual_rows) === 0 && Number(m.map_rows) < m.best_of,
     );
 
+    console.log("meczów z godziną:", mecze.length);
     console.log("bez kompletu map (i bez wpisu ręcznego):", doZrobienia.length);
 
     if (!doZrobienia.length) {
@@ -189,41 +170,67 @@ const main = async () => {
       return;
     }
 
-    // JEDNO zapytanie na turniej, nie na mecz - regulamin wymaga
-    // buforowania i zakazuje pytania dwa razy o to samo. Przy czterdziestu
-    // meczach to różnica między 1 a 40 zapytaniami z budżetu 60/h.
-    naglowek("PYTANIE DO DOSTAWCY");
+    /* ---------------- turniej u dostawcy ---------------- */
 
-    console.log("budżet:", LIMIT_NA_GODZINE, "zapytań/h | używamy: 1");
+    let idTurnieju = CITO_EVENT;
 
-    const odpowiedz = await pobierzZDostawcy(
-      key,
-      `[[parent::${STRONA}]]`,
-    );
+    if (!idTurnieju) {
+      naglowek("SZUKANIE TURNIEJU U DOSTAWCY");
 
-    const rekordy = Array.isArray(odpowiedz)
-      ? odpowiedz
-      : odpowiedz?.result || odpowiedz?.data || [];
+      const kandydaci = await znajdzTurniej(key, event.name);
 
-    console.log("rekordów w odpowiedzi:", rekordy.length);
+      for (const k of kandydaci.slice(0, 6)) {
+        console.log(" ", k.id, "|", k.name, "| drużyn:", k.teamCount);
+      }
 
-    // Surowa odpowiedź na dysk - to jest sposób, żeby potwierdzić kształt.
-    fs.writeFileSync(
-      PLIK_PROBKI,
-      JSON.stringify(rekordy.slice(0, 3), null, 2),
-      "utf8",
-    );
-
-    console.log("próbka (3 rekordy) zapisana:", path.relative(ROOT, PLIK_PROBKI));
-
-    if (!rekordy.length) {
-      console.log(
-        "\nZero rekordów. Sprawdź nazwę turnieju podaną w --page -\n" +
-          "musi być dokładnie taka, jak w adresie strony Liquipedii.",
+      // Dokładna nazwa wygrywa; inaczej bierzemy pierwszego kandydata
+      // i mówimy o tym wprost.
+      const dokladny = kandydaci.find(
+        (k) =>
+          String(k.name || "").trim().toLowerCase() ===
+          String(event.name || "").trim().toLowerCase(),
       );
+
+      idTurnieju = (dokladny || kandydaci[0])?.id;
+
+      if (!idTurnieju) {
+        console.log(
+          "\nNie znaleźli tego turnieju. Podaj identyfikator ręcznie:\n" +
+            "  --cito-event cs2-event-XXXX",
+        );
+
+        return;
+      }
+
+      console.log(
+        "\nbiorę:",
+        idTurnieju,
+        dokladny ? "(nazwa zgadza się dokładnie)" : "(PIERWSZY z listy - sprawdź!)",
+      );
+    }
+
+    /* ---------------- jedno zapytanie o wszystko ---------------- */
+
+    naglowek("POBIERANIE");
+
+    const zadanie = buildEventMatchesRequest({ key, eventId: idTurnieju });
+
+    if (!zadanie.ok) {
+      console.error(zadanie.reason);
 
       return;
     }
+
+    const odpowiedz = await wolaj(zadanie.url, zadanie.headers);
+    const ichMecze = extractMatches(odpowiedz);
+
+    console.log("ich meczów:", ichMecze.length);
+    console.log(
+      "ich map razem:",
+      ichMecze.reduce((s, m) => s + (m.maps?.length || 0), 0),
+    );
+
+    /* ---------------- parowanie ---------------- */
 
     naglowek("DOPASOWANIE");
 
@@ -231,18 +238,18 @@ const main = async () => {
     const bezPary = [];
 
     for (const nasz of doZrobienia) {
-      const rekord = rekordy.find(
-        (r) => matchesOurMatch({ nasz, rekord: r }).ok,
-      );
+      const znalezione = findRecordForMatch({ nasz, rekordy: ichMecze });
 
-      if (!rekord) {
-        bezPary.push(nasz);
+      if (!znalezione.ok) {
+        bezPary.push({ ...nasz, powod: znalezione.reason });
         continue;
       }
 
-      const { names, path: sciezka } = extractMapsFromMatch(rekord);
+      const rekord = znalezione.rekord;
 
-      if (!names.length) {
+      const { names, pickers } = mapsForOurMatch({ nasz, rekord });
+
+      if (!names.some((n) => n)) {
         bezPary.push({ ...nasz, powod: "sparowany, ale bez nazw map" });
         continue;
       }
@@ -250,6 +257,7 @@ const main = async () => {
       const zbudowane = buildMatchMaps({
         bestOf: nasz.best_of,
         names: names.slice(0, nasz.best_of),
+        pickers: pickers.slice(0, nasz.best_of),
         source: ZRODLO,
       });
 
@@ -258,22 +266,33 @@ const main = async () => {
         continue;
       }
 
-      plan.push({ nasz, rows: zbudowane.rows, sciezka, unknown: zbudowane.unknown });
+      plan.push({ nasz, rows: zbudowane.rows, unknown: zbudowane.unknown });
     }
 
     console.log("sparowanych z mapami:", plan.length);
     console.log("bez pary:", bezPary.length);
 
     if (plan.length) {
-      console.log("\nktóra ścieżka zadziałała:", plan[0].sciezka);
-      console.log("\nnr | mapy");
+      console.log("\nnr | mapy (kto pickował)");
 
       for (const p of plan) {
+        const opis = p.rows
+          .map((r) => {
+            const kto =
+              r.picked_by === "TEAM_A"
+                ? p.nasz.team_a
+                : r.picked_by === "TEAM_B"
+                  ? p.nasz.team_b
+                  : "decider";
+
+            return `${r.map_name} (${kto})`;
+          })
+          .join(", ");
+
         console.log(
           String(p.nasz.match_no).padStart(2),
           "|",
-          p.rows.map((r) => `${r.map_no}:${r.map_name}`).join("  ") +
-            (p.unknown.length ? `   (nieznane: ${p.unknown.join(", ")})` : ""),
+          opis + (p.unknown.length ? `   [nieznane: ${p.unknown.join(", ")}]` : ""),
         );
       }
     }
@@ -285,22 +304,24 @@ const main = async () => {
         console.log(
           " ",
           String(m.match_no).padStart(2),
-          m.team_a,
-          "vs",
-          m.team_b,
-          m.powod ? `- ${m.powod}` : "",
+          `${m.team_a} vs ${m.team_b}`.padEnd(26),
+          "-",
+          m.powod,
         );
       }
     }
 
     if (!ZAPIS) {
       console.log(
-        "\nPODGLĄD - nic nie zapisano. Zajrzyj do próbki, potwierdź kształt,\n" +
-          "a potem uruchom z --apply.",
+        `\nPODGLĄD - nic nie zapisano. Zapytań zużytych: ${zuzyte} ` +
+          `(budżet ${LIMIT_NA_MIESIAC}/mies.)\n` +
+          "Uruchom z --apply, żeby zapisać.",
       );
 
       return;
     }
+
+    /* ---------------- zapis ---------------- */
 
     naglowek("ZAPIS");
 
@@ -308,7 +329,7 @@ const main = async () => {
 
     for (const p of plan) {
       for (const r of p.rows) {
-        // `manual` chronimy warunkiem w samym zapytaniu, a nie tylko
+        // `manual` chronimy warunkiem W SAMYM ZAPYTANIU, a nie tylko
         // filtrem wyżej - między odczytem a zapisem administrator mógł
         // zdążyć coś wpisać.
         const [wynik] = await pula.query(
@@ -337,6 +358,7 @@ const main = async () => {
     }
 
     console.log("zapisanych wierszy map:", zapisanych);
+    console.log("zapytań zużytych:", zuzyte);
   } finally {
     await pula.end();
   }
@@ -344,5 +366,6 @@ const main = async () => {
 
 main().catch((e) => {
   console.error("BŁĄD:", e.message);
+  console.error("zapytań zużytych:", zuzyte);
   process.exit(1);
 });
