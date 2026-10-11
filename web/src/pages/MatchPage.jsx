@@ -714,6 +714,17 @@ function MapBreakdown({ teamA, teamB, maps, mapyVeto }) {
           />
         </div>
       ))}
+
+      {/* ATRYBUCJA JEDZIE Z DANYMI, nie z formularzem.
+
+          Pierwsza wersja rysowala ja tylko w SeriesMapScores, czyli
+          w formularzu typowania - a ten nie renderuje sie na meczu
+          rozstrzygnietym ani dla niezalogowanego. Skutek: na stronie
+          zakonczonego meczu stala nazwa mapy od dostawcy BEZ wskazania
+          zrodla, czego wymaga ich regulamin. Tutaj przyklejona jest do
+          komponentu, ktory te dane pokazuje, wiec nie da sie ich
+          wyswietlic bez niej. */}
+      <MapsSource maps={mapyVeto} />
     </div>
   );
 }
