@@ -51,6 +51,10 @@ const {
   stopPickemAutoStartWatchers,
 } = require("./handlers/admin/pickemAutoStartWatcher");
 
+const {
+  stopMatchMapsWatchers,
+} = require("./handlers/matches/matchMapsWatcher");
+
 let readyTimeout = null;
 let panelInterval = null;
 
@@ -126,6 +130,7 @@ zarejestrujZamykanie({
         if (panelInterval) clearInterval(panelInterval);
 
         stopPickemAutoStartWatchers();
+        stopMatchMapsWatchers();
       },
     },
     {
