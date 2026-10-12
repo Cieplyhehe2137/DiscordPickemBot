@@ -88,8 +88,11 @@ const main = async () => {
     console.error(
       "Brak CITO_API_KEY.\n\n" +
         "Darmowy klucz: https://citoapi.com/signup/?game=cs2\n" +
-        "Plan Free: 500 zapytań na miesiąc, bez karty.\n" +
-        "Wpisz go do server/.env jako CITO_API_KEY=...",
+        "Plan Free: 500 zapytań na miesiąc, bez karty.\n\n" +
+        "Wpisz go jako CITO_API_KEY=... do .env W KORZENIU PROJEKTU -\n" +
+        "tam szuka go także watcher w bocie, który czyta tylko ten plik.\n" +
+        "Ten skrypt czyta oba (.env i server/.env), więc zadziała tak i tak,\n" +
+        "ale klucz w samym server/.env nie uruchomi watchera.",
     );
     process.exit(1);
   }
