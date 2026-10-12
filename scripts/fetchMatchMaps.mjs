@@ -8,35 +8,28 @@
 // DOMYŚLNIE NIC NIE ZAPISUJE. Pokazuje, co by zrobił, i kończy - tak samo
 // jak scripts/fetchTeamLogos.mjs.
 //
+// TO SAMO ROBI SAM WATCHER W BOCIE (handlers/matches/matchMapsWatcher.js),
+// co trzydzieści minut w trakcie turnieju. Ten skrypt zostaje do trzech
+// rzeczy: zobaczyć, co automat zrobi, zanim to zrobi; nadrobić turniej
+// z przeszłości, którego watcher już nie tknie (odpuszcza mecze starsze
+// niż trzy dni - tutaj zmienia to `--dni`); i uzupełnić mapy, gdy bot
+// akurat nie chodzi.
+//
 // JEDNO ZAPYTANIE NA TURNIEJ. Mapy przychodzą w liście meczów eventu, więc
 // synchronizacja 42 meczów kosztuje jedno zapytanie z limitu 500 na miesiąc,
-// a nie czterdzieści dwa. Drugie zapytanie idzie tylko wtedy, gdy trzeba
-// odnaleźć turniej u dostawcy - można to pominąć, podając --cito-event.
+// a nie czterdzieści dwa. Drugie idzie tylko na odnalezienie turnieju
+// u dostawcy - można je pominąć, podając `--cito-event`.
 //
-// RĘKA WYGRYWA. Wierszy `source = 'manual'` skrypt NIE RUSZA - administrator
-// wpisuje mapy z transmisji, często szybciej, niż trafiają gdziekolwiek
-// indziej. Pilnuje tego zarówno filtr przy wyborze meczów, jak i warunek
-// w samym zapytaniu zapisującym.
-//
-// PICKERÓW NIE ZGADUJEMY. To jest cały powód, dla którego ten skrypt
-// istnieje: wyliczenie "mapa 1 to pick drużyny A" ma 58% trafności
-// (zmierzone na 113 mapach), a dostawca podaje prawdę.
+// JEDNA DROGA ZAPISU. Parowanie i zapis siedzą w server/lib/mapSync.js,
+// wspólnym z watcherem. Dwie kopie tej samej logiki rozjechałyby się
+// o jeden warunek - ten projekt zapłacił już za taką pomyłkę pół roku
+// błędu (patrz server/lib/startTime.js).
 
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import fs from "node:fs";
 import path from "node:path";
 
-import {
-  ZRODLO,
-  LIMIT_NA_MIESIAC,
-  buildEventMatchesRequest,
-  extractMatches,
-  findRecordForMatch,
-  mapsForOurMatch,
-} from "../server/lib/mapProviders/cito.js";
-
-import { buildMatchMaps } from "../server/lib/matchMaps.js";
+import { syncEventMaps, OKNO_DNI } from "../server/lib/mapSync.js";
 
 const require = createRequire(import.meta.url);
 
@@ -60,14 +53,14 @@ function opcja(nazwa) {
 const SLUG = opcja("--event");
 const CITO_EVENT = opcja("--cito-event");
 
-const API = "https://api.citoapi.com/api/v1";
+// Skrypt uruchamia człowiek, więc może sięgnąć dalej wstecz niż watcher -
+// nadrobienie zakończonego turnieju jest jednym z powodów, dla których ten
+// plik istnieje.
+const DNI = Number(opcja("--dni") || 0) || OKNO_DNI;
 
 let zuzyte = 0;
 
-function naglowek(tekst) {
-  console.log(`\n=== ${tekst} ===`);
-}
-
+/** Wołanie sieci wstrzykiwane do mapSync. */
 async function wolaj(url, headers) {
   zuzyte += 1;
 
@@ -84,18 +77,8 @@ async function wolaj(url, headers) {
   return res.json();
 }
 
-/** Odnajduje turniej u dostawcy po nazwie. Jedno dodatkowe zapytanie. */
-async function znajdzTurniej(key, nazwa) {
-  const url = new URL(`${API}/cs2/search`);
-
-  url.searchParams.set("q", nazwa);
-
-  const dane = await wolaj(url.toString(), {
-    "x-api-key": key,
-    Accept: "application/json",
-  });
-
-  return dane?.data?.events || [];
+function naglowek(tekst) {
+  console.log(`\n=== ${tekst} ===`);
 }
 
 const main = async () => {
@@ -139,143 +122,50 @@ const main = async () => {
 
     naglowek(`TURNIEJ ${event.name} (${event.slug})`);
 
-    // Mecze, które jeszcze nie mają kompletu map. Wiersze `manual` liczą się
-    // jako gotowe - ręka wygrywa.
-    const [mecze] = await pula.query(
-      `
-      SELECT
-        m.id, m.guild_id, m.event_id, m.match_no, m.best_of,
-        m.team_a, m.team_b, m.start_time_utc,
-        (SELECT COUNT(*) FROM match_maps mm WHERE mm.match_id = m.id) AS map_rows,
-        (SELECT COUNT(*) FROM match_maps mm
-          WHERE mm.match_id = m.id AND mm.source = 'manual') AS manual_rows
-      FROM matches m
-      WHERE m.event_id = ?
-        AND m.start_time_utc IS NOT NULL
-      ORDER BY m.match_no
-      `,
-      [event.id],
-    );
+    console.log("okno:", DNI, "dni wstecz od startu meczu");
 
-    const doZrobienia = mecze.filter(
-      (m) => Number(m.manual_rows) === 0 && Number(m.map_rows) < m.best_of,
-    );
+    const raport = await syncEventMaps({
+      pool: pula,
+      event,
+      key,
+      wolaj,
+      apply: ZAPIS,
+      eventId: CITO_EVENT,
+      oknoDni: DNI,
+    });
 
-    console.log("meczów z godziną:", mecze.length);
-    console.log("bez kompletu map (i bez wpisu ręcznego):", doZrobienia.length);
+    if (!raport.ok) {
+      console.log("\nNIC NIE ZROBIONO:", raport.powod);
 
-    if (!doZrobienia.length) {
-      console.log("\nNie ma czego uzupełniać.");
-
-      return;
-    }
-
-    /* ---------------- turniej u dostawcy ---------------- */
-
-    let idTurnieju = CITO_EVENT;
-
-    if (!idTurnieju) {
-      naglowek("SZUKANIE TURNIEJU U DOSTAWCY");
-
-      const kandydaci = await znajdzTurniej(key, event.name);
-
-      for (const k of kandydaci.slice(0, 6)) {
-        console.log(" ", k.id, "|", k.name, "| drużyn:", k.teamCount);
-      }
-
-      // Dokładna nazwa wygrywa; inaczej bierzemy pierwszego kandydata
-      // i mówimy o tym wprost.
-      const dokladny = kandydaci.find(
-        (k) =>
-          String(k.name || "").trim().toLowerCase() ===
-          String(event.name || "").trim().toLowerCase(),
-      );
-
-      idTurnieju = (dokladny || kandydaci[0])?.id;
-
-      if (!idTurnieju) {
+      if (/nie zna tego turnieju/.test(String(raport.powod))) {
         console.log(
-          "\nNie znaleźli tego turnieju. Podaj identyfikator ręcznie:\n" +
+          "\nIch nazwa turnieju musi zgadzać się DOKŁADNIE z naszą.\n" +
+            "Jeśli nazywają go inaczej, podaj identyfikator wprost:\n" +
             "  --cito-event cs2-event-XXXX",
         );
-
-        return;
       }
 
-      console.log(
-        "\nbiorę:",
-        idTurnieju,
-        dokladny ? "(nazwa zgadza się dokładnie)" : "(PIERWSZY z listy - sprawdź!)",
-      );
-    }
-
-    /* ---------------- jedno zapytanie o wszystko ---------------- */
-
-    naglowek("POBIERANIE");
-
-    const zadanie = buildEventMatchesRequest({ key, eventId: idTurnieju });
-
-    if (!zadanie.ok) {
-      console.error(zadanie.reason);
+      console.log("zapytań zużytych:", zuzyte);
 
       return;
     }
 
-    const odpowiedz = await wolaj(zadanie.url, zadanie.headers);
-    const ichMecze = extractMatches(odpowiedz);
+    if (!raport.plan?.length && !raport.bezPary?.length) {
+      console.log("\n" + (raport.powod || "nie ma czego uzupełniać"));
+      console.log("zapytań zużytych:", zuzyte);
 
-    console.log("ich meczów:", ichMecze.length);
-    console.log(
-      "ich map razem:",
-      ichMecze.reduce((s, m) => s + (m.maps?.length || 0), 0),
-    );
-
-    /* ---------------- parowanie ---------------- */
+      return;
+    }
 
     naglowek("DOPASOWANIE");
 
-    const plan = [];
-    const bezPary = [];
+    console.log("sparowanych z mapami:", raport.plan.length);
+    console.log("bez pary:", raport.bezPary.length);
 
-    for (const nasz of doZrobienia) {
-      const znalezione = findRecordForMatch({ nasz, rekordy: ichMecze });
-
-      if (!znalezione.ok) {
-        bezPary.push({ ...nasz, powod: znalezione.reason });
-        continue;
-      }
-
-      const rekord = znalezione.rekord;
-
-      const { names, pickers } = mapsForOurMatch({ nasz, rekord });
-
-      if (!names.some((n) => n)) {
-        bezPary.push({ ...nasz, powod: "sparowany, ale bez nazw map" });
-        continue;
-      }
-
-      const zbudowane = buildMatchMaps({
-        bestOf: nasz.best_of,
-        names: names.slice(0, nasz.best_of),
-        pickers: pickers.slice(0, nasz.best_of),
-        source: ZRODLO,
-      });
-
-      if (!zbudowane.ok) {
-        bezPary.push({ ...nasz, powod: zbudowane.reason });
-        continue;
-      }
-
-      plan.push({ nasz, rows: zbudowane.rows, unknown: zbudowane.unknown });
-    }
-
-    console.log("sparowanych z mapami:", plan.length);
-    console.log("bez pary:", bezPary.length);
-
-    if (plan.length) {
+    if (raport.plan.length) {
       console.log("\nnr | mapy (kto pickował)");
 
-      for (const p of plan) {
+      for (const p of raport.plan) {
         const opis = p.rows
           .map((r) => {
             const kto =
@@ -297,10 +187,10 @@ const main = async () => {
       }
     }
 
-    if (bezPary.length) {
+    if (raport.bezPary.length) {
       console.log("\nbez pary:");
 
-      for (const m of bezPary.slice(0, 10)) {
+      for (const m of raport.bezPary.slice(0, 10)) {
         console.log(
           " ",
           String(m.match_no).padStart(2),
@@ -311,53 +201,18 @@ const main = async () => {
       }
     }
 
-    if (!ZAPIS) {
+    if (raport.podglad) {
       console.log(
-        `\nPODGLĄD - nic nie zapisano. Zapytań zużytych: ${zuzyte} ` +
-          `(budżet ${LIMIT_NA_MIESIAC}/mies.)\n` +
+        `\nPODGLĄD - nic nie zapisano. Zapytań zużytych: ${zuzyte}.\n` +
           "Uruchom z --apply, żeby zapisać.",
       );
 
       return;
     }
 
-    /* ---------------- zapis ---------------- */
-
     naglowek("ZAPIS");
 
-    let zapisanych = 0;
-
-    for (const p of plan) {
-      for (const r of p.rows) {
-        // `manual` chronimy warunkiem W SAMYM ZAPYTANIU, a nie tylko
-        // filtrem wyżej - między odczytem a zapisem administrator mógł
-        // zdążyć coś wpisać.
-        const [wynik] = await pula.query(
-          `
-          INSERT INTO match_maps
-            (guild_id, event_id, match_id, map_no, map_name, picked_by, source)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            map_name  = IF(match_maps.source = 'manual', match_maps.map_name, VALUES(map_name)),
-            picked_by = IF(match_maps.source = 'manual', match_maps.picked_by, VALUES(picked_by)),
-            source    = IF(match_maps.source = 'manual', match_maps.source, VALUES(source))
-          `,
-          [
-            p.nasz.guild_id,
-            p.nasz.event_id,
-            p.nasz.id,
-            r.map_no,
-            r.map_name,
-            r.picked_by,
-            r.source,
-          ],
-        );
-
-        if (wynik.affectedRows) zapisanych += 1;
-      }
-    }
-
-    console.log("zapisanych wierszy map:", zapisanych);
+    console.log("zapisanych wierszy map:", raport.zapisanych);
     console.log("zapytań zużytych:", zuzyte);
   } finally {
     await pula.end();

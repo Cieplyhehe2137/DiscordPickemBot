@@ -13,6 +13,10 @@ const {
 } = require("./handlers/matches/matchLockWatcher");
 
 const {
+  startMatchMapsWatcher,
+} = require("./handlers/matches/matchMapsWatcher");
+
+const {
   startDeadlineReminder,
 } = require("./handlers/matches/deadlineReminder");
 
@@ -129,6 +133,17 @@ module.exports = async function onReady(client) {
       },
     );
 
+    // Mapy po veto dociagaja sie same w trakcie turnieju. Poza turniejem
+    // nie kosztuje to ani jednego zapytania do dostawcy - watcher pyta
+    // najpierw wlasnej bazy, czy jest o co pytac.
+    const matchMapsWatcherOk = await safeStart(
+      "Match maps watcher",
+      guildId,
+      async () => {
+        startMatchMapsWatcher(client, guildId);
+      },
+    );
+
     const autoStartWatcherOk = await safeStart(
       "PickEm auto-start watcher",
       guildId,
@@ -147,6 +162,7 @@ module.exports = async function onReady(client) {
       exportPanel: exportPanelOk,
       deadlineReminder: deadlineWatcherOk,
       matchLockWatcher: matchLockWatcherOk,
+      matchMapsWatcher: matchMapsWatcherOk,
       pickemAutoStartWatcher: autoStartWatcherOk,
     };
 
