@@ -124,10 +124,21 @@ function startMatchMapsWatcher(client, guildId) {
 
   // Bez klucza do dostawcy watcher nie ma co robic. Mowimy o tym RAZ,
   // przy starcie, zamiast co trzydziesci minut.
+  //
+  // KOMUNIKAT MUSI PODAC, GDZIE SZUKALISMY. Klucz naturalnie laduje
+  // w server/.env - tam stoja DB_*, SESSION_SECRET i reszta sekretow, i to
+  // ten plik czyta skrypt dociagajacy mapy. Tylko ze bot to osobny proces
+  // i laduje WYLACZNIE swoj .env z korzenia (patrz index.js: ENV_FILE ||
+  // ".env"). Klucz w samym server/.env wyglada na ustawiony, skrypt go
+  // widzi, a watcher nie - i jedyny objaw to brak map, czyli stan
+  // nieodroznialny od sprzed calej tej roboty.
   if (!process.env.CITO_API_KEY) {
     logInfo(
       "matches",
-      "Watcher map nie startuje: brak CITO_API_KEY. Mapy mozna wpisywac recznie w panelu.",
+      "Watcher map nie startuje: brak CITO_API_KEY w pliku env bota (" +
+        (process.env.ENV_FILE || ".env") +
+        "). server/.env to NIE ten plik - czyta go API i skrypt map. " +
+        "Mapy mozna na razie wpisywac recznie w panelu.",
       { guildId: klucz },
     );
 

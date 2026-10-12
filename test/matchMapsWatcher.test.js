@@ -150,6 +150,64 @@ test("bez klucza watcher w ogole nie startuje", () => {
   assert.match(watcher, /if \(!process\.env\.CITO_API_KEY\)/);
 });
 
+/* ---------------- klucz w DOBRYM pliku ---------------- */
+
+/*
+ * TO SIE JUZ ZDARZYLO, pierwszego dnia po wdrozeniu.
+ *
+ * Klucz wpisano do server/.env - bo tam stoja DB_*, SESSION_SECRET i cala
+ * reszta sekretow, i bo tak kazal komunikat skryptu. Skrypt dociagajacy mapy
+ * czyta OBA pliki, wiec dzialal i klucz wygladal na ustawiony. Bot jest
+ * osobnym procesem i laduje WYLACZNIE swoj .env z korzenia (index.js:
+ * ENV_FILE || ".env"), wiec watcher nie wystartowal.
+ *
+ * Objaw: brak map. Czyli dokladnie to samo, co przed cala ta robota - i
+ * dlatego nikt by tego nie zauwazyl bez zajrzenia w logi bota.
+ */
+
+test("komunikat o braku klucza MOWI, w ktorym pliku szukal", () => {
+  // Bez nazwy pliku ten log nie prowadzi do przyczyny - a jest jedynym
+  // sladem, jaki watcher po sobie zostawia, kiedy nie wstaje.
+  const watcher = czytaj("handlers/matches/matchMapsWatcher.js");
+
+  const komunikat =
+    /logInfo\(\s*"matches",\s*"Watcher map nie startuje:[\s\S]*?\{ guildId: klucz \}/.exec(
+      watcher,
+    )?.[0] ?? "";
+
+  assert.ok(komunikat, "nie znalazlem komunikatu o braku klucza");
+
+  assert.match(
+    komunikat,
+    /process\.env\.ENV_FILE \|\| "\.env"/,
+    "komunikat nie podaje pliku env, w ktorym bot szukal klucza",
+  );
+
+  assert.match(
+    komunikat,
+    /server\/\.env/,
+    "komunikat nie ostrzega, ze server/.env to nie ten plik",
+  );
+});
+
+test("klucz jest opisany w .env.example BOTA, nie tylko serwera", () => {
+  // Operator czyta ten plik, kiedy stawia bota. Gdyby opis klucza zostal
+  // tylko w server/.env.example, trafilby z nim do pliku, ktorego bot nie
+  // czyta - i watcher znow by nie wstal.
+  const korzen = czytaj(".env.example");
+
+  assert.match(korzen, /^CITO_API_KEY=/m, ".env.example bota nie opisuje klucza");
+
+  // I musi stac przy nim ostrzezenie, bo sam wpis niczego nie tlumaczy.
+  const opis = korzen.slice(0, korzen.indexOf("CITO_API_KEY="));
+
+  assert.match(
+    opis.split("# Klucz do CitoAPI").pop() || "",
+    /server\/\.env/,
+    "opis klucza nie ostrzega przed wpisaniem go do server/.env",
+  );
+});
+
 /* ---------------- moduł daje sie zaladowac ---------------- */
 
 test("watcher laduje sie i oddaje obie funkcje", () => {
