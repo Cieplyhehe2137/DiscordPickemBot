@@ -21,27 +21,25 @@ const path = require("node:path");
 const KORZEN = path.join(__dirname, "..");
 
 /*
- * ZNANE MARTWE ZDARZENIA - zastane, nie dopisane przy tej okazji.
+ * ZNANE MARTWE ZDARZENIA - nazwy, ktorych nikt nie slucha.
  *
- * Kazde z nich to osobna sprawa, bo nie wszystkie da sie po prostu
- * skasowac:
+ * Wszystkie trzy sa NADMIAREM, a nie brakiem: w kazdym miejscu, w ktorym
+ * wystepuja, leci takze zywe odswiezenie. Za zadnym z nich nie stoi zmiana,
+ * o ktorej nikt sie nie dowie - sa do skasowania, kiedy ktos uzna, ze warto.
  *
- *   event:status_updated   W eventCleanup.js stoi OBOK zywego
- *                          "dashboard:refresh", wiec jest zwyklym
- *                          nadmiarem. W events.js jest JEDYNYM zdarzeniem
- *                          w tym miejscu - czyli zmiana statusu turnieju
- *                          nie odswieza nikomu otwartej strony.
+ *   event:status_updated   obok zywego odswiezenia (eventCleanup.js, events.js)
+ *   match:updated          obok zywego odswiezenia (matches.js)
+ *   match:score_updated    obok zywego odswiezenia (matchOps.js)
  *
- *   match:updated          Stoi obok zywego "dashboard:refresh". Nadmiar.
+ * POPRZEDNIA WERSJA TEGO KOMENTARZA KLAMALA i warto wiedziec, dlaczego.
+ * Twierdzila, ze zmiana statusu turnieju i wpisanie wyniku nie odswiezaja
+ * nikomu otwartej strony. Policzylem to recznie, szukajac
+ * io.emit("dashboard:refresh") - i przeoczylem, ze zywe odswiezenie ma DRUGA
+ * DROGE: emitDashboardRefresh() z utils/socket.js, ktorego taki grep nie
+ * widzi. W events.js stoi dokladnie to wywolanie, dziesiec linii wyzej.
  *
- *   match:score_updated    JEDYNE zdarzenie w obu miejscach, w ktorych
- *                          wystepuje. Wpisanie wyniku meczu nie odswieza
- *                          nikomu otwartej strony.
- *
- * Dwa ostatnie przypadki to nie smiec do wyrzucenia, tylko brakujace
- * powiadomienie - naprawa znaczy DOPISANIE "dashboard:refresh", a nie
- * usuniecie czegokolwiek. Dlatego siedza tutaj, a nie w commicie
- * sprzatajacym.
+ * Dlatego ten komentarz nie rozstrzyga juz, co jest nadmiarem, a co brakiem.
+ * Robi to test ponizej, ktory LICZY to przy kazdym uruchomieniu.
  */
 const ZNANE_MARTWE = new Set([
   "event:status_updated",
@@ -117,6 +115,82 @@ test("serwer nie wysyla zdarzen, ktorych nikt nie slucha", () => {
       "a nie robia nic. Albo dopisz nasluch we froncie, albo wyslij\n" +
       '"dashboard:refresh", ktorego front juz slucha:\n  ' +
       martwe.join("\n  "),
+  );
+});
+
+/**
+ * Trasy, ktore wysylaja cos, czego nikt nie slucha, i NIC poza tym.
+ *
+ * Plik dzielony na kawalki po rejestracjach tras - inaczej "obok" znaczy
+ * tyle, ile akurat widac na ekranie. Dla kazdego kawalka z jakimkolwiek
+ * io.emit pytanie brzmi: czy leci tez cos, czego front slucha.
+ *
+ * ZYWE ODSWIEZENIE MA DWIE DROGI i obie licza sie tak samo:
+ *
+ *   io.emit("dashboard:refresh", ...)   wprost
+ *   emitDashboardRefresh(...)           przez utils/socket.js
+ *
+ * Przeoczenie drugiej z nich to dokladnie ten blad, ktory ten test ma
+ * wylapywac - raz juz kosztowal tygodniowy wpis w komentarzu wyzej,
+ * twierdzacy, ze dwie dzialajace trasy nie powiadamiaja nikogo.
+ */
+function trasyBezPowiadomienia() {
+  const katalog = path.join(KORZEN, "server", "routes");
+
+  const gluche = [];
+
+  for (const plik of fs.readdirSync(katalog)) {
+    if (!plik.endsWith(".js")) continue;
+
+    const tresc = fs
+      .readFileSync(path.join(katalog, plik), "utf8")
+      // Komentarze zastapione spacjami, zeby numery linii sie nie rozjechaly.
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/(^|[^:])\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+
+    const linie = tresc.split(/\r?\n/);
+
+    const granice = [0];
+
+    linie.forEach((l, i) => {
+      if (/app\.(get|post|put|patch|delete)\(/.test(l)) granice.push(i);
+    });
+
+    granice.push(linie.length);
+
+    for (let g = 0; g < granice.length - 1; g += 1) {
+      const kawalek = linie.slice(granice[g], granice[g + 1]).join("\n");
+
+      const wysylaCokolwiek = /io\.emit\(\s*"/.test(kawalek);
+
+      if (!wysylaCokolwiek) continue;
+
+      const powiadamia =
+        /io\.emit\(\s*"dashboard:refresh"/.test(kawalek) ||
+        /emitDashboardRefresh\(/.test(kawalek);
+
+      if (powiadamia) continue;
+
+      const sciezka =
+        /["'](\/api\/[^"']+)["']/.exec(kawalek)?.[1] || "(poza trasa)";
+
+      gluche.push(`${plik}:${granice[g] + 1}  ${sciezka}`);
+    }
+  }
+
+  return gluche;
+}
+
+test("kazda trasa, ktora cos wysyla, POWIADAMIA kogokolwiek", () => {
+  const gluche = trasyBezPowiadomienia();
+
+  assert.deepEqual(
+    gluche,
+    [],
+    "te trasy zmieniaja stan i wysylaja zdarzenie, ktorego nikt nie slucha,\n" +
+      "a nic poza tym - czyli nikt sie o zmianie nie dowie. Dopisz\n" +
+      "emitDashboardRefresh(...) albo io.emit(\"dashboard:refresh\", ...):\n  " +
+      gluche.join("\n  "),
   );
 });
 
