@@ -132,8 +132,18 @@ function startMatchMapsWatcher(client, guildId) {
   // ".env"). Klucz w samym server/.env wyglada na ustawiony, skrypt go
   // widzi, a watcher nie - i jedyny objaw to brak map, czyli stan
   // nieodroznialny od sprzed calej tej roboty.
+  //
+  // DLACZEGO logWarn, A NIE logInfo. Na poziomie info ten wiersz ginie
+  // w bot.log, ktory rosnie do 5 MB i rotuje. Jako ostrzezenie trafia takze
+  // do warnings.log - pliku, ktory przez cztery miesiace uzbieral 54 linie
+  // i czyta sie go wlasnie wtedy, gdy czegos brakuje. Instalacja bez klucza
+  // placi za to czterema wierszami na restart (po jednym na serwer), a my
+  // widzimy niewystartowany watcher od razu, a nie po dniu.
+  //
+  // W produkcji konsola loggera przepuszcza wlasnie od "warn" w gore, wiec
+  // ten komunikat wychodzi dodatkowo na stdout procesu.
   if (!process.env.CITO_API_KEY) {
-    logInfo(
+    logWarn(
       "matches",
       "Watcher map nie startuje: brak CITO_API_KEY w pliku env bota (" +
         (process.env.ENV_FILE || ".env") +

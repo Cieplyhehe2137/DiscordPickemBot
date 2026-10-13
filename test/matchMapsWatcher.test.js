@@ -165,13 +165,35 @@ test("bez klucza watcher w ogole nie startuje", () => {
  * dlatego nikt by tego nie zauwazyl bez zajrzenia w logi bota.
  */
 
+test("brak klucza jest OSTRZEZENIEM, nie wpisem informacyjnym", () => {
+  // Na poziomie info ten wiersz ginie w bot.log (5 MB, rotowany). Jako warn
+  // trafia takze do warnings.log, ktory przez cztery miesiace uzbieral
+  // 54 linie - i tam widac go od razu. Wlasnie ta roznica kosztowala dzien:
+  // watcher nie wstal, log o tym byl, i nikt go nie znalazl.
+  const watcher = czytaj("handlers/matches/matchMapsWatcher.js");
+
+  const bezKomentarzy = watcher.replace(/\/\/[^\n]*/g, "");
+
+  assert.match(
+    bezKomentarzy,
+    /logWarn\(\s*"matches",\s*"Watcher map nie startuje:/,
+    "komunikat o braku klucza nie jest ostrzezeniem",
+  );
+
+  assert.doesNotMatch(
+    bezKomentarzy,
+    /logInfo\(\s*"matches",\s*"Watcher map nie startuje:/,
+    "komunikat o braku klucza wrocil na poziom info - zginie w bot.log",
+  );
+});
+
 test("komunikat o braku klucza MOWI, w ktorym pliku szukal", () => {
   // Bez nazwy pliku ten log nie prowadzi do przyczyny - a jest jedynym
   // sladem, jaki watcher po sobie zostawia, kiedy nie wstaje.
   const watcher = czytaj("handlers/matches/matchMapsWatcher.js");
 
   const komunikat =
-    /logInfo\(\s*"matches",\s*"Watcher map nie startuje:[\s\S]*?\{ guildId: klucz \}/.exec(
+    /logWarn\(\s*"matches",\s*"Watcher map nie startuje:[\s\S]*?\{ guildId: klucz \}/.exec(
       watcher,
     )?.[0] ?? "";
 
