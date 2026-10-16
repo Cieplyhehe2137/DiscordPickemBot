@@ -11,6 +11,8 @@ const { withGuild } = require("../../utils/guildContext");
 
 const { logError } = require("../../utils/logger");
 
+const { matchPhaseOptions } = require("../../utils/matchPhases");
+
 function formatDateForInput(value) {
   if (!value) {
     return "";
@@ -62,14 +64,11 @@ module.exports = async function editMatchPhase(interaction) {
 
     const phase = String(interaction.values?.[0] || "");
 
-    const allowedPhases = new Set([
-      "playin",
-      "swiss_stage1",
-      "swiss_stage2",
-      "swiss_stage3",
-      "playoffs",
-      "doubleelim",
-    ]);
+    // Dokladnie to, co select pokazal - inaczej faza dopisana do modulu
+    // bylaby do wybrania w panelu i odrzucana tutaj.
+    const allowedPhases = new Set(
+      matchPhaseOptions().map((option) => option.value),
+    );
 
     if (!matchId || !allowedPhases.has(phase)) {
       return interaction.reply({

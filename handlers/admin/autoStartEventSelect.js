@@ -6,6 +6,20 @@ const {
   TextInputStyle,
 } = require("discord.js");
 
+// Ta lista wyglada jak fazy meczu z utils/matchPhases.js - te same szesc
+// wartosci - ale nia nie jest i nie powinna stamtad brac.
+//
+// Wybor leci do autoStartPhaseSelect, ktory sprawdza go przez
+// phasesConfig[phase] z utils/pickemPanelBuilder.js, a nastepny ekran
+// wypisuje phasesConfig[phase].label. Etykiety ponizej sa wiec przepisane
+// z phasesConfig ("Swiss Stage 1", "Double Elimination"), zeby select i
+// potwierdzenie mowily to samo.
+//
+// Podpiecie tego pod matchPhases.js zrobiloby dokladnie te szkode, przed
+// ktora tamten modul chroni: faza dodana do fazy meczu pojawilaby sie tutaj
+// do wyboru, a phasesConfig odrzucilby ja jako "Niepoprawne dane
+// auto-startu". Jesli ta lista ma sie kiedys z czyms zrownac, to z
+// phasesConfig, nie z faza meczu.
 function phaseMenu(eventId) {
   return new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()

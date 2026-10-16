@@ -4,6 +4,8 @@ const { withGuild } = require("../../utils/guildContext");
 
 const { logInfo, logError } = require("../../utils/logger");
 
+const { matchPhaseOptions } = require("../../utils/matchPhases");
+
 const {
   EmbedBuilder,
   ActionRowBuilder,
@@ -126,14 +128,11 @@ module.exports = async function editMatchModal(interaction) {
 
     const phase = String(customParts[2] || "");
 
-    const allowedPhases = new Set([
-      "playin",
-      "swiss_stage1",
-      "swiss_stage2",
-      "swiss_stage3",
-      "playoffs",
-      "doubleelim",
-    ]);
+    // Faza przyszla z customId, ktory zbudowal select edycji - lista musi
+    // byc ta sama, co tam pokazana.
+    const allowedPhases = new Set(
+      matchPhaseOptions().map((option) => option.value),
+    );
 
     if (!matchId || !allowedPhases.has(phase)) {
       return interaction.reply({
