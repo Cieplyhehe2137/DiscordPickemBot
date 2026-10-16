@@ -4,10 +4,40 @@ const { DateTime } = require("luxon");
 
 const DEFAULT_ZONE = "Europe/Warsaw";
 
+/**
+ * Ile sekund PRZED startem zamyka sie typowanie meczu.
+ *
+ * DLACZEGO TO MA DOMYSLNA WARTOSC W KODZIE, A NIE ZERO.
+ *
+ * Ten modul czyta tylko process.env, a MATCH_LOCK_BEFORE_SEC stalo
+ * WYLACZNIE w server/.env - czyli widzialo je API, a nie bot. Przy
+ * domyslnym zerze dawalo to dwie rozne odpowiedzi na to samo pytanie:
+ * strona zamykala typowanie piec minut przed startem, a bot dokladnie
+ * o starcie. Przez te piec minut przycisk na Discordzie dzialal, a
+ * formularz na stronie juz nie - i gracz, ktory to zglaszal, mial racje.
+ *
+ * Domyslna wartosc w kodzie sprawia, ze oba procesy licza tak samo takze
+ * wtedy, gdy nikt nie ustawil zmiennej. 300 s, bo tyle mialo API - czyli
+ * zachowanie, ktore gracze juz znaja ze strony.
+ *
+ * Pusta wartosc ("MATCH_LOCK_BEFORE_SEC=" w pliku env) znaczy "nie
+ * ustawiono" i tez daje wartosc domyslna. Inaczej plik z pustym kluczem
+ * zachowywalby sie inaczej niz plik bez klucza, co jest pulapka tego
+ * samego rodzaju co ta wyzej.
+ */
+const DOMYSLNY_LOCK_BEFORE_SEC = 300;
+
 function getLockBeforeSec() {
   const raw = process.env.MATCH_LOCK_BEFORE_SEC;
-  const n = raw === undefined ? 0 : Number(raw);
-  if (!Number.isFinite(n)) return 0;
+
+  const podane = raw === undefined || raw === null ? "" : String(raw).trim();
+
+  if (!podane) return DOMYSLNY_LOCK_BEFORE_SEC;
+
+  const n = Number(podane);
+
+  if (!Number.isFinite(n)) return DOMYSLNY_LOCK_BEFORE_SEC;
+
   return Math.max(0, Math.floor(n));
 }
 
@@ -103,6 +133,7 @@ function parseStartInputToUtc(input, zone = DEFAULT_ZONE) {
 
 module.exports = {
   DEFAULT_ZONE,
+  DOMYSLNY_LOCK_BEFORE_SEC,
   getLockBeforeSec,
   startUtcFromDb,
   isMatchStarted,
