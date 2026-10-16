@@ -10,6 +10,7 @@ const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
 const { nextMatchNumber } = require("../../utils/matchNumbers");
+const openAddMatch = require("./openAddMatch");
 
 const PAGE_SIZE = 24;
 const state = new Map(); // `${guildId}:${userId}`
@@ -102,14 +103,16 @@ const buildCancelRow = () =>
       .setStyle(ButtonStyle.Secondary),
   );
 
-const buildAfterAddRow = (matchId) =>
+// Faza jedzie w customId, bo przycisk - inaczej niz select - nie ma
+// `interaction.values`, a stan jest czyszczony zaraz po dodaniu meczu.
+const buildAfterAddRow = (matchId, phase) =>
   new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`match_set_time:${matchId}`)
       .setLabel("🕒 Ustaw godzinę")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setCustomId("match_add_again")
+      .setCustomId(`match_add_again:${phase}`)
       .setLabel("➕ Dodaj kolejny")
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
@@ -117,6 +120,23 @@ const buildAfterAddRow = (matchId) =>
       .setLabel("✅ Zakończ")
       .setStyle(ButtonStyle.Success),
   );
+
+const buildBoStep = (phase) => ({
+  content: `➕ Dodawanie meczu — faza **${phase}**\nWybierz **BO**:`,
+  components: [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId("match_add_bo_select")
+        .setPlaceholder("Wybierz BO…")
+        .addOptions([
+          { label: "BO1", value: "1" },
+          { label: "BO3", value: "3" },
+          { label: "BO5", value: "5" },
+        ]),
+    ),
+    buildCancelRow(),
+  ],
+});
 
 /* ======================
    HANDLERS
@@ -134,22 +154,7 @@ async function onPhaseSelect(interaction) {
 
   state.set(stateKey(interaction), { phase, bestOf: null, teamA: null });
 
-  return interaction.update({
-    content: `➕ Dodawanie meczu — faza **${phase}**\nWybierz **BO**:`,
-    components: [
-      new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("match_add_bo_select")
-          .setPlaceholder("Wybierz BO…")
-          .addOptions([
-            { label: "BO1", value: "1" },
-            { label: "BO3", value: "3" },
-            { label: "BO5", value: "5" },
-          ]),
-      ),
-      buildCancelRow(),
-    ],
-  });
+  return interaction.update(buildBoStep(phase));
 }
 
 async function onBoSelect(interaction) {
@@ -290,7 +295,7 @@ async function onTeamBSelect(interaction) {
 
     return interaction.update({
       content: `✅ Dodano mecz: **${st.teamA} vs ${teamB}** (BO${st.bestOf})`,
-      components: [buildAfterAddRow(matchId)],
+      components: [buildAfterAddRow(matchId, st.phase)],
     });
   });
 }
@@ -300,8 +305,21 @@ async function onCancel(interaction) {
   return interaction.update({ content: "✅ Anulowano.", components: [] });
 }
 
+// NIE wolno tu wolac onPhaseSelect: ten czyta faze z `interaction.values`,
+// czyli z pola, ktore ma select, a przycisk nie - stad bral sie blad
+// "Nie wybrano fazy" przy kazdym kliknieciu "Dodaj kolejny".
 async function onAgain(interaction) {
-  return onPhaseSelect(interaction);
+  if (!requireGuild(interaction) || !hasAdminPerms(interaction)) return;
+
+  const phase = String(interaction.customId || "").split(":")[1] || null;
+
+  // Przycisk z wiadomosci sprzed tej poprawki fazy nie nosi - wtedy pytamy
+  // o nia od nowa, zamiast konczyc bledem.
+  if (!phase) return openAddMatch(interaction);
+
+  state.set(stateKey(interaction), { phase, bestOf: null, teamA: null });
+
+  return interaction.update(buildBoStep(phase));
 }
 
 module.exports = {
@@ -311,4 +329,7 @@ module.exports = {
   onTeamBSelect,
   onCancel,
   onAgain,
+  // Wystawione dla testu: pozwala sprawdzic, ze przycisk faktycznie nosi faze,
+  // zamiast polegac na customId wpisanym w tescie z palca.
+  buildAfterAddRow,
 };
