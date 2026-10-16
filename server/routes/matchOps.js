@@ -376,6 +376,27 @@ export function registerMatchOpsRoutes(
           ui_status: "LIVE",
         });
 
+        // Zdarzenie powyzej NIE MA ODBIORCY. Jedynym klientem socketow jest
+        // front, a ten slucha wylacznie "dashboard:refresh"
+        // (web/src/lib/socket.js) - wiec bez tej linii wpisanie wyniku na
+        // zywo nie odswiezaloby nikomu otwartej strony.
+        //
+        // UCZCIWIE: dzis ta linia nie zmienia niczego widocznego, bo caly
+        // lancuch wynikow na zywo jest martwy na OBU koncach - tych tras nie
+        // wola nic w projekcie, live_match_scores ma na produkcji ZERO
+        // wierszy, a /api/public/:slug/overview, ktory te dane oddaje, tez
+        // nie ma odbiorcy. Stoi tu, zeby po dokonczeniu wynikow na zywo
+        // strona sama sie odswiezyla, zamiast milczec.
+        //
+        // Bez `slug`, bo handler zna tylko matchId, a dociaganie sluga
+        // kosztowaloby zapytanie. Payload bez sluga odswieza wszystkie strony
+        // (filtry pomijaja tylko wtedy, gdy slug JEST i sie nie zgadza),
+        // a `matchId` wystarcza, zeby strona innego meczu sobie odpuscila.
+        emitDashboardRefresh({
+          matchId: Number(matchId),
+          reason: "match_score_updated",
+        });
+
         res.json({
           ok: true,
           matchId: Number(matchId),
@@ -429,6 +450,13 @@ export function registerMatchOpsRoutes(
 
           live_status: "FINAL",
           ui_status: "FINAL",
+        });
+
+        // Tak samo jak w trasie /score wyzej - zdarzenie "match:score_updated"
+        // nie ma odbiorcy, a front slucha tylko "dashboard:refresh".
+        emitDashboardRefresh({
+          matchId: Number(matchId),
+          reason: "match_score_final",
         });
 
         res.json({
