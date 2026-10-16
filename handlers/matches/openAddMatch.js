@@ -5,6 +5,8 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 
+const { matchPhaseOptions } = require("../../utils/matchPhases");
+
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
   return (
@@ -21,14 +23,7 @@ module.exports = async function openAddMatch(interaction) {
         new StringSelectMenuBuilder()
           .setCustomId("match_add_phase_select")
           .setPlaceholder("Wybierz fazę…")
-          .addOptions([
-            { label: "Swiss — Stage 1", value: "swiss_stage1" },
-            { label: "Swiss — Stage 2", value: "swiss_stage2" },
-            { label: "Swiss — Stage 3", value: "swiss_stage3" },
-            { label: "Playoffs", value: "playoffs" },
-            { label: "Double Elim", value: "doubleelim" },
-            { label: "Play-In", value: "playin" },
-          ]),
+          .addOptions(matchPhaseOptions()),
       ),
     ],
   };
