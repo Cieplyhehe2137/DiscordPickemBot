@@ -10,6 +10,7 @@ const {
 const isAdmin = require("../../utils/isAdmin");
 const { withGuild } = require("../../utils/guildContext");
 const { logError } = require("../../utils/logger");
+const { matchPhaseOptions } = require("../../utils/matchPhases");
 
 function formatDateForInput(value) {
   if (!value) {
@@ -165,40 +166,19 @@ module.exports = async function editMatchSelect(interaction) {
         new ActionRowBuilder().addComponents(startTime),
       );
 
+      // Fazy ida z utils/matchPhases.js - te same, ktore pokazuja "Dodaj
+      // mecz", "Wyczysc mecze fazy" i "Wyniki meczow". Wlasne jest tutaj
+      // tylko default: zaznaczenie fazy, w ktorej mecz stoi teraz.
+      // matchPhaseOptions() oddaje swieze obiekty, wiec dopisanie im pola
+      // nie zmienia listy pozostalym panelom.
       const phaseSelect = new StringSelectMenuBuilder()
         .setCustomId(`edit_match_phase:${match.id}`)
         .setPlaceholder("Wybierz fazę meczu")
         .addOptions(
-          {
-            label: "Play-In",
-            value: "playin",
-            default: match.phase === "playin",
-          },
-          {
-            label: "Swiss Stage 1",
-            value: "swiss_stage1",
-            default: match.phase === "swiss_stage1",
-          },
-          {
-            label: "Swiss Stage 2",
-            value: "swiss_stage2",
-            default: match.phase === "swiss_stage2",
-          },
-          {
-            label: "Swiss Stage 3",
-            value: "swiss_stage3",
-            default: match.phase === "swiss_stage3",
-          },
-          {
-            label: "Playoffs",
-            value: "playoffs",
-            default: match.phase === "playoffs",
-          },
-          {
-            label: "Double Elim",
-            value: "doubleelim",
-            default: match.phase === "doubleelim",
-          },
+          matchPhaseOptions().map((option) => ({
+            ...option,
+            default: match.phase === option.value,
+          })),
         );
 
       const embed = new EmbedBuilder()

@@ -1,12 +1,17 @@
 // utils/matchPhases.js
 //
-// Fazy meczu w selectach Discorda - jedna lista dla trzech paneli.
+// Fazy meczu w selectach Discorda - jedna lista dla czterech paneli.
 //
-// Te same szesc opcji stalo wklejone osobno w openAddMatch, openClearMatches
-// i openMatchResults. Kopie byly jednakowe, ale zadna nie wiedziala o
-// pozostalych: faza dodana w jednym panelu dawalaby mecze, ktorych dwa
-// pozostale panele nie widza - nie dalo by sie ani wpisac im wyniku, ani ich
+// Te same szesc opcji stalo wklejone osobno w openAddMatch, openClearMatches,
+// openMatchResults i editMatchSelect. Kopie byly jednakowe, ale zadna nie
+// wiedziala o pozostalych: faza dodana w jednym panelu dawalaby mecze,
+// ktorych reszta nie widzi - nie dalo by sie ani wpisac im wyniku, ani ich
 // wyczyscic.
+//
+// Stad bierze liste takze dwoch walidatorow przyjmujacych wybor z selecta
+// edycji: editMatchPhase i editMatchModal. Gdyby zostaly przy swoich
+// kopiach, faza dopisana tutaj bylaby do wybrania w panelu i odrzucana
+// sekunde pozniej.
 //
 // Wartosci musza byc dokladnie tymi, ktore trafiaja do kolumny matches.phase.
 //
@@ -17,6 +22,11 @@
 // handlers/admin/panelOpenMenu.js ma te same etykiety, ale przy INNYCH
 // wartosciach ('results:swiss1'), bo to adresy akcji panelu, a nie fazy
 // meczu. Osobny zestaw i zostaje osobny.
+//
+// handlers/admin/autoStartEventSelect.js ma te same szesc wartosci, a mimo
+// to zostaje osobny: jego wybor sprawdza phasesConfig z
+// utils/pickemPanelBuilder.js i stamtad ida jego etykiety. Faza dopisana
+// tutaj bylaby tam do wyboru i odrzucona przy zapisie.
 //
 // Plik nie ma zadnego importu i nie powinien go miec - dzieki temu test
 // laduje te sama liste, ktora wykonuje produkcja, bez zaciagania discord.js.
