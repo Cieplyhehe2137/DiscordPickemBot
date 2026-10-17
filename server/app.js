@@ -25,9 +25,9 @@ import { registerResultProposalRoutes } from "./routes/resultProposals.js";
 import { registerMatchOpsRoutes } from "./routes/matchOps.js";
 import {
   ADMINISTRATOR_PERMISSION,
-  hasAdminPermission,
+  hasAdminPermission as checkAdminPermission,
   isGuildMember,
-  requireGuildAdmin,
+  requireGuildAdmin as guildAdminGate,
 } from "./lib/permissions.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerPublicEventRoutes } from "./routes/publicEvents.js";
@@ -190,6 +190,44 @@ const CROSS_ORIGIN_WEB = process.env.CROSS_ORIGIN_WEB === "1";
 // podglądowi własny adres <hash>.<projekt>.pages.dev, więc pojedynczy wpis
 // nie wystarcza - WEB_ORIGIN_SUFFIX dopuszcza całą domenę projektu.
 const ALLOWED_ORIGINS = buildAllowedOrigins(WEB_ORIGIN);
+
+// ======================================================
+// WLASCICIEL BOTA (BOT_OWNER_ID)
+//
+// Id konta Discorda, ktore wchodzi do panelu kazdego OBSLUGIWANEGO serwera
+// bez nadanego tam ADMINISTRATORA. Puste albo brak wpisu = wyjatku nie ma,
+// czyli zachowanie sprzed tej zmiany. Powod i koszt opisuje blok
+// "WLASCICIEL BOTA" w lib/permissions.js.
+//
+// Domkniete RAZ tutaj, bo requireGuildAdmin stoi przy 38 trasach i nie ma
+// jak podawac tej konfiguracji przy kazdej z nich. Nazwy stalych sa te same,
+// co importowane funkcje przed zmiana nazwy, wiec wszystkie obiekty
+// wstrzykiwane do modulow tras dostaja juz wersje domknieta - bez ani jednej
+// zmiany w tych modulach.
+const BOT_OWNER_ID = String(process.env.BOT_OWNER_ID || "").trim();
+
+// Lista z configow gildii, nie z bazy: to ona decyduje, ktore serwery bot
+// faktycznie obsluguje. getAllGuildIds() czyta pliki raz i trzyma je
+// w pamieci, wiec wolanie per zadanie nic nie kosztuje.
+const isServedGuild = (guildId) =>
+  guildRegistry
+    .getAllGuildIds()
+    .some((id) => String(id) === String(guildId));
+
+const OWNER_OPTIONS = { botOwnerId: BOT_OWNER_ID, isServedGuild };
+
+const hasAdminPermission = (user, guildId) =>
+  checkAdminPermission(user, guildId, OWNER_OPTIONS);
+
+const requireGuildAdmin = (resolveGuildId) =>
+  guildAdminGate(resolveGuildId, OWNER_OPTIONS);
+
+if (BOT_OWNER_ID) {
+  console.log(
+    `[AUTH] BOT_OWNER_ID ustawione - konto ${BOT_OWNER_ID} ma wstep do panelu ` +
+      `kazdego obslugiwanego serwera bez ADMINISTRATORA`,
+  );
+}
 
 // getKnownGuildInfo jest uzywane i tutaj, i w routes/publicOverview.js
 const { getKnownGuildInfo } = createGuildInfo(guildRegistry);
