@@ -31,74 +31,74 @@ const PANEL = path.join(
   "TournamentOpsPanel.jsx",
 );
 
-const zrodlo = () => fs.readFileSync(PANEL, "utf8");
+const source = () => fs.readFileSync(PANEL, "utf8");
 
 /** Cialo komponentu: od jego `function` do nastepnej deklaracji w pliku. */
-function cialo(src, nazwa) {
-  const start = src.indexOf(`function ${nazwa}(`);
+function componentBody(src, name) {
+  const start = src.indexOf(`function ${name}(`);
 
-  assert.notEqual(start, -1, `brak komponentu ${nazwa}`);
+  assert.notEqual(start, -1, `brak komponentu ${name}`);
 
-  const dalej = src.indexOf("\nfunction ", start + 1);
+  const nextDecl = src.indexOf("\nfunction ", start + 1);
 
-  return dalej === -1 ? src.slice(start) : src.slice(start, dalej);
+  return nextDecl === -1 ? src.slice(start) : src.slice(start, nextDecl);
 }
 
 test("link do eksportu stoi w swojej karcie, nie w karcie konczacej turniej", () => {
-  const src = zrodlo();
-  const eksport = cialo(src, "EksportWynikow");
+  const src = source();
+  const exportCard = componentBody(src, "ResultsExport");
 
   assert.ok(
-    eksport.includes("classificationExportUrl(slug)"),
+    exportCard.includes("classificationExportUrl(slug)"),
     "karta eksportu nie prowadzi do trasy eksportu",
   );
 
   assert.ok(
-    !eksport.includes("ui-card--danger"),
+    !exportCard.includes("ui-card--danger"),
     "karta eksportu podszywa sie pod karte niebezpieczna",
   );
 
   assert.ok(
-    !cialo(src, "ZamknijTurniej").includes("classificationExportUrl"),
+    !componentBody(src, "ZamknijTurniej").includes("classificationExportUrl"),
     "link do eksportu wrocil do karty konczacej turniej",
   );
 
   // Jedno wejscie, nie dwa. Duplikat postawiony w trzecim komponencie
   // przeszedlby oba sprawdzenia powyzej.
-  const wystapienia = src.match(/classificationExportUrl\(/g) || [];
+  const occurrences = src.match(/classificationExportUrl\(/g) || [];
 
   assert.equal(
-    wystapienia.length,
+    occurrences.length,
     1,
     "do eksportu prowadzi wiecej niz jedno miejsce w panelu",
   );
 });
 
 test("karta eksportu stoi w panelu PRZED karta konczaca turniej", () => {
-  const panel = cialo(zrodlo(), "TournamentOpsPanel");
+  const panel = componentBody(source(), "TournamentOpsPanel");
 
-  const karty = [...panel.matchAll(/<([A-Z][A-Za-z]*)\s/g)].map((m) => m[1]);
+  const cards = [...panel.matchAll(/<([A-Z][A-Za-z]*)\s/g)].map((m) => m[1]);
 
-  const eksport = karty.indexOf("EksportWynikow");
-  const zamkniecie = karty.indexOf("ZamknijTurniej");
+  const exportIndex = cards.indexOf("ResultsExport");
+  const endIndex = cards.indexOf("ZamknijTurniej");
 
-  assert.notEqual(eksport, -1, "panel nie renderuje karty eksportu");
-  assert.notEqual(zamkniecie, -1, "panel nie renderuje karty konczacej turniej");
+  assert.notEqual(exportIndex, -1, "panel nie renderuje karty eksportu");
+  assert.notEqual(endIndex, -1, "panel nie renderuje karty konczacej turniej");
 
   assert.ok(
-    eksport < zamkniecie,
-    `karta eksportu stoi za karta konczaca turniej: ${karty.join(", ")}`,
+    exportIndex < endIndex,
+    `karta eksportu stoi za karta konczaca turniej: ${cards.join(", ")}`,
   );
 });
 
 test("napisy karty eksportu leza w slowniku panelu", async () => {
-  const klucze = [
-    ...cialo(zrodlo(), "EksportWynikow").matchAll(/t\("([^"]+)"\)/g),
+  const keys = [
+    ...componentBody(source(), "ResultsExport").matchAll(/t\("([^"]+)"\)/g),
   ].map((m) => m[1]);
 
   assert.ok(
-    klucze.length >= 4,
-    `karta eksportu uzywa ${klucze.length} kluczy, spodziewane co najmniej 4`,
+    keys.length >= 4,
+    `karta eksportu uzywa ${keys.length} kluczy, spodziewane co najmniej 4`,
   );
 
   const { SLOWNIKI_PANELU } = await import("../web/src/i18n/index.js");
@@ -106,7 +106,7 @@ test("napisy karty eksportu leza w slowniku panelu", async () => {
   // Tylko polski: rownosc zestawow miedzy jezykami pilnuje
   // adminDictionary.test.js, a ten test sprawdza, czy klucz istnieje
   // gdziekolwiek - bez tego na karcie staloby "admin.ops.export.title".
-  const brakujace = klucze.filter((k) => !(k in SLOWNIKI_PANELU.pl));
+  const missing = keys.filter((k) => !(k in SLOWNIKI_PANELU.pl));
 
-  assert.deepEqual(brakujace, [], "te napisy pokaza sie jako gole klucze");
+  assert.deepEqual(missing, [], "te napisy pokaza sie jako gole klucze");
 });

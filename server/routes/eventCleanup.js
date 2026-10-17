@@ -214,7 +214,7 @@ export function registerEventCleanupRoutes(
         // UTC i bez dwukropków, jak w nazwach kopii zapasowych: dwukropek
         // psuje nagłówek Content-Disposition i nie przechodzi w nazwie pliku
         // na Windowsie.
-        const stempel = new Date()
+        const timestamp = new Date()
           .toISOString()
           .replace(/:/g, "")
           .replace(/\.\d+Z$/, "Z");
@@ -225,7 +225,7 @@ export function registerEventCleanupRoutes(
         );
         res.setHeader(
           "Content-Disposition",
-          `attachment; filename="klasyfikacja-${safeFileBase(slug, "pickem")}-${stempel}.xlsx"`,
+          `attachment; filename="klasyfikacja-${safeFileBase(slug, "pickem")}-${timestamp}.xlsx"`,
         );
         res.send(buffer);
       } catch (err) {
