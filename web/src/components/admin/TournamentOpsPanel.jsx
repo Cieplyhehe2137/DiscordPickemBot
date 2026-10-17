@@ -725,10 +725,6 @@ function ZamknijTurniej({ slug }) {
           onChange={(e) => setNazwa(e.target.value)}
           placeholder={t("admin.ops.end.archiveName")}
         />
-
-        <a href={classificationExportUrl(slug)}>
-          {t("admin.ops.end.classification")}
-        </a>
       </div>
 
       <label className="ui-row">
@@ -756,9 +752,58 @@ function ZamknijTurniej({ slug }) {
   );
 }
 
+/* ---------------- Eksport wyników ---------------- */
+
+// Arkusz z klasyfikacją do pobrania w KAŻDYM momencie turnieju, nie tylko
+// po jego zamknięciu.
+//
+// Trasa /api/events/:slug/export/classification istniała od dawna i nigdy
+// nie pytała o stan turnieju - działa dla fazy w toku tak samo jak dla
+// turnieju zamkniętego. Jedyne wejście do niej w całym froncie było jednak
+// gołym linkiem WEWNĄTRZ czerwonej karty „Zakończ turniej", obok checkboxa
+// usuwającego dane robocze i przycisku, który turniej kończy. Kto chciał
+// arkusz w trakcie fazy, musiał po niego wejść do karty wyglądającej na
+// nieodwracalną - i słusznie tam nie wchodził.
+//
+// Dlatego pobieranie stoi teraz osobno i jako pierwsze: jest jedynym
+// działaniem w tym panelu, które niczego nie zmienia.
+//
+// Plik jest zawsze świeży, bo exportClassification woła na wejściu
+// calculateScores - punkty przeliczają się przy każdym pobraniu. Dla fazy
+// w toku znaczy to tyle, że arkusz pokazuje stan na teraz: mecze bez
+// wpisanego wyniku nie dają jeszcze nikomu punktów.
+//
+// Zwykły link, nie fetch - tak samo jak publiczne archiwum na stronie
+// turnieju (EventPage.jsx): plik ma zapisać przeglądarka, a pierwsze
+// pobranie potrafi trwać kilka sekund.
+
+function EksportWynikow({ slug }) {
+  const t = useT();
+
+  return (
+    <div className="ui-card ui-card--flat ui-stack ui-stack--tight">
+      <h4>{t("admin.ops.export.title")}</h4>
+
+      <p className="ui-hint">{t("admin.ops.export.hint")}</p>
+
+      <p className="ui-hint">{t("admin.ops.export.sheets")}</p>
+
+      <div className="ui-row ui-row--wrap">
+        <a
+          className="ui-btn ui-btn--accent"
+          href={classificationExportUrl(slug)}
+        >
+          ⬇️ {t("admin.ops.export.download")}
+        </a>
+      </div>
+    </div>
+  );
+}
+
 function TournamentOpsPanel({ guildId, slug }) {
   return (
     <div className="ui-stack">
+      <EksportWynikow slug={slug} />
       <HurtoweMecze guildId={guildId} slug={slug} />
       <FormatFazy guildId={guildId} slug={slug} />
       <PropozycjeWynikow slug={slug} />

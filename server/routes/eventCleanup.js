@@ -205,13 +205,27 @@ export function registerEventCleanupRoutes(
 
         const buffer = await exportClassification({ guildId, eventId: event.id });
 
+        // Znacznik czasu w nazwie, bo ten eksport pobiera się TAKŻE w trakcie
+        // turnieju, i to wielokrotnie. Bez niego trzy pobrania w ciągu jednej
+        // fazy dają "klasyfikacja-slug.xlsx", "klasyfikacja-slug (1).xlsx"
+        // i "klasyfikacja-slug (2).xlsx" - trzy pliki w katalogu pobranych,
+        // po których nie widać, który pokazuje stan późniejszy.
+        //
+        // UTC i bez dwukropków, jak w nazwach kopii zapasowych: dwukropek
+        // psuje nagłówek Content-Disposition i nie przechodzi w nazwie pliku
+        // na Windowsie.
+        const stempel = new Date()
+          .toISOString()
+          .replace(/:/g, "")
+          .replace(/\.\d+Z$/, "Z");
+
         res.setHeader(
           "Content-Type",
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         );
         res.setHeader(
           "Content-Disposition",
-          `attachment; filename="klasyfikacja-${slug}.xlsx"`,
+          `attachment; filename="klasyfikacja-${safeFileBase(slug, "pickem")}-${stempel}.xlsx"`,
         );
         res.send(buffer);
       } catch (err) {
