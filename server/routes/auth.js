@@ -22,33 +22,49 @@ export function registerAuthRoutes(
     hasAdminPermission,
   },
 ) {
-  // Czy uzytkownik ma czym zarzadzac: administrator na serwerze, ktory bot
-  // FAKTYCZNIE obsluguje. Sam bit ADMINISTRATOR nie wystarcza - Discord daje
-  // go tez na prywatnym serwerze zalozonym przez samego uzytkownika, a taki
-  // ktos widzialby w nawigacji "Panel" prowadzacy do pustej listy.
+  // Serwery, ktorymi uzytkownik moze zarzadzac: administrator na serwerze,
+  // ktory bot FAKTYCZNIE obsluguje. Sam bit ADMINISTRATOR nie wystarcza -
+  // Discord daje go tez na prywatnym serwerze zalozonym przez samego
+  // uzytkownika, a taki ktos widzialby w nawigacji "Panel" prowadzacy do
+  // pustej listy.
+  //
+  // Liczone po liscie serwerow BOTA, nie po liscie serwerow uzytkownika, i to
+  // jest tu istotne: wlasciciel bota (BOT_OWNER_ID) nie musi byc czlonkiem
+  // gdziekolwiek, a petla po `user.guilds` nie znalazlaby dla niego niczego.
+  //
+  // Samego wyjatku dla wlasciciela NIE MA w tym pliku i to jest celowe:
+  // siedzi on w hasAdminPermission, ktore app.js domyka raz przy starcie.
+  // Ta funkcja pyta wiec o kazdy obslugiwany serwer dokladnie tym samym
+  // pytaniem, ktorym bramka pyta przy kazdej trasie zapisujacej - jedna
+  // regula, jedno miejsce, nie ma czego trzymac w zgodzie.
   //
   // Wyliczane na serwerze, bo tylko on zna guildRegistry; front dostaje
-  // gotowa odpowiedz zamiast zgadywac z samej bitmaski.
+  // gotowa liste zamiast zgadywac z samej bitmaski.
   //
   // To nadal warstwa prezentacji - o tym, czy akcja przejdzie, decyduje
   // requireGuildAdmin przy kazdej trasie z osobna.
-  function canAccessAdmin(user) {
-    if (!user) return false;
+  function administrableGuildIds(user) {
+    if (!user) return [];
 
-    const knownGuildIds = new Set(guildRegistry.getAllGuildIds());
-
-    return (user.guilds || []).some(
-      (guild) =>
-        knownGuildIds.has(guild.id) && hasAdminPermission(user, guild.id),
-    );
+    return guildRegistry
+      .getAllGuildIds()
+      .map(String)
+      .filter((guildId) => hasAdminPermission(user, guildId));
   }
 
   app.get("/api/auth/me", (req, res) => {
     const user = req.session?.user || null;
 
+    const adminGuildIds = administrableGuildIds(user);
+
     res.json({
       user,
-      canAccessAdmin: canAccessAdmin(user),
+      // Jedno wyliczenie, dwie odpowiedzi: wejscie do panelu to po prostu
+      // "jest co najmniej jeden serwer do zarzadzania". Wczesniej front
+      // dostawal samo `canAccessAdmin` i liste skladal sobie z bitmaski, wiec
+      // wlasciciel bota wchodzil do panelu na pusta liste serwerow.
+      canAccessAdmin: adminGuildIds.length > 0,
+      adminGuildIds,
     });
   });
 

@@ -113,7 +113,8 @@ const ETYKIETA_BLOKADY = {
 export default function AdminPage() {
   const { jezyk, t } = useLanguage();
 
-  const { user, canAccessAdmin, authLoading } = useAuth();
+  const { user, canAccessAdmin, adminGuildIds: adminGuildIdsFromApi, authLoading } =
+    useAuth();
 
   // Pytanie "na pewno?" własnym oknem zamiast window.confirm - powody
   // w components/ui/ConfirmProvider.jsx.
@@ -191,7 +192,17 @@ export default function AdminPage() {
   // "brak uprawnień" zamiast pustej listy serwerów.
   const isAdmin = canAccessAdmin;
 
-  const guildIds = adminGuildIds(user);
+  // Lista serwerów z /api/auth/me, a nie z bitmaski uprawnień. Dla właściciela
+  // bota (BOT_OWNER_ID) bitmaska nie mówi nic - on może nie być członkiem
+  // żadnego obsługiwanego serwera, a mimo to ma do nich wstęp, więc liczenie
+  // po `user.guilds` dawało mu panel z pustą listą.
+  //
+  // Gdy API tego pola nie przysłało (starsze API za nowszym frontem - patrz
+  // AuthContext.jsx), wracamy do bitmaski. Dla zwykłego admina oba sposoby
+  // dają to samo, więc fallback nikomu nic nie odbiera.
+  const guildIds = adminGuildIdsFromApi
+    ? new Set(adminGuildIdsFromApi)
+    : adminGuildIds(user);
 
   const adminServers = servers.filter((server) =>
     guildIds.has(String(server.guild_id)),

@@ -11,8 +11,68 @@
 // isc na BigInt. Number odcialby wyzsze bity i uprawnienia zaczelyby klamac.
 export const ADMINISTRATOR_PERMISSION = 0x8n;
 
-export function hasAdminPermission(user, guildId) {
+// ============================================================
+// WLASCICIEL BOTA
+//
+// PO CO. Discord nie daje wlascicielowi aplikacji ZADNYCH uprawnien na
+// serwerach, na ktorych bot siedzi - wlasnosc dotyczy aplikacji (token,
+// ustawienia OAuth), nie gildii. Bez tego wyjatku wlasciciel bota musi miec
+// nadanego ADMINISTRATORA osobno na kazdym obslugiwanym serwerze, zeby
+// otworzyc panel WWW tego serwera.
+//
+// CZYM TO PLACIMY. Jeden wpis BOT_OWNER_ID otwiera wszystkie trasy zapisujace
+// na KAZDYM obslugiwanym serwerze - wlacznie z czyszczeniem fazy i pelnym
+// resetem. Stad trzy ograniczenia, i kazde z nich jest celowe:
+//
+//   1. Domyslnie wyjatku NIE MA. Brak BOT_OWNER_ID (albo same spacje) to
+//      dokladnie zachowanie sprzed tej zmiany - sama bitmaska. Dzieki temu
+//      test porownujacy regule z kopia na froncie dalej przechodzi bez
+//      zmian, bo wola te funkcje bez trzeciego argumentu.
+//   2. Wyjatek siega TYLKO serwerow, ktore bot faktycznie obsluguje
+//      (`isServedGuild`). Czesc tras bierze guild_id wprost z adresu
+//      (/api/guilds/:guildId/backups), wiec bez tego zawezenia wlasciciel
+//      przechodzilby bramke dla dowolnego ciagu znakow.
+//   3. Dotyczy WYLACZNIE uprawnien administratora. `isGuildMember` zostaje
+//      nietkniete: ono pilnuje tras, ktorymi GRACZ zapisuje wlasne typy, a
+//      wlasciciel bota nie ma czego typowac na serwerze, do ktorego nie
+//      nalezy.
+// ============================================================
+
+// Porownanie jako tekst, bo id Discorda (snowflake) nie miesci sie w Number.
+export function isBotOwner(user, botOwnerId) {
+  const ownerId = String(botOwnerId ?? "").trim();
+
+  if (!ownerId) return false;
+
+  const id = String(user?.id ?? "").trim();
+
+  return id !== "" && id === ownerId;
+}
+
+// `options` to { botOwnerId, isServedGuild } - oba pola opcjonalne.
+function ownerMayAdminister(user, guildId, options) {
+  if (!isBotOwner(user, options?.botOwnerId)) return false;
+
+  const isServedGuild = options?.isServedGuild;
+
+  // Brak predykatu znaczy wywolanie bez wiedzy o liscie serwerow (test,
+  // narzedzie z linii polecen) - wtedy zgodnosc id wystarcza. app.js podaje
+  // go zawsze, wiec w dzialajacym API zawezenie jest na miejscu.
+  if (typeof isServedGuild !== "function") return true;
+
+  try {
+    return isServedGuild(String(guildId)) === true;
+  } catch {
+    // Predykat czyta pliki configow. Gdyby rzucil, odmawiamy - wyjatek od
+    // reguly nie moze sie opierac na nieznanym stanie.
+    return false;
+  }
+}
+
+export function hasAdminPermission(user, guildId, options) {
   if (!user || !guildId) return false;
+
+  if (ownerMayAdminister(user, guildId, options)) return true;
 
   const guild = (user.guilds || []).find((g) => g.id === String(guildId));
 
@@ -39,7 +99,11 @@ export function isGuildMember(user, guildId) {
 // resolveGuildId(req) -> guildId | Promise<guildId>. Uruchamiany PO sprawdzeniu
 // zalogowania, wiec moze bezpiecznie pytac baze - niezalogowany nie wywola
 // zapytania.
-export function requireGuildAdmin(resolveGuildId) {
+//
+// `options` ida wprost do hasAdminPermission (patrz blok o wlascicielu bota).
+// Przy trasach nie podaje ich nikt z osobna - app.js domyka je raz przy
+// starcie i wstrzykuje do modulow tras juz gotowa wersje.
+export function requireGuildAdmin(resolveGuildId, options) {
   return async (req, res, next) => {
     const user = req.session?.user;
 
@@ -60,7 +124,7 @@ export function requireGuildAdmin(resolveGuildId) {
         });
       }
 
-      if (!hasAdminPermission(user, guildId)) {
+      if (!hasAdminPermission(user, guildId, options)) {
         return res
           .status(403)
           .json({

@@ -13,6 +13,14 @@
 // ADMINISTRATOR także na prywatnym serwerze założonym przez użytkownika.
 // O wejściu do panelu decyduje `canAccessAdmin` z /api/auth/me - tam
 // guildRegistry jest pod ręką.
+//
+// Od dodania wyjątku dla właściciela bota (BOT_OWNER_ID) ten moduł jest
+// ZAPASEM, nie pierwszym źródłem: listę serwerów do zarządzania podaje
+// `adminGuildIds` z /api/auth/me, bo bitmaska o właścicielu nie wie nic -
+// on może nie być członkiem żadnego obsługiwanego serwera. Panel sięga tutaj
+// tylko wtedy, gdy API tego pola nie przysłało (patrz AdminPage.jsx).
+// Dla zwykłego admina obie drogi dają ten sam wynik i test na końcu
+// test/webPermissions.test.js tego pilnuje.
 
 const ADMINISTRATOR = 8n;
 
