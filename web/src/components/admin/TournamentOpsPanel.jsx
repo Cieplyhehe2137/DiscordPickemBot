@@ -777,7 +777,7 @@ function ZamknijTurniej({ slug }) {
 // turnieju (EventPage.jsx): plik ma zapisać przeglądarka, a pierwsze
 // pobranie potrafi trwać kilka sekund.
 
-function EksportWynikow({ slug }) {
+function ResultsExport({ slug }) {
   const t = useT();
 
   return (
@@ -803,7 +803,7 @@ function EksportWynikow({ slug }) {
 function TournamentOpsPanel({ guildId, slug }) {
   return (
     <div className="ui-stack">
-      <EksportWynikow slug={slug} />
+      <ResultsExport slug={slug} />
       <HurtoweMecze guildId={guildId} slug={slug} />
       <FormatFazy guildId={guildId} slug={slug} />
       <PropozycjeWynikow slug={slug} />
