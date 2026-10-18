@@ -35,11 +35,12 @@ const PODIUM = {
   3: " ui-row-item--3",
 };
 
-// Dwie osie tej samej tabeli. Nazwy jadą do serwera jako ?porzadek=, więc
+// Trzy osie tej samej tabeli. Nazwy jadą do serwera jako ?porzadek=, więc
 // literówka nie wywraca niczego - po cichu wraca układ punktowy. Stała
 // zamiast napisu w trzech miejscach.
 const PO_PUNKTACH = "punkty";
 const PO_SKUTECZNOSCI = "skutecznosc";
+const PO_ZAROBIONYCH = "zarobione";
 
 /**
  * Tłum: co dałoby typowanie zawsze tego, co większość.
@@ -153,6 +154,11 @@ function LeaderboardPage() {
   const [tlum, setTlum] = useState(null);
   const [stawka, setStawka] = useState(null);
 
+  // Stawka trzeciej osi: ilu graczy ma choc jedno zarobione trafienie oraz
+  // ile meczow turnieju bylo oczywistych. Bez tej drugiej liczby „7 zarobionych”
+  // nie ma skali.
+  const [stawkaZarobionych, setStawkaZarobionych] = useState(null);
+
   // Którą osią ułożona jest tabela. Trzymane razem z turniejem, tak samo
   // jak numer strony - inaczej wejście na turniej bez rozstrzygniętych
   // meczów zostawiłoby wybraną skuteczność, której tam nie ma.
@@ -164,6 +170,7 @@ function LeaderboardPage() {
   const porzadek = wybranyPorzadek.slug === slug ? wybranyPorzadek.czym : PO_PUNKTACH;
 
   const poSkutecznosci = porzadek === PO_SKUTECZNOSCI;
+  const poZarobionych = porzadek === PO_ZAROBIONYCH;
 
   // Numer strony trzymamy razem z turniejem, dla którego go wybrano.
   // Dzięki temu wejście na inny turniej wraca na stronę 1 samo, bez
@@ -210,7 +217,7 @@ function LeaderboardPage() {
           // Punkty to układ domyślny, więc nie doklejamy go do adresu -
           // inaczej każde wejście na ranking ma w URL-u parametr, który
           // niczego nie zmienia.
-          porzadek: porzadek === PO_SKUTECZNOSCI ? porzadek : undefined,
+          porzadek: porzadek === PO_PUNKTACH ? undefined : porzadek,
         });
 
         setLeaderboard(data.leaderboard ?? []);
@@ -219,6 +226,7 @@ function LeaderboardPage() {
         setStrony(data.strony ?? null);
         setTlum(data.tlum ?? null);
         setStawka(data.skutecznosc ?? null);
+        setStawkaZarobionych(data.zarobione ?? null);
 
         // Skok jest jednorazowy - inaczej każde kliknięcie "Następna"
         // wracałoby na stronę z naszym miejscem.
@@ -253,7 +261,7 @@ function LeaderboardPage() {
         const data = await getEventLeaderboard(slug, {
           strona,
           szukaj,
-          porzadek: porzadek === PO_SKUTECZNOSCI ? porzadek : undefined,
+          porzadek: porzadek === PO_PUNKTACH ? undefined : porzadek,
         });
 
         setLeaderboard(data.leaderboard ?? []);
@@ -262,6 +270,7 @@ function LeaderboardPage() {
         setStrony(data.strony ?? null);
         setTlum(data.tlum ?? null);
         setStawka(data.skutecznosc ?? null);
+        setStawkaZarobionych(data.zarobione ?? null);
         setError(null);
       } catch (err) {
         console.error("LEADERBOARD REALTIME REFRESH ERROR:", err);
@@ -406,16 +415,21 @@ function LeaderboardPage() {
 
           Pokazuje się tylko tam, gdzie jest co przełączać: w turnieju
           z samych faz (StarLadder Budapest 2025) stawka jest pusta. */}
-      {stawka?.players > 0 && (
+      {(stawka?.players > 0 || stawkaZarobionych?.players > 0) && (
         <div
           className="ui-switcher"
           role="group"
           aria-label={t("leaderboard.order.label")}
         >
           {[
-            [PO_PUNKTACH, "leaderboard.order.points"],
-            [PO_SKUTECZNOSCI, "leaderboard.order.accuracy"],
-          ].map(([czym, klucz]) => (
+            [PO_PUNKTACH, "leaderboard.order.points", true],
+            [PO_SKUTECZNOSCI, "leaderboard.order.accuracy", stawka?.players > 0],
+            [
+              PO_ZAROBIONYCH,
+              "leaderboard.order.earned",
+              stawkaZarobionych?.players > 0,
+            ],
+          ].filter(([, , jest]) => jest).map(([czym, klucz]) => (
             <button
               type="button"
               key={czym}
@@ -456,6 +470,33 @@ function LeaderboardPage() {
         </div>
       )}
 
+      {/* Trzecia oś wymaga dwóch zdań, bo nie wystarczy przeczytać nagłówka:
+          „zarobione" nie znaczy „wszystkie minus oczywiste punkty", tylko
+          trafienia na meczach, których pole nie trafiało. I jedno
+          zastrzeżenie, to samo co na profilu: oczywisty jest oczywisty
+          DOPIERO PO FAKCIE. */}
+      {poZarobionych && (
+        <div className="ui-stack accuracy-note">
+          <p>{t("leaderboard.earned.intro")}</p>
+
+          <p className="ui-note">
+            {t("leaderboard.earned.field", {
+              count: stawkaZarobionych?.players ?? 0,
+              obvious: stawkaZarobionych?.obvious ?? 0,
+              all: stawkaZarobionych?.matches ?? meczow,
+            })}
+          </p>
+
+          <p className="ui-note">{t("leaderboard.earned.afterwards")}</p>
+
+          {strony?.pozaStawka && (
+            <p className="ui-note ui-note--danger">
+              {t("leaderboard.earned.outside")}
+            </p>
+          )}
+        </div>
+      )}
+
       {leaderboard.length === 0 ? (
         <div className="ui-empty">
           <span className="ui-empty__icon" aria-hidden="true">
@@ -491,7 +532,9 @@ function LeaderboardPage() {
             <span>
               {poSkutecznosci
                 ? t("leaderboard.head.accuracy")
-                : t("leaderboard.head.points")}
+                : poZarobionych
+                  ? t("leaderboard.head.earned")
+                  : t("leaderboard.head.points")}
             </span>
           </div>
 
@@ -512,6 +555,7 @@ function LeaderboardPage() {
               player,
               matches: meczow,
               byAccuracy: poSkutecznosci,
+              byEarned: poZarobionych,
               t,
             });
 
@@ -593,7 +637,9 @@ function LeaderboardPage() {
                 <strong className="ui-row-item__score">
                   {poSkutecznosci
                     ? t("common.percentValue", { percent: player.accuracy })
-                    : Number(player.total_points ?? 0)}
+                    : poZarobionych
+                      ? Number(player.earned_hits ?? 0)
+                      : Number(player.total_points ?? 0)}
                 </strong>
               </div>
             );

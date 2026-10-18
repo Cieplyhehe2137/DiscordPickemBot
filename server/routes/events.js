@@ -8,7 +8,13 @@
 
 import { buildAccuracyRanking, progTypow } from "../lib/accuracyRanking.js";
 import { buildCrowdBaseline } from "../lib/crowdBaseline.js";
+import { buildEarnedRanking } from "../lib/earnedRanking.js";
 import { createLeaderboardCache } from "../lib/leaderboardCache.js";
+import {
+  MIN_GLOSUJACYCH,
+  oczywisty,
+  PROG_OCZYWISTEGO,
+} from "../lib/matchDifficulty.js";
 
 export function registerEventRoutes(
   app,
@@ -31,6 +37,10 @@ export function registerEventRoutes(
     pool,
     registerGuildRoutes,
     requireGuildAdmin,
+    // Stawka za trafionego zwyciezce serii, z rules/scoring.js. Tak samo
+    // jak w trasie profilu: trzecia os rankingu wycenia zarobione trafienia
+    // ta sama liczba, co kafelek na profilu, zamiast miec wlasna kopie.
+    scoring,
     buildMatchesWithPickSql,
     resolveMatchPredictionState,
     teamsStore,
@@ -654,6 +664,7 @@ export function registerEventRoutes(
             [glosowanieRows],
             [bezWierszaRows],
             [typyFazRows],
+            [zarobioneRows],
           ] = await Promise.all([
             pool.query(
               `
@@ -1162,6 +1173,68 @@ export function registerEventRoutes(
           `,
               [slug, slug, slug, slug],
             ),
+
+            /*
+             * TRAFIENIA ZAROBIONE CAŁEGO POLA - trzecia oś tabeli.
+             *
+             * To samo zapytanie, które liczy miejsce w polu na profilu
+             * gracza (server/routes/playerProfile.js). Zgoda pola zwija się
+             * najpierw do jednego wiersza na mecz, a dopiero potem łączy
+             * z typami - inaczej byłoby to dziesięć tysięcy wierszy razy
+             * liczba graczy.
+             *
+             * OBA PROGI IDĄ PARAMETREM z lib/matchDifficulty.js. Wpisanie
+             * ich tutaj dałoby drugie miejsce, w którym trzeba pamiętać
+             * o zmianie reguły, a wtedy ranking klasyfikowałby mecze jako
+             * oczywiste inaczej niż kafelek na profilu tego samego gracza.
+             */
+            pool.query(
+              `
+          SELECT
+            CAST(q.user_id AS CHAR CHARACTER SET utf8mb4)
+              COLLATE utf8mb4_unicode_ci AS user_id,
+
+            SUM(CASE
+                  WHEN (q.pred_a > q.pred_b) = mecz.winner_a
+                   AND mecz.obvious = 0 THEN 1 ELSE 0
+                END) AS earned
+
+          FROM match_predictions q
+
+          JOIN (
+            SELECT
+              m.id,
+              (r.res_a > r.res_b) AS winner_a,
+              (
+                COUNT(*) >= ?
+                AND (100 * SUM(CASE
+                                 WHEN (p.pred_a > p.pred_b) = (r.res_a > r.res_b)
+                                 THEN 1 ELSE 0
+                               END)) / COUNT(*) >= ?
+              ) AS obvious
+
+            FROM matches m
+
+            JOIN match_results r
+              ON r.match_id = m.id
+             AND r.event_id = m.event_id
+
+            JOIN match_predictions p
+              ON p.match_id = m.id
+             AND p.event_id = m.event_id
+
+            WHERE m.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+            GROUP BY m.id, winner_a
+          ) AS mecz
+            ON mecz.id = q.match_id
+
+          WHERE q.event_id = (SELECT id FROM events WHERE slug = ? LIMIT 1)
+
+          GROUP BY user_id
+          `,
+              [MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug],
+            ),
           ]);
 
           // Brak turnieju to też wynik i też wart zapamiętania: inaczej błędny
@@ -1351,9 +1424,29 @@ export function registerEventRoutes(
             matches: meczowRozstrzygnietych,
           });
 
+          // TRZECIA OŚ: ile z tych trafień trzeba było zarobić.
+          //
+          // Liczba meczów oczywistych idzie z `glosowanieRows`, czyli z tych
+          // samych wierszy, na których stoi tłum - zero nowych zapytań. Regułę
+          // bierzemy z lib/matchDifficulty.js, żeby ranking i kafelek na
+          // profilu klasyfikowały mecz jako oczywisty tak samo.
+          const zarobione = buildEarnedRanking({
+            players: wszystkie,
+            earnedByUser: new Map(
+              (zarobioneRows || []).map((row) => [
+                String(row.user_id),
+                Number(row.earned || 0),
+              ]),
+            ),
+            pointsPerHit: scoring?.MATCH?.WINNER,
+            matches: meczowRozstrzygnietych,
+            obvious: (glosowanieRows || []).filter(oczywisty).length,
+          });
+
       return {
         wszystkie,
         skutecznosc,
+        zarobione,
         uczestnicy,
 
         // MIANOWNIK DO LICZBY TYPOW.
@@ -1396,7 +1489,8 @@ export function registerEventRoutes(
         });
       }
 
-      const { wszystkie, skutecznosc, uczestnicy, meczow, tlum } = dane;
+      const { wszystkie, skutecznosc, zarobione, uczestnicy, meczow, tlum } =
+        dane;
 
       // PORZĄDEK TABELI. Punkty rosną z każdym oddanym typem, więc ranking
       // punktowy w dużej mierze mierzy obecność - patrz komentarz
@@ -1407,11 +1501,22 @@ export function registerEventRoutes(
       // przesortował to, co dostał, ułożyłby tylko pięćdziesiąt widocznych
       // wierszy i „pierwszy w skuteczności" znaczyłoby „pierwszy na tej
       // stronie".
-      const poSkutecznosci =
-        String(req.query.porzadek || "") === "skutecznosc" &&
-        skutecznosc?.rows?.length > 0;
+      const wybranyPorzadek = String(req.query.porzadek || "");
 
-      const lista = poSkutecznosci ? skutecznosc.rows : wszystkie;
+      const poSkutecznosci =
+        wybranyPorzadek === "skutecznosc" && skutecznosc?.rows?.length > 0;
+
+      // Trzecia oś. Ten sam warunek co wyżej: pusta tabela (turniej bez
+      // rozstrzygniętych meczów albo same mecze oczywiste) nie przełącza
+      // widoku, tylko zostawia porządek punktowy.
+      const poZarobionych =
+        wybranyPorzadek === "zarobione" && zarobione?.rows?.length > 0;
+
+      const lista = poSkutecznosci
+        ? skutecznosc.rows
+        : poZarobionych
+          ? zarobione.rows
+          : wszystkie;
 
 
       const NA_STRONIE_DOMYSLNIE = 50;
@@ -1483,11 +1588,26 @@ export function registerEventRoutes(
         // Same wiersze NIE ida - front dostaje je w `leaderboard`, juz
         // posortowane i pociete na strony; podwojenie listy tylko po to,
         // zeby dalo sie przelaczyc, byloby najciezsza rzecza w odpowiedzi.
-        porzadek: poSkutecznosci ? "skutecznosc" : "punkty",
+        porzadek: poSkutecznosci
+          ? "skutecznosc"
+          : poZarobionych
+            ? "zarobione"
+            : "punkty",
 
         skutecznosc: {
           threshold: skutecznosc?.threshold ?? 0,
           players: skutecznosc?.players ?? 0,
+        },
+
+        // Stawka trzeciej osi. `obvious` z `matches` to cała jej treść:
+        // bez nich "zarobione trafienia" jest liczbą bez skali, a z nimi
+        // czyta się jako "z 106 meczów 39 trafiło ponad 85% pola".
+        zarobione: {
+          players: zarobione?.players ?? 0,
+          matches: zarobione?.matches ?? 0,
+          obvious: zarobione?.obvious ?? 0,
+          threshold: zarobione?.threshold ?? 0,
+          pointsPerHit: zarobione?.pointsPerHit ?? 0,
         },
 
         strony: {

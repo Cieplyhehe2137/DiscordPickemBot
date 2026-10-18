@@ -522,6 +522,7 @@ registerEventRoutes(app, {
   pool,
   registerGuildRoutes,
   requireGuildAdmin,
+  scoring: SCORING,
   buildMatchesWithPickSql,
   resolveMatchPredictionState,
   teamsStore,

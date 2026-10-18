@@ -48,6 +48,11 @@ function liczba(wartosc) {
  * @param byAccuracy czy tabela jest ulozona po skutecznosci - w tym widoku
  *                odsetek stoi w kolumnie obok, wiec nie powtarzamy go tutaj,
  *                a w jego miejsce idzie miejsce punktowe
+ * @param byEarned czy tabela jest ulozona po trafieniach zarobionych. Odsetek
+ *                ZOSTAJE w podpisie, bo w kolumnie stoi liczba zarobionych,
+ *                a nie procent - ale miejsce punktowe dochodzi tak samo jak
+ *                przy skutecznosci: bez niego nie widac, ze trzecie miejsce
+ *                w tej tabeli stoi punktowo na dziewiatym
  * @param t       tlumacz
  *
  * Zwraca tablice napisow. Pusta znaczy "nie ma czego pokazac" - wolajacy
@@ -57,6 +62,7 @@ export function buildPickSummary({
   player,
   matches = 0,
   byAccuracy = false,
+  byEarned = false,
   t,
 } = {}) {
   const meczow = liczba(matches);
@@ -87,7 +93,7 @@ export function buildPickSummary({
 
   // Skad ten czlowiek przyszedl w tabeli punktowej. Na koncu, bo to
   // odnosnik do drugiego widoku, a nie czesc jego wyniku.
-  if (byAccuracy && liczba(player?.points_rank) > 0) {
+  if ((byAccuracy || byEarned) && liczba(player?.points_rank) > 0) {
     czlony.push(t("leaderboard.pointsRank", { rank: player.points_rank }));
   }
 

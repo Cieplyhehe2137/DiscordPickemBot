@@ -1582,6 +1582,16 @@ const uk = {
   },
   "leaderboard.accuracy.empty": "Замало зіграних матчів, щоб порівнювати влучність.",
   "leaderboard.accuracy.outside": "Вас немає в цій таблиці — не вистачає прогнозів до порога. Перемкніться на очки, щоб побачити своє місце.",
+  "leaderboard.order.earned": "Зароблені",
+  "leaderboard.head.earned": "Зароблено",
+  "leaderboard.earned.intro": "Ті самі люди, але за влучаннями в матчах, де більшість помилилася. Вгаданий переможець вартує однаково, чи вгадали його всі, чи майже ніхто — тут рахується лише друге.",
+  "leaderboard.earned.field": {
+    one: "У таблиці {count} людина щонайменше з одним заробленим влучанням. Очевидних матчів: {obvious} з {all}.",
+    few: "У таблиці {count} людини щонайменше з одним заробленим влучанням. Очевидних матчів: {obvious} з {all}.",
+    many: "У таблиці {count} людей щонайменше з одним заробленим влучанням. Очевидних матчів: {obvious} з {all}.",
+  },
+  "leaderboard.earned.afterwards": "Матч є очевидним ЛИШЕ ЗАДНІМ ЧИСЛОМ — згоду більшості рахуємо з усіх прогнозів, а до дедлайну її ніхто не знав.",
+  "leaderboard.earned.outside": "Вас немає в цій таблиці — у вас ще немає зароблених влучань. Перемкніть на очки, щоб побачити своє місце.",
   "leaderboard.pointsRank": "#{rank} за очками",
   // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
   // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace
