@@ -68,14 +68,29 @@ function wnetrzeObiektu(tekst, od) {
 function kluczeNajwyzszegoPoziomu(blok, { zOpcjonalnymi = true } = {}) {
   const klucze = new Set();
 
+  // Komentarze precz PRZED podzialem na przecinkach, nie po nim.
+  //
+  // Tu siedzial blad, ktory temu narzedziu odbieral wiarygodnosc. Podzial
+  // szedl po surowym tekscie, wiec przecinek W KOMENTARZU nad kluczem konczyl
+  // segment w jego srodku. Komentarz tracil wtedy swoje "//", resztka zdania
+  // wchodzila do segmentu z nastepnym kluczem, a taki segment nie przechodzil
+  // przez wzorzec identyfikatora - klucz po cichu wypadal z zestawu.
+  //
+  // Narzedzie zglaszalo przez to dwie niezgodnosci, obie nieprawdziwe:
+  // `scoring` w registerEventRoutes i `recalculateMatchPoints`
+  // w registerPickemConfigRoutes. Oba klucze byly na swoim miejscu, oba
+  // mialy nad soba komentarz z przecinkiem. Czyli dokladnie ta klasa bledu,
+  // ktora to narzedzie ma lapac - po cichu zgubiony klucz - tylko popelniona
+  // przez nie samo.
+  const czysty = blok
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+
   let depth = 0;
   let biezacy = "";
 
   const zapisz = () => {
-    const linia = biezacy
-      .replace(/\/\/[^\n]*/g, "")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .trim();
+    const linia = biezacy.trim();
 
     biezacy = "";
 
@@ -92,7 +107,7 @@ function kluczeNajwyzszegoPoziomu(blok, { zOpcjonalnymi = true } = {}) {
     }
   };
 
-  for (const znak of blok) {
+  for (const znak of czysty) {
     if (znak === "{" || znak === "(" || znak === "[") depth += 1;
     else if (znak === "}" || znak === ")" || znak === "]") depth -= 1;
 

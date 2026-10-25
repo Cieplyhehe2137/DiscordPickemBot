@@ -1,4 +1,8 @@
-// Skad formularz fazy bierze liste druzyn (server/routes/publicPickem.js).
+// Skad formularz fazy bierze liste druzyn (server/lib/phaseFormTeams.js).
+//
+// Wejsciem zostaje publicPickem.js, bo to on sklada cztery moduly formularzy
+// w jedna serie tras - test sprawdza wiec rowniez to zlozenie, a nie tylko
+// sama funkcje.
 //
 // Roster druzyn jest wspolny dla calego SERWERA, a nie dla turnieju. Dopoki
 // faza jest otwarta, to jedyne mozliwe zrodlo - meczow moze jeszcze nie byc.
