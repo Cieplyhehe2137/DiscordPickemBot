@@ -4,6 +4,7 @@ const { withGuild } = require("../../utils/guildContext");
 const {
   disableMatchComponents,
 } = require("../../utils/disableMatchComponents");
+const { maybePostMatchStats } = require("./maybePostMatchStats");
 
 const _startedWatchers = new Set();
 
@@ -82,6 +83,50 @@ function startMatchLockWatcher(client, guildId) {
             matchId: m.id,
             lockBeforeSec,
           });
+
+          /*
+           * 2️⃣½ ROZKŁAD TYPÓW NA KANAŁ.
+           *
+           * Moment jest tu nieprzypadkowy: typy właśnie się zamknęły, więc
+           * rozkład jest ostateczny i jego pokazanie nie może już nikogo
+           * skłonić do zmiany typu. Przed blokadą ta sama wiadomość byłaby
+           * zaproszeniem do kopiowania większości.
+           *
+           * Funkcja sama decyduje, czy mecz zasługuje na wiadomość (próg pola
+           * i próg jednomyślności) i sama pilnuje, żeby nie wysłać dwa razy -
+           * stąd wołamy ją bezwarunkowo przy każdym zablokowanym meczu.
+           *
+           * Stoi PRZED blokadą UI, bo tamta wymaga panel_message_id,
+           * a do wysłania wiadomości wystarczy sam kanał.
+           */
+          if (m.panel_channel_id) {
+            try {
+              const wynik = await maybePostMatchStats({
+                client,
+                pool,
+                guildId,
+                channelId: m.panel_channel_id,
+                matchId: m.id,
+                statsType: "match_start",
+              });
+
+              if (wynik?.posted) {
+                logInfo("matches", "Posted community stats on lock", {
+                  guildId,
+                  matchId: m.id,
+                  channelId: m.panel_channel_id,
+                });
+              }
+            } catch (err) {
+              // Wiadomość ze statystykami jest dodatkiem. Jej błąd nie może
+              // przerwać pętli, w której blokują się kolejne mecze.
+              logWarn("matches", "Failed to post community stats", {
+                guildId,
+                matchId: m.id,
+                message: err.message,
+              });
+            }
+          }
 
           // 3️⃣ UI lock
           if (!m.panel_channel_id || !m.panel_message_id) continue;

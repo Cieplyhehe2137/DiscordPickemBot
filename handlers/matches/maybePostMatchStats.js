@@ -8,6 +8,7 @@ const {
   wasStatsPosted,
   markStatsPosted,
 } = require("../../utils/communityStatsPosts");
+const FIELD = require("../../rules/field");
 
 async function maybePostMatchStats({
   client,
@@ -42,6 +43,40 @@ async function maybePostMatchStats({
     return {
       posted: false,
       reason: "no_predictions",
+    };
+  }
+
+  /*
+   * PROG: nie kazdy mecz zasluguje na wiadomosc.
+   *
+   * Major ma 106 meczow. Wrzucenie rozkladu po kazdym z nich to 106 wiadomosci
+   * na kanale typowania - i to jest najprawdopodobniej powod, dla ktorego ta
+   * funkcja stala napisana i nigdy nie podlaczona.
+   *
+   * Zostawiamy mecze, o ktorych jest o czym gadac, czyli te same, ktore
+   * serwis liczy pozniej jako ZAROBIONE: pole musi byc prawdziwe (MIN_VOTERS)
+   * i nie moze byc jednomyslne (ponizej OBVIOUS_PCT). Progi ida z
+   * rules/field.js, zeby bot i strona nazywaly "oczywisty" tak samo.
+   *
+   * Ta sama regula, ten sam moment: typy sa juz zamkniete, wiec rozklad jest
+   * ostateczny i zgodzi sie z tym, co pozniej pokaze ranking.
+   */
+  if (stats.totalUsers < FIELD.MIN_VOTERS) {
+    return {
+      posted: false,
+      reason: "below_min_voters",
+      totalUsers: stats.totalUsers,
+    };
+  }
+
+  // winner[] przychodzi posortowane malejaco, wiec faworyt stoi pierwszy.
+  const favourite = Number(stats.winner?.[0]?.pct ?? 0);
+
+  if (favourite >= FIELD.OBVIOUS_PCT) {
+    return {
+      posted: false,
+      reason: "obvious",
+      favourite,
     };
   }
 
