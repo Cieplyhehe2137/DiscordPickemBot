@@ -14,7 +14,8 @@
 // umowa o kolejnosci rejestracji.
 
 import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
-import { phaseLockNotice, phaseLockResponse } from "../lib/phaseLock.js";
+import { phaseLockNotice } from "../lib/phaseLock.js";
+import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
 import { buildSwissPicks } from "../lib/swissPicks.js";
 
 export function registerPublicPickemSwissRoutes(
@@ -31,97 +32,30 @@ export function registerPublicPickemSwissRoutes(
     toWebMessage,
   },
 ) {
+  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
+  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
+  const guardDeps = {
+    pool,
+    isGuildMember,
+    checkPickemGate,
+    getOpenEventId,
+    toWebMessage,
+  };
+
   app.post("/api/public/events/:slug/swiss-pickem/:stage", async (req, res) => {
     try {
-      const userId = req.session?.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          error: "Musisz być zalogowany.",
-          code: "server.mustLogin",
-        });
-      }
-
-      const { slug, stage } = req.params;
-
-      if (!["stage1", "stage2", "stage3"].includes(stage)) {
-        return res.status(400).json({
-          error: "Nieprawidłowy etap Swiss.",
-          code: "server.badSwissStage",
-        });
-      }
+      const { stage } = req.params;
 
       const { three_zero, zero_three, advancing } = req.body;
 
-      const [[event]] = await pool.query(
-        `
-        SELECT
-          id,
-          guild_id,
-          name,
-          slug,
-          phase,
-          status
-        FROM events
-        WHERE slug = ?
-        LIMIT 1
-        `,
-        [slug],
-      );
+      const prepared = await preparePhaseSave(req, guardDeps, {
+        phase: "swiss",
+        stage,
+      });
 
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-          code: "server.eventNotFound",
-        });
-      }
+      if (prepared.rejected) return sendRejection(res, prepared.rejected);
 
-      /*
-       * Discord działa wyłącznie z poziomu gildii,
-       * więc WWW również wymaga członkostwa.
-       */
-      if (!isGuildMember(req.session.user, event.guild_id)) {
-        return res.status(403).json({
-          error: "Nie należysz do tego serwera.",
-          code: "server.notMember",
-        });
-      }
-
-      /*
-       * Ten sam gate co Discord + webowy odpowiednik deadline.
-       */
-      const gate = await checkPickemGate(event.guild_id, "SWISS", stage);
-
-      if (!gate.allowed) {
-        return res
-          .status(403)
-          .json(phaseLockResponse(gate, toWebMessage, "phase"));
-      }
-
-      /*
-       * AKTUALNY EVENT - Discord robi to przez getOpenEventId().
-       *
-       * Bez tego zapis szedł na event_id odczytany ze sluga w URL-u, a gate
-       * sprawdzał fazę BIEŻĄCEGO eventu. Przy otwartym Swiss 1 dawało się więc
-       * wejść pod slugiem starego turnieju i zapisać typ do cudzego event_id.
-       * Playoffs, Play-In i Double Elim mają ten sam check; Swiss był jedynym
-       * bez niego.
-       */
-      const currentEventId = await getOpenEventId(pool, event.guild_id);
-
-      if (!currentEventId) {
-        return res.status(403).json({
-          error: "Nie znaleziono aktywnego eventu.",
-        });
-      }
-
-      if (Number(currentEventId) !== Number(event.id)) {
-        return res.status(409).json({
-          error:
-            "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Swiss.",
-          code: "server.stale.swiss",
-        });
-      }
+      const { userId, event, currentEventId } = prepared;
 
       const threeZero = Array.isArray(three_zero) ? three_zero.map(String) : [];
 

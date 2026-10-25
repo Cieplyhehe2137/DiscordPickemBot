@@ -8,7 +8,7 @@
 // umowa o kolejnosci rejestracji.
 
 import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
-import { phaseLockResponse } from "../lib/phaseLock.js";
+import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
 
 export function registerPublicPickemDoubleElimRoutes(
   app,
@@ -24,6 +24,16 @@ export function registerPublicPickemDoubleElimRoutes(
     toWebMessage,
   },
 ) {
+  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
+  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
+  const guardDeps = {
+    pool,
+    isGuildMember,
+    checkPickemGate,
+    getOpenEventId,
+    toWebMessage,
+  };
+
   app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
     try {
       const userId = req.session?.user?.id || null;
@@ -127,78 +137,16 @@ export function registerPublicPickemDoubleElimRoutes(
 
   app.post("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
     try {
-      const userId = req.session?.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          error: "Musisz być zalogowany.",
-          code: "server.mustLogin",
-        });
-      }
-
-      const { slug } = req.params;
-
       const { upper_final_a, lower_final_a, upper_final_b, lower_final_b } =
         req.body;
 
-      const [[event]] = await pool.query(
-        `
-        SELECT
-          id,
-          guild_id
-        FROM events
-        WHERE slug = ?
-        LIMIT 1
-        `,
-        [slug],
-      );
+      const prepared = await preparePhaseSave(req, guardDeps, {
+        phase: "doubleelim",
+      });
 
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-          code: "server.eventNotFound",
-        });
-      }
+      if (prepared.rejected) return sendRejection(res, prepared.rejected);
 
-      if (!isGuildMember(req.session.user, event.guild_id)) {
-        return res.status(403).json({
-          error: "Nie należysz do tego serwera.",
-          code: "server.notMember",
-        });
-      }
-
-      // ============================================
-      // GATE
-      // ============================================
-
-      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
-
-      if (!gate.allowed) {
-        return res
-          .status(403)
-          .json(phaseLockResponse(gate, toWebMessage, "doubleelim"));
-      }
-
-      // ============================================
-      // AKTUALNY EVENT
-      // ============================================
-
-      const currentEventId = await getOpenEventId(pool, event.guild_id);
-
-      if (!currentEventId) {
-        return res.status(403).json({
-          error: "Nie znaleziono aktywnego eventu.",
-        });
-      }
-
-      if (Number(currentEventId) !== Number(event.id)) {
-        return res.status(409).json({
-          error:
-            "Ten formularz dotyczy poprzedniego eventu. " +
-            "Otwórz aktualny panel Double Elimination.",
-          code: "server.stale.de",
-        });
-      }
+      const { userId, event, currentEventId } = prepared;
 
       // ============================================
       // NORMALIZACJA
