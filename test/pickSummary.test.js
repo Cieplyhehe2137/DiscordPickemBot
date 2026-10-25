@@ -243,3 +243,30 @@ test("klucz phasePicks istnieje we WSZYSTKICH jezykach i ma formy", async () => 
     }
   }
 });
+
+test("widok zarobionych dokalda miejsce punktowe, ale zostawia odsetek", async () => {
+  const { buildPickSummary } = await import(MODUL);
+
+  // W tej tabeli kolumna obok pokazuje LICZBE zarobionych trafien, a nie
+  // procent - wiec odsetek zostaje w podpisie, inaczej niz w skutecznosci.
+  // Miejsce punktowe dochodzi tak samo, bo po nie sie tu przychodzi.
+  const t = fakeT();
+
+  const czlony = buildPickSummary({
+    player: {
+      total_predictions: 103,
+      phase_predictions: 4,
+      accuracy: 72,
+      points_rank: 9,
+    },
+    matches: 106,
+    byEarned: true,
+    t,
+  });
+
+  assert.deepEqual(czlony, [
+    "leaderboard.picksHit",
+    "leaderboard.phasePicks",
+    "leaderboard.pointsRank",
+  ]);
+});

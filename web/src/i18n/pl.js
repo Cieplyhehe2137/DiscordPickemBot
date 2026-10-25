@@ -1603,6 +1603,16 @@ const pl = {
   },
   "leaderboard.accuracy.empty": "Za mało rozstrzygniętych meczów, żeby porównywać skuteczność.",
   "leaderboard.accuracy.outside": "Nie ma Cię w tej tabeli — do progu brakuje typów. Przełącz na punkty, żeby zobaczyć swoje miejsce.",
+  "leaderboard.order.earned": "Zarobione",
+  "leaderboard.head.earned": "Zarobione",
+  "leaderboard.earned.intro": "Ci sami ludzie, ułożeni według trafień na meczach, których pole NIE trafiało. Trafiony zwycięzca to te same punkty, czy wskazało go całe pole, czy garstka — ta tabela liczy tylko to drugie.",
+  "leaderboard.earned.field": {
+    one: "W tabeli stoi {count} osoba z co najmniej jednym zarobionym trafieniem. Meczów oczywistych: {obvious} ze {all}.",
+    few: "W tabeli stoją {count} osoby z co najmniej jednym zarobionym trafieniem. Meczów oczywistych: {obvious} ze {all}.",
+    many: "W tabeli stoi {count} osób z co najmniej jednym zarobionym trafieniem. Meczów oczywistych: {obvious} ze {all}.",
+  },
+  "leaderboard.earned.afterwards": "Mecz jest oczywisty DOPIERO PO FAKCIE — zgodę pola liczymy ze wszystkich oddanych typów, a przed terminem nikt jej nie znał.",
+  "leaderboard.earned.outside": "Nie ma Cię w tej tabeli — nie masz jeszcze ani jednego zarobionego trafienia. Przełącz na punkty, żeby zobaczyć swoje miejsce.",
   "leaderboard.pointsRank": "punktowo #{rank}",
   // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
   // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace

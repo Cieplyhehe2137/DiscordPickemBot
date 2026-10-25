@@ -1503,6 +1503,15 @@ const en = {
   },
   "leaderboard.accuracy.empty": "Not enough settled matches to compare accuracy.",
   "leaderboard.accuracy.outside": "You are not in this table — you are short of the pick threshold. Switch to points to see your place.",
+  "leaderboard.order.earned": "Earned",
+  "leaderboard.head.earned": "Earned",
+  "leaderboard.earned.intro": "The same people, ordered by hits on matches the field got WRONG. A correct winner is worth the same whether everyone picked it or almost nobody did — this table counts only the latter.",
+  "leaderboard.earned.field": {
+    one: "{count} player has at least one earned hit. Obvious matches: {obvious} of {all}.",
+    other: "{count} players have at least one earned hit. Obvious matches: {obvious} of {all}.",
+  },
+  "leaderboard.earned.afterwards": "A match counts as obvious ONLY IN HINDSIGHT — the field agreement is measured across every pick submitted, and nobody knew it before the deadline.",
+  "leaderboard.earned.outside": "You are not in this table — you have no earned hits yet. Switch to points to see your place.",
   "leaderboard.pointsRank": "#{rank} on points",
   // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
   // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace

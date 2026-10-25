@@ -1503,6 +1503,15 @@ const de = {
   },
   "leaderboard.accuracy.empty": "Zu wenige entschiedene Spiele, um Trefferquoten zu vergleichen.",
   "leaderboard.accuracy.outside": "Du stehst nicht in dieser Tabelle — dir fehlen Tipps bis zur Schwelle. Wechsle zu Punkten, um deinen Platz zu sehen.",
+  "leaderboard.order.earned": "Verdient",
+  "leaderboard.head.earned": "Verdient",
+  "leaderboard.earned.intro": "Dieselben Leute, sortiert nach Treffern bei Spielen, die das Feld FALSCH getippt hat. Ein richtiger Sieger zählt gleich viel, ob ihn alle tippten oder kaum jemand — diese Tabelle zählt nur Letzteres.",
+  "leaderboard.earned.field": {
+    one: "{count} Person hat mindestens einen verdienten Treffer. Offensichtliche Spiele: {obvious} von {all}.",
+    other: "{count} Personen haben mindestens einen verdienten Treffer. Offensichtliche Spiele: {obvious} von {all}.",
+  },
+  "leaderboard.earned.afterwards": "Offensichtlich ist ein Spiel ERST IM NACHHINEIN — die Einigkeit des Feldes wird aus allen abgegebenen Tipps berechnet, vor dem Termin kannte sie niemand.",
+  "leaderboard.earned.outside": "Du stehst nicht in dieser Tabelle — du hast noch keinen verdienten Treffer. Wechsle zu Punkten, um deinen Platz zu sehen.",
   "leaderboard.pointsRank": "#{rank} nach Punkten",
   // Stalo tu wczesniej „#6 z 410” - miejsce w liczbie TRAFIEN
   // wsrod wszystkich, ktorzy oddali choc jeden typ. Prawdziwe i mylace

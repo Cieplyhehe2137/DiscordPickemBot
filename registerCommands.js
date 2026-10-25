@@ -11,7 +11,7 @@ const dotenv = require("dotenv");
 // Wybór ENV:
 // ENV_NAME=hyperland  -> config/hyperland.env
 // ENV_NAME=luffastream -> config/luffastream.env
-const envName = process.env.ENV_NAME || "testserwer";
+const envName = process.env.ENV_NAME || "peekee";
 const envPath = path.join(__dirname, "config", `${envName}.env`);
 
 if (!fs.existsSync(envPath)) {
@@ -20,7 +20,7 @@ if (!fs.existsSync(envPath)) {
 }
 
 dotenv.config({ path: envPath });
-// console.log(`🌍 Załadowano ENV: config/${envName}.env`);
+console.log(`🌍 Załadowano ENV: config/${envName}.env`);
 
 /* =======================
    LOAD COMMANDS
@@ -59,26 +59,26 @@ for (const file of commandFiles) {
       // 🧪 DEV – rejestracja na jednej guildzie
       const gid = String(GUILD_ID).trim();
 
-      // console.log(`🧪 TRYB DEV`);
-      // console.log(`➡️ Rejestruję komendy TYLKO dla guildId=${gid}`);
+      console.log(`🧪 TRYB DEV`);
+      console.log(`➡️ Rejestruję komendy TYLKO dla guildId=${gid}`);
 
       await rest.put(Routes.applicationGuildCommands(CLIENT_ID, gid), {
         body: commands,
       });
 
-      // console.log('✅ Komendy zarejestrowane (DEV)');
+      console.log('✅ Komendy zarejestrowane (DEV)');
     } else {
       // 🌍 PROD – globalne komendy
-      // console.log(`🌍 TRYB PROD`);
-      // console.log('➡️ Rejestruję GLOBALNE komendy aplikacji');
+      console.log(`🌍 TRYB PROD`);
+      console.log('➡️ Rejestruję GLOBALNE komendy aplikacji');
 
       await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
 
-      // console.log('✅ Globalne komendy zarejestrowane');
-      // console.log('⏳ Uwaga: propagacja może potrwać 5–60 minut');
+      console.log('✅ Globalne komendy zarejestrowane');
+      console.log('⏳ Uwaga: propagacja może potrwać 5–60 minut');
     }
 
-    // console.log('🎉 Done!');
+    console.log('🎉 Done!');
   } catch (error) {
     console.error("❌ Rejestracja komend nieudana:", error);
     process.exitCode = 1;

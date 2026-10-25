@@ -43,17 +43,24 @@
 //
 // CZYSTY, BEZ ZAPYTAŃ - regułę da się sprawdzić bez bazy.
 
+import FIELD from "../../rules/field.js";
+
 /**
  * Poniżej tylu głosów mecz w ogóle nie jest klasyfikowany.
  *
  * Taki mecz NIE jest oczywisty - wpada do zarobionych, a nie znika, żeby
  * suma „oczywiste + zarobione" dalej równała się trafieniom. Przy 155 ze
  * 156 meczów powyżej progu kosztuje to w praktyce nic.
+ *
+ * LICZBA STOI W rules/field.js, nie tutaj: ten sam próg czyta bot, kiedy
+ * decyduje, czy wrzucić na kanał rozkład typów po zamknięciu meczu. Bot jest
+ * CommonJS i nie sięgnie do tego modułu, więc wspólne progi mieszkają tam,
+ * gdzie stawki punktowe.
  */
-export const MIN_GLOSUJACYCH = 20;
+export const MIN_GLOSUJACYCH = FIELD.MIN_VOTERS;
 
-/** Od ilu procent zgody pola mecz uznajemy za oczywisty. */
-export const PROG_OCZYWISTEGO = 85;
+/** Od ilu procent zgody pola mecz uznajemy za oczywisty. Też z rules/field.js. */
+export const PROG_OCZYWISTEGO = FIELD.OBVIOUS_PCT;
 
 function liczba(wartosc) {
   const n = Number(wartosc);
