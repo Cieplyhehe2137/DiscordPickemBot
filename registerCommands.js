@@ -8,19 +8,79 @@ const dotenv = require("dotenv");
    LOAD ENV FROM /config
 ======================= */
 
-// Wybór ENV:
-// ENV_NAME=hyperland  -> config/hyperland.env
-// ENV_NAME=luffastream -> config/luffastream.env
-const envName = process.env.ENV_NAME || "peekee";
-const envPath = path.join(__dirname, "config", `${envName}.env`);
+const configDir = path.join(__dirname, "config");
 
-if (!fs.existsSync(envPath)) {
-  console.error(`❌ Nie znaleziono pliku ENV: ${envPath}`);
+/** Nazwy configów serwerów: pliki .env poza wspólnym _base.env. */
+function dostepneConfigi() {
+  if (!fs.existsSync(configDir)) return [];
+
+  return fs
+    .readdirSync(configDir)
+    .filter((f) => f.toLowerCase().endsWith(".env"))
+    .filter((f) => f.toLowerCase() !== "_base.env")
+    .map((f) => f.replace(/\.env$/i, ""))
+    .sort();
+}
+
+/*
+ * ENV_NAME JEST WYMAGANE - bez domyślnego serwera.
+ *
+ * Stała tu wcześniej wartość domyślna i to jest najcichsza pomyłka, jaką ten
+ * skrypt potrafił zrobić: `npm run deploy-commands` bez ENV_NAME rejestrowało
+ * komendy na JEDNYM konkretnym serwerze, wypisywało „✅ Komendy
+ * zarejestrowane" i kończyło się sukcesem. Na serwerze, o który chodziło, nie
+ * pojawiało się nic - bo rejestracja idzie per gildia, a nie globalnie.
+ *
+ * Nie ma dobrej wartości domyślnej: każda z nich jest czyimś produkcyjnym
+ * serwerem. Lepszy jest błąd z listą do wyboru.
+ */
+const envName = String(process.env.ENV_NAME || "").trim();
+
+if (!envName) {
+  const lista = dostepneConfigi();
+
+  console.error("❌ Brakuje ENV_NAME - nie wiadomo, na który serwer rejestrować.");
+  console.error(
+    lista.length
+      ? `   Dostępne: ${lista.join(", ")}`
+      : "   W katalogu config/ nie ma żadnego pliku .env",
+  );
+  console.error("   Przykład: ENV_NAME=hyperland npm run deploy-commands");
   process.exit(1);
 }
 
+const envPath = path.join(configDir, `${envName}.env`);
+
+if (!fs.existsSync(envPath)) {
+  const lista = dostepneConfigi();
+
+  console.error(`❌ Nie znaleziono pliku ENV: ${envPath}`);
+  if (lista.length) console.error(`   Dostępne: ${lista.join(", ")}`);
+  process.exit(1);
+}
+
+/*
+ * NAJPIERW PLIK SERWERA, POTEM WSPÓLNY _base.env.
+ *
+ * Taka kolejność daje dokładnie tę samą regułę, co utils/guildRegistry.js:
+ * „Klucz może być w pliku serwera albo we wspólnym _base.env", przy czym plik
+ * serwera wygrywa. Działa to dlatego, że dotenv NIE nadpisuje tego, co już
+ * stoi w process.env - ani zmiennych ze środowiska, ani wczytanych wcześniej.
+ *
+ * Bez tego bot wstawał z configem opartym na _base.env, a rejestracja komend
+ * dla tego samego serwera padała na „Brakuje DISCORD_TOKEN lub CLIENT_ID".
+ * Dwa pliki, jedna konfiguracja, dwie różne odpowiedzi.
+ */
 dotenv.config({ path: envPath });
-console.log(`🌍 Załadowano ENV: config/${envName}.env`);
+
+const basePath = path.join(configDir, "_base.env");
+const bazaJest = fs.existsSync(basePath);
+
+if (bazaJest) dotenv.config({ path: basePath });
+
+console.log(
+  `🌍 Załadowano ENV: config/${envName}.env${bazaJest ? " + config/_base.env" : ""}`,
+);
 
 /* =======================
    LOAD COMMANDS
