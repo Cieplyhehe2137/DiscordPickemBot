@@ -7,7 +7,7 @@
 // umowa o kolejnosci rejestracji.
 
 import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
-import { phaseLockResponse } from "../lib/phaseLock.js";
+import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
 
 export function registerPublicPickemPlayinRoutes(
   app,
@@ -23,6 +23,16 @@ export function registerPublicPickemPlayinRoutes(
     toWebMessage,
   },
 ) {
+  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
+  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
+  const guardDeps = {
+    pool,
+    isGuildMember,
+    checkPickemGate,
+    getOpenEventId,
+    toWebMessage,
+  };
+
   app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
     try {
       const userId = req.session?.user?.id || null;
@@ -113,74 +123,15 @@ export function registerPublicPickemPlayinRoutes(
 
   app.post("/api/public/events/:slug/playin-pickem", async (req, res) => {
     try {
-      const userId = req.session?.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          error: "Musisz być zalogowany.",
-          code: "server.mustLogin",
-        });
-      }
-
-      const { slug } = req.params;
       const { teams } = req.body;
 
-      const [[event]] = await pool.query(
-        `
-        SELECT
-          id,
-          guild_id,
-          name,
-          slug,
-          status
-        FROM events
-        WHERE slug = ?
-        LIMIT 1
-        `,
-        [slug],
-      );
+      const prepared = await preparePhaseSave(req, guardDeps, {
+        phase: "playin",
+      });
 
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-          code: "server.eventNotFound",
-        });
-      }
+      if (prepared.rejected) return sendRejection(res, prepared.rejected);
 
-      if (!isGuildMember(req.session.user, event.guild_id)) {
-        return res.status(403).json({
-          error: "Nie należysz do tego serwera.",
-          code: "server.notMember",
-        });
-      }
-
-      const gate = await checkPickemGate(event.guild_id, "PLAYIN");
-
-      if (!gate.allowed) {
-        return res
-          .status(403)
-          .json(phaseLockResponse(gate, toWebMessage, "playin"));
-      }
-
-      // ============================================
-      // AKTUALNY EVENT - zgodność z Discordem 1:1
-      // ============================================
-
-      const currentEventId = await getOpenEventId(pool, event.guild_id);
-
-      if (!currentEventId) {
-        return res.status(403).json({
-          error: "Nie znaleziono aktywnego eventu.",
-        });
-      }
-
-      if (Number(currentEventId) !== Number(event.id)) {
-        return res.status(409).json({
-          error:
-            "Ten formularz dotyczy poprzedniego eventu. Otwórz aktualny Play-In.",
-          code: "server.stale.playin",
-        });
-      }
+      const { userId, event, currentEventId } = prepared;
 
       // ============================================
       // WYBÓR DRUŻYN
