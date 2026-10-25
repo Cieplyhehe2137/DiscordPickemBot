@@ -18,6 +18,9 @@ const { getDraft, setDraft } = require("../../utils/predictionDraftCache");
 
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
+// Kolejnosc z sort_order - tak ten dropdown dzialal, zanim funkcja
+// przestala byc wlasna kopia. Double Elim uzywa wariantu alfabetycznego.
+const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
 const { odmien, druzyny } = require("../../utils/odmiana");
 const { setMvpSession } = require("../../utils/mvpFlowSession");
 
@@ -27,20 +30,6 @@ const MVP_PAGE_SIZE = 25;
 // TEAMS
 // ======================================================
 
-async function loadTeamsFromDB(pool, guildId) {
-  const [rows] = await pool.query(
-    `
-    SELECT name
-    FROM teams
-    WHERE guild_id = ?
-      AND active = 1
-    ORDER BY sort_order ASC, name ASC
-    `,
-    [guildId],
-  );
-
-  return rows.map((r) => r.name).filter(Boolean);
-}
 
 // ======================================================
 // MVP
@@ -230,7 +219,7 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       // TEAMS
       // ================================================
 
-      const teams = await loadTeamsFromDB(pool, guildId);
+      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
 
       if (!teams.length) {
         return interaction.editReply({

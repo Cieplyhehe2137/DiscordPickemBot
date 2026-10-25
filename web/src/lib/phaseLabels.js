@@ -1,4 +1,8 @@
-// Odpowiednik humanPhase() z utils/phase.js po stronie frontu.
+// Nazwy faz po stronie frontu.
+//
+// Stało tu wcześniej, że to „odpowiednik humanPhase() z utils/phase.js" -
+// a tamtego pliku nie wołał już nikt i został usunięty. Po stronie bota
+// normalizacją faz zajmuje się utils/phaseNames.js.
 //
 // events.phase i matches.phase trzymają surowe identyfikatory w kilku
 // wariantach zapisu naraz (SWISS_STAGE_1, swiss_stage1, DOUBLE_ELIM,
