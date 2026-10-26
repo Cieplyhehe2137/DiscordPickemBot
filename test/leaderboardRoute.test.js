@@ -1,4 +1,7 @@
-// Trasa rankingu (server/routes/events.js).
+// Trasa rankingu - wejsciem zostaje server/routes/events.js, bo test chodzi
+// przez prawdziwa rejestracje trasy. Samo liczenie siedzi od etapu 5
+// w server/lib/leaderboardData.js i to jego pilnuja te testy; przez trase,
+// a nie wprost, zeby sprawdzic rowniez to zlozenie.
 //
 // Test liczy PODROZE do bazy, a nie milisekundy. Zmierzone na serwerze przez
 // healthcheck: jedna podroz to 177 ms, dziesiec prob, zerowy rozrzut. Kazda

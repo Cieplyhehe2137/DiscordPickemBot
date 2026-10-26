@@ -151,23 +151,27 @@ test("skala tabeli idzie w odpowiedzi: ile meczow i ile oczywistych", async () =
   assert.equal(wynik.obvious, 39);
 });
 
-test("prog oczywistego ma JEDNO zrodlo takze w trasie rankingu", () => {
+test("prog oczywistego ma JEDNO zrodlo takze w rankingu", () => {
   // To samo zastrzezenie, co przy trasie profilu w scoringContract.test.js:
   // wpisanie progow do SQL-a dawaloby druga regule, ktora rozjedzie sie bez
   // zadnego bledu - ranking liczylby inne mecze jako oczywiste niz kafelek
   // na profilu tego samego gracza.
-  const trasa = fs.readFileSync(
-    path.join(__dirname, "..", "server", "routes", "events.js"),
+  //
+  // Czytane jest lib/leaderboardData.js, a nie routes/events.js: samo
+  // liczenie rankingu wyszlo z pliku tras, bo z trasami nie mialo nic
+  // wspolnego. Warunek jest ten sam, zmienil sie tylko plik.
+  const ranking = fs.readFileSync(
+    path.join(__dirname, "..", "server", "lib", "leaderboardData.js"),
     "utf8",
   );
 
   assert.ok(
-    trasa.includes("[MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug]"),
+    ranking.includes("[MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug]"),
     "zapytanie o zarobione nie bierze progow z lib/matchDifficulty.js",
   );
 
   assert.ok(
-    trasa.includes("pointsPerHit: scoring?.MATCH?.WINNER"),
-    "trasa rankingu nie podaje stawki z rules/scoring.js",
+    ranking.includes("pointsPerHit: scoring?.MATCH?.WINNER"),
+    "liczenie rankingu nie podaje stawki z rules/scoring.js",
   );
 });
