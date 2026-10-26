@@ -350,27 +350,31 @@ test("trudnosc trafien bierze stawke z rules, a nie z wlasnej kopii", () => {
 });
 
 test("prog oczywistego ma JEDNO zrodlo - modul, nie zapytanie", () => {
-  // Trasa profilu liczy miejsce w polu osobnym zapytaniem, ktore musi
+  // Profil gracza liczy miejsce w polu osobnym zapytaniem, ktore musi
   // klasyfikowac mecze DOKLADNIE tak samo, co kafelek obok. Wpisanie progow
   // do SQL-a dawaloby dwie reguly, ktore rozjada sie bez zadnego bledu:
   // ekran pokazywalby "39 oczywistych" i miejsce policzone wedlug innych
   // trzydziestu dziewieciu.
-  const trasa = fs.readFileSync(
-    path.join(__dirname, "..", "server", "routes", "playerProfile.js"),
+  //
+  // Czytana jest lib/playerProfileQueries.js, a nie routes/playerProfile.js:
+  // cala fala zapytan profilu wyszla z pliku tras, bo z odpowiedzia HTTP nie
+  // miala nic wspolnego. Warunek jest ten sam, zmienil sie tylko plik.
+  const zapytania = fs.readFileSync(
+    path.join(__dirname, "..", "server", "lib", "playerProfileQueries.js"),
     "utf8",
   );
 
   assert.ok(
-    trasa.includes("[MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug]"),
+    zapytania.includes("[MIN_GLOSUJACYCH, PROG_OCZYWISTEGO, slug, slug]"),
     "zapytanie o pole nie bierze juz progow z lib/matchDifficulty.js",
   );
 
   // Zadnej z tych liczb nie ma w SQL-u wprost. Koniec szukamy OD poczatku
-  // tego zapytania, bo "GROUP BY user_id" stoi w tej trasie takze wyzej.
-  const poczatek = trasa.indexOf("TRAFIENIA CAŁEGO POLA");
-  const zapytanie = trasa.slice(
+  // tego zapytania, bo "GROUP BY user_id" stoi w tym pliku takze wyzej.
+  const poczatek = zapytania.indexOf("TRAFIENIA CAŁEGO POLA");
+  const zapytanie = zapytania.slice(
     poczatek,
-    trasa.indexOf("GROUP BY user_id", poczatek),
+    zapytania.indexOf("GROUP BY user_id", poczatek),
   );
 
   assert.ok(zapytanie.length > 0, "nie znalazlem zapytania o trafienia pola");
