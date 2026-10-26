@@ -1,7 +1,13 @@
-// Droga do zapisu typu fazy - jedna dla wszystkich czterech formularzy.
+// Cztery formularze faz: wspolna droga do ZAPISU i wspolna do ODCZYTU.
 //
 // Swiss, Play-In, Playoffs i Double Elimination maja osobne tabele, osobne
-// ksztalty typu i osobne reguly, ale ZANIM dojda do zapisu, przechodza
+// ksztalty typu i osobne reguly. Wspolne maja to, co dzieje sie wokol nich:
+// kogo wpuscic, ktory turniej wziac i ktory gate sprawdzic. Oba kierunki
+// stoja tutaj razem z tablica PHASES, czyli z tym, co kazda faza ma
+// naprawde wlasnego - zeby nazwa fazy, jej gate i jej zdanie o blokadzie
+// nie dalo sie rozjechac miedzy odczytem a zapisem.
+//
+// ZAPIS - preparePhaseSave. ZANIM typ trafi do bazy, kazda faza przechodzi
 // dokladnie te sama sciezke:
 //
 //   1. logowanie
@@ -27,7 +33,22 @@
 // Co ZOSTAJE po stronie fazy: normalizacja typu, limity, sprawdzTyp, reguly
 // drabinki, kontrola rosteru i sam zapis. Czyli wszystko, co kazda faza ma
 // naprawde wlasne.
+//
+// ODCZYT - readPhaseForm, ale TYLKO dla trzech faz. Play-In, Playoffs
+// i Double Elim odpowiadaly na GET formularza identycznym kodem. Swiss nie
+// i nie da sie go tu wciagnac bez zmiany odpowiedzi API:
+//
+//   - podaje `event` przyciety do trzech pol, a nie caly wiersz turnieju;
+//   - ma dodatkowe pole `stage`, bo jako jedyny ma etapy;
+//   - w `lock` podaje zdanie zapasowe I kod tlumaczenia, a tamte trzy
+//     oddaja samo `message: null`, gdy administrator nie wpisal powodu.
+//
+// Ta trzecia roznica wyglada na przeoczenie, a nie na zamysl - ale jej
+// naprawa zmienia odpowiedz trzech tras naraz, wiec jest do decyzji, nie do
+// cichego poprawienia przy sprzataniu. Obie strony tej roznicy pilnuje
+// test/phaseFormRead.test.js.
 
+import { loadPhaseTeams, withPickedTeams } from "./phaseFormTeams.js";
 import { phaseLockResponse } from "./phaseLock.js";
 
 const SWISS_STAGES = ["stage1", "stage2", "stage3"];
@@ -175,7 +196,114 @@ export async function preparePhaseSave(
 }
 
 /**
- * Wysyla odmowe z preparePhaseSave.
+ * Sklada odpowiedz formularza fazy dla Play-In, Playoffs i Double Elim.
+ *
+ * `readPrediction` to jedyna rzecz, ktora te trzy fazy maja tu wlasna:
+ * zapytanie o zapisany typ i jego ksztalt. Zwraca null, gdy gracz nic nie
+ * zapisal, albo { prediction, picked } - gdzie `picked` to listy nazw
+ * z typu, ktore maja dojsc do wybieraczki, gdy znikly z rosteru. KOLEJNOSC
+ * tych list ma znaczenie: withPickedTeams nadaje doklejanym nazwom ujemne
+ * id po kolei, a front uzywa ich jako klucza Reacta.
+ *
+ * @returns {{rejected:{status:number, body:object}}|{body:object}}
+ *
+ * Tak samo jak przy zapisie: odmowa wraca jako DANE, `res` zostaje
+ * w rekach handlera.
+ */
+export async function readPhaseForm(
+  req,
+  { pool, isGuildMember, checkPickemGate, getPhaseLimits, toWebMessage },
+  { phase, readPrediction },
+) {
+  const spec = PHASES[phase];
+
+  if (!spec) {
+    throw new Error(`readPhaseForm: nieznana faza "${phase}"`);
+  }
+
+  if (spec.stages) {
+    throw new Error(
+      `readPhaseForm: faza "${phase}" ma etapy i wlasny ksztalt odpowiedzi`,
+    );
+  }
+
+  // Formularz jest PUBLICZNY - to strona, ktora ludzie wrzucaja linkiem.
+  // Bez sesji nie ma czyjego typu czytac, ale lista druzyn i stan blokady
+  // naleza sie kazdemu.
+  const userId = req.session?.user?.id || null;
+
+  const [[event]] = await pool.query(
+    `
+    SELECT id, guild_id, name, slug, status
+    FROM events
+    WHERE slug = ?
+    LIMIT 1
+    `,
+    [req.params.slug],
+  );
+
+  if (!event) {
+    return rejectWith(404, {
+      error: "Nie znaleziono turnieju.",
+      code: "server.eventNotFound",
+    });
+  }
+
+  // Gate PRZED lista druzyn, bo to on decyduje, skad ta lista ma pochodzic:
+  // otwarta faza bierze roster serwera, zamknieta - druzyny z meczow.
+  const gate = await checkPickemGate(event.guild_id, spec.gate);
+
+  const teams = await loadPhaseTeams({
+    pool,
+    eventId: event.id,
+    guildId: event.guild_id,
+    allowed: gate.allowed,
+  });
+
+  let prediction = null;
+  let picked = [];
+
+  if (userId) {
+    // Czlonkostwo sprawdzane takze przy ODCZYCIE. Discord nie ma jak pokazac
+    // panelu spoza gildii, a te trzy trasy jako jedyne pozwalaly odpytac
+    // turniej obcego serwera.
+    if (!isGuildMember(req.session.user, event.guild_id)) {
+      return rejectWith(403, {
+        error: "Nie należysz do tego serwera.",
+        code: "server.notMember",
+      });
+    }
+
+    const zapisany = await readPrediction({ pool, event, userId });
+
+    if (zapisany) {
+      prediction = zapisany.prediction;
+      picked = zapisany.picked || [];
+    }
+  }
+
+  return {
+    body: {
+      event,
+      teams: withPickedTeams(teams, ...picked),
+      limity: await getPhaseLimits(pool, event.guild_id, event.id, phase),
+
+      prediction,
+      lock: {
+        allowed: gate.allowed,
+        message: toWebMessage(gate.message, null),
+
+        // Termin zamkniecia - dotyczy obu przypadkow: przed terminem strona
+        // pisze, ile zostalo, a po nim - kiedy minal. null, gdy
+        // administrator terminu nie ustawil.
+        deadline: gate.deadline ?? null,
+      },
+    },
+  };
+}
+
+/**
+ * Wysyla odmowe z preparePhaseSave albo readPhaseForm.
  *
  * Osobna funkcja, zeby w handlerze stala JEDNA linia i zeby bylo z niej
  * widac, ze trasa sie w tym miejscu konczy.
