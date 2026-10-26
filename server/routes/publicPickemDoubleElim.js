@@ -7,8 +7,11 @@
 // Wydzielone z publicPickem.js - tam stoi wywolanie i tam opisana jest
 // umowa o kolejnosci rejestracji.
 
-import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
-import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
+import {
+  preparePhaseSave,
+  readPhaseForm,
+  sendRejection,
+} from "../lib/phaseForms.js";
 
 export function registerPublicPickemDoubleElimRoutes(
   app,
@@ -24,10 +27,12 @@ export function registerPublicPickemDoubleElimRoutes(
     toWebMessage,
   },
 ) {
-  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
-  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
-  const guardDeps = {
+  // Zaleznosci wspolnych sciezek formularza fazy, zebrane raz. Same sciezki
+  // stoja w server/lib/phaseForms.js i kazda bierze z tego worka tylko to,
+  // czego potrzebuje.
+  const phaseDeps = {
     pool,
+    getPhaseLimits,
     isGuildMember,
     checkPickemGate,
     getOpenEventId,
@@ -36,95 +41,51 @@ export function registerPublicPickemDoubleElimRoutes(
 
   app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
     try {
-      const userId = req.session?.user?.id || null;
-      const { slug } = req.params;
+      const form = await readPhaseForm(req, phaseDeps, {
+        phase: "doubleelim",
 
-      const [[event]] = await pool.query(
-        `
-              SELECT id, guild_id, name, slug, status
-              FROM events
-              WHERE slug = ?
-              LIMIT 1
-              `,
-        [slug],
-      );
+        readPrediction: async ({ pool, event, userId }) => {
+          const [[row]] = await pool.query(
+            `
+            SELECT
+              upper_final_a,
+              lower_final_a,
+              upper_final_b,
+              lower_final_b
+            FROM doubleelim_predictions
+            WHERE guild_id = ?
+              AND event_id = ?
+              AND user_id = ?
+              AND active = 1
+            LIMIT 1
+            `,
+            [event.guild_id, event.id, userId],
+          );
 
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-          code: "server.eventNotFound",
-        });
-      }
+          if (!row) return null;
 
-      const gate = await checkPickemGate(event.guild_id, "DOUBLEELIM");
-
-      const teams = await loadPhaseTeams({
-        pool,
-        eventId: event.id,
-        guildId: event.guild_id,
-        allowed: gate.allowed,
-      });
-
-      let prediction = null;
-
-      if (userId) {
-        // Członkostwo sprawdzamy także przy odczycie - tak jak robi to Swiss.
-        // Discord w ogóle nie ma jak pokazać panelu spoza gildii, a te trzy
-        // endpointy jako jedyne pozwalały odpytać event obcego serwera.
-        if (!isGuildMember(req.session.user, event.guild_id)) {
-          return res.status(403).json({
-            error: "Nie należysz do tego serwera.",
-            code: "server.notMember",
-          });
-        }
-
-        const [[row]] = await pool.query(
-          `
-                  SELECT
-                      upper_final_a,
-                      lower_final_a,
-                      upper_final_b,
-                      lower_final_b
-                  FROM doubleelim_predictions
-                  WHERE guild_id = ?
-    AND event_id = ?
-    AND user_id = ?
-    AND active = 1
-                  LIMIT 1
-                  `,
-          [event.guild_id, event.id, userId],
-        );
-
-        if (row) {
-          prediction = {
+          const prediction = {
             upper_final_a: parseCsvPick(row.upper_final_a),
             lower_final_a: parseCsvPick(row.lower_final_a),
             upper_final_b: parseCsvPick(row.upper_final_b),
             lower_final_b: parseCsvPick(row.lower_final_b),
           };
-        }
-      }
 
-      res.json({
-        event,
-        teams: withPickedTeams(
-          teams,
-          prediction?.upper_final_a,
-          prediction?.lower_final_a,
-          prediction?.upper_final_b,
-          prediction?.lower_final_b,
-        ),
-        limity: await getPhaseLimits(pool, event.guild_id, event.id, "doubleelim"),
-
-        prediction,
-        lock: {
-          allowed: gate.allowed,
-          message: toWebMessage(gate.message, null),
-
-          // Termin zamkniecia typowania - patrz uwaga przy trasie Swiss.
-          deadline: gate.deadline ?? null,
+          return {
+            prediction,
+            picked: [
+              prediction.upper_final_a,
+              prediction.lower_final_a,
+              prediction.upper_final_b,
+              prediction.lower_final_b,
+            ],
+          };
         },
       });
+
+      if (form.rejected) return sendRejection(res, form.rejected);
+
+      res.json(form.body);
     } catch (err) {
       console.error(err);
 
@@ -140,7 +101,7 @@ export function registerPublicPickemDoubleElimRoutes(
       const { upper_final_a, lower_final_a, upper_final_b, lower_final_b } =
         req.body;
 
-      const prepared = await preparePhaseSave(req, guardDeps, {
+      const prepared = await preparePhaseSave(req, phaseDeps, {
         phase: "doubleelim",
       });
 

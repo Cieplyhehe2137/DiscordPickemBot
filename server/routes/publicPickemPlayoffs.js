@@ -7,8 +7,11 @@
 // Wydzielone z publicPickem.js - tam stoi wywolanie i tam opisana jest
 // umowa o kolejnosci rejestracji.
 
-import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
-import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
+import {
+  preparePhaseSave,
+  readPhaseForm,
+  sendRejection,
+} from "../lib/phaseForms.js";
 
 export function registerPublicPickemPlayoffsRoutes(
   app,
@@ -24,10 +27,12 @@ export function registerPublicPickemPlayoffsRoutes(
     toWebMessage,
   },
 ) {
-  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
-  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
-  const guardDeps = {
+  // Zaleznosci wspolnych sciezek formularza fazy, zebrane raz. Same sciezki
+  // stoja w server/lib/phaseForms.js i kazda bierze z tego worka tylko to,
+  // czego potrzebuje.
+  const phaseDeps = {
     pool,
+    getPhaseLimits,
     isGuildMember,
     checkPickemGate,
     getOpenEventId,
@@ -36,92 +41,56 @@ export function registerPublicPickemPlayoffsRoutes(
 
   app.get("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
     try {
-      const userId = req.session?.user?.id || null;
-      const { slug } = req.params;
+      const form = await readPhaseForm(req, phaseDeps, {
+        phase: "playoffs",
 
-      const [[event]] = await pool.query(
-        `
-              SELECT id, guild_id, name, slug, status
-              FROM events
-              WHERE slug = ?
-              LIMIT 1
-              `,
-        [slug],
-      );
+        readPrediction: async ({ pool, event, userId }) => {
+          // Bez guild_id w warunku - tak stalo przed scaleniem. event_id
+          // jest unikalne w calej bazie, wiec zakres wychodzi ten sam.
+          const [[row]] = await pool.query(
+            `
+            SELECT semifinalists, finalists, winner, third_place_winner
+            FROM playoffs_predictions
+            WHERE event_id = ?
+              AND user_id = ?
+              AND active = 1
+            LIMIT 1
+            `,
+            [event.id, userId],
+          );
 
-      if (!event) {
-        return res.status(404).json({
-          error: "Nie znaleziono turnieju.",
-          code: "server.eventNotFound",
-        });
-      }
+          if (!row) return null;
 
-      const gate = await checkPickemGate(event.guild_id, "PLAYOFFS");
-
-      const teams = await loadPhaseTeams({
-        pool,
-        eventId: event.id,
-        guildId: event.guild_id,
-        allowed: gate.allowed,
-      });
-
-      let prediction = null;
-
-      if (userId) {
-        // Członkostwo sprawdzamy także przy odczycie - tak jak robi to Swiss.
-        // Discord w ogóle nie ma jak pokazać panelu spoza gildii, a te trzy
-        // endpointy jako jedyne pozwalały odpytać event obcego serwera.
-        if (!isGuildMember(req.session.user, event.guild_id)) {
-          return res.status(403).json({
-            error: "Nie należysz do tego serwera.",
-            code: "server.notMember",
-          });
-        }
-
-        const [[row]] = await pool.query(
-          `
-                  SELECT semifinalists, finalists, winner, third_place_winner
-                  FROM playoffs_predictions
-                  WHERE event_id = ?
-                    AND user_id = ?
-                    AND active = 1
-                  LIMIT 1
-                  `,
-          [event.id, userId],
-        );
-
-        if (row) {
-          prediction = {
+          const prediction = {
             semifinalists: parseCsvPick(row.semifinalists),
             finalists: parseCsvPick(row.finalists),
             winner: row.winner || null,
             third_place_winner: row.third_place_winner || null,
           };
-        }
-      }
 
-      res.json({
-        event,
-        teams: withPickedTeams(
-          teams,
-          prediction?.semifinalists,
-          prediction?.finalists,
-          prediction?.winner ? [prediction.winner] : [],
-          prediction?.third_place_winner ? [prediction.third_place_winner] : [],
-        ),
-        limity: await getPhaseLimits(pool, event.guild_id, event.id, "playoffs"),
+          return {
+            prediction,
 
-        prediction,
-        lock: {
-          allowed: gate.allowed,
-          message: toWebMessage(gate.message, null),
-
-          // Termin zamkniecia typowania - patrz uwaga przy trasie Swiss.
-          deadline: gate.deadline ?? null,
+            // Kolejnosc jak przed scaleniem - ujemne id doklejanych nazw
+            // ida po kolei, a front uzywa ich jako klucza Reacta.
+            picked: [
+              prediction.semifinalists,
+              prediction.finalists,
+              prediction.winner ? [prediction.winner] : [],
+              prediction.third_place_winner
+                ? [prediction.third_place_winner]
+                : [],
+            ],
+          };
         },
       });
+
+      if (form.rejected) return sendRejection(res, form.rejected);
+
+      res.json(form.body);
     } catch (err) {
       console.error(err);
+
       res.status(500).json({
         error: "Nie udało się wczytać typów Playoffs.",
         code: "server.playoffsPicksLoadFailed",
@@ -133,7 +102,7 @@ export function registerPublicPickemPlayoffsRoutes(
     try {
       const { semifinalists, finalists, winner, third_place_winner } = req.body;
 
-      const prepared = await preparePhaseSave(req, guardDeps, {
+      const prepared = await preparePhaseSave(req, phaseDeps, {
         phase: "playoffs",
       });
 

@@ -15,7 +15,7 @@
 
 import { loadPhaseTeams, withPickedTeams } from "../lib/phaseFormTeams.js";
 import { phaseLockNotice } from "../lib/phaseLock.js";
-import { preparePhaseSave, sendRejection } from "../lib/phaseSaveGuard.js";
+import { preparePhaseSave, sendRejection } from "../lib/phaseForms.js";
 import { buildSwissPicks } from "../lib/swissPicks.js";
 
 export function registerPublicPickemSwissRoutes(
@@ -32,10 +32,12 @@ export function registerPublicPickemSwissRoutes(
     toWebMessage,
   },
 ) {
-  // Zaleznosci wspolnej sciezki do zapisu, zebrane raz. Sama sciezka stoi
-  // w server/lib/phaseSaveGuard.js - razem dla wszystkich czterech faz.
-  const guardDeps = {
+  // Zaleznosci wspolnych sciezek formularza fazy, zebrane raz. Same sciezki
+  // stoja w server/lib/phaseForms.js i kazda bierze z tego worka tylko to,
+  // czego potrzebuje.
+  const phaseDeps = {
     pool,
+    getPhaseLimits,
     isGuildMember,
     checkPickemGate,
     getOpenEventId,
@@ -48,7 +50,7 @@ export function registerPublicPickemSwissRoutes(
 
       const { three_zero, zero_three, advancing } = req.body;
 
-      const prepared = await preparePhaseSave(req, guardDeps, {
+      const prepared = await preparePhaseSave(req, phaseDeps, {
         phase: "swiss",
         stage,
       });
