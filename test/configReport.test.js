@@ -182,6 +182,49 @@ test("klucz map w server/.env, a nie w env bota, to BLAD z nazwa pliku", async (
   assert.match(wpis, /server\/\.env/);
 });
 
+/* ---------------- adresy serwisu ---------------- */
+
+test("brak adresow serwisu to ostrzezenia, nie bledy", async () => {
+  // Instalacja bez tych kluczy jest poprawna: bot dziala jak przed nimi,
+  // tylko po zakonczeniu turnieju nie wyjdzie podsumowanie dla graczy.
+  const raport = await buildConfigReport({
+    env: {},
+    guildConfigs: { "111111111111111111": cfgKompletny() },
+    resolveChannel: kanalyOk,
+    serverEnv: {},
+  });
+
+  for (const klucz of [/PUBLIC_API_URL/, /PUBLIC_SITE_URL/]) {
+    assert.ok(
+      raport.warn.some((w) => klucz.test(w)),
+      "brak ostrzezenia o kluczu " + klucz,
+    );
+
+    assert.ok(
+      !raport.fail.some((w) => klucz.test(w)),
+      "klucz zgloszony jako BLAD, a jego brak jest poprawny: " + klucz,
+    );
+  }
+});
+
+test("ustawione adresy serwisu wchodza na liste sprawdzonych", async () => {
+  const raport = await buildConfigReport({
+    env: {
+      PUBLIC_API_URL: "https://api.pickembot.pl",
+      PUBLIC_SITE_URL: "https://pickembot.pl",
+    },
+    guildConfigs: { "111111111111111111": cfgKompletny() },
+    resolveChannel: kanalyOk,
+    serverEnv: {},
+  });
+
+  assert.ok(raport.pass.some((w) => /PUBLIC_API_URL/.test(w)));
+  assert.ok(raport.pass.some((w) => /PUBLIC_SITE_URL/.test(w)));
+
+  // Raport NIGDY nie oddaje wartosci - tylko nazwy kluczy.
+  assert.ok(!JSON.stringify(raport).includes("pickembot.pl"));
+});
+
 test("brak klucza map w ogole to tylko ostrzezenie", async () => {
   // Instalacja bez klucza jest poprawna - mapy wpisuje sie wtedy recznie.
   const raport = await buildConfigReport({

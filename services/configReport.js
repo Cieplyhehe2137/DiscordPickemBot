@@ -190,6 +190,26 @@ async function buildConfigReport({
     );
   }
 
+  // Adresy serwisu. Oba klucza sa wspolne dla wszystkich serwerow, wiec ich
+  // miejsce jest w config/_base.env - i oba wylaczaja po cichu dokladnie to,
+  // o czym mowi ten raport: funkcje, ktorej brak widac dopiero w trakcie.
+  if (ustawione(env.PUBLIC_API_URL)) {
+    pass.push("PUBLIC_API_URL ustawione - podsumowanie turnieju ma skad wziac czolowke");
+  } else {
+    warn.push(
+      "Brak PUBLIC_API_URL - po /end_tournament nie wyjdzie podsumowanie dla graczy. " +
+        "Czolowka klasyfikacji idzie z API serwisu, zeby zgadzala sie ze strona przy remisie",
+    );
+  }
+
+  if (ustawione(env.PUBLIC_SITE_URL)) {
+    pass.push("PUBLIC_SITE_URL ustawione - wiadomosci bota linkuja na strone");
+  } else {
+    warn.push(
+      "Brak PUBLIC_SITE_URL - podsumowanie turnieju wyjdzie bez linkow do serwisu",
+    );
+  }
+
   // Godzina zamkniecia typowania meczu. Ta zmienna stala dotad TYLKO
   // w server/.env, wiec strona zamykala piec minut przed startem, a bot
   // dokladnie o starcie - dwie rozne godziny dla jednego meczu.
