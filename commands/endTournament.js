@@ -13,6 +13,10 @@ const exportClassification = require("../handlers/admin/exportClassification");
 
 const sendArchivePanel = require("../utils/sendArchivePanel");
 
+const {
+  maybePostTournamentRecap,
+} = require("../utils/maybePostTournamentRecap");
+
 const { withGuild } = require("../utils/guildContext");
 
 const { getOpenEventId } = require("../utils/getOpenEventId");
@@ -539,6 +543,39 @@ module.exports = {
         await sendArchivePanel(interaction.client, guildId).catch((err) =>
           logWarn("tournament", "Archive panel refresh failed", {
             guildId,
+
+            message: err?.message,
+          }),
+        );
+
+        // ==================================================
+        // PODSUMOWANIE DLA GRACZY
+        // ==================================================
+        //
+        // Panel archiwum wyżej idzie na kanał ORGANIZATORA. To tutaj jest
+        // jedyna wiadomość, którą z końca turnieju dostają gracze - i jedyne
+        // miejsce, w którym bot wysyła kogokolwiek na stronę.
+        //
+        // Stoi NA KOŃCU i nie przerywa niczego: wszystko, co liczy się
+        // naprawdę - punkty, archiwum, plik - jest już zapisane. Dlatego
+        // catch zamiast przerwania i dlatego potwierdzenie niżej nie wspomina
+        // o tej wiadomości ani słowem.
+
+        await maybePostTournamentRecap({
+          client: interaction.client,
+          pool,
+          guildId,
+          eventId,
+          eventName: event.name,
+          eventSlug: event.slug,
+
+          // `cfg` odczytane raz na górze tej komendy - drugi odczyt dałby to
+          // samo, bo registry trzyma configi w pamięci po pierwszym wczytaniu.
+          config: cfg || {},
+        }).catch((err) =>
+          logWarn("tournament", "Tournament recap post failed", {
+            guildId,
+            eventId,
 
             message: err?.message,
           }),
