@@ -20,7 +20,8 @@ export function registerPublicPickemPlayoffsRoutes(
     getOpenEventId,
     getPhaseLimits,
     isGuildMember,
-    loadActiveTeams,
+    loadEventTeamNames,
+    loadEventTeamRows,
     parseCsvPick,
     pool,
     sprawdzTyp,
@@ -37,6 +38,10 @@ export function registerPublicPickemPlayoffsRoutes(
     checkPickemGate,
     getOpenEventId,
     toWebMessage,
+
+    // Dla readPhaseForm: lista druzyn do formularza. Roster TURNIEJU,
+    // z zapasem w rosterze serwera - patrz utils/loadEventTeams.js.
+    loadEventTeamRows,
   };
 
   app.get("/api/public/events/:slug/playoffs-pickem", async (req, res) => {
@@ -193,7 +198,10 @@ export function registerPublicPickemPlayoffsRoutes(
       // AKTYWNE DRUŻYNY
       // ============================================
 
-      const teamNames = await loadActiveTeams(pool, event.guild_id);
+      const teamNames = await loadEventTeamNames(pool, {
+        eventId: currentEventId,
+        guildId: event.guild_id,
+      });
 
       const allowed = new Set(teamNames);
 

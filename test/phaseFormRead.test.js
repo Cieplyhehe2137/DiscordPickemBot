@@ -21,6 +21,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+const {
+  loadEventTeamRows,
+} = require("../utils/loadEventTeams");
+
 const EVENT_ID = 42;
 const GILDIA = "1221762685595553834";
 
@@ -191,7 +195,7 @@ async function wczytaj(faza, { nadpisz = {}, sesja = SESJA, pool } = {}) {
     },
 
     getOpenEventId: async () => EVENT_ID,
-    loadActiveTeams: async () => ROSTER,
+    loadEventTeamRows,
     sprawdzTyp: () => ({ ok: true }),
 
     toWebMessage: (message, domyslne) => message ?? domyslne,
@@ -351,7 +355,7 @@ test("Swiss odpowiada INACZEJ i tak ma zostac", async () => {
     checkPickemGate: async () => ({ allowed: false, message: null }),
     getPhaseLimits: async () => ({}),
     getOpenEventId: async () => EVENT_ID,
-    loadActiveTeams: async () => ROSTER,
+    loadEventTeamRows,
     sprawdzTyp: () => ({ ok: true }),
     toWebMessage: (m, d) => m ?? d,
     parseCsvPick: (v) => String(v || "").split(",").filter(Boolean),

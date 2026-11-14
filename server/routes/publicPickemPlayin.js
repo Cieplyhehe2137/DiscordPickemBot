@@ -19,7 +19,8 @@ export function registerPublicPickemPlayinRoutes(
     getOpenEventId,
     getPhaseLimits,
     isGuildMember,
-    loadActiveTeams,
+    loadEventTeamNames,
+    loadEventTeamRows,
     parseCsvPick,
     pool,
     sprawdzTyp,
@@ -36,6 +37,10 @@ export function registerPublicPickemPlayinRoutes(
     checkPickemGate,
     getOpenEventId,
     toWebMessage,
+
+    // Dla readPhaseForm: lista druzyn do formularza. Roster TURNIEJU,
+    // z zapasem w rosterze serwera - patrz utils/loadEventTeams.js.
+    loadEventTeamRows,
   };
 
   app.get("/api/public/events/:slug/playin-pickem", async (req, res) => {
@@ -119,7 +124,10 @@ export function registerPublicPickemPlayinRoutes(
       // AKTYWNE DRUŻYNY
       // ============================================
 
-      const validTeamNames = await loadActiveTeams(pool, event.guild_id);
+      const validTeamNames = await loadEventTeamNames(pool, {
+        eventId: currentEventId,
+        guildId: event.guild_id,
+      });
 
       const validTeams = new Set(validTeamNames);
 

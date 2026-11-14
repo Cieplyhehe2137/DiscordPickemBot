@@ -25,7 +25,8 @@ export function registerPublicPickemSwissRoutes(
     getOpenEventId,
     getPhaseLimits,
     isGuildMember,
-    loadActiveTeams,
+    loadEventTeamNames,
+    loadEventTeamRows,
     parseCsvPick,
     pool,
     sprawdzTyp,
@@ -96,7 +97,10 @@ export function registerPublicPickemSwissRoutes(
        * jeszcze raz sprawdzamy aktywne drużyny
        * tuż przed zapisem.
        */
-      const validTeams = await loadActiveTeams(pool, event.guild_id);
+      const validTeams = await loadEventTeamNames(pool, {
+        eventId: currentEventId,
+        guildId: event.guild_id,
+      });
 
       const invalidTeams = allPicked.filter((team) => !validTeams.includes(team));
 
@@ -260,6 +264,7 @@ export function registerPublicPickemSwissRoutes(
           eventId: event.id,
           guildId: event.guild_id,
           allowed: gate.allowed,
+          loadEventTeamRows,
         }),
         prediction?.three_zero,
         prediction?.zero_three,

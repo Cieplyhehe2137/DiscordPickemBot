@@ -226,7 +226,7 @@ async function trasaFazy(faza, nadpisz = {}) {
       return { ok: true };
     },
 
-    loadActiveTeams: async () => AKTYWNE,
+    loadEventTeamNames: async () => AKTYWNE,
 
     toWebMessage: (message, domyslne) => message ?? domyslne,
 
@@ -354,7 +354,7 @@ for (const faza of FAZY) {
 
   test(`${faza.nazwa}: druzyna poza rosterem to 400, nie zapis`, async () => {
     const { res, pool } = await wyslij(faza, {
-      loadActiveTeams: async () => [],
+      loadEventTeamNames: async () => [],
     });
 
     assert.equal(res.stan.kod, 400);

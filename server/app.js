@@ -125,7 +125,10 @@ const {
 } = require("../utils/playerStats");
 const { getOpenEventId } = require("../utils/getOpenEventId");
 const exportClassification = require("../handlers/admin/exportClassification");
-const { loadActiveTeams } = require("../utils/loadActiveTeams");
+const {
+  loadEventTeamNames,
+  loadEventTeamRows,
+} = require("../utils/loadEventTeams");
 const { getCurrentSwissResults } = require("../utils/swissRepository");
 const { getCurrentPlayoffs } = require("../utils/playoffsRepository");
 const {
@@ -651,7 +654,8 @@ registerMatchOpsRoutes(app, {
   isMatchStarted,
   isSeriesExact,
   isWinnerCorrect,
-  loadActiveTeams,
+  loadEventTeamNames,
+  loadEventTeamRows,
   logError,
   logInfo,
   logWarn,
