@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node index.js",
     "deploy-commands": "node registerCommands.js",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "node server/node_modules/eslint/bin/eslint.js --no-config-lookup --config eslint.bot.config.mjs ."
   },
   "dependencies": {
     "discord.js": "^14.26.4",

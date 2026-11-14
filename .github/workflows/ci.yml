@@ -42,9 +42,9 @@ jobs:
         with:
           node-version: "24"
 
-      # Bot i serwer nie mają ESLinta - ta warstwa nie jest objęta niczym
-      # poza uruchomieniem. Parsowanie każdego pliku łapie przynajmniej
-      # literówki, które inaczej wychodzą dopiero przy restarcie procesu.
+      # Parsowanie każdego pliku łapie literówki, które inaczej wychodzą
+      # dopiero przy restarcie procesu. Jest to kontrola najtańsza, ale i
+      # najsłabsza: `node --check` widzi wyłącznie składnię.
       - name: node --check na każdym pliku
         run: |
           find . \( -name '*.js' -o -name '*.mjs' \) \
@@ -52,6 +52,24 @@ jobs:
             -not -path './server/node_modules/*' \
             -not -path './web/*' \
             -print0 | xargs -0 -n1 node --check
+
+      # ESLint bota potrzebuje binarki z server/node_modules - korzeń nie ma
+      # devDependencies i nie dokładamy ich dla jednej reguły.
+      - name: Instalacja serwera (dla ESLinta)
+        run: npm ci
+        working-directory: server
+
+      # no-undef na kodzie bota. Składnia wyżej tej klasy błędu NIE WIDZI:
+      # zmienna poza zasięgiem parsuje się poprawnie i wywala się dopiero
+      # przy wejściu w tę ścieżkę. Przy pierwszym uruchomieniu ta reguła
+      # znalazła jedenaście takich miejsc, w tym przycisk "potwierdź
+      # zakończenie typowania", który nie działał dla nikogo - bo handler
+      # wywracał się na pierwszym logu. Żaden test tego nie łapie: 118
+      # handlerów bota nie ma testów, każdy wymagałby atrapy interakcji
+      # Discorda.
+      - name: Nieznane nazwy w bocie (no-undef)
+        run: npm run lint
+        working-directory: .
 
   trasy:
     name: Tablica tras serwera
