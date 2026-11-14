@@ -7,7 +7,7 @@ const {
   setDraft,
   clearDraft,
 } = require("../../utils/predictionDraftCache");
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { runInTransaction } = require("../../utils/runInTransaction");
@@ -155,7 +155,11 @@ module.exports = async (interaction) => {
         return interaction.editReply("⚠️ Niepoprawne 3. miejsce.");
 
       // walidacja drużyn
-      const teams = await loadActiveTeams(pool, guildId);
+      const teams = await loadEventTeamNames(pool, {
+        eventId,
+        guildId,
+        order: "name",
+      });
       const all = [
         ...mSemi.merged,
         ...mFinal.merged,

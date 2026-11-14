@@ -20,7 +20,7 @@ const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 // Kolejnosc alfabetyczna - tak ten dropdown dzialal, zanim funkcja
 // przestala byc wlasna kopia. Playoffs uzywa wariantu po sort_order.
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 
 // ======================================================
 // TEAMS
@@ -161,7 +161,11 @@ module.exports = async (interaction) => {
       // TEAMS
       // ================================================
 
-      const teams = await loadActiveTeams(pool, guildId);
+      const teams = await loadEventTeamNames(pool, {
+        eventId,
+        guildId,
+        order: "name",
+      });
 
       if (!teams.length) {
         return interaction.editReply({

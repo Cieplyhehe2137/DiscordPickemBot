@@ -6,7 +6,7 @@ const {
   setDraft,
   clearDraft,
 } = require("../../utils/predictionDraftCache");
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { getCurrentSwissResults } = require("../../utils/swissRepository");
@@ -98,9 +98,17 @@ module.exports = async function submitSwissResultsDropdown(interaction) {
   }
 
   await withGuild(interaction, async ({ pool }) => {
-    const teams = await loadActiveTeams(pool, guildId);
-
+    // Odczyt stoi WYZEJ niz jego kontrola (!eventId ponizej), bo lista
+    // druzyn potrzebuje identyfikatora turnieju. Przeniesienie kontroli
+    // razem z nim zmienialoby kolejnosc komunikatow: pusty roster ma
+    // nadal odpowiadac "brak druzyn", a nie "brak eventu".
     const eventId = await getOpenEventId(pool, guildId);
+
+    const teams = await loadEventTeamNames(pool, {
+      eventId,
+      guildId,
+      order: "name",
+    });
 
     if (!eventId) {
       return interaction.editReply({

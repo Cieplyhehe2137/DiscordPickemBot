@@ -13,7 +13,7 @@ const {
   clearDraft,
 } = require("../../utils/predictionDraftCache");
 
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 
 const {
@@ -273,7 +273,11 @@ module.exports = async (interaction) => {
     // ACTIVE TEAMS
     // ==================================================
 
-    const teamNames = await loadActiveTeams(pool, guildId);
+    const teamNames = await loadEventTeamNames(pool, {
+      eventId: currentEventId,
+      guildId,
+      order: "name",
+    });
     const allowed = new Set(teamNames);
 
     const invalid = picked.filter((team) => !allowed.has(team));
