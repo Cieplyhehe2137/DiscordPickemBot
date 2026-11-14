@@ -47,7 +47,8 @@ export function withPickedTeams(teams, ...nameLists) {
 /**
  * Drużyny do formularza fazy.
  *
- * OTWARTA faza bierze roster serwera i tak ma zostać: zanim powstaną mecze,
+ * OTWARTA faza bierze roster TURNIEJU, a gdy turniej swojego nie ma - roster
+ * serwera, tak jak przed wprowadzeniem `event_teams`. Zanim powstaną mecze,
  * nie ma innego źródła, z którego dałoby się ułożyć listę wyboru.
  *
  * ZAMKNIĘTA faza jest w odwrotnej sytuacji. Mecze już są, a roster zdążył
@@ -65,20 +66,20 @@ export function withPickedTeams(teams, ...nameLists) {
  * fazy i tak pokazuje się niżej, osobną sekcją; wybieraczka z nazwami
  * z innego turnieju byłaby informacją nieprawdziwą, a nie brakiem.
  */
-export async function loadPhaseTeams({ pool, eventId, guildId, allowed }) {
+export async function loadPhaseTeams({
+  pool,
+  eventId,
+  guildId,
+  allowed,
+  loadEventTeamRows,
+}) {
   if (allowed) {
-    const [wiersze] = await pool.query(
-      `
-      SELECT id, name
-      FROM teams
-      WHERE guild_id = ?
-        AND active = 1
-      ORDER BY name ASC
-      `,
-      [guildId],
-    );
-
-    return wiersze;
+    // Roster TURNIEJU, z zapasem w rosterze serwera - patrz
+    // utils/loadEventTeams.js. Stalo tu wlasne zapytanie o `active = 1`,
+    // czyli piata kopia tego samego SELECT-a; dopoki turniej nie ma wlasnej
+    // listy druzyn, ta funkcja oddaje dokladnie to, co oddawalo tamto
+    // zapytanie.
+    return loadEventTeamRows(pool, { eventId, guildId, order: "name" });
   }
 
   const [wiersze] = await pool.query(

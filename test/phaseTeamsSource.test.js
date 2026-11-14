@@ -19,6 +19,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+const {
+  loadEventTeamRows,
+} = require("../utils/loadEventTeams");
+
 const MODUL = "../server/routes/publicPickem.js";
 
 const GILDIA = "1221762685595553834";
@@ -115,7 +119,7 @@ async function wywolaj(trasa, { allowed, params = {} }) {
     toWebMessage: (message, domyslny) => message ?? domyslny,
     isGuildMember: () => true,
     parseCsvPick: (v) => String(v || "").split(",").filter(Boolean),
-    loadActiveTeams: async () => ROSTER,
+    loadEventTeamRows,
   });
 
   const handler = app.trasy.get(trasa);
@@ -230,7 +234,7 @@ test("identyfikatory druzyn sa unikalne, gdy dochodza nazwy z zapisanego typu", 
     toWebMessage: (m, d) => m ?? d,
     isGuildMember: () => true,
     parseCsvPick: (v) => String(v || "").split(",").filter(Boolean),
-    loadActiveTeams: async () => ROSTER,
+    loadEventTeamRows,
   });
 
   const res = fakeRes();

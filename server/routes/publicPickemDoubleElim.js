@@ -20,7 +20,8 @@ export function registerPublicPickemDoubleElimRoutes(
     getOpenEventId,
     getPhaseLimits,
     isGuildMember,
-    loadActiveTeams,
+    loadEventTeamNames,
+    loadEventTeamRows,
     parseCsvPick,
     pool,
     sprawdzTyp,
@@ -37,6 +38,10 @@ export function registerPublicPickemDoubleElimRoutes(
     checkPickemGate,
     getOpenEventId,
     toWebMessage,
+
+    // Dla readPhaseForm: lista druzyn do formularza. Roster TURNIEJU,
+    // z zapasem w rosterze serwera - patrz utils/loadEventTeams.js.
+    loadEventTeamRows,
   };
 
   app.get("/api/public/events/:slug/doubleelim-pickem", async (req, res) => {
@@ -153,7 +158,10 @@ export function registerPublicPickemDoubleElimRoutes(
       // TYLKO AKTYWNE DRUŻYNY
       // ============================================
 
-      const teamNames = await loadActiveTeams(pool, event.guild_id);
+      const teamNames = await loadEventTeamNames(pool, {
+        eventId: currentEventId,
+        guildId: event.guild_id,
+      });
 
       const validTeams = new Set(teamNames);
 

@@ -21,7 +21,7 @@ export function registerPhaseResultRoutes(
     getPhaseLimits,
     guildIdFromEventSlug,
     io,
-    loadActiveTeams,
+    loadEventTeamNames,
     pool,
     requireGuildAdmin,
     runInTransaction,
@@ -189,7 +189,10 @@ export function registerPhaseResultRoutes(
           return res.status(400).json({ error: walidacjaWyniku.blad });
         }
 
-        const teams = await loadActiveTeams(pool, guildId);
+        const teams = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
         const validTeams = new Set(teams.map((t) => t.toLowerCase()));
         const invalid = all.filter((t) => !validTeams.has(t.toLowerCase()));
 
@@ -341,7 +344,10 @@ export function registerPhaseResultRoutes(
           return res.status(400).json({ error: walidacjaWyniku.blad });
         }
 
-        const teams = await loadActiveTeams(pool, guildId);
+        const teams = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
         const invalid = all.filter((t) => !teams.includes(t));
 
         if (invalid.length) {
@@ -500,7 +506,10 @@ export function registerPhaseResultRoutes(
           return res.status(400).json({ error: walidacjaWyniku.blad });
         }
 
-        const teams = await loadActiveTeams(pool, guildId);
+        const teams = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
         const invalid = all.filter((t) => !teams.includes(t));
 
         if (invalid.length) {
@@ -616,7 +625,10 @@ export function registerPhaseResultRoutes(
           return res.status(400).json({ error: walidacjaWyniku.blad });
         }
 
-        const activeTeams = await loadActiveTeams(pool, guildId);
+        const activeTeams = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
         const invalid = teams.filter((t) => !activeTeams.includes(t));
 
         if (invalid.length) {

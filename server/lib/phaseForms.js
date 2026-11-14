@@ -212,7 +212,14 @@ export async function preparePhaseSave(
  */
 export async function readPhaseForm(
   req,
-  { pool, isGuildMember, checkPickemGate, getPhaseLimits, toWebMessage },
+  {
+    pool,
+    isGuildMember,
+    checkPickemGate,
+    getPhaseLimits,
+    toWebMessage,
+    loadEventTeamRows,
+  },
   { phase, readPrediction },
 ) {
   const spec = PHASES[phase];
@@ -258,6 +265,7 @@ export async function readPhaseForm(
     eventId: event.id,
     guildId: event.guild_id,
     allowed: gate.allowed,
+    loadEventTeamRows,
   });
 
   let prediction = null;
