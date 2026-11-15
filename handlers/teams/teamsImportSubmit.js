@@ -3,6 +3,18 @@ const { PermissionFlagsBits } = require("discord.js");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const teamsStore = require("../../utils/teamsStore");
 
+// Wiadomość Discorda ma limit 2000 znaków, a słownik potrafi mieć ich
+// trzydzieści - wyliczenie wszystkiego zjadłoby całą odpowiedź.
+const LIMIT_POZYCJI = 12;
+
+function lista(nazwy) {
+  if (nazwy.length <= LIMIT_POZYCJI) return nazwy.join(", ");
+
+  const reszta = nazwy.length - LIMIT_POZYCJI;
+
+  return `${nazwy.slice(0, LIMIT_POZYCJI).join(", ")} i ${reszta} więcej`;
+}
+
 module.exports = async function teamsImportSubmit(interaction) {
   try {
     // tylko serwer
@@ -35,14 +47,32 @@ module.exports = async function teamsImportSubmit(interaction) {
 
     await interaction.deferReply({ ephemeral: true });
 
-    const result = await teamsStore.importTeamsFromJsonText(guildId, jsonText);
-    // result może być liczbą albo obiektem – zabezpieczamy się
-    const imported =
-      typeof result === "number" ? result : (result?.imported ?? 0);
+    const wynik = await teamsStore.importTeamsFromJsonText(guildId, jsonText);
 
-    return interaction.editReply({
-      content: `✅ Zaimportowano **${imported}** drużyn do bazy (tabela \`teams\`).`,
-    });
+    const linie = [
+      `✅ Słownik drużyn ustawiony na **${wynik.imported}** nazw ` +
+        `(zachowane: ${wynik.kept}, dodane: ${wynik.added}, ` +
+        `usunięte: ${wynik.removed.length}).`,
+    ];
+
+    if (wynik.removed.length) {
+      linie.push(`➖ Wypadły ze słownika: ${lista(wynik.removed)}`);
+    }
+
+    // CICHE ZABRANIE ROSTERA BYŁO TU GŁÓWNYM BŁĘDEM, więc ta linia jest
+    // całym sensem zmiany: drużyna usunięta ze słownika wypada też
+    // z rosterów turniejów, w których grała (`event_teams` ma CASCADE),
+    // a taki turniej wraca na roster serwera i nikt o tym nie wiedział.
+    if (wynik.rosterRowsRemoved) {
+      linie.push(
+        `⚠️ Razem z nimi zniknęło **${wynik.rosterRowsRemoved}** wskazań ` +
+          `drużyn w rosterach turniejów: ${lista(wynik.rosterEventsAffected)}. ` +
+          `Te turnieje wracają do rostera serwera - sprawdź je w panelu, ` +
+          `sekcja Roster.`,
+      );
+    }
+
+    return interaction.editReply({ content: linie.join("\n") });
   } catch (err) {
     logError("teams", "teamsImportSubmit failed", {
       guildId: interaction.guildId,
