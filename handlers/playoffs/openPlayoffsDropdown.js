@@ -20,7 +20,7 @@ const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 // Kolejnosc z sort_order - tak ten dropdown dzialal, zanim funkcja
 // przestala byc wlasna kopia. Double Elim uzywa wariantu alfabetycznego.
-const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { odmien, druzyny } = require("../../utils/odmiana");
 const { setMvpSession } = require("../../utils/mvpFlowSession");
 
@@ -219,7 +219,11 @@ module.exports = async function openPlayoffsDropdown(interaction) {
       // TEAMS
       // ================================================
 
-      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
+      const teams = await loadEventTeamNames(pool, {
+        eventId,
+        guildId,
+        order: "sort_order",
+      });
 
       if (!teams.length) {
         return interaction.editReply({

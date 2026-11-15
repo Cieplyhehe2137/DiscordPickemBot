@@ -8,7 +8,7 @@ const {
   setDraft,
   clearDraft,
 } = require("../../utils/predictionDraftCache");
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { runInTransaction } = require("../../utils/runInTransaction");
 
@@ -106,7 +106,17 @@ module.exports = async (interaction) => {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const teams = await loadActiveTeams(pool, guildId);
+      // Odczyt stoi WYZEJ niz jego kontrola (!eventId ponizej), bo lista
+      // druzyn potrzebuje identyfikatora turnieju. Przeniesienie kontroli
+      // razem z nim zmienialoby kolejnosc komunikatow: pusty roster ma
+      // nadal odpowiadac "brak druzyn", a nie "brak eventu".
+      const eventId = await getOpenEventId(pool, guildId);
+
+      const teams = await loadEventTeamNames(pool, {
+        eventId,
+        guildId,
+        order: "name",
+      });
       const isKnown = (t) => teams.includes(t);
 
       const {
@@ -139,8 +149,6 @@ module.exports = async (interaction) => {
           `⚠️ Nieznane lub nieaktywne drużyny: ${invalid.join(", ")}`,
         );
       }
-
-      const eventId = await getOpenEventId(pool, guildId);
 
       if (!eventId) {
         return interaction.editReply("❌ Nie znaleziono aktywnego eventu.");

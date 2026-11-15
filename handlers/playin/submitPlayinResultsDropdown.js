@@ -15,7 +15,7 @@ const {
   setDraft,
   clearDraft,
 } = require("../../utils/predictionDraftCache");
-const { loadActiveTeams } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { druzyny } = require("../../utils/odmiana");
@@ -87,7 +87,11 @@ module.exports = async (interaction) => {
 
         setCache(cacheKey, { teams: merged });
 
-        const allTeams = await loadActiveTeams(pool, guildId);
+        const allTeams = await loadEventTeamNames(pool, {
+          eventId,
+          guildId,
+          order: "name",
+        });
 
         const left = limity.teams - merged.length;
 
@@ -172,7 +176,19 @@ module.exports = async (interaction) => {
       }
 
       await withGuild(interaction, async ({ pool }) => {
-        const allowed = new Set(await loadActiveTeams(pool, guildId));
+        // Odczyt stoi WYZEJ niz jego kontrola (!eventId ponizej), bo lista
+        // druzyn potrzebuje identyfikatora turnieju. Przeniesienie kontroli
+        // razem z nim zmienialoby kolejnosc komunikatow: pusty roster ma
+        // nadal odpowiadac "brak druzyn", a nie "brak eventu".
+        const eventId = await getOpenEventId(pool, guildId);
+
+        const allowed = new Set(
+          await loadEventTeamNames(pool, {
+            eventId,
+            guildId,
+            order: "name",
+          }),
+        );
         const invalid = data.teams.filter((t) => !allowed.has(t));
 
         if (invalid.length) {
@@ -180,8 +196,6 @@ module.exports = async (interaction) => {
             `❌ Nieznane lub nieaktywne drużyny: ${invalid.join(", ")}`,
           );
         }
-
-        const eventId = await getOpenEventId(pool, guildId);
 
         if (!eventId) {
           return interaction.editReply("❌ Nie znaleziono aktywnego eventu.");

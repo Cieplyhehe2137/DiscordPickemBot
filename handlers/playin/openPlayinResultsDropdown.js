@@ -8,7 +8,7 @@ const {
 
 const { withGuild } = require("../../utils/guildContext");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
-const { loadActiveTeamsBySortOrder } = require("../../utils/loadActiveTeams");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { getOpenEventId } = require("../../utils/getOpenEventId");
 const { getPhaseLimits } = require("../../utils/eventPickemConfig");
 const { druzyny } = require("../../utils/odmiana");
@@ -29,7 +29,17 @@ module.exports = async (interaction) => {
     }
 
     await withGuild(interaction, async ({ pool, guildId }) => {
-      const teams = await loadActiveTeamsBySortOrder(pool, guildId);
+      // Odczyt stoi WYZEJ niz jego kontrola (!eventId ponizej), bo lista
+      // druzyn potrzebuje identyfikatora turnieju. Przeniesienie kontroli
+      // razem z nim zmienialoby kolejnosc komunikatow: pusty roster ma
+      // nadal odpowiadac "brak druzyn", a nie "brak eventu".
+      const eventId = await getOpenEventId(pool, guildId);
+
+      const teams = await loadEventTeamNames(pool, {
+        eventId,
+        guildId,
+        order: "sort_order",
+      });
 
       if (teams.length === 0) {
         return interaction.editReply({
@@ -46,15 +56,13 @@ module.exports = async (interaction) => {
         });
       }
 
-      // Ile drużyn awansuje - z konfiguracji tego eventu.
-      const eventId = await getOpenEventId(pool, guildId);
-
       if (!eventId) {
         return interaction.editReply({
           content: "❌ Nie znaleziono aktywnego eventu.",
         });
       }
 
+      // Ile drużyn awansuje - z konfiguracji tego eventu.
       const limity = await getPhaseLimits(pool, guildId, eventId, "playin");
 
       const embed = new EmbedBuilder()
