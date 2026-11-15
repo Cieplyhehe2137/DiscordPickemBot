@@ -856,6 +856,36 @@ const de = {
     "Ein Turnier-Roster kann höchstens {limit} Teams enthalten.",
   "server.rosterForeignTeams":
     "Diese Teams gehören nicht zu diesem Server: {teams}.",
+  "server.teamsNotInEvent":
+    "Diese Teams gehören nicht zu diesem Turnier: {teams}.",
+  "server.badBestOf": "Unbekanntes Serienformat.",
+  "server.badMapList": "Die Kartenliste muss ein Array sein.",
+  "server.tooManyMaps":
+    "Eine BO{bestOf}-Serie hat höchstens {max} Karten, angegeben wurden {given}.",
+  "server.badMapName":
+    "Karte {no}: „{name}” sieht nicht wie ein Kartenname aus.",
+  "server.duplicateMap": "Dieselbe Karte wurde zweimal angegeben: {maps}.",
+  "server.badStartTime": "Ungültige Startzeit.",
+  "server.startTimeNeedsZone":
+    "Die Startzeit muss eine Zeitzone enthalten, z. B. " +
+    "2026-10-05T14:00:00.000Z. Eine reine Uhrzeit sagt nicht, ob es " +
+    "Ortszeit oder UTC ist.",
+  "server.badMatchPhase":
+    "Unbekannte Spielphase: {phase}. Ein Spiel in dieser Phase würde in " +
+    "keinem Tipp-Panel erscheinen. Erlaubt: {allowedText}.",
+  "server.nothingToChange":
+    "Nichts zu ändern — alle Spiele dieser Phase haben bereits dieses Format.",
+  "server.nothingToChangeOrSettled":
+    "Nichts zu ändern — alle Spiele dieser Phase haben bereits dieses Format " +
+    "oder sind schon abgerechnet.",
+  "server.bestOfChangeFailed":
+    "Das Spielformat konnte nicht geändert werden.",
+  "server.mapsSaveFailed": "Die Karten konnten nicht gespeichert werden.",
+  "server.outcomeFailed":
+    "Das Turnierergebnis konnte nicht geladen werden.",
+  "server.rivalsFailed": "Die Rivalen konnten nicht geladen werden.",
+  "server.swissPicksFailed":
+    "Die Phasen-Tipps konnten nicht geladen werden.",
   "server.eventTeamsTableMissing":
     "Die Tabelle event_teams existiert nicht — führe die Migration 0014_event_teams.sql aus.",
   "server.matchNotFound": "Spiel nicht gefunden.",
@@ -951,7 +981,6 @@ const de = {
   "server.lock.matchesClosed": "Spieltipps sind derzeit geschlossen.",
   "server.lock.matchLocked": "Das Spiel ist gesperrt.",
   "server.lock.phaseClosed": "Die Tipps für diese Phase sind geschlossen.",
-  "server.lock.swissClosed": "Die Swiss-Tipps sind geschlossen.",
   "server.lock.playinClosed": "Die Play-In-Tipps sind geschlossen.",
   "server.lock.playoffsClosed": "Die Playoffs-Tipps sind geschlossen.",
   "server.lock.deClosed": "Die Double-Elimination-Tipps sind geschlossen.",
@@ -963,12 +992,9 @@ const de = {
   "server.frozen.hasPicks": "es gibt bereits Tipps oder ein Ergebnis",
   "server.archiveNotReady": "Das Archiv entsteht nach dem Turnierende. Dieses läuft noch.",
   "server.noProvider": "Der Ergebnisanbieter ist nicht konfiguriert (RESULT_PROVIDER in server/.env)",
-  "server.noActiveTeams": "Dieser Server hat kein einziges aktives Team. Lege sie zuerst auf der Seite Teams an (dort gibt es einen JSON-Import).",
-  "server.teamsMustExist": "Die Teams müssen existieren und aktiv sein. Lege die fehlenden auf der Seite Teams an oder korrigiere die Namen in der Liste.",
   "server.phasesFrozen": "Diese Phasen lassen sich nicht ändern: {phases}",
   "server.noChannel": "Es ist unklar, in welchem Kanal das Panel veröffentlicht werden soll. {hint}",
   "server.archivedScoring": "Die Map-Punkteregeln haben sich nach dem Ende geändert - eine Neuberechnung würde eine abgeschlossene Rangliste überschreiben. Wenn du das wirklich willst, hebe zuerst die Archivierung auf.",
-  "server.notStarted": "nicht begonnen",
 
   // --- Klasyfikacja wszech czasow ------------------------------------------
   "allTime.nav": "Ewige Tabelle",

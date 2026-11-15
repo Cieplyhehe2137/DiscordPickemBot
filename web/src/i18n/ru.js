@@ -900,6 +900,32 @@ const ru = {
     "В ростере турнира может быть не больше {limit} команд.",
   "server.rosterForeignTeams":
     "Эти команды не принадлежат этому серверу: {teams}.",
+  "server.teamsNotInEvent":
+    "Этих команд нет в списке команд этого турнира: {teams}.",
+  "server.badBestOf": "Неизвестный формат серии.",
+  "server.badMapList": "Список карт должен быть массивом.",
+  "server.tooManyMaps":
+    "В серии BO{bestOf} не больше {max} карт, указано {given}.",
+  "server.badMapName": "Карта {no}: «{name}» не похожа на название карты.",
+  "server.duplicateMap": "Одна и та же карта указана дважды: {maps}.",
+  "server.badStartTime": "Неверное время начала.",
+  "server.startTimeNeedsZone":
+    "Время начала должно содержать часовой пояс, например " +
+    "2026-10-05T14:00:00.000Z. Время без пояса не говорит, местное это " +
+    "или UTC.",
+  "server.badMatchPhase":
+    "Неизвестная фаза матча: {phase}. Матч в такой фазе не появился бы ни " +
+    "в одной панели прогнозов. Допустимо: {allowedText}.",
+  "server.nothingToChange":
+    "Нечего менять — все матчи этой фазы уже в этом формате.",
+  "server.nothingToChangeOrSettled":
+    "Нечего менять — все матчи этой фазы уже в этом формате или уже " +
+    "рассчитаны.",
+  "server.bestOfChangeFailed": "Не удалось изменить формат матчей.",
+  "server.mapsSaveFailed": "Не удалось сохранить карты.",
+  "server.outcomeFailed": "Не удалось загрузить результат турнира.",
+  "server.rivalsFailed": "Не удалось загрузить соперников.",
+  "server.swissPicksFailed": "Не удалось загрузить прогнозы на фазы.",
   "server.eventTeamsTableMissing":
     "Таблицы event_teams нет — выполните миграцию 0014_event_teams.sql.",
   "server.matchNotFound": "Матч не найден.",
@@ -995,7 +1021,6 @@ const ru = {
   "server.lock.matchesClosed": "Прогнозы на матчи сейчас закрыты.",
   "server.lock.matchLocked": "Матч заблокирован.",
   "server.lock.phaseClosed": "Прогнозы на эту стадию закрыты.",
-  "server.lock.swissClosed": "Прогнозы Swiss закрыты.",
   "server.lock.playinClosed": "Прогнозы Play-In закрыты.",
   "server.lock.playoffsClosed": "Прогнозы Playoffs закрыты.",
   "server.lock.deClosed": "Прогнозы Double Elimination закрыты.",
@@ -1007,12 +1032,9 @@ const ru = {
   "server.frozen.hasPicks": "уже есть прогнозы или результат",
   "server.archiveNotReady": "Архив создаётся после окончания турнира. Этот ещё идёт.",
   "server.noProvider": "Поставщик результатов не настроен (RESULT_PROVIDER в server/.env)",
-  "server.noActiveTeams": "На этом сервере нет ни одной активной команды. Сначала добавь их на странице Команды (там есть импорт из JSON).",
-  "server.teamsMustExist": "Команды должны существовать и быть активными. Добавь недостающие на странице Команды или поправь названия в списке.",
   "server.phasesFrozen": "Эти стадии нельзя изменить: {phases}",
   "server.noChannel": "Непонятно, в каком канале опубликовать панель. {hint}",
   "server.archivedScoring": "Правила начисления за карты изменились после его окончания — пересчёт переписал бы закрытый рейтинг. Если действительно этого хочешь, сначала отмени архивацию.",
-  "server.notStarted": "не начат",
 
   // --- Klasyfikacja wszech czasow ------------------------------------------
   "allTime.nav": "Общий зачёт",

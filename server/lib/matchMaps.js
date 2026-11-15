@@ -206,6 +206,10 @@ export function buildMatchMaps({
       ok: false,
       reason: `Seria BO${bestOf} ma najwyzej ${ile} map, podano ${names.length}.`,
       code: "server.tooManyMaps",
+      // Treść klamer składa się po stronie strony, w jej języku - dlatego
+      // liczby idą osobnym polem, a nie tylko wklejone w `reason`.
+      // Trasa dokłada `vars` do odpowiedzi; patrz web/src/lib/apiMessages.js.
+      vars: { bestOf: String(bestOf), max: ile, given: names.length },
     };
   }
 
@@ -227,6 +231,7 @@ export function buildMatchMaps({
         ok: false,
         reason: `Mapa ${i + 1}: "${String(surowa).slice(0, 40)}" nie wyglada na nazwe mapy.`,
         code: "server.badMapName",
+        vars: { no: i + 1, name: String(surowa).slice(0, 40) },
       };
     }
 
@@ -258,6 +263,7 @@ export function buildMatchMaps({
       ok: false,
       reason: `Ta sama mapa podana dwa razy: ${[...new Set(powtorzone)].join(", ")}.`,
       code: "server.duplicateMap",
+      vars: { maps: [...new Set(powtorzone)].join(", ") },
     };
   }
 

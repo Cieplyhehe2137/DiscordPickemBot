@@ -855,6 +855,31 @@ const en = {
   "server.rosterTooBig": "A tournament roster can hold at most {limit} teams.",
   "server.rosterForeignTeams":
     "These teams do not belong to this server: {teams}.",
+  "server.teamsNotInEvent":
+    "These teams are not on this tournament's team list: {teams}.",
+  "server.badBestOf": "Unknown series format.",
+  "server.badMapList": "The map list has to be an array.",
+  "server.tooManyMaps":
+    "A BO{bestOf} series has at most {max} maps, {given} given.",
+  "server.badMapName": "Map {no}: “{name}” does not look like a map name.",
+  "server.duplicateMap": "The same map was given twice: {maps}.",
+  "server.badStartTime": "Invalid start time.",
+  "server.startTimeNeedsZone":
+    "The start time has to include a zone, e.g. 2026-10-05T14:00:00.000Z. " +
+    "A bare wall clock does not say whether it is local time or UTC.",
+  "server.badMatchPhase":
+    "Unknown match phase: {phase}. A match in that phase would not show up " +
+    "in any pick'em panel. Allowed: {allowedText}.",
+  "server.nothingToChange":
+    "Nothing to change — every match of this phase already uses this format.",
+  "server.nothingToChangeOrSettled":
+    "Nothing to change — every match of this phase already uses this format " +
+    "or has already been settled.",
+  "server.bestOfChangeFailed": "Could not change the match format.",
+  "server.mapsSaveFailed": "Could not save the maps.",
+  "server.outcomeFailed": "Could not load the tournament result.",
+  "server.rivalsFailed": "Could not load the rivals.",
+  "server.swissPicksFailed": "Could not load the phase picks.",
   "server.eventTeamsTableMissing":
     "The event_teams table does not exist — run migration 0014_event_teams.sql.",
   "server.matchNotFound": "Match not found.",
@@ -950,7 +975,6 @@ const en = {
   "server.lock.matchesClosed": "Match predictions are currently closed.",
   "server.lock.matchLocked": "The match is locked.",
   "server.lock.phaseClosed": "Predictions for this stage are closed.",
-  "server.lock.swissClosed": "Swiss predictions are closed.",
   "server.lock.playinClosed": "Play-In predictions are closed.",
   "server.lock.playoffsClosed": "Playoffs predictions are closed.",
   "server.lock.deClosed": "Double Elimination predictions are closed.",
@@ -962,12 +986,9 @@ const en = {
   "server.frozen.hasPicks": "there are picks or a result already",
   "server.archiveNotReady": "The archive is created once the tournament ends. This one is still running.",
   "server.noProvider": "The result provider is not configured (RESULT_PROVIDER in server/.env)",
-  "server.noActiveTeams": "This server has no active team at all. Add them first on the Teams page (there is a JSON import there).",
-  "server.teamsMustExist": "The teams have to exist and be active. Add the missing ones on the Teams page or fix the names in the list.",
   "server.phasesFrozen": "These stages cannot be changed: {phases}",
   "server.noChannel": "It is unclear which channel to publish the panel on. {hint}",
   "server.archivedScoring": "Map scoring rules changed after it ended - recomputing would rewrite a closed ranking. If you really want that, un-archive it first.",
-  "server.notStarted": "not started",
 
   // --- Klasyfikacja wszech czasow ------------------------------------------
   "allTime.nav": "All-time",

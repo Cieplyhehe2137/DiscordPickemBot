@@ -134,7 +134,14 @@ export function registerMatchOpsRoutes(
         });
 
         if (!wynik.ok) {
-          return res.status(400).json({ error: wynik.reason, code: wynik.code });
+          // `vars` to treść klamer ze zdania - strona wstawia je w swoje
+          // tłumaczenie. Bez tego kod prowadziłby do zdania z widocznymi
+          // klamrami, czyli gorzej niż do polskiego zapasu.
+          return res.status(400).json({
+            error: wynik.reason,
+            code: wynik.code,
+            ...wynik.vars,
+          });
         }
 
         await runInTransaction(pool, async (polaczenie) => {

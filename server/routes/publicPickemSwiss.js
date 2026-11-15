@@ -106,7 +106,9 @@ export function registerPublicPickemSwissRoutes(
 
       if (invalidTeams.length) {
         return res.status(400).json({
-          error: `Unknown or inactive teams: ${invalidTeams.join(", ")}`,
+          error: `Te drużyny nie należą do tego turnieju: ${invalidTeams.join(", ")}.`,
+          code: "server.teamsNotInEvent",
+          teams: invalidTeams.join(", "),
         });
       }
 

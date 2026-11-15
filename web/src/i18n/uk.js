@@ -900,6 +900,31 @@ const uk = {
     "У ростері турніру може бути не більше {limit} команд.",
   "server.rosterForeignTeams":
     "Ці команди не належать цьому серверу: {teams}.",
+  "server.teamsNotInEvent":
+    "Цих команд немає у списку команд цього турніру: {teams}.",
+  "server.badBestOf": "Невідомий формат серії.",
+  "server.badMapList": "Список карт має бути масивом.",
+  "server.tooManyMaps":
+    "У серії BO{bestOf} не більше {max} карт, указано {given}.",
+  "server.badMapName": "Карта {no}: «{name}» не схожа на назву карти.",
+  "server.duplicateMap": "Та сама карта вказана двічі: {maps}.",
+  "server.badStartTime": "Неправильний час початку.",
+  "server.startTimeNeedsZone":
+    "Час початку має містити часовий пояс, наприклад " +
+    "2026-10-05T14:00:00.000Z. Час без поясу не каже, місцевий він чи UTC.",
+  "server.badMatchPhase":
+    "Невідома фаза матчу: {phase}. Матч у такій фазі не з'явився б ні " +
+    "в одній панелі прогнозів. Дозволено: {allowedText}.",
+  "server.nothingToChange":
+    "Нічого змінювати — усі матчі цієї фази вже в цьому форматі.",
+  "server.nothingToChangeOrSettled":
+    "Нічого змінювати — усі матчі цієї фази вже в цьому форматі або вже " +
+    "розраховані.",
+  "server.bestOfChangeFailed": "Не вдалося змінити формат матчів.",
+  "server.mapsSaveFailed": "Не вдалося зберегти карти.",
+  "server.outcomeFailed": "Не вдалося завантажити результат турніру.",
+  "server.rivalsFailed": "Не вдалося завантажити суперників.",
+  "server.swissPicksFailed": "Не вдалося завантажити прогнози на фази.",
   "server.eventTeamsTableMissing":
     "Таблиці event_teams немає — виконайте міграцію 0014_event_teams.sql.",
   "server.matchNotFound": "Матч не знайдено.",
@@ -995,7 +1020,6 @@ const uk = {
   "server.lock.matchesClosed": "Прогнози на матчі наразі закриті.",
   "server.lock.matchLocked": "Матч заблоковано.",
   "server.lock.phaseClosed": "Прогнози на цю стадію закриті.",
-  "server.lock.swissClosed": "Прогнози Swiss закриті.",
   "server.lock.playinClosed": "Прогнози Play-In закриті.",
   "server.lock.playoffsClosed": "Прогнози Playoffs закриті.",
   "server.lock.deClosed": "Прогнози Double Elimination закриті.",
@@ -1007,12 +1031,9 @@ const uk = {
   "server.frozen.hasPicks": "уже є прогнози або результат",
   "server.archiveNotReady": "Архів створюється після завершення турніру. Цей ще триває.",
   "server.noProvider": "Постачальника результатів не налаштовано (RESULT_PROVIDER у server/.env)",
-  "server.noActiveTeams": "На цьому сервері немає жодної активної команди. Спершу додай їх на сторінці Команди (там є імпорт із JSON).",
-  "server.teamsMustExist": "Команди мають існувати й бути активними. Додай відсутні на сторінці Команди або виправ назви у списку.",
   "server.phasesFrozen": "Ці стадії не можна змінити: {phases}",
   "server.noChannel": "Незрозуміло, у якому каналі опублікувати панель. {hint}",
   "server.archivedScoring": "Правила нарахування за карти змінилися після його завершення — перерахунок переписав би закритий рейтинг. Якщо справді цього хочеш, спершу скасуй архівацію.",
-  "server.notStarted": "не розпочато",
 
   // --- Klasyfikacja wszech czasow ------------------------------------------
   "allTime.nav": "Загальний залік",

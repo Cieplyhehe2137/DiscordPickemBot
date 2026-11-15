@@ -218,7 +218,9 @@ export function registerPublicPickemPlayoffsRoutes(
 
       if (invalid.length) {
         return res.status(400).json({
-          error: `Unknown or inactive teams: ${invalid.join(", ")}`,
+          error: `Te drużyny nie należą do tego turnieju: ${invalid.join(", ")}.`,
+          code: "server.teamsNotInEvent",
+          teams: invalid.join(", "),
         });
       }
 
