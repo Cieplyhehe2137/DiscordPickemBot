@@ -925,7 +925,7 @@ const uk = {
   "server.teamExists": "Команда з такою назвою вже є на цьому сервері.",
   "server.teamsMustDiffer": "Команди мають бути різними.",
   "server.teamNameRequired": "Назва команди обов'язкова.",
-  "server.bothTeamsActive": "Обидві команди мають існувати й бути активними на цьому сервері.",
+  "server.bothTeamsInEvent": "Обидві команди мають належати до списку команд цього турніру.",
   "server.matchAlreadyFinished": "Матч уже завершено.",
   "server.eventAlreadyFinished": "Цей турнір уже завершено.",
   "server.matchPickingClosed": "Прогнози на цей матч уже закриті.",

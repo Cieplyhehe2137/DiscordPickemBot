@@ -14,6 +14,7 @@ export function registerMatchRoutes(
     guildIdFromMatchId,
     io,
     isMatchStarted,
+    loadEventTeamNames,
     logInfo,
     logWarn,
     matchesStore,
@@ -176,18 +177,24 @@ export function registerMatchRoutes(
 
         // Ta sama walidacja co przy tworzeniu - matches.team_a to varchar, więc
         // literówka wjechałaby do bazy i rozjechała dopasowywanie wyników.
+        //
+        // Pytamy o roster TEGO TURNIEJU, nie o `active = 1`. Poprzednia wersja
+        // uniemożliwiała poprawienie meczu w turnieju zakończonym: jego
+        // drużyny są dawno wyłączone, więc edycja odbijała się o 400, choć
+        // mecz dotyczył właśnie ich. Turniej bez własnego rostera schodzi na
+        // `active = 1`, czyli zachowuje się jak przed tą zmianą.
         if (teamA !== undefined || teamB !== undefined) {
-          const [aktywne] = await pool.query(
-            "SELECT name FROM teams WHERE guild_id = ? AND active = 1 AND name IN (?, ?)",
-            [guildId, noweA, noweB],
-          );
+          const dopuszczone = await loadEventTeamNames(pool, {
+            eventId: match.event_id,
+            guildId,
+          });
 
-          const znane = new Set(aktywne.map((t) => t.name));
+          const znane = new Set(dopuszczone);
 
           if (!znane.has(noweA) || !znane.has(noweB)) {
             return res.status(400).json({
-              error: "Obie drużyny muszą istnieć i być aktywne na tym serwerze.",
-              code: "server.bothTeamsActive",
+              error: "Obie drużyny muszą należeć do tego turnieju.",
+              code: "server.bothTeamsInEvent",
             });
           }
         }

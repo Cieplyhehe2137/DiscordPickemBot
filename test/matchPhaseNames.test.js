@@ -102,6 +102,8 @@ async function dodajMecz(phase) {
   registerGuildEventRoutes(app, {
     getOpenEventId: async () => 88,
     io: { emit() {} },
+    // Druzyny TURNIEJU - trasa pyta o nie przed zapisem meczu.
+    loadEventTeamNames: async () => ["FURIA", "MOUZ"],
     logInfo() {},
     nextMatchNumber: async () => 1,
     normalizePhase,

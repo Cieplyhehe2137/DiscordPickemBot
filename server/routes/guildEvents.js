@@ -43,6 +43,7 @@ export function registerGuildEventRoutes(
   {
     getOpenEventId,
     io,
+    loadEventTeamNames,
     logInfo,
     nextMatchNumber,
     normalizePhase,
@@ -221,16 +222,24 @@ export function registerGuildEventRoutes(
           domyslneBo: Number(defaultBestOf),
         });
 
-        // Ta sama walidacja co przy pojedynczym meczu: drużyna musi istnieć i
-        // być aktywna. Nie luzujemy jej dla wygody, bo matches.team_a to zwykły
-        // varchar - literówka przeszłaby do bazy i rozjechała dopasowywanie
-        // wyników oraz typy graczy.
-        const [aktywne] = await pool.query(
-          "SELECT name FROM teams WHERE guild_id = ? AND active = 1",
-          [guildId],
-        );
+        // Ta sama walidacja co przy pojedynczym meczu: drużyna musi należeć
+        // do TEGO TURNIEJU. Nie luzujemy jej dla wygody, bo matches.team_a to
+        // zwykły varchar - literówka przeszłaby do bazy i rozjechała
+        // dopasowywanie wyników oraz typy graczy.
+        //
+        // Roster turnieju, a nie roster serwera: turniej, który ma własną
+        // listę drużyn, przyjmuje je także wtedy, gdy są na serwerze
+        // wyłączone. Bez tego nie dało się poprawić meczu w turnieju, który
+        // się skończył, bo jego drużyny dawno wyłączono - a dokładnie po to
+        // `event_teams` powstało. Turniej bez własnej listy schodzi na
+        // `active = 1`, czyli zachowuje się jak przed tą zmianą
+        // (utils/loadEventTeams.js).
+        const aktywne = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
 
-        const znane = new Map(aktywne.map((t) => [t.name.toLowerCase(), t.name]));
+        const znane = new Map(aktywne.map((name) => [name.toLowerCase(), name]));
         const nieznane = new Set();
         const doUtworzenia = [];
 
@@ -260,8 +269,8 @@ export function registerGuildEventRoutes(
         if (nieznane.size) {
           podsumowanie.wskazowka =
             aktywne.length === 0
-              ? "Ten serwer nie ma ani jednej aktywnej drużyny. Dodaj je najpierw na stronie Drużyny (jest tam import z JSON)."
-              : "Drużyny muszą istnieć i być aktywne. Dodaj brakujące na stronie Drużyny albo popraw nazwy w liście.";
+              ? "Ten turniej nie ma ani jednej drużyny do wyboru. Dodaj je na stronie Drużyny (jest tam import z JSON) albo wskaż roster turnieju w sekcji Roster."
+              : "Drużyny muszą należeć do tego turnieju. Popraw nazwy w liście, dodaj brakujące na stronie Drużyny albo dopisz je do rostera turnieju w sekcji Roster.";
         }
 
         if (dryRun) {
@@ -569,16 +578,19 @@ export function registerGuildEventRoutes(
           });
         }
 
-        const [activeTeams] = await pool.query(
-          "SELECT name FROM teams WHERE guild_id = ? AND active = 1 AND name IN (?, ?)",
-          [guildId, teamA, teamB],
-        );
+        // Drużyny TEGO TURNIEJU, z zapasem w rosterze serwera - patrz
+        // utils/loadEventTeams.js i uwaga przy walidacji hurtowej wyżej.
+        const dopuszczone = await loadEventTeamNames(pool, {
+          eventId: event.id,
+          guildId,
+        });
 
-        const activeNames = new Set(activeTeams.map((t) => t.name));
+        const znane = new Set(dopuszczone);
 
-        if (!activeNames.has(teamA) || !activeNames.has(teamB)) {
+        if (!znane.has(teamA) || !znane.has(teamB)) {
           return res.status(400).json({
-            error: "Both teams must be active teams on this server",
+            error: "Obie drużyny muszą należeć do tego turnieju.",
+            code: "server.bothTeamsInEvent",
           });
         }
 

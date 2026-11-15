@@ -59,9 +59,19 @@ const PLIKI = wszystkiePliki(HANDLERY).map((pelna) => ({
   tresc: bezKomentarzy(fs.readFileSync(pelna, "utf8")),
 }));
 
-// Dropdowny, w ktorych ADMINISTRATOR wpisuje oficjalny wynik fazy. Kolejnosc
-// rozstawienia ma w nich znaczenie, bo admin czyta drabinke z gory na dol.
+// Handlery, ktore czytaja liste W KOLEJNOSCI ROZSTAWIENIA. Reszta czyta
+// alfabetycznie. Z dwoch roznych powodow, oba sprowadzajace sie do tego, zeby
+// nikomu nie przestawic listy:
+//
+//   - dropdowny, w ktorych ADMINISTRATOR wpisuje oficjalny wynik fazy -
+//     kolejnosc rozstawienia ma w nich znaczenie, bo admin czyta drabinke
+//     z gory na dol;
+//
+//   - przeplyw dodawania meczu - jego wlasne zapytanie mialo
+//     `ORDER BY sort_order ASC, name ASC`, wiec alfabetycznie przestawiloby
+//     adminowi liste bez zadnego bledu.
 const PO_ROZSTAWIENIU = [
+  "handlers/matches/matchAddFlow.js",
   "handlers/playin/openPlayinResultsDropdown.js",
   "handlers/playoffs/openPlayoffsDropdown.js",
   "handlers/playoffs/openPlayoffsResultsDropdown.js",
@@ -96,8 +106,8 @@ test("kazde pytanie o roster turnieju podaje turniej I kolejnosc", () => {
 
   assert.equal(
     wywolania.length,
-    15,
-    `oczekiwano 15 wywolan w handlerach, jest ${wywolania.length}`,
+    16,
+    `oczekiwano 16 wywolan w handlerach, jest ${wywolania.length}`,
   );
 
   for (const w of wywolania) {
@@ -118,7 +128,7 @@ test("wywolania ida OBIEKTEM, nie pozycyjnie", () => {
   }
 });
 
-test("dropdowny wynikow admina pytaja po ROZSTAWIENIU, reszta alfabetycznie", () => {
+test("handlery z listy pytaja po ROZSTAWIENIU, reszta alfabetycznie", () => {
   for (const plik of PLIKI) {
     const wzorzec = /loadEventTeamNames\s*\(\s*pool\s*,\s*\{([^}]*)\}/g;
 

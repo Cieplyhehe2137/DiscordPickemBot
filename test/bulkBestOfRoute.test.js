@@ -91,6 +91,8 @@ async function zbuduj(mecze, { event = { id: 7, name: "Event" } } = {}) {
   registerGuildEventRoutes(app, {
     getOpenEventId: async () => event.id,
     io: { emit: (nazwa, dane) => slad.emisje.push({ nazwa, dane }) },
+    // Druzyny TURNIEJU - czyta je walidacja hurtowego tworzenia meczow.
+    loadEventTeamNames: async () => [],
     logInfo: (...a) => slad.logi.push(a),
     nextMatchNumber: async () => 1,
     normalizePhase,

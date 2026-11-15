@@ -881,7 +881,7 @@ const de = {
   "server.teamExists": "Ein Team mit diesem Namen gibt es auf diesem Server bereits.",
   "server.teamsMustDiffer": "Die Teams müssen verschieden sein.",
   "server.teamNameRequired": "Ein Teamname ist erforderlich.",
-  "server.bothTeamsActive": "Beide Teams müssen auf diesem Server existieren und aktiv sein.",
+  "server.bothTeamsInEvent": "Beide Teams müssen zur Teamliste dieses Turniers gehören.",
   "server.matchAlreadyFinished": "Das Spiel ist bereits beendet.",
   "server.eventAlreadyFinished": "Dieses Turnier ist bereits beendet.",
   "server.matchPickingClosed": "Die Tipps für dieses Spiel sind bereits geschlossen.",

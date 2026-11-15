@@ -539,6 +539,7 @@ export function registerMatchExactRoutes(
     guildIdFromMatchId,
     io,
     isMatchStarted,
+    loadEventTeamNames,
     logInfo,
     logWarn,
     matchesStore,

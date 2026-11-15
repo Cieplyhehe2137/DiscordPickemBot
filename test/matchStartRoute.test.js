@@ -90,6 +90,8 @@ async function trasaTworzenia(pool) {
   registerGuildEventRoutes(app, {
     getOpenEventId: async () => 7,
     io: { emit: () => {} },
+    // Druzyny TURNIEJU - trasa pyta o nie przed zapisem meczu.
+    loadEventTeamNames: async () => ["A", "B"],
     logInfo: () => {},
     nextMatchNumber: async () => 1,
     normalizePhase,

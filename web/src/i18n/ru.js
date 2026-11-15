@@ -925,7 +925,7 @@ const ru = {
   "server.teamExists": "Команда с таким названием уже есть на этом сервере.",
   "server.teamsMustDiffer": "Команды должны быть разными.",
   "server.teamNameRequired": "Название команды обязательно.",
-  "server.bothTeamsActive": "Обе команды должны существовать и быть активны на этом сервере.",
+  "server.bothTeamsInEvent": "Обе команды должны входить в список команд этого турнира.",
   "server.matchAlreadyFinished": "Матч уже завершён.",
   "server.eventAlreadyFinished": "Этот турнир уже завершён.",
   "server.matchPickingClosed": "Прогнозы на этот матч уже закрыты.",
