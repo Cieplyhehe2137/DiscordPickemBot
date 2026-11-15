@@ -1,6 +1,8 @@
 -- schema.sql
 -- Snapshot rzeczywistego schematu produkcyjnej bazy (s25345_pickemdb).
 -- Wygenerowane read-only przez SHOW CREATE TABLE, 2026-07-02.
+-- event_teams dopisane 2026-11-15, po wykonaniu migracji 0014 na produkcji -
+-- tez przez SHOW CREATE TABLE, nie z tresci migracji.
 -- Wszystkie 3 gildie (hyperland, luffastream, testserwer) dziela te sama baze.
 -- To jest DOKUMENTACJA, nie plik do wykonania - nie ma tu zadnych zmian wzgledem stanu produkcji.
 -- Konwencja dla przyszlych zmian: migrations/NNNN_opis.sql (patrz migrations/README.md).
@@ -181,6 +183,21 @@ CREATE TABLE `events` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_guild_slug` (`guild_id`,`slug`)
 ) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================================
+-- event_teams
+-- ============================================================
+CREATE TABLE `event_teams` (
+  `event_id` int NOT NULL,
+  `team_id` int NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`event_id`,`team_id`),
+  KEY `idx_event_teams_sort` (`event_id`,`sort_order`),
+  KEY `idx_event_teams_team` (`team_id`),
+  CONSTRAINT `fk_event_teams_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_event_teams_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- leaderboard
