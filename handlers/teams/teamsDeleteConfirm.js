@@ -126,17 +126,23 @@ module.exports = async function teamsDeleteConfirm(interaction) {
       } catch (_) {}
     }
 
+    // Interakcja jest w tym miejscu zwykle JUŻ odroczona - deferUpdate stoi
+    // wysoko w `try` - więc `reply` wyżej się nie wykona i jedyną drogą do
+    // gracza zostaje edycja wiadomości.
+    //
+    // Stała tu KOPIA ścieżki sukcesu: "Usunięto N drużyn" razem z listą nazw
+    // i przyciskiem powrotu, zbudowana na `ids`, `preview`, `extra`
+    // i `backRow` - zadeklarowanych wewnątrz `try`, czyli poza zasięgiem.
+    // Ten blok nie miał więc szansy zadziałać: rzucał ReferenceError
+    // W OBSŁUDZE BŁĘDU, a gracz nie widział nic. Znalazł to linter bota
+    // (eslint.bot.config.mjs), bo żaden test nie wykonuje tego handlera.
+    //
+    // Komunikat mówi teraz o PORAŻCE, bo tylko to jest tu prawdą. Gdyby
+    // deleteTeams zdążyło przejść, a wywróciło się coś po nim, gracz zobaczy
+    // błąd i otworzy managera - ten pokaże faktyczny stan listy.
     await safeEditMessage(interaction, {
-      content:
-        `✅ Usunięto **${ids.length}** drużyn:\n\n` + `${preview}${extra}`,
-      components: [backRow],
+      content: "❌ Nie udało się usunąć drużyn.",
+      components: [],
     });
-
-    try {
-      await interaction.followUp({
-        content: `✅ Usunięto ${ids.length} drużyn.`,
-        ephemeral: true,
-      });
-    } catch (_) {}
   }
 };

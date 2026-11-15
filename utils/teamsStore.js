@@ -2,7 +2,7 @@
 const fs = require("fs");
 const path = require("path");
 const { withGuild } = require("./guildContext");
-const logger = require("./logger");
+const { logInfo } = require("./logger");
 const teamsState = require("./teamsState");
 
 /* ===============================

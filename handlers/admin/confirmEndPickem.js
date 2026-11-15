@@ -1,7 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { withGuild } = require("../../utils/guildContext");
 const isAdmin = require("../../utils/isAdmin");
-const logger = require("../../utils/logger.js");
+const { logInfo, logWarn, logError } = require("../../utils/logger.js");
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
