@@ -304,10 +304,13 @@ export function registerGuildRoutes(
         const { guildId } = req.params;
         const jsonText = String(req.body.jsonText ?? "");
 
-        let count;
+        let podsumowanie;
 
         try {
-          count = await teamsStore.importTeamsFromJsonText(guildId, jsonText);
+          podsumowanie = await teamsStore.importTeamsFromJsonText(
+            guildId,
+            jsonText,
+          );
         } catch (err) {
           if (err.message === "INVALID_JSON") {
             return res.status(400).json({
@@ -323,7 +326,20 @@ export function registerGuildRoutes(
           includeInactive: true,
         });
 
-        res.json({ ok: true, count, teams });
+        // `count` zostaje pod starą nazwą, bo to pole jest w kontrakcie tej
+        // trasy od początku. Reszta mówi, co import ZABRAŁ - przede
+        // wszystkim ile wskazań drużyn zniknęło z rosterów turniejów, bo
+        // drużyna usunięta ze słownika wypada z nich przez CASCADE.
+        res.json({
+          ok: true,
+          count: podsumowanie.imported,
+          kept: podsumowanie.kept,
+          added: podsumowanie.added,
+          removed: podsumowanie.removed,
+          rosterRowsRemoved: podsumowanie.rosterRowsRemoved,
+          rosterEventsAffected: podsumowanie.rosterEventsAffected,
+          teams,
+        });
       } catch (err) {
         console.error(err);
 
