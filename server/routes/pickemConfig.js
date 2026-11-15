@@ -18,6 +18,8 @@ export function registerPickemConfigRoutes(
     guildIdFromEventSlug,
     guildRegistry,
     io,
+    // Tylko do przekazania dalej, do registerGuildEventRoutes.
+    loadEventTeamNames,
     logInfo,
     normalizePhase,
     parseMatchList,
@@ -212,6 +214,7 @@ export function registerPickemConfigRoutes(
   registerGuildEventRoutes(app, {
     getOpenEventId,
     io,
+    loadEventTeamNames,
     logInfo,
     nextMatchNumber,
     normalizePhase,

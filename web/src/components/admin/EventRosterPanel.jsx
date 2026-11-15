@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import Ladowanie from "../../components/Ladowanie.jsx";
 import { getEventTeams, saveEventTeams } from "../../lib/api.js";
+import { effectiveEventTeams } from "../../lib/eventRoster.js";
 import { useConfirm } from "../ui/useConfirm.js";
 import { useT } from "../../i18n/useLanguage.js";
 import { toggleSelected } from "../../lib/selection.js";
@@ -63,15 +64,10 @@ function EventRosterPanel({ slug }) {
         setNieznaneZMeczow(dane.unknownMatchNames ?? []);
         setBrakTabeli(Boolean(dane.tableMissing));
 
-        // Zapas jest tu powtórzony świadomie: panel ma pokazać stan, który
-        // obowiązuje w tej chwili, a nie puste zaznaczenie do wypełnienia.
-        setZaznaczone(
-          new Set(
-            dane.hasRoster
-              ? (dane.teamIds ?? [])
-              : lista.filter((d) => d.active).map((d) => d.id),
-          ),
-        );
+        // Panel ma pokazać stan, który obowiązuje w tej chwili, a nie puste
+        // zaznaczenie do wypełnienia. Regułę zapasu trzyma jeden plik, bo
+        // potrzebuje jej też formularz meczu - patrz lib/eventRoster.js.
+        setZaznaczone(new Set(effectiveEventTeams(dane).map((d) => d.id)));
 
         setBlad("");
       } catch (err) {

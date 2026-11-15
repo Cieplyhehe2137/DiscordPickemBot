@@ -945,7 +945,7 @@ const pl = {
   "server.teamExists": "Drużyna o tej nazwie już istnieje na tym serwerze.",
   "server.teamsMustDiffer": "Drużyny muszą być różne.",
   "server.teamNameRequired": "Nazwa drużyny jest wymagana.",
-  "server.bothTeamsActive": "Obie drużyny muszą istnieć i być aktywne na tym serwerze.",
+  "server.bothTeamsInEvent": "Obie drużyny muszą należeć do tego turnieju.",
   "server.matchAlreadyFinished": "Mecz został już zakończony.",
   "server.eventAlreadyFinished": "Ten turniej jest już zakończony.",
   "server.matchPickingClosed": "Typowanie tego meczu jest już zamknięte.",

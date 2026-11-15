@@ -880,7 +880,7 @@ const en = {
   "server.teamExists": "A team with that name already exists on this server.",
   "server.teamsMustDiffer": "The teams have to be different.",
   "server.teamNameRequired": "A team name is required.",
-  "server.bothTeamsActive": "Both teams have to exist and be active on this server.",
+  "server.bothTeamsInEvent": "Both teams have to be on this tournament's team list.",
   "server.matchAlreadyFinished": "The match is already finished.",
   "server.eventAlreadyFinished": "This tournament is already finished.",
   "server.matchPickingClosed": "Predictions for this match are already closed.",

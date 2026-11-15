@@ -9,6 +9,7 @@ const {
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
+const { loadEventTeamNames } = require("../../utils/loadEventTeams");
 const { nextMatchNumber } = require("../../utils/matchNumbers");
 const openAddMatch = require("./openAddMatch");
 
@@ -47,19 +48,24 @@ function hasAdminPerms(interaction) {
    DB
 ====================== */
 
+// Drużyny do wyboru przy dodawaniu meczu.
+//
+// Roster TURNIEJU, a nie roster serwera. Mecz i tak trafia do turnieju
+// aktywnego (getActiveEventId niżej), więc lista musi pochodzić z tego samego
+// miejsca, w którym serwer sprawdza zapis - inaczej bot pokazywałby drużyny,
+// których trasa nie przyjmie, albo chował te, które przyjmie.
+//
+// Turniej bez własnego rostera - i brak turnieju aktywnego - schodzą na
+// `active = 1`, czyli na zachowanie sprzed tej zmiany
+// (utils/loadEventTeams.js).
 async function loadTeamsFromDb(pool, guildId) {
-  const [rows] = await pool.query(
-    `
-    SELECT name
-    FROM teams
-    WHERE guild_id = ?
-      AND active = 1
-    ORDER BY sort_order ASC, name ASC
-    `,
-    [guildId],
-  );
+  const eventId = await getActiveEventId(pool, guildId);
 
-  return rows.map((r) => r.name).filter(Boolean);
+  return loadEventTeamNames(pool, {
+    eventId,
+    guildId,
+    order: "sort_order",
+  });
 }
 
 /* ======================
@@ -173,7 +179,7 @@ async function onBoSelect(interaction) {
 
     if (!teams.length) {
       return interaction.update({
-        content: "❌ Brak aktywnych drużyn.",
+        content: "❌ Ten turniej nie ma ani jednej drużyny do wyboru.",
         components: [buildCancelRow()],
       });
     }

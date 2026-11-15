@@ -577,6 +577,9 @@ registerPickemConfigRoutes(app, {
   guildIdFromEventSlug,
   guildRegistry,
   io,
+  // Idzie dalej do registerGuildEventRoutes: tworzenie meczu pyta o druzyny
+  // TURNIEJU, nie o roster serwera.
+  loadEventTeamNames,
   logInfo,
   nextMatchNumber,
   normalizePhase,

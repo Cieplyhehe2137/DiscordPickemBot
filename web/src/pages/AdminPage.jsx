@@ -13,6 +13,7 @@ import {
   getAdminServers,
   getAdminTeams,
   getEventLeaderboard,
+  getEventTeams,
   getAdminDeadline,
   updateAdminTeam,
   deleteAdminTeam,
@@ -26,6 +27,7 @@ import {
   getAdminMatchDeletePreview,
   deleteAdminMatch,
 } from "../lib/api.js";
+import { effectiveEventTeams, withExtraTeams } from "../lib/eventRoster.js";
 import { adminGuildIds } from "../lib/permissions.js";
 import PhaseResultsAdmin from "../components/admin/PhaseResultsAdmin.jsx";
 import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
@@ -148,6 +150,13 @@ export default function AdminPage() {
   const [adminTeamsStan, setAdminTeams] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [teamsError, setTeamsError] = useState("");
+
+  // Drużyny obowiązujące w WYBRANYM turnieju - osobno od słownika serwera,
+  // bo to inna lista. Formularz meczu musi pokazywać dokładnie to, co trasa
+  // przyjmie przy zapisie (server/routes/guildEvents.js pyta o roster
+  // turnieju z zapasem w `active = 1`), inaczej admin wybiera z listy nazwę,
+  // na którą dostaje 400.
+  const [matchTeamsStan, setMatchTeams] = useState([]);
   const [deadlinePhase, setDeadlinePhase] = useState("swiss");
   const [deadlineStage, setDeadlineStage] = useState("1");
   const [deadlineValue, setDeadlineValue] = useState("");
@@ -219,6 +228,7 @@ export default function AdminPage() {
   // wywoluje dodatkowy przebieg renderowania.
   const serverEvents = selectedServer ? serverEventsStan : [];
   const adminTeams = selectedServer ? adminTeamsStan : [];
+  const matchTeams = selectedEvent ? matchTeamsStan : [];
   const adminMatches = selectedEvent ? adminMatchesStan : [];
   const eventLeaderboard = selectedEvent ? eventLeaderboardStan : [];
   const leaderboardError = selectedEvent ? leaderboardErrorStan : "";
@@ -315,6 +325,35 @@ export default function AdminPage() {
 
     loadAdminMatches();
   }, [selectedEvent, t]);
+
+  // Lista drużyn do formularza meczu. Ta sama trasa, z której korzysta panel
+  // rostera - regułę "roster turnieju, a gdy go nie ma, aktywne serwera"
+  // trzyma lib/eventRoster.js, żeby front i serwer nie rozjechały się po
+  // cichu. Błąd nie zatrzymuje panelu: listy po prostu zostaną puste, a sam
+  // formularz i tak odmawia zapisu bez obu drużyn.
+  useEffect(() => {
+    if (!selectedEvent) return;
+
+    let anulowane = false;
+
+    async function loadMatchTeams() {
+      try {
+        const dane = await getEventTeams(selectedEvent.slug);
+
+        if (!anulowane) setMatchTeams(effectiveEventTeams(dane));
+      } catch (err) {
+        console.error("MATCH TEAMS LOAD:", err);
+
+        if (!anulowane) setMatchTeams([]);
+      }
+    }
+
+    loadMatchTeams();
+
+    return () => {
+      anulowane = true;
+    };
+  }, [selectedEvent]);
 
   useEffect(() => {
     if (!selectedEvent) return;
@@ -1281,7 +1320,7 @@ export default function AdminPage() {
             >
               {" "}
               <option value="">{t("adminPage.matches.pickTeamA")}</option>{" "}
-              {adminTeams.map((team) => (
+              {matchTeams.map((team) => (
                 <option key={team.id} value={team.name}>
                   {" "}
                   {team.name}{" "}
@@ -1297,7 +1336,7 @@ export default function AdminPage() {
             >
               {" "}
               <option value="">{t("adminPage.matches.pickTeamB")}</option>{" "}
-              {adminTeams.map((team) => (
+              {matchTeams.map((team) => (
                 <option
                   key={team.id}
                   value={team.name}
@@ -1633,7 +1672,14 @@ export default function AdminPage() {
                           setEditingMatchTeamA(event.target.value)
                         }
                       >
-                        {adminTeams.map((team) => (
+                        {/* Drużyny tego meczu dokładamy, gdy wypadły z listy
+                            obowiązującej - inaczej otwarcie edycji po cichu
+                            zmieniłoby drużynę. Patrz lib/eventRoster.js. */}
+                        {withExtraTeams(
+                          matchTeams,
+                          match.team_a,
+                          editingMatchTeamA,
+                        ).map((team) => (
                           <option key={team.id} value={team.name}>
                             {team.name}
                           </option>
@@ -1647,7 +1693,11 @@ export default function AdminPage() {
                           setEditingMatchTeamB(event.target.value)
                         }
                       >
-                        {adminTeams.map((team) => (
+                        {withExtraTeams(
+                          matchTeams,
+                          match.team_b,
+                          editingMatchTeamB,
+                        ).map((team) => (
                           <option key={team.id} value={team.name}>
                             {team.name}
                           </option>
