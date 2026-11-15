@@ -197,9 +197,12 @@ export function registerPhaseResultRoutes(
         const invalid = all.filter((t) => !validTeams.has(t.toLowerCase()));
 
         if (invalid.length) {
-          return res
-            .status(400)
-            .json({ error: `Unknown or inactive teams: ${invalid.join(", ")}` });
+          return res.status(400).json({
+            error: `Te drużyny nie należą do tego turnieju: ${invalid.join(", ")}.`,
+            code: "server.teamsNotInEvent",
+            // Same nazwy - strona wstawia je w swoje zdanie.
+            teams: invalid.join(", "),
+          });
         }
 
         await pool.query(
@@ -351,9 +354,12 @@ export function registerPhaseResultRoutes(
         const invalid = all.filter((t) => !teams.includes(t));
 
         if (invalid.length) {
-          return res
-            .status(400)
-            .json({ error: `Unknown or inactive teams: ${invalid.join(", ")}` });
+          return res.status(400).json({
+            error: `Te drużyny nie należą do tego turnieju: ${invalid.join(", ")}.`,
+            code: "server.teamsNotInEvent",
+            // Same nazwy - strona wstawia je w swoje zdanie.
+            teams: invalid.join(", "),
+          });
         }
 
         await runInTransaction(pool, async (conn) => {
@@ -513,9 +519,12 @@ export function registerPhaseResultRoutes(
         const invalid = all.filter((t) => !teams.includes(t));
 
         if (invalid.length) {
-          return res
-            .status(400)
-            .json({ error: `Unknown or inactive teams: ${invalid.join(", ")}` });
+          return res.status(400).json({
+            error: `Te drużyny nie należą do tego turnieju: ${invalid.join(", ")}.`,
+            code: "server.teamsNotInEvent",
+            // Same nazwy - strona wstawia je w swoje zdanie.
+            teams: invalid.join(", "),
+          });
         }
 
         await runInTransaction(pool, async (conn) => {
@@ -632,9 +641,12 @@ export function registerPhaseResultRoutes(
         const invalid = teams.filter((t) => !activeTeams.includes(t));
 
         if (invalid.length) {
-          return res
-            .status(400)
-            .json({ error: `Unknown or inactive teams: ${invalid.join(", ")}` });
+          return res.status(400).json({
+            error: `Te drużyny nie należą do tego turnieju: ${invalid.join(", ")}.`,
+            code: "server.teamsNotInEvent",
+            // Same nazwy - strona wstawia je w swoje zdanie.
+            teams: invalid.join(", "),
+          });
         }
 
         await runInTransaction(pool, async (conn) => {

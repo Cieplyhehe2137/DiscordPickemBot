@@ -920,6 +920,31 @@ const pl = {
   "server.rosterTooBig": "Roster turnieju może mieć najwyżej {limit} drużyn.",
   "server.rosterForeignTeams":
     "Te drużyny nie należą do tego serwera: {teams}.",
+  "server.teamsNotInEvent":
+    "Te drużyny nie należą do tego turnieju: {teams}.",
+  "server.badBestOf": "Nieznany format serii.",
+  "server.badMapList": "Lista map musi być tablicą.",
+  "server.tooManyMaps":
+    "Seria BO{bestOf} ma najwyżej {max} map, podano {given}.",
+  "server.badMapName": "Mapa {no}: „{name}” nie wygląda na nazwę mapy.",
+  "server.duplicateMap": "Ta sama mapa podana dwa razy: {maps}.",
+  "server.badStartTime": "Niepoprawna godzina startu.",
+  "server.startTimeNeedsZone":
+    "Godzina startu musi podawać strefę, np. 2026-10-05T14:00:00.000Z. " +
+    "Sama ściana zegara nie mówi, czy to czas polski, czy UTC.",
+  "server.badMatchPhase":
+    "Nieznana faza meczu: {phase}. Mecz w takiej fazie nie pojawiłby się " +
+    "w żadnym panelu typowania. Dozwolone: {allowedText}.",
+  "server.nothingToChange":
+    "Nie ma czego zmienić — wszystkie mecze tej fazy są już w tym formacie.",
+  "server.nothingToChangeOrSettled":
+    "Nie ma czego zmienić — wszystkie mecze tej fazy są już w tym formacie " +
+    "albo rozliczone.",
+  "server.bestOfChangeFailed": "Nie udało się zmienić formatu meczów.",
+  "server.mapsSaveFailed": "Nie udało się zapisać map.",
+  "server.outcomeFailed": "Nie udało się wczytać wyniku turnieju.",
+  "server.rivalsFailed": "Nie udało się wczytać rywali.",
+  "server.swissPicksFailed": "Nie udało się wczytać typów na fazy.",
   "server.eventTeamsTableMissing":
     "Tabela event_teams nie istnieje — uruchom migrację 0014_event_teams.sql.",
   "server.matchNotFound": "Nie znaleziono meczu.",
@@ -1015,7 +1040,6 @@ const pl = {
   "server.lock.matchesClosed": "Typowanie meczów jest aktualnie zamknięte.",
   "server.lock.matchLocked": "Mecz jest zablokowany.",
   "server.lock.phaseClosed": "Typowanie tej fazy jest zamknięte.",
-  "server.lock.swissClosed": "Typowanie Swiss jest zamknięte.",
   "server.lock.playinClosed": "Typowanie Play-In jest zamknięte.",
   "server.lock.playoffsClosed": "Typowanie Playoffs jest zamknięte.",
   "server.lock.deClosed": "Typowanie Double Elimination jest zamknięte.",
@@ -1027,12 +1051,9 @@ const pl = {
   "server.frozen.hasPicks": "są już typy lub wynik",
   "server.archiveNotReady": "Archiwum powstaje po zakończeniu turnieju. Ten jeszcze trwa.",
   "server.noProvider": "Dostawca wyników nie jest skonfigurowany (RESULT_PROVIDER w server/.env)",
-  "server.noActiveTeams": "Ten serwer nie ma ani jednej aktywnej drużyny. Dodaj je najpierw na stronie Drużyny (jest tam import z JSON).",
-  "server.teamsMustExist": "Drużyny muszą istnieć i być aktywne. Dodaj brakujące na stronie Drużyny albo popraw nazwy w liście.",
   "server.phasesFrozen": "Nie można zmienić tych faz: {phases}",
   "server.noChannel": "Nie wiadomo, na którym kanale opublikować panel. {hint}",
   "server.archivedScoring": "Zasady punktacji map zmieniły się po jego zakończeniu - przeliczenie zmieniłoby zamknięty ranking. Jeśli naprawdę tego chcesz, najpierw cofnij archiwizację.",
-  "server.notStarted": "nierozpoczęty",
 
   // --- Klasyfikacja wszech czasow ------------------------------------------
   "allTime.nav": "Wszech czasów",

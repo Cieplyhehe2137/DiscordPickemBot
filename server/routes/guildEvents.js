@@ -77,6 +77,10 @@ export function registerGuildEventRoutes(
         `${[...FAZY_MECZOW].join(", ")}.`,
       code: "server.badMatchPhase",
       allowed: [...FAZY_MECZOW],
+      // Treść klamer dla tłumaczenia: `allowed` zostaje tablicą, bo to
+      // kontrakt tej odpowiedzi, a zdanie potrzebuje gotowego napisu.
+      phase: String(surowa),
+      allowedText: [...FAZY_MECZOW].join(", "),
     });
   }
 
@@ -449,11 +453,17 @@ export function registerGuildEventRoutes(
 
         if (!doZmiany.length) {
           return res.status(400).json({
+            // DWA ZDANIA, WIĘC DWA KODY. Jeden kod na oba znaczyłby, że
+            // w obcym języku ginie informacja o meczach rozliczonych -
+            // a to ona mówi, dlaczego formatu nie da się już zmienić.
             error:
               rozliczone.length > 0
                 ? "Nie ma czego zmienić - wszystkie mecze tej fazy są już w tym formacie albo rozliczone."
                 : "Nie ma czego zmienić - wszystkie mecze tej fazy są już w tym formacie.",
-            code: "server.nothingToChange",
+            code:
+              rozliczone.length > 0
+                ? "server.nothingToChangeOrSettled"
+                : "server.nothingToChange",
             ...podsumowanie,
           });
         }

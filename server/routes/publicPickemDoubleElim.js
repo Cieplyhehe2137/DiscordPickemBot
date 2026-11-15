@@ -171,7 +171,9 @@ export function registerPublicPickemDoubleElimRoutes(
 
       if (invalidTeams.length > 0) {
         return res.status(400).json({
-          error: `Invalid teams: ${invalidTeams.join(", ")}`,
+          error: `Te drużyny nie należą do tego turnieju: ${invalidTeams.join(", ")}.`,
+          code: "server.teamsNotInEvent",
+          teams: invalidTeams.join(", "),
         });
       }
 
