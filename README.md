@@ -291,6 +291,13 @@ Two things worth knowing before writing queries:
   `*_results`, `*_scores`, `match_points` and `matches`, and leaves
   `leaderboard` behind. Anything computing standings live shows an empty table
   for a finished event.
+- **`event_teams` is the only durable record of who played.** Cleanup leaves it
+  alone but destroys both sources it can be rebuilt from, so a tournament whose
+  roster was never set keeps nothing but its standings. Point the roster at a
+  tournament in the admin panel while it is running, or run
+  `node scripts/backfillEventTeams.mjs` (preview; `--apply` writes) for
+  finished ones — it refuses anything still open, anything already rostered,
+  and any roster it cannot assemble in full.
 
 ---
 
