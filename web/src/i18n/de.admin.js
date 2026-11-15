@@ -451,6 +451,40 @@ const deAdmin = {
   "admin.maps.unknown": "Unbekannte Kartennamen: {names}. Gespeichert — auf Tippfehler prüfen.",
   "admin.maps.pick": "Pick {team}",
   "admin.maps.decider": "Decider",
+
+  // --- Roster turnieju: ktore druzyny w nim graja ---
+  "adminPage.tile.roster": "Roster",
+  "adminPage.tile.rosterName": "Teams dieses Turniers",
+  "adminPage.tile.rosterHint":
+    "Lege fest, welche Teams an diesem Turnier teilnehmen. Ohne das kommt die Liste vom Server-Roster.",
+  "adminPage.section.roster": "Turnier-Roster — {name}",
+  "admin.roster.hint":
+    "Die Liste der Teams, die in diesem Turnier getippt werden können — auf der Seite und in den Dropdowns des Bots. Die Reihenfolge des Anhakens spielt keine Rolle; die Setzung folgt der Team-Reihenfolge auf dem Server.",
+  "admin.roster.loading": "Roster wird geladen...",
+  "admin.roster.loadError": "Roster konnte nicht geladen werden.",
+  "admin.roster.saveError": "Roster konnte nicht gespeichert werden.",
+  "admin.roster.own": "Dieses Turnier hat einen eigenen Roster — Teams auf der Liste: {count}.",
+  "admin.roster.fallback":
+    "Dieses Turnier hat keinen eigenen Roster, daher kommt die Teamliste vom Server-Roster — aktiv: {count}.",
+  "admin.roster.tableMissing":
+    "Die Tabelle event_teams existiert nicht — führe die Migration 0014_event_teams.sql aus. Bis dahin ist Speichern nicht möglich und die Tipps nutzen den Server-Roster.",
+  "admin.roster.unknownNames":
+    "In den Spielen dieses Turniers stehen Namen ohne Team auf dem Server: {names}. Sie lassen sich erst anhaken, wenn du sie im Bereich Teams hinzufügst.",
+  "admin.roster.empty":
+    "Dieser Server hat kein einziges Team — füge sie im Bereich Teams hinzu.",
+  "admin.roster.pickActive": "Alle aktiven",
+  "admin.roster.pickFromMatches": "Aus den Spielen übernehmen ({count})",
+  "admin.roster.pickNone": "Alle abwählen",
+  "admin.roster.inactive": "(deaktiviert)",
+  "admin.roster.selected": "Ausgewählt: {count}",
+  "admin.roster.save": "Roster speichern",
+  "admin.roster.saved": "Roster gespeichert — Teams: {count}.",
+  "admin.roster.cleared":
+    "Roster gelöscht — das Turnier nutzt wieder den Server-Roster.",
+  "admin.roster.clearTitle": "Turnier-Roster löschen?",
+  "admin.roster.clearText":
+    "Eine leere Liste speichert keinen leeren Roster, sondern löscht ihn. Das Turnier fällt dann auf den Server-Roster zurück, also auf alle aktiven Teams.",
+  "admin.roster.clearButton": "Roster löschen",
 };
 
 export default deAdmin;

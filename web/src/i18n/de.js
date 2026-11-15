@@ -849,6 +849,15 @@ const de = {
   "server.notMember": "Du gehörst nicht zu diesem Server.",
   "server.teamNotFound": "Team nicht gefunden.",
   "server.eventNotFound": "Turnier nicht gefunden.",
+  "server.teamIdsArray": "Die Teamliste muss ein Array von Kennungen sein.",
+  "server.rosterInvalidIds":
+    "Die Teamliste enthält Duplikate oder ungültige Kennungen.",
+  "server.rosterTooBig":
+    "Ein Turnier-Roster kann höchstens {limit} Teams enthalten.",
+  "server.rosterForeignTeams":
+    "Diese Teams gehören nicht zu diesem Server: {teams}.",
+  "server.eventTeamsTableMissing":
+    "Die Tabelle event_teams existiert nicht — führe die Migration 0014_event_teams.sql aus.",
   "server.matchNotFound": "Spiel nicht gefunden.",
   "server.backupNotFound": "Sicherungsdatei nicht gefunden.",
   "server.badSwissStage": "Ungültige Swiss-Etappe.",

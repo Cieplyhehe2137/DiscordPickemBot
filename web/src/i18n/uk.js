@@ -893,6 +893,15 @@ const uk = {
   "server.notMember": "Ти не перебуваєш на цьому сервері.",
   "server.teamNotFound": "Команду не знайдено.",
   "server.eventNotFound": "Турнір не знайдено.",
+  "server.teamIdsArray": "Список команд має бути масивом ідентифікаторів.",
+  "server.rosterInvalidIds":
+    "У списку команд є повтори або невірні ідентифікатори.",
+  "server.rosterTooBig":
+    "У ростері турніру може бути не більше {limit} команд.",
+  "server.rosterForeignTeams":
+    "Ці команди не належать цьому серверу: {teams}.",
+  "server.eventTeamsTableMissing":
+    "Таблиці event_teams немає — виконайте міграцію 0014_event_teams.sql.",
   "server.matchNotFound": "Матч не знайдено.",
   "server.backupNotFound": "Файл резервної копії не знайдено.",
   "server.badSwissStage": "Невірний етап Swiss.",

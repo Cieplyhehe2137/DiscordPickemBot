@@ -893,6 +893,15 @@ const ru = {
   "server.notMember": "Ты не состоишь на этом сервере.",
   "server.teamNotFound": "Команда не найдена.",
   "server.eventNotFound": "Турнир не найден.",
+  "server.teamIdsArray": "Список команд должен быть массивом идентификаторов.",
+  "server.rosterInvalidIds":
+    "В списке команд есть повторы или неверные идентификаторы.",
+  "server.rosterTooBig":
+    "В ростере турнира может быть не больше {limit} команд.",
+  "server.rosterForeignTeams":
+    "Эти команды не принадлежат этому серверу: {teams}.",
+  "server.eventTeamsTableMissing":
+    "Таблицы event_teams нет — выполните миграцию 0014_event_teams.sql.",
   "server.matchNotFound": "Матч не найден.",
   "server.backupNotFound": "Файл резервной копии не найден.",
   "server.badSwissStage": "Неверный этап Swiss.",

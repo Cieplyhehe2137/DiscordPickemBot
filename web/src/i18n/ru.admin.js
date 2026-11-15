@@ -463,6 +463,40 @@ const ruAdmin = {
   "admin.maps.unknown": "Неизвестные названия: {names}. Сохранено — проверьте опечатку.",
   "admin.maps.pick": "Пик {team}",
   "admin.maps.decider": "Решающая",
+
+  // --- Roster turnieju: ktore druzyny w nim graja ---
+  "adminPage.tile.roster": "Ростер",
+  "adminPage.tile.rosterName": "Команды этого турнира",
+  "adminPage.tile.rosterHint":
+    "Укажите, какие команды участвуют в этом турнире. Без этого список берётся из ростера сервера.",
+  "adminPage.section.roster": "Ростер турнира — {name}",
+  "admin.roster.hint":
+    "Список команд для прогнозов в этом турнире — на сайте и в меню бота. Порядок отметок не важен; сеяние берётся из порядка команд на сервере.",
+  "admin.roster.loading": "Загружаю ростер...",
+  "admin.roster.loadError": "Не удалось загрузить ростер.",
+  "admin.roster.saveError": "Не удалось сохранить ростер.",
+  "admin.roster.own": "У этого турнира свой ростер — команд в списке: {count}.",
+  "admin.roster.fallback":
+    "У этого турнира нет своего ростера, поэтому список команд берётся из ростера сервера — активных: {count}.",
+  "admin.roster.tableMissing":
+    "Таблицы event_teams нет — выполните миграцию 0014_event_teams.sql. До этого сохранение невозможно, а прогнозы работают на ростере сервера.",
+  "admin.roster.unknownNames":
+    "В матчах этого турнира есть названия без команды на сервере: {names}. Отметить их нельзя, пока вы не добавите их в разделе Команды.",
+  "admin.roster.empty":
+    "На этом сервере нет ни одной команды — добавьте их в разделе Команды.",
+  "admin.roster.pickActive": "Все активные",
+  "admin.roster.pickFromMatches": "Взять из матчей ({count})",
+  "admin.roster.pickNone": "Снять все",
+  "admin.roster.inactive": "(выключена)",
+  "admin.roster.selected": "Отмечено: {count}",
+  "admin.roster.save": "Сохранить ростер",
+  "admin.roster.saved": "Ростер сохранён — команд: {count}.",
+  "admin.roster.cleared":
+    "Ростер удалён — турнир вернулся на ростер сервера.",
+  "admin.roster.clearTitle": "Удалить ростер турнира?",
+  "admin.roster.clearText":
+    "Пустой список не сохраняет пустой ростер, а удаляет его. Турнир вернётся на ростер сервера, то есть на все активные команды.",
+  "admin.roster.clearButton": "Удалить ростер",
 };
 
 export default ruAdmin;
