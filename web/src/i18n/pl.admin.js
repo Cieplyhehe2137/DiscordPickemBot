@@ -463,6 +463,40 @@ const plAdmin = {
   "admin.maps.unknown": "Nieznane nazwy map: {names}. Zapisane — sprawdź, czy to nie literówka.",
   "admin.maps.pick": "Pick {team}",
   "admin.maps.decider": "Decider",
+
+  // --- Roster turnieju: ktore druzyny w nim graja ---
+  "adminPage.tile.roster": "Roster",
+  "adminPage.tile.rosterName": "Drużyny tego turnieju",
+  "adminPage.tile.rosterHint":
+    "Wskaż, które drużyny biorą udział w tym turnieju. Bez tego lista pochodzi z rostera serwera.",
+  "adminPage.section.roster": "Roster turnieju — {name}",
+  "admin.roster.hint":
+    "Lista drużyn do typowania w tym turnieju — na stronie i w rozwijanych listach bota. Kolejność zaznaczania nie ma znaczenia; rozstawienie bierze się z kolejności drużyn na serwerze.",
+  "admin.roster.loading": "Wczytuję roster...",
+  "admin.roster.loadError": "Nie udało się wczytać rostera.",
+  "admin.roster.saveError": "Nie udało się zapisać rostera.",
+  "admin.roster.own": "Ten turniej ma własny roster — drużyn na liście: {count}.",
+  "admin.roster.fallback":
+    "Ten turniej nie ma własnego rostera, więc lista drużyn pochodzi z rostera serwera — aktywnych: {count}.",
+  "admin.roster.tableMissing":
+    "Tabela event_teams nie istnieje — uruchom migrację 0014_event_teams.sql. Do tego czasu zapis jest niemożliwy, a typowanie działa na rosterze serwera.",
+  "admin.roster.unknownNames":
+    "W meczach tego turnieju są nazwy, które nie mają drużyny na serwerze: {names}. Nie da się ich zaznaczyć, dopóki nie dodasz ich w sekcji Drużyny.",
+  "admin.roster.empty":
+    "Ten serwer nie ma ani jednej drużyny — dodaj je w sekcji Drużyny.",
+  "admin.roster.pickActive": "Wszystkie aktywne",
+  "admin.roster.pickFromMatches": "Weź z meczów ({count})",
+  "admin.roster.pickNone": "Odznacz wszystkie",
+  "admin.roster.inactive": "(wyłączona)",
+  "admin.roster.selected": "Zaznaczonych: {count}",
+  "admin.roster.save": "Zapisz roster",
+  "admin.roster.saved": "Roster zapisany — drużyn: {count}.",
+  "admin.roster.cleared":
+    "Roster skasowany — turniej wrócił na roster serwera.",
+  "admin.roster.clearTitle": "Skasować roster turnieju?",
+  "admin.roster.clearText":
+    "Pusta lista nie zapisuje pustego rostera, tylko go kasuje. Turniej wróci wtedy na roster serwera, czyli na wszystkie aktywne drużyny.",
+  "admin.roster.clearButton": "Skasuj roster",
 };
 
 export default plAdmin;

@@ -914,6 +914,14 @@ const pl = {
   "server.notMember": "Nie należysz do tego serwera.",
   "server.teamNotFound": "Nie znaleziono drużyny.",
   "server.eventNotFound": "Nie znaleziono turnieju.",
+  "server.teamIdsArray": "Lista drużyn musi być tablicą identyfikatorów.",
+  "server.rosterInvalidIds":
+    "Lista drużyn zawiera powtórzenia albo niepoprawne identyfikatory.",
+  "server.rosterTooBig": "Roster turnieju może mieć najwyżej {limit} drużyn.",
+  "server.rosterForeignTeams":
+    "Te drużyny nie należą do tego serwera: {teams}.",
+  "server.eventTeamsTableMissing":
+    "Tabela event_teams nie istnieje — uruchom migrację 0014_event_teams.sql.",
   "server.matchNotFound": "Nie znaleziono meczu.",
   "server.backupNotFound": "Nie znaleziono pliku kopii zapasowej.",
   "server.badSwissStage": "Nieprawidłowy etap Swiss.",

@@ -849,6 +849,14 @@ const en = {
   "server.notMember": "You are not a member of this server.",
   "server.teamNotFound": "Team not found.",
   "server.eventNotFound": "Tournament not found.",
+  "server.teamIdsArray": "The team list has to be an array of identifiers.",
+  "server.rosterInvalidIds":
+    "The team list contains duplicates or invalid identifiers.",
+  "server.rosterTooBig": "A tournament roster can hold at most {limit} teams.",
+  "server.rosterForeignTeams":
+    "These teams do not belong to this server: {teams}.",
+  "server.eventTeamsTableMissing":
+    "The event_teams table does not exist — run migration 0014_event_teams.sql.",
   "server.matchNotFound": "Match not found.",
   "server.backupNotFound": "Backup file not found.",
   "server.badSwissStage": "Invalid Swiss stage.",

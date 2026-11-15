@@ -34,6 +34,7 @@ import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 import MatchMapsPanel from "../components/admin/MatchMapsPanel.jsx";
+import EventRosterPanel from "../components/admin/EventRosterPanel.jsx";
 import Ladowanie from "../components/Ladowanie.jsx";
 import LoginRequired from "../components/LoginRequired.jsx";
 // Ton plakietki statusu meczu. Wczesniej nazwa klasy powstawala ze sklejenia
@@ -1129,6 +1130,17 @@ export default function AdminPage() {
         </button>{" "}
         <button
           type="button"
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "roster" ? "ui-card--selected" : ""}`}
+          disabled={!selectedEvent}
+          onClick={() => setActiveAdminSection("roster")}
+        >
+          {" "}
+          <span>🏷️ {t("adminPage.tile.roster")}</span>{" "}
+          <strong>{t("adminPage.tile.rosterName")}</strong>{" "}
+          <p>{t("adminPage.tile.rosterHint")}</p>{" "}
+        </button>{" "}
+        <button
+          type="button"
           className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "teams" ? "ui-card--selected" : ""}`}
           disabled={!selectedServer}
           onClick={() => setActiveAdminSection("teams")}
@@ -1923,6 +1935,15 @@ export default function AdminPage() {
             guildId={selectedServer.guild_id}
             slug={selectedEvent.slug}
           />
+        </section>
+      )}
+      {activeAdminSection === "roster" && selectedEvent && (
+        <section className="ui-card ui-stack">
+          <h2>
+            {t("adminPage.section.roster", { name: selectedEvent.name })}
+          </h2>
+
+          <EventRosterPanel slug={selectedEvent.slug} />
         </section>
       )}
       {activeAdminSection === "teams" && selectedServer && (

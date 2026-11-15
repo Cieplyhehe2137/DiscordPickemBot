@@ -780,6 +780,21 @@ export function saveEventPickemConfig(slug, fazy) {
   });
 }
 
+// --- Roster turnieju (które drużyny w nim grają) ---
+
+export function getEventTeams(slug) {
+  return apiRequest(`/events/${encodeURIComponent(slug)}/teams`);
+}
+
+// Pełna podmiana listy. Pusta tablica KASUJE roster, czyli wraca na roster
+// serwera - panel pyta o to osobnym potwierdzeniem.
+export function saveEventTeams(slug, teamIds) {
+  return apiRequest(`/events/${encodeURIComponent(slug)}/teams`, {
+    method: "PUT",
+    body: JSON.stringify({ teamIds }),
+  });
+}
+
 // --- Licznik odwiedzin ---
 
 // Zapis wejścia. Celowo NIE rzuca przy błędzie: licznik odwiedzin nie jest

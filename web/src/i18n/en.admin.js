@@ -451,6 +451,40 @@ const enAdmin = {
   "admin.maps.unknown": "Unknown map names: {names}. Saved — check for a typo.",
   "admin.maps.pick": "Pick {team}",
   "admin.maps.decider": "Decider",
+
+  // --- Roster turnieju: ktore druzyny w nim graja ---
+  "adminPage.tile.roster": "Roster",
+  "adminPage.tile.rosterName": "Teams in this tournament",
+  "adminPage.tile.rosterHint":
+    "Pick which teams take part in this tournament. Without it the list comes from the server roster.",
+  "adminPage.section.roster": "Tournament roster — {name}",
+  "admin.roster.hint":
+    "The list of teams available for picks in this tournament — on the site and in the bot's dropdowns. The order you tick them in does not matter; seeding follows the team order set on the server.",
+  "admin.roster.loading": "Loading the roster...",
+  "admin.roster.loadError": "Could not load the roster.",
+  "admin.roster.saveError": "Could not save the roster.",
+  "admin.roster.own": "This tournament has its own roster — teams listed: {count}.",
+  "admin.roster.fallback":
+    "This tournament has no roster of its own, so the team list comes from the server roster — active: {count}.",
+  "admin.roster.tableMissing":
+    "The event_teams table does not exist — run migration 0014_event_teams.sql. Until then saving is impossible and picks use the server roster.",
+  "admin.roster.unknownNames":
+    "Matches in this tournament use names with no team on the server: {names}. They cannot be ticked until you add them in the Teams section.",
+  "admin.roster.empty":
+    "This server has no teams at all — add them in the Teams section.",
+  "admin.roster.pickActive": "All active",
+  "admin.roster.pickFromMatches": "Take from matches ({count})",
+  "admin.roster.pickNone": "Clear all",
+  "admin.roster.inactive": "(disabled)",
+  "admin.roster.selected": "Selected: {count}",
+  "admin.roster.save": "Save roster",
+  "admin.roster.saved": "Roster saved — teams: {count}.",
+  "admin.roster.cleared":
+    "Roster deleted — the tournament is back on the server roster.",
+  "admin.roster.clearTitle": "Delete the tournament roster?",
+  "admin.roster.clearText":
+    "An empty list does not save an empty roster, it deletes it. The tournament then falls back to the server roster, that is to every active team.",
+  "admin.roster.clearButton": "Delete roster",
 };
 
 export default enAdmin;

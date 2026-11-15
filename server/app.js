@@ -21,6 +21,7 @@ import { createGuildBackupTools } from "./lib/guildBackup.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerVisitRoutes } from "./routes/visits.js";
 import { registerPickemConfigRoutes } from "./routes/pickemConfig.js";
+import { registerEventTeamsRoutes } from "./routes/eventTeams.js";
 import { registerResultProposalRoutes } from "./routes/resultProposals.js";
 import { registerMatchOpsRoutes } from "./routes/matchOps.js";
 import {
@@ -589,6 +590,20 @@ registerPickemConfigRoutes(app, {
   requireGuildAdmin,
   runInTransaction,
   setEventPickemConfig,
+});
+
+// Roster turnieju dla panelu (server/routes/eventTeams.js).
+//
+// Stoi obok konfiguracji faz, bo to ta sama rzecz z punktu widzenia
+// administratora: opis turnieju, ktory trzeba podac przed typowaniem. Zadna
+// wczesniejsza rejestracja nie lapie /api/events/:slug/teams - wszystkie
+// trasy w tej grupie maja drugi segment wpisany wprost, nie jako wzorzec.
+registerEventTeamsRoutes(app, {
+  guildIdFromEventSlug,
+  logInfo,
+  pool,
+  requireGuildAdmin,
+  runInTransaction,
 });
 
 // Przeniesione do server/routes/resultProposals.js. Wywolanie stoi tam, gdzie byly trasy -
