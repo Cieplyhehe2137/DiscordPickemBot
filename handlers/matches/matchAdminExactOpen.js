@@ -9,7 +9,11 @@ const {
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const adminState = require("../../utils/matchAdminState");
 const { withGuild } = require("../../utils/guildContext");
-const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
+const {
+  tytulWynikuOficjalnego,
+  etykietaWyniku,
+} = require("../../utils/matchModalText");
 const { getMatchById } = require("../../utils/matchesStore");
 
 /* ======================
@@ -142,21 +146,19 @@ module.exports = async function matchAdminExactOpen(interaction) {
       const modal = new ModalBuilder()
         .setCustomId("match_admin_exact_submit")
         .setTitle(
-          maxMaps === 1
-            ? "Oficjalny dokładny wynik"
-            : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`,
+          tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf: match.best_of }),
         );
 
       const aInput = new TextInputBuilder()
         .setCustomId("exact_a")
-        .setLabel(`${match.team_a} — wynik (np. 13)`)
+        .setLabel(etykietaWyniku(match.team_a, " — wynik (np. 13)"))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setValue(defaults.a === "" ? "" : String(defaults.a));
 
       const bInput = new TextInputBuilder()
         .setCustomId("exact_b")
-        .setLabel(`${match.team_b} — wynik (np. 8)`)
+        .setLabel(etykietaWyniku(match.team_b, " — wynik (np. 8)"))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setValue(defaults.b === "" ? "" : String(defaults.b));

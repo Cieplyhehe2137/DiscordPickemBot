@@ -13,6 +13,10 @@ const adminState = require("../../utils/matchAdminState");
 const { withGuild } = require("../../utils/guildContext");
 const recalculateMatchPoints = require("../../services/recalculateMatchPoints");
 const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const {
+  tytulWynikuOficjalnego,
+  etykietaWyniku,
+} = require("../../utils/matchModalText");
 const { getMatchById } = require("../../utils/matchesStore");
 const { emitDashboardRefresh } = require("../../utils/socket");
 const { runInTransaction } = require("../../utils/runInTransaction");
@@ -135,14 +139,12 @@ function buildModal(match, maxMaps, mapNo, defaults) {
   const modal = new ModalBuilder()
     .setCustomId("match_admin_exact_submit")
     .setTitle(
-      maxMaps === 1
-        ? "Oficjalny dokładny wynik"
-        : `Oficjalny dokładny wynik — ${getMapLabel(mapNo, match.best_of)}`,
+      tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf: match.best_of }),
     );
 
   const inA = new TextInputBuilder()
     .setCustomId("exact_a")
-    .setLabel(`${match.team_a} — wynik`)
+    .setLabel(etykietaWyniku(match.team_a))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 13")
@@ -150,7 +152,7 @@ function buildModal(match, maxMaps, mapNo, defaults) {
 
   const inB = new TextInputBuilder()
     .setCustomId("exact_b")
-    .setLabel(`${match.team_b} — wynik`)
+    .setLabel(etykietaWyniku(match.team_b))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 8")

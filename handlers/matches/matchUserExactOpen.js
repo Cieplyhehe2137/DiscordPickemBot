@@ -9,7 +9,11 @@ const {
 const { logInfo, logWarn, logError } = require("../../utils/logger");
 const { withGuild } = require("../../utils/guildContext");
 const userState = require("../../utils/matchUserState");
-const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
+const { maxMapsFromBo } = require("../../utils/mapLabels");
+const {
+  tytulTypuGracza,
+  etykietaWyniku,
+} = require("../../utils/matchModalText");
 const { getMatchById, hasOfficialResult } = require("../../utils/matchesStore");
 const { isMatchLocked } = require("../../utils/matchLock");
 
@@ -54,19 +58,18 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
   const modal = new ModalBuilder()
     .setCustomId("match_user_exact_submit")
     .setTitle(
-      maxMaps === 1
-        ? `Dokładny wynik: ${match.team_a} vs ${match.team_b}`
-        : `Dokładny wynik — ${getMapLabel(
-            mapNo,
-            match.best_of,
-            match.team_a,
-            match.team_b,
-          )}`,
+      tytulTypuGracza({
+        maxMaps,
+        mapNo,
+        bestOf: match.best_of,
+        teamA: match.team_a,
+        teamB: match.team_b,
+      }),
     );
 
   const inA = new TextInputBuilder()
     .setCustomId("exact_a")
-    .setLabel(`${match.team_a} — wynik`)
+    .setLabel(etykietaWyniku(match.team_a))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 13")
@@ -74,7 +77,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
 
   const inB = new TextInputBuilder()
     .setCustomId("exact_b")
-    .setLabel(`${match.team_b} — wynik`)
+    .setLabel(etykietaWyniku(match.team_b))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 8")
