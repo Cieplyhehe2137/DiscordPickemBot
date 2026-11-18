@@ -849,6 +849,7 @@ const en = {
   "server.notMember": "You are not a member of this server.",
   "server.teamNotFound": "Team not found.",
   "server.eventNotFound": "Tournament not found.",
+  "server.pickStatsFailed": "Could not calculate pick statistics.",
   "server.teamIdsArray": "The team list has to be an array of identifiers.",
   "server.rosterInvalidIds":
     "The team list contains duplicates or invalid identifiers.",

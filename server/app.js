@@ -49,6 +49,7 @@ import { registerOutcomeRoutes } from "./routes/outcome.js";
 import { registerSwissPicksRoutes } from "./routes/swissPicks.js";
 import { registerMapRoutes } from "./routes/maps.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
+import { registerPickStatsRoutes } from "./routes/pickStats.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
 import { registerEventCleanupRoutes } from "./routes/eventCleanup.js";
@@ -742,6 +743,17 @@ registerEventStatsRoutes(app, {
   isMatchLocked,
   matchPanelPhaseFor,
   pool,
+});
+
+// Statystyki typow dla PANELU ADMINISTRATORA (server/routes/pickStats.js).
+//
+// Stoi obok eventStats, bo liczy to samo z innych tabel i dla innego
+// odbiorcy - ale OSOBNO i za requireGuildAdmin. eventStats jest publiczna
+// (konsumuje ja strona turnieju), wiec podzial glosow nie moze tam trafic:
+// odslonilby typy tlumu graczom w trakcie otwartego typowania.
+registerPickStatsRoutes(app, {
+  pool,
+  requireGuildAdmin,
 });
 
 // Przeniesione do server/routes/myPicks.js. Wywolanie stoi tam, gdzie byly trasy -

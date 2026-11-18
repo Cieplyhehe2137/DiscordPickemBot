@@ -33,6 +33,7 @@ import PhaseResultsAdmin from "../components/admin/PhaseResultsAdmin.jsx";
 import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
 import UsersAdminPanel from "../components/admin/UsersAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
+import PickStatsPanel from "../components/admin/PickStatsPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 import MatchMapsPanel from "../components/admin/MatchMapsPanel.jsx";
@@ -1180,6 +1181,17 @@ export default function AdminPage() {
         </button>{" "}
         <button
           type="button"
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "pickstats" ? "ui-card--selected" : ""}`}
+          disabled={!selectedEvent}
+          onClick={() => setActiveAdminSection("pickstats")}
+        >
+          {" "}
+          <span>📈 {t("adminPage.tile.pickStats")}</span>{" "}
+          <strong>{t("adminPage.tile.pickStatsName")}</strong>{" "}
+          <p>{t("adminPage.tile.pickStatsHint")}</p>{" "}
+        </button>{" "}
+        <button
+          type="button"
           className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "teams" ? "ui-card--selected" : ""}`}
           disabled={!selectedServer}
           onClick={() => setActiveAdminSection("teams")}
@@ -1994,6 +2006,18 @@ export default function AdminPage() {
           </h2>
 
           <EventRosterPanel slug={selectedEvent.slug} />
+        </section>
+      )}
+      {activeAdminSection === "pickstats" && selectedEvent && selectedServer && (
+        <section className="ui-card ui-stack">
+          <h2>
+            {t("adminPage.section.pickStats", { name: selectedEvent.name })}
+          </h2>
+
+          <PickStatsPanel
+            guildId={selectedServer.guild_id}
+            slug={selectedEvent.slug}
+          />
         </section>
       )}
       {activeAdminSection === "teams" && selectedServer && (
