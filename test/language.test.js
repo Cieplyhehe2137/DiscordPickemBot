@@ -79,6 +79,12 @@ const TAKIE_SAME_NAPRAWDE = new Set([
   "phase.swissStage3",
   "phase.doubleElim",
 
+  // Ten sam powod, co przy phase.doubleElim wyzej - to nazwa formatu
+  // drabinki, nie zdanie do tlumaczenia. Pozostale fazy w statystykach
+  // typow ("Swiss", "Play-in", "MVP") sa jednoslowne, wiec test ich
+  // i tak nie sprawdza.
+  "adminPage.pickStats.phase.doubleelim",
+
   // "Exact" to slowo, ktore polska scena CS-a wziela z angielskiego i tak go
   // uzywa - a "Event" po niemiecku brzmi tak samo jak po polsku.
   "myStats.mapExact",

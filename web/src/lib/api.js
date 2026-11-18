@@ -806,3 +806,24 @@ export function recordVisit() {
 export function getVisitStats() {
   return apiRequest("/public/visits");
 }
+
+// --- Statystyki oddanych typów (tylko panel administratora) ---
+//
+// NIE MYLIC z getEventStats: tamta trasa jest PUBLICZNA (konsumuje ją strona
+// turnieju) i dlatego nie wolno jej dać podziału głosów - odsłoniłaby typy
+// tłumu graczom w trakcie otwartego typowania. Te dwie liczą co innego dla
+// kogo innego i stoją za różnymi bramkami.
+
+export function getEventPickStats(guildId, slug) {
+  return apiRequest(
+    `/guilds/${encodeURIComponent(guildId)}/events/${encodeURIComponent(
+      slug,
+    )}/pick-stats`,
+  );
+}
+
+// Zbiorczo po wszystkich turniejach serwera - "ogółem" czytane jako
+// "odkąd serwis stoi", a nie "w bieżącym turnieju".
+export function getGuildPickStats(guildId) {
+  return apiRequest(`/guilds/${encodeURIComponent(guildId)}/pick-stats`);
+}
