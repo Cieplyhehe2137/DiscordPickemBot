@@ -10,10 +10,10 @@ const {
 } = require("discord.js");
 
 const {
-  PRZYROSTEK_WYNIKU,
-  tytulTypuGracza,
-  tytulWynikuOficjalnego,
-  etykietaWyniku,
+  SCORE_SUFFIX,
+  playerPickTitle,
+  officialResultTitle,
+  scoreFieldLabel,
 } = require("../utils/matchModalText");
 
 const LIMIT = 45;
@@ -41,7 +41,7 @@ const NAZWY = [
 test("tytul BO1 dla meczu #607 miesci sie w limicie", () => {
   // Ten mecz wywalal modal: "Dokladny wynik: 100 Thieves vs Chinggis
   // Warriors" to 48 znakow, a ModalBuilder przyjmuje najwyzej 45.
-  const tytul = tytulTypuGracza({
+  const tytul = playerPickTitle({
     maxMaps: 1,
     mapNo: 1,
     bestOf: 1,
@@ -58,7 +58,7 @@ test("tytul BO1 dla meczu #607 miesci sie w limicie", () => {
 test("tytul BO1 miesci sie w limicie dla kazdej pary nazw", () => {
   for (const a of NAZWY) {
     for (const b of NAZWY) {
-      const tytul = tytulTypuGracza({
+      const tytul = playerPickTitle({
         maxMaps: 1,
         mapNo: 1,
         bestOf: 1,
@@ -78,7 +78,7 @@ test("tytul BO3/BO5 miesci sie w limicie i mowi, ktora to mapa", () => {
   for (const bo of [3, 5]) {
     for (let mapNo = 1; mapNo <= bo; mapNo += 1) {
       for (const nazwa of NAZWY) {
-        const tytul = tytulTypuGracza({
+        const tytul = playerPickTitle({
           maxMaps: bo,
           mapNo,
           bestOf: bo,
@@ -96,7 +96,7 @@ test("tytul BO3/BO5 miesci sie w limicie i mowi, ktora to mapa", () => {
 });
 
 test("tytul BO3 na krotkich nazwach dalej pokazuje pick druzyny", () => {
-  const tytul = tytulTypuGracza({
+  const tytul = playerPickTitle({
     maxMaps: 3,
     mapNo: 2,
     bestOf: 3,
@@ -108,7 +108,7 @@ test("tytul BO3 na krotkich nazwach dalej pokazuje pick druzyny", () => {
 });
 
 test("tytul decidera nie gubi slowa Decider", () => {
-  const tytul = tytulTypuGracza({
+  const tytul = playerPickTitle({
     maxMaps: 3,
     mapNo: 3,
     bestOf: 3,
@@ -121,7 +121,7 @@ test("tytul decidera nie gubi slowa Decider", () => {
 });
 
 test("tytul BO1 bez nazw druzyn dalej jest poprawnym tytulem", () => {
-  const tytul = tytulTypuGracza({
+  const tytul = playerPickTitle({
     maxMaps: 1,
     mapNo: 1,
     bestOf: 1,
@@ -141,7 +141,7 @@ test("tytul BO1 bez nazw druzyn dalej jest poprawnym tytulem", () => {
 test("tytul oficjalnego wyniku miesci sie w limicie dla kazdego BO", () => {
   for (const bo of [1, 3, 5]) {
     for (let mapNo = 1; mapNo <= bo; mapNo += 1) {
-      const tytul = tytulWynikuOficjalnego({
+      const tytul = officialResultTitle({
         maxMaps: bo,
         mapNo,
         bestOf: bo,
@@ -157,7 +157,7 @@ test("tytul oficjalnego wyniku miesci sie w limicie dla kazdego BO", () => {
 
 test("tytul oficjalnego wyniku w BO1 jest bez dopisku o mapie", () => {
   assert.equal(
-    tytulWynikuOficjalnego({ maxMaps: 1, mapNo: 1, bestOf: 1 }),
+    officialResultTitle({ maxMaps: 1, mapNo: 1, bestOf: 1 }),
     "Oficjalny dokładny wynik",
   );
 });
@@ -168,14 +168,14 @@ test("tytul oficjalnego wyniku w BO1 jest bez dopisku o mapie", () => {
 
 test("etykieta wyniku miesci sie w limicie dla kazdej nazwy i przyrostka", () => {
   const PRZYROSTKI = [
-    PRZYROSTEK_WYNIKU,
+    SCORE_SUFFIX,
     " — wynik (np. 13)",
     " — wynik (np. 8)",
   ];
 
   for (const nazwa of NAZWY) {
     for (const przyrostek of PRZYROSTKI) {
-      const etykieta = etykietaWyniku(nazwa, przyrostek);
+      const etykieta = scoreFieldLabel(nazwa, przyrostek);
 
       assert.ok(
         etykieta.length >= 1 && etykieta.length <= LIMIT,
@@ -186,12 +186,12 @@ test("etykieta wyniku miesci sie w limicie dla kazdej nazwy i przyrostka", () =>
 });
 
 test("etykieta wyniku zachowuje krotka nazwe w calosci", () => {
-  assert.equal(etykietaWyniku("100 Thieves"), "100 Thieves — wynik");
+  assert.equal(scoreFieldLabel("100 Thieves"), "100 Thieves — wynik");
 });
 
 test("etykieta wyniku bez nazwy nie jest pusta", () => {
   for (const nazwa of [null, undefined, "", "   "]) {
-    const etykieta = etykietaWyniku(nazwa);
+    const etykieta = scoreFieldLabel(nazwa);
 
     assert.ok(etykieta.length >= 1, `pusta etykieta dla ${nazwa}`);
     assert.ok(!etykieta.includes("null"));
@@ -216,7 +216,7 @@ test("prawdziwe buildery przyjmuja napisy dla kazdej pary nazw i kazdego BO", ()
             new ModalBuilder()
               .setCustomId("match_user_exact_submit")
               .setTitle(
-                tytulTypuGracza({
+                playerPickTitle({
                   maxMaps,
                   mapNo,
                   bestOf: bo,
@@ -228,22 +228,22 @@ test("prawdziwe buildery przyjmuja napisy dla kazdej pary nazw i kazdego BO", ()
             new ModalBuilder()
               .setCustomId("match_admin_exact_submit")
               .setTitle(
-                tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf: bo }),
+                officialResultTitle({ maxMaps, mapNo, bestOf: bo }),
               );
 
             for (const przyrostek of [
-              PRZYROSTEK_WYNIKU,
+              SCORE_SUFFIX,
               " — wynik (np. 13)",
               " — wynik (np. 8)",
             ]) {
               new TextInputBuilder()
                 .setCustomId("exact_a")
-                .setLabel(etykietaWyniku(a, przyrostek))
+                .setLabel(scoreFieldLabel(a, przyrostek))
                 .setStyle(TextInputStyle.Short);
 
               new TextInputBuilder()
                 .setCustomId("exact_b")
-                .setLabel(etykietaWyniku(b, przyrostek))
+                .setLabel(scoreFieldLabel(b, przyrostek))
                 .setStyle(TextInputStyle.Short);
             }
           }, `BO${bo} mapa ${mapNo}: "${a}" vs "${b}"`);

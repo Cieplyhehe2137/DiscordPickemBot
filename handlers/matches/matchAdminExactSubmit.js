@@ -14,8 +14,8 @@ const { withGuild } = require("../../utils/guildContext");
 const recalculateMatchPoints = require("../../services/recalculateMatchPoints");
 const { getMapLabel, maxMapsFromBo } = require("../../utils/mapLabels");
 const {
-  tytulWynikuOficjalnego,
-  etykietaWyniku,
+  officialResultTitle,
+  scoreFieldLabel,
 } = require("../../utils/matchModalText");
 const { getMatchById } = require("../../utils/matchesStore");
 const { emitDashboardRefresh } = require("../../utils/socket");
@@ -139,12 +139,12 @@ function buildModal(match, maxMaps, mapNo, defaults) {
   const modal = new ModalBuilder()
     .setCustomId("match_admin_exact_submit")
     .setTitle(
-      tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf: match.best_of }),
+      officialResultTitle({ maxMaps, mapNo, bestOf: match.best_of }),
     );
 
   const inA = new TextInputBuilder()
     .setCustomId("exact_a")
-    .setLabel(etykietaWyniku(match.team_a))
+    .setLabel(scoreFieldLabel(match.team_a))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 13")
@@ -152,7 +152,7 @@ function buildModal(match, maxMaps, mapNo, defaults) {
 
   const inB = new TextInputBuilder()
     .setCustomId("exact_b")
-    .setLabel(etykietaWyniku(match.team_b))
+    .setLabel(scoreFieldLabel(match.team_b))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 8")
