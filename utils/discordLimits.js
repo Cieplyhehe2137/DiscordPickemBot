@@ -1,77 +1,86 @@
 // Limity Discorda na pola komponentow.
 //
 // Sprawdzone w @discordjs/builders: tytul modala i etykieta pola to 1..45
-// znakow. Wazne, ze pilnuje tego BUILDER, a nie API - wyjatek "Invalid string
-// length" leci wiec jeszcze przed wyslaniem czegokolwiek i gracz widzi samo
-// "interaction failed", bez zadnej podpowiedzi.
+// znakow, opis embeda 1..4096, wartosc pola embeda do 1024. Wazne, ze pilnuje
+// tego BUILDER, a nie API - wyjatek "Invalid string length" leci wiec jeszcze
+// przed wyslaniem czegokolwiek i gracz widzi samo "interaction failed",
+// bez zadnej podpowiedzi.
 //
 // Nazwy druzyn i turniejow wpisuje czlowiek, wiec zadnego z tych pol nie
 // wolno skladac przez samo wstawienie nazwy w szablon.
 
-const LIMITY = {
-  TYTUL_MODALA: 45,
-  ETYKIETA_POLA: 45,
-  ETYKIETA_PRZYCISKU: 80,
-  ETYKIETA_OPCJI: 100,
-  OPIS_OPCJI: 100,
-  PLACEHOLDER_POLA: 100,
-  PLACEHOLDER_LISTY: 150,
+const LIMITS = {
+  MODAL_TITLE: 45,
+  FIELD_LABEL: 45,
+  BUTTON_LABEL: 80,
+  OPTION_LABEL: 100,
+  OPTION_DESCRIPTION: 100,
+  FIELD_PLACEHOLDER: 100,
+  SELECT_PLACEHOLDER: 150,
+
+  // Embed. Opis ma takze DOLNA granice: pusty napis jest bledem, nie
+  // pominietym polem, wiec setDescription("") wywala sie tak samo jak
+  // za dlugi tekst.
+  EMBED_TITLE: 256,
+  EMBED_DESCRIPTION: 4096,
+  EMBED_FIELD_NAME: 256,
+  EMBED_FIELD_VALUE: 1024,
 };
 
 // Jeden znak, nie trzy kropki - przy ciasnym budzecie liczy sie kazdy.
-const WIELOKROPEK = "…";
+const ELLIPSIS = "…";
 
 // Ciecie po indeksach moze rozdzielic pare surogatow (emoji w nazwie) i
 // zostawic polowke znaku.
-function bezRozcietejPary(tekst) {
-  if (!tekst) return tekst;
+function withoutSplitSurrogate(text) {
+  if (!text) return text;
 
-  const ostatni = tekst.charCodeAt(tekst.length - 1);
+  const last = text.charCodeAt(text.length - 1);
 
-  if (ostatni >= 0xd800 && ostatni <= 0xdbff) return tekst.slice(0, -1);
+  if (last >= 0xd800 && last <= 0xdbff) return text.slice(0, -1);
 
-  return tekst;
+  return text;
 }
 
-function skroc(tekst, limit) {
-  const s = String(tekst ?? "").trim();
+function truncate(text, limit) {
+  const value = String(text ?? "").trim();
 
   if (!Number.isInteger(limit) || limit <= 0) return "";
 
-  if (s.length <= limit) return s;
+  if (value.length <= limit) return value;
 
-  if (limit === 1) return WIELOKROPEK;
+  if (limit === 1) return ELLIPSIS;
 
-  const przyciete = bezRozcietejPary(s.slice(0, limit - 1)).trimEnd();
+  const cut = withoutSplitSurrogate(value.slice(0, limit - 1)).trimEnd();
 
-  return `${przyciete}${WIELOKROPEK}`;
+  return `${cut}${ELLIPSIS}`;
 }
 
 // Dwie nazwy w jednym polu (np. "A vs B"). Kazda dostaje polowe budzetu, a
 // kto swojej nie wykorzysta, oddaje reszte drugiej - inaczej krotka nazwa
 // marnuje miejsce, ktorego brakuje dlugiej.
-function skrocPare(a, b, budzet) {
-  const sa = String(a ?? "").trim();
-  const sb = String(b ?? "").trim();
+function truncatePair(first, second, budget) {
+  const a = String(first ?? "").trim();
+  const b = String(second ?? "").trim();
 
-  if (!Number.isInteger(budzet) || budzet <= 0) return ["", ""];
+  if (!Number.isInteger(budget) || budget <= 0) return ["", ""];
 
-  if (sa.length + sb.length <= budzet) return [sa, sb];
+  if (a.length + b.length <= budget) return [a, b];
 
-  const polowa = Math.floor(budzet / 2);
+  const half = Math.floor(budget / 2);
 
-  let limitA = polowa;
-  let limitB = budzet - polowa;
+  let limitA = half;
+  let limitB = budget - half;
 
-  if (sa.length < limitA) limitB = budzet - sa.length;
-  else if (sb.length < limitB) limitA = budzet - sb.length;
+  if (a.length < limitA) limitB = budget - a.length;
+  else if (b.length < limitB) limitA = budget - b.length;
 
-  return [skroc(sa, limitA), skroc(sb, limitB)];
+  return [truncate(a, limitA), truncate(b, limitB)];
 }
 
 module.exports = {
-  LIMITY,
-  WIELOKROPEK,
-  skroc,
-  skrocPare,
+  LIMITS,
+  ELLIPSIS,
+  truncate,
+  truncatePair,
 };

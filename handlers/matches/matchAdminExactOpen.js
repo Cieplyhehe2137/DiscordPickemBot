@@ -11,8 +11,8 @@ const adminState = require("../../utils/matchAdminState");
 const { withGuild } = require("../../utils/guildContext");
 const { maxMapsFromBo } = require("../../utils/mapLabels");
 const {
-  tytulWynikuOficjalnego,
-  etykietaWyniku,
+  officialResultTitle,
+  scoreFieldLabel,
 } = require("../../utils/matchModalText");
 const { getMatchById } = require("../../utils/matchesStore");
 
@@ -146,19 +146,19 @@ module.exports = async function matchAdminExactOpen(interaction) {
       const modal = new ModalBuilder()
         .setCustomId("match_admin_exact_submit")
         .setTitle(
-          tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf: match.best_of }),
+          officialResultTitle({ maxMaps, mapNo, bestOf: match.best_of }),
         );
 
       const aInput = new TextInputBuilder()
         .setCustomId("exact_a")
-        .setLabel(etykietaWyniku(match.team_a, " — wynik (np. 13)"))
+        .setLabel(scoreFieldLabel(match.team_a, " — wynik (np. 13)"))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setValue(defaults.a === "" ? "" : String(defaults.a));
 
       const bInput = new TextInputBuilder()
         .setCustomId("exact_b")
-        .setLabel(etykietaWyniku(match.team_b, " — wynik (np. 8)"))
+        .setLabel(scoreFieldLabel(match.team_b, " — wynik (np. 8)"))
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setValue(defaults.b === "" ? "" : String(defaults.b));

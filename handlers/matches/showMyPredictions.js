@@ -8,6 +8,11 @@ const {
 const { withGuild } = require("../../utils/guildContext");
 const { logError } = require("../../utils/logger");
 const { getMapLabel } = require("../../utils/mapLabels");
+const { LIMITS, truncate } = require("../../utils/discordLimits");
+const {
+  loadUserPhasePicks,
+  formatPhasePicks,
+} = require("../../utils/userPhasePicks");
 
 const PAGE_SIZE = 5;
 
@@ -142,24 +147,67 @@ module.exports = async function showMyPredictions(interaction) {
         });
       }
 
-      const [[countRow]] = await pool.query(
-        `
-        SELECT COUNT(*) AS total
-        FROM matches
-        WHERE guild_id = ?
-          AND event_id = ?
-          AND phase = ?
-        `,
-        [guildId, eventId, phaseKey],
-      );
+      // Typy druzyn i liczba meczow naraz - zadne nie potrzebuje drugiego,
+      // a kazdy obieg do bazy kosztuje.
+      const [[[countRow]], phasePicks] = await Promise.all([
+        pool.query(
+          `
+          SELECT COUNT(*) AS total
+          FROM matches
+          WHERE guild_id = ?
+            AND event_id = ?
+            AND phase = ?
+          `,
+          [guildId, eventId, phaseKey],
+        ),
+
+        loadUserPhasePicks(pool, {
+          guildId,
+          eventId,
+          userId: interaction.user.id,
+          phaseKey,
+        }),
+      ]);
 
       const totalMatches = Number(countRow?.total || 0);
 
+      const phasePicksText = formatPhasePicks(phasePicks);
+
+      // Brak meczow NIE znaczy juz "nie ma czego pokazac". Typy druzyn
+      // zapisuje sie zanim powstanie choc jeden mecz fazy, a dotad widok
+      // koncyl sie wtedy komunikatem i gracz nie mial gdzie ich zobaczyc.
       if (!totalMatches) {
+        if (!phasePicksText) {
+          return interaction.editReply({
+            content: `Brak meczów dla fazy **${phaseKey}**.`,
+            components: [],
+            embeds: [],
+          });
+        }
+
+        const samePickiDruzyn = new EmbedBuilder()
+          .setTitle(truncate(`📋 Twoje typy — ${event.name}`, LIMITS.EMBED_TITLE))
+          .setDescription(
+            truncate(
+              `🏆 **Typy drużyn**\n${phasePicksText}\n\n` +
+                "Mecze tej fazy nie zostały jeszcze dodane.",
+              LIMITS.EMBED_DESCRIPTION,
+            ),
+          )
+          .setFooter({ text: `Faza: ${phaseKey}` })
+          .setColor("Blue");
+
         return interaction.editReply({
-          content: `Brak meczów dla fazy **${phaseKey}**.`,
-          components: [],
-          embeds: [],
+          content: "",
+          embeds: [samePickiDruzyn],
+          components: [
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`my_stats:${eventId}`)
+                .setLabel("📊 Statystyki")
+                .setStyle(ButtonStyle.Secondary),
+            ),
+          ],
         });
       }
 
@@ -313,13 +361,32 @@ module.exports = async function showMyPredictions(interaction) {
         return formatMatchPrediction(match, matchMaps);
       });
 
+      // Opis embeda ma limit 4096 znakow i DOLNA granice 1 - pusty opis jest
+      // bledem buildera, nie pominietym polem. Piec meczow BO5 z mapami
+      // potrafi sie do tego limitu zblizyc, wiec obcinamy, zamiast pozwolic
+      // calemu widokowi wywalic sie na "Invalid string length".
+      const opis = truncate(
+        blocks.join("\n\n━━━━━━━━━━━━━━\n\n"),
+        LIMITS.EMBED_DESCRIPTION,
+      );
+
       const embed = new EmbedBuilder()
-        .setTitle(`📋 Twoje typy — ${event.name}`)
-        .setDescription(blocks.join("\n\n━━━━━━━━━━━━━━\n\n"))
+        .setTitle(truncate(`📋 Twoje typy — ${event.name}`, LIMITS.EMBED_TITLE))
+        .setDescription(opis || "Brak zapisanych typów na tej stronie.")
         .setFooter({
           text: `Faza: ${phaseKey} • ` + `Strona ${safePage + 1}/${totalPages}`,
         })
         .setColor("Blue");
+
+      // Typy druzyn na KAZDEJ stronie, nie tylko pierwszej: to podsumowanie
+      // calej fazy, a nie pozycja listy meczow - gracz przegladajacy strone
+      // trzecia ma je przed oczami tak samo.
+      if (phasePicksText) {
+        embed.addFields({
+          name: "🏆 Typy drużyn",
+          value: truncate(phasePicksText, LIMITS.EMBED_FIELD_VALUE),
+        });
+      }
 
       const buttons = [];
 

@@ -11,8 +11,8 @@ const { withGuild } = require("../../utils/guildContext");
 const userState = require("../../utils/matchUserState");
 const { maxMapsFromBo } = require("../../utils/mapLabels");
 const {
-  tytulTypuGracza,
-  etykietaWyniku,
+  playerPickTitle,
+  scoreFieldLabel,
 } = require("../../utils/matchModalText");
 const { getMatchById, hasOfficialResult } = require("../../utils/matchesStore");
 const { isMatchLocked } = require("../../utils/matchLock");
@@ -58,7 +58,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
   const modal = new ModalBuilder()
     .setCustomId("match_user_exact_submit")
     .setTitle(
-      tytulTypuGracza({
+      playerPickTitle({
         maxMaps,
         mapNo,
         bestOf: match.best_of,
@@ -69,7 +69,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
 
   const inA = new TextInputBuilder()
     .setCustomId("exact_a")
-    .setLabel(etykietaWyniku(match.team_a))
+    .setLabel(scoreFieldLabel(match.team_a))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 13")
@@ -77,7 +77,7 @@ function buildModal({ match, maxMaps, mapNo, defaults }) {
 
   const inB = new TextInputBuilder()
     .setCustomId("exact_b")
-    .setLabel(etykietaWyniku(match.team_b))
+    .setLabel(scoreFieldLabel(match.team_b))
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setPlaceholder("np. 8")

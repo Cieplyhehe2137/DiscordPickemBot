@@ -7,57 +7,57 @@
 // otwieral sie wcale.
 
 const { getMapLabel } = require("./mapLabels");
-const { LIMITY, skroc, skrocPare } = require("./discordLimits");
+const { LIMITS, truncate, truncatePair } = require("./discordLimits");
 
-const PRZED_BO1 = "Dokładny wynik: ";
-const MIEDZY = " vs ";
-const PRZED_MAPY = "Dokładny wynik — ";
-const PRZED_OFICJALNEGO = "Oficjalny dokładny wynik";
+const BO1_PREFIX = "Dokładny wynik: ";
+const VERSUS = " vs ";
+const MAP_PREFIX = "Dokładny wynik — ";
+const OFFICIAL_PREFIX = "Oficjalny dokładny wynik";
 
-const PRZYROSTEK_WYNIKU = " — wynik";
+const SCORE_SUFFIX = " — wynik";
 
 // Tytul modala gracza. W BO1 nosi obie nazwy, w BO3/BO5 etykiete mapy
 // ("Pick <druzyna>" / "Decider"), bo to ona mowi, ktory wynik sie wpisuje.
-function tytulTypuGracza({ maxMaps, mapNo, bestOf, teamA, teamB }) {
+function playerPickTitle({ maxMaps, mapNo, bestOf, teamA, teamB }) {
   if (Number(maxMaps) === 1) {
-    const budzet = LIMITY.TYTUL_MODALA - PRZED_BO1.length - MIEDZY.length;
+    const budget = LIMITS.MODAL_TITLE - BO1_PREFIX.length - VERSUS.length;
 
-    const [a, b] = skrocPare(teamA, teamB, budzet);
+    const [a, b] = truncatePair(teamA, teamB, budget);
 
-    if (!a && !b) return PRZED_BO1.replace(/:\s*$/, "");
+    if (!a && !b) return BO1_PREFIX.replace(/:\s*$/, "");
 
-    return `${PRZED_BO1}${a}${MIEDZY}${b}`;
+    return `${BO1_PREFIX}${a}${VERSUS}${b}`;
   }
 
-  const etykieta = getMapLabel(mapNo, bestOf, teamA, teamB);
+  const label = getMapLabel(mapNo, bestOf, teamA, teamB);
 
-  return skroc(`${PRZED_MAPY}${etykieta}`, LIMITY.TYTUL_MODALA);
+  return truncate(`${MAP_PREFIX}${label}`, LIMITS.MODAL_TITLE);
 }
 
 // Tytul modala administratora. Swiadomie bez nazw druzyn - getMapLabel bez
 // nich oddaje "Pick Team A", a nazwy i tak sa na etykietach pol.
-function tytulWynikuOficjalnego({ maxMaps, mapNo, bestOf }) {
-  if (Number(maxMaps) === 1) return PRZED_OFICJALNEGO;
+function officialResultTitle({ maxMaps, mapNo, bestOf }) {
+  if (Number(maxMaps) === 1) return OFFICIAL_PREFIX;
 
-  return skroc(
-    `${PRZED_OFICJALNEGO} — ${getMapLabel(mapNo, bestOf)}`,
-    LIMITY.TYTUL_MODALA,
+  return truncate(
+    `${OFFICIAL_PREFIX} — ${getMapLabel(mapNo, bestOf)}`,
+    LIMITS.MODAL_TITLE,
   );
 }
 
 // Etykieta pola z wynikiem jednej druzyny. Przyrostek bywa dluzszy
 // (np. " — wynik (np. 13)"), wiec budzet na nazwe liczy sie od niego.
-function etykietaWyniku(nazwa, przyrostek = PRZYROSTEK_WYNIKU) {
-  const su = String(przyrostek ?? "");
+function scoreFieldLabel(name, suffix = SCORE_SUFFIX) {
+  const tail = String(suffix ?? "");
 
-  const n = skroc(nazwa, LIMITY.ETYKIETA_POLA - su.length);
+  const head = truncate(name, LIMITS.FIELD_LABEL - tail.length);
 
-  return n ? `${n}${su}` : "Wynik";
+  return head ? `${head}${tail}` : "Wynik";
 }
 
 module.exports = {
-  PRZYROSTEK_WYNIKU,
-  tytulTypuGracza,
-  tytulWynikuOficjalnego,
-  etykietaWyniku,
+  SCORE_SUFFIX,
+  playerPickTitle,
+  officialResultTitle,
+  scoreFieldLabel,
 };

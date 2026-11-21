@@ -11,6 +11,7 @@ const {
   computeMapPoints,
 } = require("../../utils/matchScoring");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
+const { parseTeamList } = require("../../utils/teamList");
 const rebuildEventLeaderboard = require("../../services/rebuildEventLeaderboard");
 const SCORING = require("../../rules/scoring");
 
@@ -63,19 +64,10 @@ function logError(scope, message, meta = {}) {
   });
 }
 
-const cleanList = (val) => {
-  if (!val) return [];
-  try {
-    const parsed = JSON.parse(val);
-    if (Array.isArray(parsed)) return parsed;
-  } catch (_) {}
-
-  return String(val)
-    .replace(/[\[\]"]+/g, "")
-    .split(/[;,]+/)
-    .map((t) => t.trim())
-    .filter(Boolean);
-};
+// Przeniesione do utils/teamList.js, bo tym samym podzialem widok
+// "Moje typy" POKAZUJE to, co ta funkcja PUNKTUJE - dwie kopie rozjechalyby
+// sie po cichu.
+const cleanList = parseTeamList;
 
 async function resolveEventId(pool, guildId, preferredEventId) {
   if (preferredEventId) return preferredEventId;
