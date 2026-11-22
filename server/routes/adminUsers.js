@@ -373,15 +373,19 @@ export function registerAdminUserRoutes(app, { pool, requireGuildAdmin, guildIdF
             [slug],
           ),
 
+          // pred_exact_* / exact_* to DOKLADNY WYNIK MECZU BO1. W BO3 i BO5
+          // wyniki poszczegolnych map leza w match_map_*, ale przy jednej
+          // mapie zapisuje sie je tutaj - bez tych kolumn audyt pokazywal
+          // dla BO1 samo "1:0" i nie bylo widac, ze gracz wpisal 13:7.
           pool.query(
-            `SELECT match_id, pred_a, pred_b
+            `SELECT match_id, pred_a, pred_b, pred_exact_a, pred_exact_b
                FROM match_predictions
               WHERE event_id = ${ZDARZENIE} AND ${UID} = ?`,
             [slug, String(userId)],
           ),
 
           pool.query(
-            `SELECT match_id, res_a, res_b
+            `SELECT match_id, res_a, res_b, exact_a, exact_b
                FROM match_results
               WHERE event_id = ${ZDARZENIE}`,
             [slug],

@@ -95,7 +95,36 @@ function WierszMeczu({ mecz, slug }) {
         </div>
       </div>
 
-      {/* Mapy tylko tam, gdzie są - w BO1 ta linia nic by nie dodała.
+      {/* DOKŁADNY WYNIK BO1. Przy jednej mapie rundy zapisują się na samym
+          meczu, a nie w match_map_*, więc ta linia nie miała skąd powstać
+          i audyt pokazywał dla BO1 samo „1:0" - czyli kto wygrał, bez tego,
+          co gracz naprawdę wpisał. Pokazujemy ją, gdy jest cokolwiek:
+          typ bez wyniku też jest odpowiedzią na pytanie „co obstawił". */}
+      {mecz.maps.length === 0 &&
+        (mecz.pred_exact_a !== null || mecz.res_exact_a !== null) && (
+          <div className="ui-row ui-row--wrap audit-maps">
+            <span
+              className={`ui-badge ${
+                mecz.exact === true
+                  ? "ui-badge--ok"
+                  : mecz.exact === false
+                    ? "ui-badge--danger"
+                    : ""
+              }`}
+            >
+              {t("adminUsers.exactScore")}{" "}
+              {mecz.pred_exact_a === null
+                ? "—"
+                : `${mecz.pred_exact_a}:${mecz.pred_exact_b}`}
+              {" / "}
+              {mecz.res_exact_a === null
+                ? "—"
+                : `${mecz.res_exact_a}:${mecz.res_exact_b}`}
+            </span>
+          </div>
+        )}
+
+      {/* Mapy w BO3 i BO5.
 
           Mapa bez wyniku pokazuje sam typ: gracz mógł wpisać trzecią mapę
           w meczu, który skończył się po dwóch, i to nie jest jego błąd. */}

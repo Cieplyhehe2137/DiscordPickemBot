@@ -392,6 +392,7 @@ const deAdmin = {
   "adminUsers.pick": "Tipp",
   "adminUsers.result": "Ergebnis",
   "adminUsers.map": "Map {no}",
+  "adminUsers.exactScore": "Genau",
   "adminUsers.onlyPicked": "Nur getippte",
   "adminUsers.emptyEvent": "Zu diesem Turnier ist kein Spiel erfasst — alles, was dieser Spieler hier getippt hat, steht oben bei den Phasen-Tipps.",
 

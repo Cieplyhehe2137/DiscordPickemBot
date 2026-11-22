@@ -37,8 +37,9 @@ function zwyciezca(a, b) {
  * Wiersze audytu: jeden na mecz, w kolejności rozgrywania.
  *
  * @param matches     mecze turnieju: id, match_no, phase, team_a, team_b, best_of
- * @param predictions typy gracza na serie: match_id, pred_a, pred_b
- * @param results     wyniki: match_id, res_a, res_b
+ * @param predictions typy gracza na serie: match_id, pred_a, pred_b oraz
+ *                    pred_exact_a, pred_exact_b (dokładny wynik BO1)
+ * @param results     wyniki: match_id, res_a, res_b oraz exact_a, exact_b
  * @param mapPicks    typy mapowe: match_id, map_no, pred_exact_a, pred_exact_b
  * @param mapResults  wyniki map: match_id, map_no, exact_a, exact_b
  * @param points      punkty: match_id, source, points
@@ -113,6 +114,16 @@ export function buildUserAudit({
     const resA = wynik ? liczbaAlbo(wynik.res_a) : null;
     const resB = wynik ? liczbaAlbo(wynik.res_b) : null;
 
+    // DOKŁADNY WYNIK BO1. Przy jednej mapie nie ma wiersza w match_map_*;
+    // rundy zapisują się na samym meczu. Bez tego audyt pokazywał dla BO1
+    // tylko „1:0", czyli kto wygrał - a gracz wpisał „13:7" i to od tego
+    // zależy część jego punktów.
+    const predExactA = typ ? liczbaAlbo(typ.pred_exact_a) : null;
+    const predExactB = typ ? liczbaAlbo(typ.pred_exact_b) : null;
+
+    const resExactA = wynik ? liczbaAlbo(wynik.exact_a) : null;
+    const resExactB = wynik ? liczbaAlbo(wynik.exact_b) : null;
+
     const obstawiony = zwyciezca(predA, predB);
     const faktyczny = zwyciezca(resA, resB);
 
@@ -165,6 +176,18 @@ export function buildUserAudit({
       pred_b: predB,
       res_a: resA,
       res_b: resB,
+
+      pred_exact_a: predExactA,
+      pred_exact_b: predExactB,
+      res_exact_a: resExactA,
+      res_exact_b: resExactB,
+
+      // Ten sam kształt, co przy mapie: null znaczy „nie da się orzec",
+      // a nie „nie trafił".
+      exact:
+        predExactA === null || resExactA === null
+          ? null
+          : predExactA === resExactA && predExactB === resExactB,
 
       // Czy w ogóle typował. Mecz bez typu to inny wiersz niż mecz
       // wytypowany źle, a w audycie to jest najczęstsze pytanie.

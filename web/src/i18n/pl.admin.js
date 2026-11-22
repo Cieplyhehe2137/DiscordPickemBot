@@ -399,6 +399,7 @@ const plAdmin = {
   "adminUsers.pick": "typ",
   "adminUsers.result": "wynik",
   "adminUsers.map": "Mapa {no}",
+  "adminUsers.exactScore": "Dokładny",
   "adminUsers.onlyPicked": "Tylko wytypowane",
   "adminUsers.emptyEvent": "Ten turniej nie ma w bazie ani jednego meczu — cały jego dorobek to typy na fazy, wyżej.",
 

@@ -392,6 +392,7 @@ const enAdmin = {
   "adminUsers.pick": "pick",
   "adminUsers.result": "result",
   "adminUsers.map": "Map {no}",
+  "adminUsers.exactScore": "Exact",
   "adminUsers.onlyPicked": "Picked only",
   "adminUsers.emptyEvent": "This tournament has no match recorded — everything this player did here is the phase picks above.",
 

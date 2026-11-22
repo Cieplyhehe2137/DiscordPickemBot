@@ -399,6 +399,7 @@ const ruAdmin = {
   "adminUsers.pick": "прогноз",
   "adminUsers.result": "результат",
   "adminUsers.map": "Карта {no}",
+  "adminUsers.exactScore": "Точный",
   "adminUsers.onlyPicked": "Только спрогнозированные",
   "adminUsers.emptyEvent": "По этому турниру нет ни одного матча — всё, что игрок здесь сделал, это прогнозы на этапы выше.",
 
