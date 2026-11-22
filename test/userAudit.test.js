@@ -195,3 +195,115 @@ test("brak wejscia w ogole nie wywraca liczenia", async () => {
   assert.equal(buildUserAudit().rows.length, 0);
   assert.equal(buildUserAudit({}).summary.points, 0);
 });
+
+/* ===============================
+   DOKLADNY WYNIK BO1
+   =============================== */
+
+test("BO1 niesie dokladny wynik, nie tylko kto wygral", async () => {
+  // Przy jednej mapie rundy zapisuja sie na samym meczu, a nie w
+  // match_map_*, wiec audyt pokazywal dla BO1 samo "1:0" - a gracz wpisal
+  // "13:7" i od tego zalezy czesc jego punktow.
+  const { buildUserAudit } = await import(MODUL);
+
+  const { rows } = buildUserAudit({
+    matches: [mecz(1)],
+    predictions: [
+      { match_id: 1, pred_a: 1, pred_b: 0, pred_exact_a: 13, pred_exact_b: 7 },
+    ],
+    results: [{ match_id: 1, res_a: 1, res_b: 0, exact_a: 13, exact_b: 9 }],
+  });
+
+  assert.equal(rows[0].pred_exact_a, 13);
+  assert.equal(rows[0].pred_exact_b, 7);
+  assert.equal(rows[0].res_exact_a, 13);
+  assert.equal(rows[0].res_exact_b, 9);
+
+  assert.equal(rows[0].exact, false, "13:7 to nie 13:9");
+  assert.equal(rows[0].correct_winner, true, "zwyciezce trafil mimo to");
+});
+
+test("trafiony dokladny wynik BO1 jest oznaczony", async () => {
+  const { buildUserAudit } = await import(MODUL);
+
+  const { rows } = buildUserAudit({
+    matches: [mecz(1)],
+    predictions: [
+      { match_id: 1, pred_a: 1, pred_b: 0, pred_exact_a: 13, pred_exact_b: 7 },
+    ],
+    results: [{ match_id: 1, res_a: 1, res_b: 0, exact_a: 13, exact_b: 7 }],
+  });
+
+  assert.equal(rows[0].exact, true);
+});
+
+test("brak wyniku albo brak typu daje exact=null, a nie falsz", async () => {
+  // "Nie rozegrano" i "nie trafil" to dwie rozne rzeczy, a w audycie
+  // mylenie ich jest zarzutem pod adresem gracza.
+  const { buildUserAudit } = await import(MODUL);
+
+  const bezWyniku = buildUserAudit({
+    matches: [mecz(1)],
+    predictions: [
+      { match_id: 1, pred_a: 1, pred_b: 0, pred_exact_a: 13, pred_exact_b: 7 },
+    ],
+    results: [],
+  });
+
+  assert.equal(bezWyniku.rows[0].exact, null);
+  assert.equal(bezWyniku.rows[0].pred_exact_a, 13);
+
+  const bezTypu = buildUserAudit({
+    matches: [mecz(1)],
+    predictions: [],
+    results: [{ match_id: 1, res_a: 1, res_b: 0, exact_a: 13, exact_b: 7 }],
+  });
+
+  assert.equal(bezTypu.rows[0].exact, null);
+  assert.equal(bezTypu.rows[0].pred_exact_a, null);
+  assert.equal(bezTypu.rows[0].res_exact_a, 13);
+});
+
+test("mecz bez dokladnego wyniku ma wszedzie null, a nie zera", async () => {
+  // Zero to wynik 0 rund, a nie brak zapisu - front odroznia te dwa
+  // przypadki po null i pokazalby "0:0" zamiast myslnika.
+  const { buildUserAudit } = await import(MODUL);
+
+  const { rows } = buildUserAudit({
+    matches: [mecz(1)],
+    predictions: [{ match_id: 1, pred_a: 1, pred_b: 0 }],
+    results: [{ match_id: 1, res_a: 1, res_b: 0 }],
+  });
+
+  assert.equal(rows[0].pred_exact_a, null);
+  assert.equal(rows[0].pred_exact_b, null);
+  assert.equal(rows[0].res_exact_a, null);
+  assert.equal(rows[0].res_exact_b, null);
+  assert.equal(rows[0].exact, null);
+});
+
+test("BO3 ma mapy i nie udaje, ze ma dokladny wynik serii", async () => {
+  const { buildUserAudit } = await import(MODUL);
+
+  const { rows } = buildUserAudit({
+    matches: [mecz(1, { best_of: 3 })],
+    predictions: [{ match_id: 1, pred_a: 2, pred_b: 1 }],
+    results: [{ match_id: 1, res_a: 2, res_b: 0 }],
+    mapPicks: [
+      { match_id: 1, map_no: 1, pred_exact_a: 13, pred_exact_b: 7 },
+      { match_id: 1, map_no: 2, pred_exact_a: 10, pred_exact_b: 13 },
+    ],
+    mapResults: [
+      { match_id: 1, map_no: 1, exact_a: 13, exact_b: 7 },
+      { match_id: 1, map_no: 2, exact_a: 13, exact_b: 11 },
+    ],
+  });
+
+  assert.equal(rows[0].maps.length, 2);
+  assert.equal(rows[0].maps[0].exact, true);
+  assert.equal(rows[0].maps[1].exact, false);
+
+  // Serii BO3 nie zapisuje sie w pred_exact_* - te kolumny maja zostac puste.
+  assert.equal(rows[0].pred_exact_a, null);
+  assert.equal(rows[0].exact, null);
+});

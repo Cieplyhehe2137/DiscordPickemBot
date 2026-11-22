@@ -399,6 +399,7 @@ const ukAdmin = {
   "adminUsers.pick": "прогноз",
   "adminUsers.result": "результат",
   "adminUsers.map": "Карта {no}",
+  "adminUsers.exactScore": "Точний",
   "adminUsers.onlyPicked": "Лише спрогнозовані",
   "adminUsers.emptyEvent": "Щодо цього турніру немає жодного матчу — усе, що гравець тут зробив, це прогнози на етапи вище.",
 
