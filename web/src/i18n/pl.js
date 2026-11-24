@@ -915,6 +915,7 @@ const pl = {
   "server.teamNotFound": "Nie znaleziono drużyny.",
   "server.eventNotFound": "Nie znaleziono turnieju.",
   "server.pickStatsFailed": "Nie udało się policzyć statystyk typów.",
+  "server.activityFailed": "Nie udało się pobrać ostatniej aktywności.",
   "server.teamIdsArray": "Lista drużyn musi być tablicą identyfikatorów.",
   "server.rosterInvalidIds":
     "Lista drużyn zawiera powtórzenia albo niepoprawne identyfikatory.",

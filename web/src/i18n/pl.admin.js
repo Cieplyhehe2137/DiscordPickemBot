@@ -553,6 +553,43 @@ const plAdmin = {
   "adminPage.pickStats.bucket.malo": "Od 25% meczów",
   "adminPage.pickStats.bucket.ledwo": "Mniej niż 25%",
   "adminPage.pickStats.mostCommon": "Najczęściej zatrzymywali się na {picked} z {matches} meczów - tak zrobiło graczy: {count}.",
+  // --- Ostatnia aktywnosc serwera -------------------------------------------
+  "adminPage.activity.loading": "Wczytywanie aktywności...",
+  "adminPage.activity.loadError": "Nie udało się pobrać ostatniej aktywności.",
+  "adminPage.activity.hint": "Co ostatnio działo się na tym serwerze - typy oddane w Discordzie i na stronie, oraz wpisane wyniki. Lista odświeża się sama co pół minuty.",
+  "adminPage.activity.empty": "Brak zdarzeń ze znacznikiem czasu.",
+  "adminPage.activity.importWarning": "Część zdarzeń pochodzi z turnieju wgranego importem - tam wszystkie wiersze mają ten sam czas, więc kolejność nic nie znaczy.",
+  "adminPage.activity.shown": "Pokazanych zdarzeń: {count}.",
+  "adminPage.activity.unknownUser": "nieznany gracz",
+  "adminPage.activity.refresh": "Odśwież",
+  "adminPage.activity.refreshing": "Odświeżanie...",
+  "adminPage.activity.justNow": "przed chwilą",
+  "adminPage.activity.minutesAgo": {
+    one: "{count} minutę temu",
+    few: "{count} minuty temu",
+    many: "{count} minut temu",
+  },
+  "adminPage.activity.hoursAgo": {
+    one: "{count} godzinę temu",
+    few: "{count} godziny temu",
+    many: "{count} godzin temu",
+  },
+  "adminPage.activity.daysAgo": {
+    one: "{count} dzień temu",
+    few: "{count} dni temu",
+    many: "{count} dni temu",
+  },
+  "adminPage.activity.kind.matchPick": "wytypował mecz",
+  "adminPage.activity.kind.swissPick": "wytypował drużyny Swiss",
+  "adminPage.activity.kind.playinPick": "wytypował drużyny play-in",
+  "adminPage.activity.kind.playoffsPick": "wytypował playoffy",
+  "adminPage.activity.kind.doubleelimPick": "wytypował double elim",
+  "adminPage.activity.kind.mvpPick": "wytypował MVP",
+  "adminPage.activity.kind.matchResult": "Wpisano wynik",
+  "adminPage.tile.activity": "Aktywność",
+  "adminPage.tile.activityName": "Ostatnia aktywność",
+  "adminPage.tile.activityHint": "Kto oddał typ i kiedy - z Discorda i ze strony, w jednym miejscu.",
+  "adminPage.section.activity": "Ostatnia aktywność",
 };
 
 export default plAdmin;

@@ -894,6 +894,7 @@ const uk = {
   "server.teamNotFound": "Команду не знайдено.",
   "server.eventNotFound": "Турнір не знайдено.",
   "server.pickStatsFailed": "Не вдалося підрахувати статистику прогнозів.",
+  "server.activityFailed": "Не вдалося завантажити останню активність.",
   "server.teamIdsArray": "Список команд має бути масивом ідентифікаторів.",
   "server.rosterInvalidIds":
     "У списку команд є повтори або невірні ідентифікатори.",

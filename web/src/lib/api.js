@@ -824,6 +824,19 @@ export function getEventPickStats(guildId, slug) {
 
 // Zbiorczo po wszystkich turniejach serwera - "ogółem" czytane jako
 // "odkąd serwis stoi", a nie "w bieżącym turnieju".
+// Ostatnia aktywnosc serwera: kto oddał typ, kto wpisał wynik.
+//
+// Czyta znaczniki czasu z bazy, nie zdarzenia socket.io - typy powstają
+// w dwóch procesach (bot pisze prosto do bazy), więc tylko odczyt z bazy
+// widzi oba źródła naraz.
+export function getGuildActivity(guildId, limit = 50) {
+  const parametry = new URLSearchParams({ limit: String(limit) });
+
+  return apiRequest(
+    `/guilds/${encodeURIComponent(guildId)}/activity?${parametry}`,
+  );
+}
+
 export function getGuildPickStats(guildId) {
   return apiRequest(`/guilds/${encodeURIComponent(guildId)}/pick-stats`);
 }

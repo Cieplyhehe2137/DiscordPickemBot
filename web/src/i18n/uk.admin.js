@@ -553,6 +553,43 @@ const ukAdmin = {
   "adminPage.pickStats.bucket.malo": "Від 25% матчів",
   "adminPage.pickStats.bucket.ledwo": "Менше 25%",
   "adminPage.pickStats.mostCommon": "Найчастіше зупинялися на {picked} з {matches} матчів - гравців: {count}.",
+  // --- Ostatnia aktywnosc serwera -------------------------------------------
+  "adminPage.activity.loading": "Завантаження активності...",
+  "adminPage.activity.loadError": "Не вдалося завантажити останню активність.",
+  "adminPage.activity.hint": "Що нещодавно відбувалося на цьому сервері - прогнози з Discord і з сайту, а також внесені результати. Список оновлюється сам кожні півхвилини.",
+  "adminPage.activity.empty": "Немає подій з позначкою часу.",
+  "adminPage.activity.importWarning": "Частина подій із турніру, завантаженого імпортом - там усі рядки мають один і той самий час, тож порядок нічого не означає.",
+  "adminPage.activity.shown": "Показано подій: {count}.",
+  "adminPage.activity.unknownUser": "невідомий гравець",
+  "adminPage.activity.refresh": "Оновити",
+  "adminPage.activity.refreshing": "Оновлення...",
+  "adminPage.activity.justNow": "щойно",
+  "adminPage.activity.minutesAgo": {
+    one: "{count} хвилину тому",
+    few: "{count} хвилини тому",
+    many: "{count} хвилин тому",
+  },
+  "adminPage.activity.hoursAgo": {
+    one: "{count} годину тому",
+    few: "{count} години тому",
+    many: "{count} годин тому",
+  },
+  "adminPage.activity.daysAgo": {
+    one: "{count} день тому",
+    few: "{count} дні тому",
+    many: "{count} днів тому",
+  },
+  "adminPage.activity.kind.matchPick": "зробив прогноз на матч",
+  "adminPage.activity.kind.swissPick": "обрав команди Swiss",
+  "adminPage.activity.kind.playinPick": "обрав команди play-in",
+  "adminPage.activity.kind.playoffsPick": "зробив прогноз на плей-оф",
+  "adminPage.activity.kind.doubleelimPick": "зробив прогноз на double elim",
+  "adminPage.activity.kind.mvpPick": "обрав MVP",
+  "adminPage.activity.kind.matchResult": "Внесено результат",
+  "adminPage.tile.activity": "Активність",
+  "adminPage.tile.activityName": "Остання активність",
+  "adminPage.tile.activityHint": "Хто і коли зробив прогноз - з Discord і з сайту, в одному місці.",
+  "adminPage.section.activity": "Остання активність",
 };
 
 export default ukAdmin;

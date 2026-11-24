@@ -553,6 +553,43 @@ const ruAdmin = {
   "adminPage.pickStats.bucket.malo": "От 25% матчей",
   "adminPage.pickStats.bucket.ledwo": "Менее 25%",
   "adminPage.pickStats.mostCommon": "Чаще всего останавливались на {picked} из {matches} матчей - игроков: {count}.",
+  // --- Ostatnia aktywnosc serwera -------------------------------------------
+  "adminPage.activity.loading": "Загрузка активности...",
+  "adminPage.activity.loadError": "Не удалось загрузить последнюю активность.",
+  "adminPage.activity.hint": "Что недавно происходило на этом сервере - прогнозы из Discord и с сайта, а также внесённые результаты. Список обновляется сам каждые полминуты.",
+  "adminPage.activity.empty": "Нет событий с отметкой времени.",
+  "adminPage.activity.importWarning": "Часть событий из турнира, загруженного импортом - там у всех строк одно и то же время, поэтому порядок ничего не значит.",
+  "adminPage.activity.shown": "Показано событий: {count}.",
+  "adminPage.activity.unknownUser": "неизвестный игрок",
+  "adminPage.activity.refresh": "Обновить",
+  "adminPage.activity.refreshing": "Обновление...",
+  "adminPage.activity.justNow": "только что",
+  "adminPage.activity.minutesAgo": {
+    one: "{count} минуту назад",
+    few: "{count} минуты назад",
+    many: "{count} минут назад",
+  },
+  "adminPage.activity.hoursAgo": {
+    one: "{count} час назад",
+    few: "{count} часа назад",
+    many: "{count} часов назад",
+  },
+  "adminPage.activity.daysAgo": {
+    one: "{count} день назад",
+    few: "{count} дня назад",
+    many: "{count} дней назад",
+  },
+  "adminPage.activity.kind.matchPick": "сделал прогноз на матч",
+  "adminPage.activity.kind.swissPick": "выбрал команды Swiss",
+  "adminPage.activity.kind.playinPick": "выбрал команды play-in",
+  "adminPage.activity.kind.playoffsPick": "сделал прогноз на плей-офф",
+  "adminPage.activity.kind.doubleelimPick": "сделал прогноз на double elim",
+  "adminPage.activity.kind.mvpPick": "выбрал MVP",
+  "adminPage.activity.kind.matchResult": "Внесён результат",
+  "adminPage.tile.activity": "Активность",
+  "adminPage.tile.activityName": "Последняя активность",
+  "adminPage.tile.activityHint": "Кто и когда сделал прогноз - из Discord и с сайта, в одном месте.",
+  "adminPage.section.activity": "Последняя активность",
 };
 
 export default ruAdmin;

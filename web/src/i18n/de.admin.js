@@ -541,6 +541,40 @@ const deAdmin = {
   "adminPage.pickStats.bucket.malo": "Ab 25% der Spiele",
   "adminPage.pickStats.bucket.ledwo": "Weniger als 25%",
   "adminPage.pickStats.mostCommon": "Am häufigsten hörten sie bei {picked} von {matches} Spielen auf - Spieler: {count}.",
+  // --- Ostatnia aktywnosc serwera -------------------------------------------
+  "adminPage.activity.loading": "Aktivität wird geladen...",
+  "adminPage.activity.loadError": "Letzte Aktivität konnte nicht geladen werden.",
+  "adminPage.activity.hint": "Was zuletzt auf diesem Server geschah - Tipps aus Discord und von der Website sowie eingetragene Ergebnisse. Die Liste aktualisiert sich alle halbe Minute selbst.",
+  "adminPage.activity.empty": "Keine Ereignisse mit Zeitstempel.",
+  "adminPage.activity.importWarning": "Ein Teil der Ereignisse stammt aus einem importierten Turnier - dort tragen alle Zeilen dieselbe Zeit, die Reihenfolge sagt also nichts aus.",
+  "adminPage.activity.shown": "Gezeigte Ereignisse: {count}.",
+  "adminPage.activity.unknownUser": "unbekannter Spieler",
+  "adminPage.activity.refresh": "Aktualisieren",
+  "adminPage.activity.refreshing": "Wird aktualisiert...",
+  "adminPage.activity.justNow": "gerade eben",
+  "adminPage.activity.minutesAgo": {
+    one: "vor {count} Minute",
+    other: "vor {count} Minuten",
+  },
+  "adminPage.activity.hoursAgo": {
+    one: "vor {count} Stunde",
+    other: "vor {count} Stunden",
+  },
+  "adminPage.activity.daysAgo": {
+    one: "vor {count} Tag",
+    other: "vor {count} Tagen",
+  },
+  "adminPage.activity.kind.matchPick": "hat ein Spiel getippt",
+  "adminPage.activity.kind.swissPick": "hat Swiss-Teams getippt",
+  "adminPage.activity.kind.playinPick": "hat Play-in-Teams getippt",
+  "adminPage.activity.kind.playoffsPick": "hat die Playoffs getippt",
+  "adminPage.activity.kind.doubleelimPick": "hat Double Elim getippt",
+  "adminPage.activity.kind.mvpPick": "hat MVP getippt",
+  "adminPage.activity.kind.matchResult": "Ergebnis eingetragen",
+  "adminPage.tile.activity": "Aktivität",
+  "adminPage.tile.activityName": "Letzte Aktivität",
+  "adminPage.tile.activityHint": "Wer wann was getippt hat - aus Discord und von der Website, an einer Stelle.",
+  "adminPage.section.activity": "Letzte Aktivität",
 };
 
 export default deAdmin;

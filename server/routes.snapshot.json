@@ -119,6 +119,7 @@
     "GET /api/events/:slug/matches/:matchId/pick-stats",
     "GET /api/guilds/:guildId/events/:slug/pick-stats",
     "GET /api/guilds/:guildId/pick-stats",
+    "GET /api/guilds/:guildId/activity",
     "GET /api/public/events/:slug/my-predictions/:phase",
     "GET /api/public/matches/:matchId/my-points"
   ],
@@ -241,6 +242,7 @@
     "GET /api/events/:slug/matches/:matchId/pick-stats",
     "GET /api/guilds/:guildId/events/:slug/pick-stats",
     "GET /api/guilds/:guildId/pick-stats",
+    "GET /api/guilds/:guildId/activity",
     "GET /api/public/events/:slug/my-predictions/:phase",
     "GET /api/public/matches/:matchId/my-points",
     "GET /^(?!\\/api|\\/socket\\.io).*/"

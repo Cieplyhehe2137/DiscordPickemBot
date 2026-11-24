@@ -894,6 +894,7 @@ const ru = {
   "server.teamNotFound": "Команда не найдена.",
   "server.eventNotFound": "Турнир не найден.",
   "server.pickStatsFailed": "Не удалось подсчитать статистику прогнозов.",
+  "server.activityFailed": "Не удалось загрузить последнюю активность.",
   "server.teamIdsArray": "Список команд должен быть массивом идентификаторов.",
   "server.rosterInvalidIds":
     "В списке команд есть повторы или неверные идентификаторы.",

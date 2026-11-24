@@ -34,6 +34,7 @@ import MvpAdminPanel from "../components/admin/MvpAdminPanel.jsx";
 import UsersAdminPanel from "../components/admin/UsersAdminPanel.jsx";
 import TournamentOpsPanel from "../components/admin/TournamentOpsPanel.jsx";
 import PickStatsPanel from "../components/admin/PickStatsPanel.jsx";
+import ActivityPanel from "../components/admin/ActivityPanel.jsx";
 import StartPickemPanel from "../components/admin/StartPickemPanel.jsx";
 import PickemConfigPanel from "../components/admin/PickemConfigPanel.jsx";
 import MatchMapsPanel from "../components/admin/MatchMapsPanel.jsx";
@@ -1181,6 +1182,17 @@ export default function AdminPage() {
         </button>{" "}
         <button
           type="button"
+          className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "activity" ? "ui-card--selected" : ""}`}
+          disabled={!selectedServer}
+          onClick={() => setActiveAdminSection("activity")}
+        >
+          {" "}
+          <span>🔔 {t("adminPage.tile.activity")}</span>{" "}
+          <strong>{t("adminPage.tile.activityName")}</strong>{" "}
+          <p>{t("adminPage.tile.activityHint")}</p>{" "}
+        </button>{" "}
+        <button
+          type="button"
           className={`ui-card ui-card--interactive ui-tile ${activeAdminSection === "pickstats" ? "ui-card--selected" : ""}`}
           disabled={!selectedEvent}
           onClick={() => setActiveAdminSection("pickstats")}
@@ -2006,6 +2018,13 @@ export default function AdminPage() {
           </h2>
 
           <EventRosterPanel slug={selectedEvent.slug} />
+        </section>
+      )}
+      {activeAdminSection === "activity" && selectedServer && (
+        <section className="ui-card ui-stack">
+          <h2>{t("adminPage.section.activity")}</h2>
+
+          <ActivityPanel guildId={selectedServer.guild_id} />
         </section>
       )}
       {activeAdminSection === "pickstats" && selectedEvent && selectedServer && (
