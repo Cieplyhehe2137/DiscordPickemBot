@@ -541,6 +541,40 @@ const enAdmin = {
   "adminPage.pickStats.bucket.malo": "25% of matches or more",
   "adminPage.pickStats.bucket.ledwo": "Less than 25%",
   "adminPage.pickStats.mostCommon": "Most often they stopped at {picked} of {matches} matches - players who did: {count}.",
+  // --- Ostatnia aktywnosc serwera -------------------------------------------
+  "adminPage.activity.loading": "Loading activity...",
+  "adminPage.activity.loadError": "Could not load recent activity.",
+  "adminPage.activity.hint": "What happened recently on this server - picks made in Discord and on the site, and results entered. The list refreshes itself every half minute.",
+  "adminPage.activity.empty": "No events with a timestamp.",
+  "adminPage.activity.importWarning": "Some events come from an imported tournament - there every row carries the same time, so the order means nothing.",
+  "adminPage.activity.shown": "Events shown: {count}.",
+  "adminPage.activity.unknownUser": "unknown player",
+  "adminPage.activity.refresh": "Refresh",
+  "adminPage.activity.refreshing": "Refreshing...",
+  "adminPage.activity.justNow": "just now",
+  "adminPage.activity.minutesAgo": {
+    one: "{count} minute ago",
+    other: "{count} minutes ago",
+  },
+  "adminPage.activity.hoursAgo": {
+    one: "{count} hour ago",
+    other: "{count} hours ago",
+  },
+  "adminPage.activity.daysAgo": {
+    one: "{count} day ago",
+    other: "{count} days ago",
+  },
+  "adminPage.activity.kind.matchPick": "picked a match",
+  "adminPage.activity.kind.swissPick": "picked Swiss teams",
+  "adminPage.activity.kind.playinPick": "picked play-in teams",
+  "adminPage.activity.kind.playoffsPick": "picked playoffs",
+  "adminPage.activity.kind.doubleelimPick": "picked double elim",
+  "adminPage.activity.kind.mvpPick": "picked MVP",
+  "adminPage.activity.kind.matchResult": "Result entered",
+  "adminPage.tile.activity": "Activity",
+  "adminPage.tile.activityName": "Recent activity",
+  "adminPage.tile.activityHint": "Who picked what and when - from Discord and the site, in one place.",
+  "adminPage.section.activity": "Recent activity",
 };
 
 export default enAdmin;

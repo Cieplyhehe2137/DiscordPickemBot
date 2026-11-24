@@ -50,6 +50,7 @@ import { registerSwissPicksRoutes } from "./routes/swissPicks.js";
 import { registerMapRoutes } from "./routes/maps.js";
 import { registerEventStatsRoutes } from "./routes/eventStats.js";
 import { registerPickStatsRoutes } from "./routes/pickStats.js";
+import { registerActivityRoutes } from "./routes/activity.js";
 import { registerGuildEventRoutes } from "./routes/guildEvents.js";
 import { registerBackupRoutes } from "./routes/backups.js";
 import { registerEventCleanupRoutes } from "./routes/eventCleanup.js";
@@ -752,6 +753,14 @@ registerEventStatsRoutes(app, {
 // (konsumuje ja strona turnieju), wiec podzial glosow nie moze tam trafic:
 // odslonilby typy tlumu graczom w trakcie otwartego typowania.
 registerPickStatsRoutes(app, {
+  pool,
+  requireGuildAdmin,
+});
+
+// Ostatnia aktywnosc serwera (server/routes/activity.js). Czyta znaczniki
+// czasu z bazy, a nie zdarzenia socket.io: typy powstaja w dwoch procesach
+// (bot pisze prosto do bazy), wiec tylko baza widzi oba zrodla naraz.
+registerActivityRoutes(app, {
   pool,
   requireGuildAdmin,
 });

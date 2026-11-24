@@ -850,6 +850,7 @@ const de = {
   "server.teamNotFound": "Team nicht gefunden.",
   "server.eventNotFound": "Turnier nicht gefunden.",
   "server.pickStatsFailed": "Tipp-Statistiken konnten nicht berechnet werden.",
+  "server.activityFailed": "Letzte Aktivität konnte nicht geladen werden.",
   "server.teamIdsArray": "Die Teamliste muss ein Array von Kennungen sein.",
   "server.rosterInvalidIds":
     "Die Teamliste enthält Duplikate oder ungültige Kennungen.",

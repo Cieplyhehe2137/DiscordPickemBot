@@ -850,6 +850,7 @@ const en = {
   "server.teamNotFound": "Team not found.",
   "server.eventNotFound": "Tournament not found.",
   "server.pickStatsFailed": "Could not calculate pick statistics.",
+  "server.activityFailed": "Could not load recent activity.",
   "server.teamIdsArray": "The team list has to be an array of identifiers.",
   "server.rosterInvalidIds":
     "The team list contains duplicates or invalid identifiers.",
