@@ -50,6 +50,8 @@ const deAdmin = {
   "admin.results.loadError": "Die Ergebnisse der Phase konnten nicht geladen werden.",
   "admin.results.saveError": "Die Ergebnisse konnten nicht gespeichert werden.",
   "admin.results.saved": "Ergebnisse gespeichert: {phase}. Die Punkte werden nach einem Klick auf „Punkte neu berechnen“ neu berechnet.",
+  "admin.results.usedElsewhere": "Dieses Team steht bereits in einer anderen Kategorie dieser Phase. Entferne es dort, um es hier zu wählen.",
+  "admin.results.groupFull": "Diese Kategorie ist voll. Entferne ein Team, um ein anderes zu wählen.",
   "admin.results.recalcDone": "Punkte neu berechnet, die Rangliste ist aktualisiert.",
   "admin.results.recalcError": "Die Punkte konnten nicht neu berechnet werden.",
   "admin.results.save": "Ergebnisse der Phase speichern",

@@ -50,6 +50,8 @@ const enAdmin = {
   "admin.results.loadError": "Could not load the stage results.",
   "admin.results.saveError": "Could not save the results.",
   "admin.results.saved": "Results saved: {phase}. The points will be recalculated once you click “Recalculate points”.",
+  "admin.results.usedElsewhere": "This team is already in another category of this stage. Unselect it there to pick it here.",
+  "admin.results.groupFull": "This category is full. Unselect a team to pick a different one.",
   "admin.results.recalcDone": "Points recalculated, the ranking is refreshed.",
   "admin.results.recalcError": "Could not recalculate the points.",
   "admin.results.save": "Save the stage results",

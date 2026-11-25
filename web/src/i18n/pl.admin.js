@@ -51,6 +51,8 @@ const plAdmin = {
   "admin.results.loadError": "Nie udało się wczytać wyników fazy.",
   "admin.results.saveError": "Nie udało się zapisać wyników.",
   "admin.results.saved": "Zapisano wyniki: {phase}. Punkty przeliczą się po kliknięciu „Przelicz punkty”.",
+  "admin.results.usedElsewhere": "Ta drużyna jest już w innej kategorii tego etapu. Odznacz ją tam, żeby wybrać ją tutaj.",
+  "admin.results.groupFull": "Ta kategoria jest pełna. Odznacz którąś drużynę, żeby wybrać inną.",
   "admin.results.recalcDone": "Punkty przeliczone, ranking odświeżony.",
   "admin.results.recalcError": "Nie udało się przeliczyć punktów.",
   "admin.results.save": "Zapisz wyniki fazy",

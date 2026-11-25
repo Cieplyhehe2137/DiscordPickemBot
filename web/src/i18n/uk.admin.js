@@ -51,6 +51,8 @@ const ukAdmin = {
   "admin.results.loadError": "Не вдалося завантажити результати стадії.",
   "admin.results.saveError": "Не вдалося зберегти результати.",
   "admin.results.saved": "Результати збережено: {phase}. Бали перерахуються після натискання «Перерахувати бали».",
+  "admin.results.usedElsewhere": "Ця команда вже в іншій категорії цього етапу. Зніміть її там, щоб обрати тут.",
+  "admin.results.groupFull": "Ця категорія заповнена. Зніміть якусь команду, щоб обрати іншу.",
   "admin.results.recalcDone": "Бали перераховано, рейтинг оновлено.",
   "admin.results.recalcError": "Не вдалося перерахувати бали.",
   "admin.results.save": "Зберегти результати стадії",
