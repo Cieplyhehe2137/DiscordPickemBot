@@ -1971,7 +1971,12 @@ export default function AdminPage() {
             {t("adminPage.section.phases", { name: selectedEvent.name })}
           </h2>
 
-          <PhaseResultsAdmin slug={selectedEvent.slug} teams={adminTeams} />
+          {/* Roster TURNIEJU, nie słownik serwera. Serwer sprawdza wynik
+              fazy przez loadEventTeamNames i odrzuca cały zapis słowami
+              „Te drużyny nie należą do tego turnieju", więc oferowanie tu
+              wszystkich drużyn serwera zapraszało do wyboru, który i tak
+              nie przejdzie - a odmowa przychodzi dopiero po „Zapisz". */}
+          <PhaseResultsAdmin slug={selectedEvent.slug} teams={matchTeams} />
         </section>
       )}
       {activeAdminSection === "pickemcfg" && selectedEvent && (

@@ -12,6 +12,7 @@ import {
   getDoubleElimResults,
   saveDoubleElimResults,
   recalculateScores,
+  getEventPickemConfig,
 } from "../../lib/api.js";
 
 // Wpisywanie oficjalnych wyników faz Pick'Em.
@@ -145,7 +146,69 @@ function PhaseResultsAdmin({ slug, teams }) {
   const [komunikat, setKomunikat] = useState("");
   const [blad, setBlad] = useState("");
 
+  // Limity z KONFIGURACJI TURNIEJU, nie wpisane w ten plik. Serwer sprawdza
+  // zapis właśnie nimi (getPhaseLimits), więc formularz przycinający do
+  // własnych liczb pozwalałby kliknąć więcej, niż zapis przyjmie - i odmowa
+  // przychodziłaby dopiero po „Zapisz", bez zapisania czegokolwiek.
+  const [limityFaz, setLimityFaz] = useState(null);
+
   const konfiguracja = FAZY[faza];
+
+  useEffect(() => {
+    let anulowane = false;
+
+    (async () => {
+      try {
+        const dane = await getEventPickemConfig(slug);
+
+        if (anulowane) return;
+
+        const mapa = {};
+
+        for (const f of dane?.fazy ?? []) mapa[f.faza] = f.limity || {};
+
+        setLimityFaz(mapa);
+      } catch (err) {
+        // Brak konfiguracji nie może zabrać możliwości wpisania wyniku -
+        // zostają wtedy liczby wpisane w FAZY jako zapas.
+        console.error("PHASE RESULTS LIMITS:", err);
+
+        if (!anulowane) setLimityFaz({});
+      }
+    })();
+
+    return () => {
+      anulowane = true;
+    };
+  }, [slug]);
+
+  /** Limit grupy: z konfiguracji turnieju, a w zapasie z FAZY. */
+  function limitGrupy(grupa) {
+    const z = limityFaz?.[faza]?.[grupa.klucz];
+
+    return Number.isFinite(Number(z)) ? Number(z) : grupa.limit;
+  }
+
+  /**
+   * Drużyny zajęte w INNEJ grupie tego etapu.
+   *
+   * Serwer odrzuca cały zapis, gdy drużyna stoi w dwóch kategoriach
+   * („Drużyna nie może wystąpić w więcej niż jednej kategorii") - i odrzuca
+   * go w całości, więc przepadają też poprawnie wpisane 3-0 i 0-3. Bot nie
+   * dopuszcza do tego, bo w ogóle nie pokazuje zajętych drużyn; tutaj było
+   * odwrotnie: klikalne wszystko, a odmowa dopiero po zapisie.
+   */
+  function zajeteGdzieIndziej(klucz) {
+    const zajete = new Set();
+
+    for (const g of konfiguracja.grupy) {
+      if (g.klucz === klucz) continue;
+
+      for (const nazwa of wartosci[g.klucz] || []) zajete.add(nazwa);
+    }
+
+    return zajete;
+  }
 
   useEffect(() => {
     let anulowane = false;
@@ -256,6 +319,9 @@ function PhaseResultsAdmin({ slug, teams }) {
       {!ladowanie &&
         konfiguracja.grupy.map((grupa) => {
           const wybrane = wartosci[grupa.klucz] || [];
+          const limit = limitGrupy(grupa);
+          const zajete = zajeteGdzieIndziej(grupa.klucz);
+          const pelna = wybrane.length >= limit;
 
           return (
             <div
@@ -264,14 +330,26 @@ function PhaseResultsAdmin({ slug, teams }) {
             >
               <h4>
                 {t(grupa.kluczNapisu)}
-                <span className="ui-count">
-                  {wybrane.length}/{grupa.limit}
+                <span className={`ui-count ${pelna ? "ui-count--done" : ""}`}>
+                  {wybrane.length}/{limit}
                 </span>
               </h4>
+
+              {/* Kliknięcie po wyczerpaniu limitu było do tej pory po cichu
+                  ignorowane - wyglądało jak zawieszony przycisk. */}
+              {pelna && (
+                <p className="ui-hint">{t("admin.results.groupFull")}</p>
+              )}
 
               <div className="ui-choice ui-choice--grid">
                 {teams.map((team) => {
                   const zaznaczona = wybrane.includes(team.name);
+                  const gdzieIndziej = zajete.has(team.name);
+
+                  // Pełna kategoria nie blokuje ODZNACZANIA - inaczej nie
+                  // dałoby się poprawić pomyłki bez czyszczenia wszystkiego.
+                  const zablokowana =
+                    gdzieIndziej || (pelna && !zaznaczona);
 
                   return (
                     <button
@@ -279,9 +357,13 @@ function PhaseResultsAdmin({ slug, teams }) {
                       type="button"
                       className="ui-choice__option"
                       aria-pressed={zaznaczona}
-                      onClick={() =>
-                        przelacz(grupa.klucz, team.name, grupa.limit)
+                      disabled={zablokowana}
+                      title={
+                        gdzieIndziej
+                          ? t("admin.results.usedElsewhere")
+                          : undefined
                       }
+                      onClick={() => przelacz(grupa.klucz, team.name, limit)}
                     >
                       {team.name}
                     </button>
