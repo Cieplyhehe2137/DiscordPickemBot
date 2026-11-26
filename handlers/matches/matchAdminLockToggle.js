@@ -4,8 +4,7 @@ const { PermissionFlagsBits } = require("discord.js");
 const { withGuild } = require("../../utils/guildContext");
 const { getMatchById, setMatchLock } = require("../../utils/matchesStore");
 const { logInfo, logWarn, logError } = require("../../utils/logger");
-const { isMatchStarted } = require("../../utils/matchLock");
-const { DateTime } = require("luxon");
+const { isMatchLocked } = require("../../utils/matchLock");
 
 function hasAdminPerms(interaction) {
   const perms = interaction.memberPermissions;
@@ -51,17 +50,20 @@ module.exports = async function matchAdminLockToggle(interaction) {
         });
       }
 
-      const nowUtc = DateTime.utc();
-      const started = isMatchStarted(match, nowUtc, 0);
+      // STAN BIERZEMY Z REGUŁY, nie z surowej kolumny.
+      //
+      // `match.is_locked` pomija `lock_override`, więc mecz odblokowany
+      // w panelu WWW (override = 0, kolumna nadal 1) wyglądał tu na
+      // zablokowany - a warunek niżej odmawiał wtedy odblokowania, bo mecz
+      // „już wystartował". Admin dostawał odmowę dla meczu, który sam przed
+      // chwilą otworzył gdzie indziej.
+      const zablokowany = isMatchLocked(match);
 
-      if (match.is_locked && started) {
-        return interaction.reply({
-          content: `🔒 Nie można odblokować – mecz **${match.team_a} vs ${match.team_b}** już wystartował`,
-          ephemeral: true,
-        });
-      }
-
-      const newVal = match.is_locked ? 0 : 1;
+      // Start meczu NIE blokuje już ręcznej decyzji. Panel WWW pozwala
+      // otworzyć mecz po starcie (po to jest override), więc bot odmawiający
+      // tego samego stawiał te dwa wejścia w sprzeczności. Zapis idzie przez
+      // override, czyli jawne „nie pytaj zegara".
+      const newVal = zablokowany ? 0 : 1;
 
       await setMatchLock(pool, guildId, match.id, newVal);
 

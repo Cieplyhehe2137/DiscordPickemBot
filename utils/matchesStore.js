@@ -20,15 +20,28 @@ async function getMatchById(pool, guildId, matchId) {
   return match || null;
 }
 
+// Blokada ustawiona RĘCZNIE przez admina zapisuje obie kolumny.
+//
+// Sam `is_locked` nie wystarczy: isMatchLocked() patrzy najpierw na
+// `lock_override`, więc po jednym odblokowaniu z panelu WWW (które ustawia
+// override) przełącznik w bocie przestawał cokolwiek zmieniać - zapisywał
+// kolumnę, której reguła już nie czyta. Druga strona tej samej monety:
+// zapisanie samego override zostawiało `is_locked` na starej wartości
+// i każdy widok czytający surową kolumnę pokazywał nieprawdę.
+//
+// `lock_override` niesie też decyzję "nie pytaj zegara", a o to właśnie
+// chodzi, gdy admin klika blokadę po starcie meczu. Tryb automatyczny
+// (override = NULL) ustawia się osobno, z panelu WWW.
 async function setMatchLock(pool, guildId, matchId, locked) {
   const [result] = await pool.query(
     `
     UPDATE matches
-    SET is_locked = ?
+    SET is_locked = ?,
+        lock_override = ?
     WHERE id = ?
       AND guild_id = ?
     `,
-    [locked ? 1 : 0, matchId, guildId],
+    [locked ? 1 : 0, locked ? 1 : 0, matchId, guildId],
   );
 
   return result.affectedRows > 0;

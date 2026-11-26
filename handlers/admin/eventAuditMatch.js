@@ -3,6 +3,7 @@ const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const { withGuild } = require("../../utils/guildContext");
 const { getActiveEventId } = require("../../utils/getOpenEventId");
 const { logError } = require("../../utils/logger");
+const { isMatchLocked } = require("../../utils/matchLock");
 
 function isAdmin(interaction) {
   return interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
@@ -53,6 +54,7 @@ module.exports = async function eventAuditMatch(interaction) {
           m.team_b,
           m.best_of,
           m.is_locked,
+          m.lock_override,
           m.start_time_utc,
           r.res_a,
           r.res_b
@@ -328,7 +330,15 @@ module.exports = async function eventAuditMatch(interaction) {
           {
             name: "⚙️ Stan",
             value:
-              `Lock: **${Number(match.is_locked) ? "🔒 TAK" : "🔓 NIE"}**\n` +
+              // Reguła, nie surowa kolumna: `is_locked` pomija lock_override,
+              // więc diagnostyka pokazywała "🔒 TAK" dla meczu odblokowanego
+              // ręcznie. Tryb dopisany obok, bo to on tłumaczy wynik.
+              `Lock: **${isMatchLocked(match) ? "🔒 TAK" : "🔓 NIE"}** ` +
+              `(${
+                match.lock_override === null || match.lock_override === undefined
+                  ? "auto"
+                  : "ręcznie"
+              })\n` +
               `Godzina: **${
                 match.start_time_utc ? match.start_time_utc : "BRAK"
               }**`,
