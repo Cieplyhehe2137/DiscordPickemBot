@@ -72,7 +72,13 @@ async function sendMatchList({
     m.team_b,
     m.best_of,
     m.is_locked,
+
+    -- Bez tej kolumny isMatchLocked() nizej nie widzi recznej decyzji admina
+    -- i rysuje klodke przy meczu, ktory zostal otwarty z panelu.
+    m.lock_override,
     m.start_time_utc,
+
+    mr.match_id IS NOT NULL AS has_result,
 
     mp.pred_a,
     mp.pred_b,
@@ -102,6 +108,12 @@ async function sendMatchList({
 
   FROM matches m
 
+  -- Tylko po to, zeby rozstrzygniete mecze zeszly na dol listy.
+  LEFT JOIN match_results mr
+    ON mr.guild_id = m.guild_id
+    AND mr.event_id = m.event_id
+    AND mr.match_id = m.id
+
   LEFT JOIN match_predictions mp
     ON mp.guild_id = m.guild_id
     AND mp.event_id = m.event_id
@@ -127,7 +139,28 @@ async function sendMatchList({
     AND m.event_id = ?
     AND m.phase = ?
 
-  ORDER BY COALESCE(m.match_no, 999999), m.id
+  -- NAJPIERW TO, CO DA SIE JESZCZE OBSTAWIC.
+  --
+  -- Lista jest stronicowana, wiec sortowanie musi isc w SQL - ulozenie
+  -- dopiero pobranej strony przestawialoby tylko jej wnetrze. Przy 33
+  -- meczach etapu i 30 rozegranych gracz musial przeklikac do ostatniej
+  -- strony, zeby znalezc cokolwiek otwartego.
+  --
+  -- Kolejnosc warunkow powtarza utils/matchLock.js: reczna decyzja admina
+  -- przed kolumna i przed zegarem. Wynik meczu sprawdzamy jako pierwszy,
+  -- bo rozstrzygnietego i tak nie ma po co typowac.
+  ORDER BY
+    CASE
+      WHEN mr.match_id IS NOT NULL THEN 2
+      WHEN m.lock_override = 0 THEN 0
+      WHEN m.lock_override = 1 THEN 1
+      WHEN m.is_locked = 1 THEN 1
+      WHEN m.start_time_utc IS NOT NULL
+        AND m.start_time_utc <= UTC_TIMESTAMP() THEN 1
+      ELSE 0
+    END ASC,
+    COALESCE(m.match_no, 999999) ASC,
+    m.id ASC
   LIMIT ? OFFSET ?
   `,
       [userId, userId, guildId, eventId, phaseKey, PAGE_SIZE + 1, offset],
