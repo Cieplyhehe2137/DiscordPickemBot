@@ -302,12 +302,21 @@ export function registerMatchRoutes(
         let override = null;
         let isLocked = Number(currentMatch.is_locked) === 1;
 
+        // `is_locked` MUSI iść za decyzją, nie zostawać na starej wartości.
+        // Wcześniej "unlock" ustawiał sam `lock_override = 0` i zostawiał
+        // `is_locked = 1`. Dla typowania było to bez znaczenia, bo
+        // utils/matchLock.js patrzy najpierw na override - ale każde miejsce
+        // czytające surową kolumnę (bot, przegląd publiczny) pokazywało mecz
+        // jako zablokowany, a przycisk blokady w bocie wręcz odmawiał
+        // działania słowami "mecz już wystartował".
         if (mode === "lock") {
           override = 1;
+          isLocked = true;
         }
 
         if (mode === "unlock") {
           override = 0;
+          isLocked = false;
         }
 
         if (mode === "auto") {

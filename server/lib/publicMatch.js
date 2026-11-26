@@ -32,6 +32,18 @@ export function formatPublicDate(startTimeUtc) {
 }
 
 export function getPublicMatchStatus(match) {
+  // RĘCZNA DECYZJA ADMINA MA PIERWSZEŃSTWO przed kolumną `is_locked`
+  // i przed zegarem - dokładnie tak, jak liczy to utils/matchLock.js,
+  // czyli autorytet, którym kierują się bramki typowania.
+  //
+  // Bez tego widok kłamał: odblokowanie meczu na stronie ustawia
+  // `lock_override = 0`, ale zostawia `is_locked = 1`, więc mecz otwarty
+  // do typowania pokazywał się jako LOCKED. Kolejność warunków jest ta
+  // sama, co w CASE w server/lib/matchQueries.js.
+  if (match.lock_override !== null && match.lock_override !== undefined) {
+    return Number(match.lock_override) === 1 ? "LOCKED" : "OPEN";
+  }
+
   if (Number(match.is_locked) === 1) {
     return "LOCKED";
   }

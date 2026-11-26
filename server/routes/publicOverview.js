@@ -350,13 +350,18 @@ export function registerPublicOverviewRoutes(
     m.best_of,
     m.start_time_utc,
     m.is_locked,
+    m.lock_override,
 
     COALESCE(lms.score_a, 0) AS score_a,
     COALESCE(lms.score_b, 0) AS score_b,
     lms.current_map,
     lms.status AS live_status,
 
+    -- Reczna decyzja admina przed kolumna i przed zegarem - ta sama
+    -- kolejnosc, co w server/lib/matchQueries.js i utils/matchLock.js.
     CASE
+      WHEN m.lock_override = 1 THEN 'LOCKED'
+      WHEN m.lock_override = 0 THEN 'OPEN'
       WHEN m.is_locked = 1 THEN 'LOCKED'
       ELSE 'OPEN'
     END AS ui_status
