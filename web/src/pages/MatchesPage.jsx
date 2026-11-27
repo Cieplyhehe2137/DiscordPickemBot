@@ -11,6 +11,7 @@ import { getEventMatches } from "../lib/api.js";
 import { humanPhase } from "../lib/phaseLabels.js";
 import {
   filterMatches,
+  sortMatches,
   phasesFromMatches,
   teamsFromMatches,
   STATE_KEYS,
@@ -102,11 +103,14 @@ function MatchesPage() {
 
   const wszystkieMecze = matches?.matches ?? [];
 
-  const filteredMatches = filterMatches(wszystkieMecze, {
-    phase: selectedPhase,
-    team: selectedTeam,
-    state: selectedState,
-  });
+  // Najpierw odsiew, potem kolejnosc - otwarte mecze na gorze.
+  const filteredMatches = sortMatches(
+    filterMatches(wszystkieMecze, {
+      phase: selectedPhase,
+      team: selectedTeam,
+      state: selectedState,
+    }),
+  );
 
   // Listy do wyboru powstają z pobranych meczów, więc nie da się wybrać
   // filtru, który niczego nie pokaże.

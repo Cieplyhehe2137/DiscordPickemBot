@@ -70,6 +70,48 @@ function tenSamEtap(a, b) {
   return String(a || "").toLowerCase() === String(b || "").toLowerCase();
 }
 
+// Kolejność stanów na liście: najpierw to, co da się jeszcze obstawić.
+//
+// Lista szła dotąd po numerze meczu, czyli w kolejności rozgrywania - a to
+// znaczy, że im dalej w turniej, tym więcej rozegranych spotkań trzeba
+// przewinąć, zanim zobaczy się cokolwiek otwartego. Przy 33 meczach etapu
+// i 30 rozstrzygniętych otwarte wisiały na samym dole.
+const KOLEJNOSC_STANOW = { open: 0, locked: 1, finished: 2 };
+
+/**
+ * Mecze ułożone stanem, a w obrębie stanu po numerze.
+ *
+ * Nie zmienia zawartości listy - samą kolejność. Filtr po stanie działa
+ * dalej tak samo i nadal pozwala zawęzić widok do jednej grupy.
+ */
+export function sortMatches(matches) {
+  return [...(matches || [])].sort((a, b) => {
+    const sa = KOLEJNOSC_STANOW[matchState(a)] ?? 9;
+    const sb = KOLEJNOSC_STANOW[matchState(b)] ?? 9;
+
+    if (sa !== sb) return sa - sb;
+
+    // Numer meczu bywa pusty - takie mecze lądują na końcu swojej grupy.
+    //
+    // Pustkę trzeba odrzucić PRZED Number(): `Number(null)` to zero, a nie
+    // NaN, więc mecz bez numeru wskakiwałby na samą górę zamiast na dół.
+    const numer = (m) => {
+      const surowy = m?.match_no;
+
+      if (surowy === null || surowy === undefined || surowy === "") return 1e9;
+
+      const n = Number(surowy);
+
+      return Number.isFinite(n) ? n : 1e9;
+    };
+
+    const na = numer(a);
+    const nb = numer(b);
+
+    return na - nb || Number(a?.id ?? 0) - Number(b?.id ?? 0);
+  });
+}
+
 /**
  * Odsiewa mecze według wybranych filtrów.
  *
