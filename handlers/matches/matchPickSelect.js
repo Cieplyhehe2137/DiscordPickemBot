@@ -128,6 +128,11 @@ module.exports = async function matchPickSelect(interaction) {
           team_b,
           best_of,
           is_locked,
+
+          -- Bez tej kolumny isMatchLocked() nizej nie widzi recznej decyzji
+          -- admina: mecz odblokowany w panelu WWW ustawia lock_override = 0,
+          -- a tutaj dalej wychodzil jako zablokowany.
+          lock_override,
           start_time_utc
         FROM matches
         WHERE guild_id = ?
