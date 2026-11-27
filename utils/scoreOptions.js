@@ -1,41 +1,52 @@
 // utils/scoreOptions.js
 
 /**
- * Zwraca listę opcji do dropdowna wyniku, zależnie od BO.
- * value MA FORMAT "A:B"
+ * Opcje dropdowna z wynikiem serii.
+ *
+ * ETYKIETA IDZIE Z PERSPEKTYWY ZWYCIĘZCY, a `value` zostaje w formacie
+ * "A:B" - czyli tak, jak wynik leży w bazie (pred_a:pred_b).
+ *
+ * DLACZEGO TO DWIE RÓŻNE RZECZY. Wcześniej etykieta szła za wartością
+ * i wygrana drugiej drużyny wyświetlała się jako „0-2 Heroic": liczby
+ * z punktu widzenia pierwszej drużyny, nazwa drugiej. Czyta się to jak
+ * porażkę Heroic, a znaczy jej zwycięstwo 2-0. Strona nie miała tego
+ * problemu - web/src/pages/MatchPage.jsx odwraca liczby przy wygranej
+ * gospodarza wyjazdowego - więc bot był jedynym miejscem z tym zapisem.
+ *
+ * ODWRACAMY WYŁĄCZNIE NAPIS. Gdyby odwrócić `value`, każdy typ na drugą
+ * drużynę zapisałby się jako typ na pierwszą i cała punktacja poszłaby
+ * w odwrotną stronę - to jest ten rodzaj błędu, który wychodzi dopiero
+ * przy rozliczeniu turnieju.
  */
 
+// Ile wygranych map kończy serię. Klucz to format serii.
+const MAP_DO_WYGRANEJ = { 1: 1, 3: 2, 5: 3 };
+
 function scoreOptionsForBo(bestOf, teamA = "Team A", teamB = "Team B") {
-  const bo = Number(bestOf);
+  const doWygranej = MAP_DO_WYGRANEJ[Number(bestOf)];
 
-  if (bo === 1) {
-    return [
-      { label: `1-0 ${teamA}`, value: "1:0" },
-      { label: `0-1 ${teamB}`, value: "0:1" },
-    ];
+  if (!doWygranej) return [];
+
+  const opcje = [];
+
+  // Wygrana pierwszej drużyny: etykieta i wartość mówią to samo.
+  for (let przegrane = 0; przegrane < doWygranej; przegrane += 1) {
+    opcje.push({
+      label: `${doWygranej}-${przegrane} ${teamA}`,
+      value: `${doWygranej}:${przegrane}`,
+    });
   }
 
-  if (bo === 3) {
-    return [
-      { label: `2-0 ${teamA}`, value: "2:0" },
-      { label: `2-1 ${teamA}`, value: "2:1" },
-      { label: `0-2 ${teamB}`, value: "0:2" },
-      { label: `1-2 ${teamB}`, value: "1:2" },
-    ];
+  // Wygrana drugiej drużyny: etykieta liczy od zwycięzcy, wartość nadal
+  // od pierwszej drużyny.
+  for (let przegrane = 0; przegrane < doWygranej; przegrane += 1) {
+    opcje.push({
+      label: `${doWygranej}-${przegrane} ${teamB}`,
+      value: `${przegrane}:${doWygranej}`,
+    });
   }
 
-  if (bo === 5) {
-    return [
-      { label: `3-0 ${teamA}`, value: "3:0" },
-      { label: `3-1 ${teamA}`, value: "3:1" },
-      { label: `3-2 ${teamA}`, value: "3:2" },
-      { label: `0-3 ${teamB}`, value: "0:3" },
-      { label: `1-3 ${teamB}`, value: "1:3" },
-      { label: `2-3 ${teamB}`, value: "2:3" },
-    ];
-  }
-
-  return [];
+  return opcje;
 }
 
 module.exports = { scoreOptionsForBo };
